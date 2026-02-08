@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shiki Plan",
+  "type": "object",
+  "required": [
+    "goal",
+    "acceptance_criteria",
+    "milestones",
+    "team"
+  ],
+  "properties": {
+    "goal": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["cli", "github", "hybrid"],
+      "description": "Execution mode for this plan"
+    },
+    "theta_phase": {
+      "type": "string",
+      "enum": [
+        "understand",
+        "generate",
+        "allocate",
+        "execute",
+        "verify",
+        "integrate"
+      ],
+      "description": "Current convergence phase"
+    },
+    "convergence_iteration": {
+      "type": "integer",
+      "description": "Number of theta cycle iterations performed",
+      "default": 0
+    },
+    "budget_estimate": {
+      "type": "object",
+      "properties": {
+        "total_tokens": { "type": "integer" },
+        "per_task_avg": { "type": "integer" },
+        "confidence": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "dag": {
+      "type": "object",
+      "properties": {
+        "dag_id": { "type": "string" },
+        "nodes_count": { "type": "integer" },
+        "max_parallel": { "type": "integer" },
+        "estimated_batches": { "type": "integer" }
+      },
+      "additionalProperties": true,
+      "description": "Reference to DAG execution graph"
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "milestones": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "team": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "focus"
+        ],
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "plan",
+              "standard",
+              "delegate"
+            ],
+            "default": "plan"
+          },
+          "authority_layer": {
+            "type": "string",
+            "enum": [
+              "coordinator",
+              "executor",
+              "monitor"
+            ],
+            "description": "Authority level for this team member"
+          }
+        }
+      }
+    },
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": true
+}

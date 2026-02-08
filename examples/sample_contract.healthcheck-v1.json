@@ -1,0 +1,14 @@
+{
+  "contract_id": "healthcheck-v1",
+  "status": "proposed",
+  "defined_by": "claude-team",
+  "implemented_by": "codex",
+  "interface": {
+    "endpoint": "GET /health",
+    "response": {
+      "status": "ok",
+      "time": "ISO8601"
+    }
+  },
+  "tests_path": "tests/contracts/test_health.py"
+}

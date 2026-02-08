@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shiki Session State",
+  "description": "Session state for recovery across CLI/GitHub modes",
+  "type": "object",
+  "required": [
+    "session_id",
+    "mode",
+    "timestamp"
+  ],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "Unique session identifier"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["cli", "github"],
+      "description": "Mode this session was running in"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "team_name": {
+      "type": ["string", "null"],
+      "description": "Agent Teams team name (CLI mode)"
+    },
+    "members": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "role": { "type": "string" },
+          "authority_layer": {
+            "type": "string",
+            "enum": ["coordinator", "executor", "monitor"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "idle", "terminated"]
+          }
+        },
+        "required": ["name", "role"]
+      },
+      "description": "Team members at time of snapshot"
+    },
+    "active_tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "string" },
+          "status": { "type": "string" },
+          "assigned_to": { "type": "string" },
+          "claimed_by": { "type": ["string", "null"] }
+        },
+        "required": ["task_id", "status"]
+      },
+      "description": "Tasks that were active at snapshot time"
+    },
+    "theta_phase": {
+      "type": "string",
+      "enum": [
+        "understand",
+        "generate",
+        "allocate",
+        "execute",
+        "verify",
+        "integrate"
+      ],
+      "description": "Convergence phase at snapshot time"
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "tokens_used": { "type": "integer" },
+        "tokens_remaining": { "type": "integer" },
+        "budget_limit": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "dag_ref": {
+      "type": ["string", "null"],
+      "description": "Active DAG file reference"
+    },
+    "git_state": {
+      "type": "object",
+      "properties": {
+        "branch": { "type": "string" },
+        "commit_sha": { "type": "string" },
+        "dirty_files": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form notes about session state"
+    }
+  },
+  "additionalProperties": true
+}

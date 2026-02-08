@@ -1,0 +1,65 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/pre_bash_guard.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/post_edit_quality.py"
+          }
+        ]
+      },
+      {
+        "matcher": "TaskCreate|TaskUpdate",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/post_task_sync.py"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/session_start_inject_context.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/ldd_logger.py session_start"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/on_stop_report.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/ldd_logger.py session_stop"
+          }
+        ]
+      }
+    ]
+  }
+}

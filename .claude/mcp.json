@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "github-enhanced": {
+      "command": "node",
+      "args": [
+        ".claude/mcp-servers/github-enhanced.cjs"
+      ],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}",
+        "REPOSITORY": "${REPOSITORY}"
+      },
+      "timeout": 120000,
+      "disabled": true,
+      "description": "Enhanced GitHub operations for Issue/PR management and label-driven automation"
+    },
+    "project-context": {
+      "command": "node",
+      "args": [
+        ".claude/mcp-servers/project-context.cjs"
+      ],
+      "timeout": 120000,
+      "disabled": true,
+      "description": "Project-specific context: task state, contract status, DAG progress, budget tracking"
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "."
+      ],
+      "timeout": 120000,
+      "disabled": true,
+      "description": "Filesystem access for project files"
+    }
+  }
+}

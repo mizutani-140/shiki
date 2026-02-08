@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shiki DAG",
+  "description": "Directed Acyclic Graph for task execution ordering",
+  "type": "object",
+  "required": [
+    "dag_id",
+    "nodes",
+    "edges"
+  ],
+  "properties": {
+    "dag_id": {
+      "type": "string",
+      "description": "Unique DAG identifier"
+    },
+    "plan_ref": {
+      "type": "string",
+      "description": "Reference to the plan that generated this DAG"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    "theta_phase": {
+      "type": "string",
+      "enum": [
+        "understand",
+        "generate",
+        "allocate",
+        "execute",
+        "verify",
+        "integrate"
+      ]
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["node_id", "task_id"],
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "description": "Unique node identifier within this DAG"
+          },
+          "task_id": {
+            "type": "string",
+            "description": "Reference to .shiki/tasks/<task_id>.json"
+          },
+          "batch": {
+            "type": "integer",
+            "description": "Parallel batch number (0-indexed). Nodes in same batch run concurrently"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "completed", "failed", "skipped"],
+            "default": "pending"
+          },
+          "worktree_branch": {
+            "type": ["string", "null"],
+            "description": "Git worktree branch for this node (GitHub mode)"
+          },
+          "engine": {
+            "type": "string",
+            "enum": ["claude-team", "claude-leader", "claude-member", "codex", "human"],
+            "description": "Execution engine for this node"
+          },
+          "estimated_tokens": {
+            "type": "integer"
+          },
+          "actual_tokens": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "Source node_id"
+          },
+          "to": {
+            "type": "string",
+            "description": "Target node_id (depends on source)"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["depends_on", "blocks", "suggests"],
+            "default": "depends_on"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "total_batches": { "type": "integer" },
+        "current_batch": { "type": "integer" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,119 @@
+version: 2
+name: shiki
+
+# --- Mode Detection ---
+# auto: detect from environment (GITHUB_ACTIONS=true → github, else → cli)
+# cli:  force CLI mode (Agent Teams native)
+# github: force GitHub mode (Issue/Label/Worktree driven)
+mode: auto
+
+communication:
+  primary: mcp
+  fallback: file-bridge
+
+# --- CLI Mode Settings ---
+cli:
+  display: tmux          # tmux | iterm2 | in-process
+  delegate_mode: true    # Leader uses Delegate Mode (no Edit/Write)
+  self_claim: true       # Members can self-claim unassigned tasks
+  plan_mode_required: true  # Members start in Plan Mode
+
+# --- GitHub Mode Settings ---
+github:
+  enabled: true
+  worktree:
+    enabled: true
+    base_dir: ../worktrees
+    cleanup_on_merge: true
+  dag:
+    max_parallel_batch: 4
+    timeout_minutes: 30
+  budget:
+    max_tokens_per_task: 100000
+    max_tokens_per_session: 500000
+    warn_threshold_pct: 80
+
+# --- Convergence Model (theta phases) ---
+convergence:
+  theta_1_understand:
+    description: "Goal comprehension and scope definition"
+    exit_criteria: ["acceptance_criteria_defined", "scope_bounded"]
+  theta_2_generate:
+    description: "Plan generation and task decomposition"
+    exit_criteria: ["plan_created", "tasks_decomposed", "contracts_drafted"]
+  theta_3_allocate:
+    description: "Resource allocation and DAG construction"
+    exit_criteria: ["dag_valid", "roles_assigned", "dependencies_resolved"]
+  theta_4_execute:
+    description: "Implementation and testing"
+    exit_criteria: ["all_tasks_completed", "acceptance_passed"]
+  theta_5_verify:
+    description: "Review, security, and quality verification"
+    exit_criteria: ["review_approved", "security_passed", "contracts_verified"]
+  theta_6_integrate:
+    description: "Integration, merge, and release"
+    exit_criteria: ["ci_passed", "merged", "deployed_or_tagged"]
+
+# --- Codex Integration ---
+codex:
+  enabled: true
+  sandbox: workspace-write
+  max_turns: 10
+  fallback_on_failure: claude-team
+
+# --- State Machines ---
+states:
+  plan: [proposed, approved]
+  contract: [proposed, agreed, implemented, verified, integrated]
+  task: [pending, in_progress, review, completed, blocked, failed]
+  theta: [understand, generate, allocate, execute, verify, integrate]
+
+# --- Guardian (Human Final Authority) ---
+guardian:
+  enabled: true
+  github_username: ""           # Set to your GitHub username
+  escalation_label: "guardian-review"
+  budget_emergency_threshold_pct: 150
+  auto_approve:
+    theta_phase_transitions: false
+    budget_increase: false
+    deploy_staging: true
+    deploy_production: false
+
+# --- Verification Auto-Loop (exec verify) ---
+verification:
+  max_iterations: 10            # Default max retry count
+  max_iterations_performance: 5 # Performance optimization (expensive)
+  max_iterations_security: 3    # Security fixes (critical)
+  checks:
+    - lint
+    - typecheck
+    - test
+    - security
+  escalate_on_max: true         # Escalate to guardian when max reached
+
+# --- Log-Driven Development (LDD) ---
+ldd:
+  enabled: true
+  log_dir: .ai/logs
+  format: "YYYY-MM-DD.md"
+  sections:
+    - intent
+    - plan
+    - implementation
+    - verification
+
+# --- Defaults ---
+defaults:
+  max_team_size: 5
+  task_lease_minutes: 120
+
+# --- Paths ---
+paths:
+  tasks: .shiki/tasks
+  contracts: .shiki/contracts
+  plans: .shiki/plans
+  reports: .shiki/reports
+  schemas: .shiki/schemas
+  dag: .shiki/dag
+  state: .shiki/state

@@ -1,0 +1,81 @@
+{
+  "session_id": "session-20250115-143022",
+  "mode": "cli",
+  "timestamp": "2025-01-15T14:30:22.000Z",
+  "team_name": "web-app-dev",
+  "members": [
+    {
+      "name": "leader",
+      "role": "TeamLeader",
+      "authority_layer": "coordinator",
+      "status": "active"
+    },
+    {
+      "name": "frontend-dev",
+      "role": "Implementer",
+      "authority_layer": "executor",
+      "status": "active"
+    },
+    {
+      "name": "backend-dev",
+      "role": "Implementer",
+      "authority_layer": "executor",
+      "status": "idle"
+    },
+    {
+      "name": "qa-engineer",
+      "role": "QA",
+      "authority_layer": "executor",
+      "status": "active"
+    },
+    {
+      "name": "security-reviewer",
+      "role": "SecurityReviewer",
+      "authority_layer": "monitor",
+      "status": "idle"
+    }
+  ],
+  "active_tasks": [
+    {
+      "task_id": "T-0002",
+      "status": "in_progress",
+      "assigned_to": "claude-member",
+      "claimed_by": "frontend-dev"
+    },
+    {
+      "task_id": "T-0003",
+      "status": "review",
+      "assigned_to": "claude-member",
+      "claimed_by": "backend-dev"
+    },
+    {
+      "task_id": "T-0005",
+      "status": "pending",
+      "assigned_to": "claude-team",
+      "claimed_by": null
+    },
+    {
+      "task_id": "T-0006",
+      "status": "blocked",
+      "assigned_to": "claude-team",
+      "claimed_by": null
+    }
+  ],
+  "theta_phase": "execute",
+  "budget": {
+    "tokens_used": 185000,
+    "tokens_remaining": 315000,
+    "budget_limit": 500000
+  },
+  "dag_ref": ".shiki/dag/DAG-WEB-001.json",
+  "git_state": {
+    "branch": "feature/web-app",
+    "commit_sha": "a1b2c3d",
+    "dirty_files": [
+      "src/ui/components/Dashboard.tsx",
+      "src/ui/components/Header.tsx",
+      ".shiki/tasks/T-0002.json"
+    ]
+  },
+  "notes": "Frontend implementation in progress. Backend API review pending. Integration blocked on frontend+backend completion."
+}

@@ -1,0 +1,159 @@
+name: Shiki - CI AutoFix (Codex)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  autofix:
+    # Enable by setting repository variable SHIKI_CI_AUTOFIX_ENABLED=true
+    if: github.event.workflow_run.conclusion == 'failure' && vars.SHIKI_CI_AUTOFIX_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Check budget before CI fix
+        id: budget
+        shell: bash
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import glob
+          import os
+
+          max_per_session = 500000
+          max_per_task = 100000
+          warn_pct = 80
+
+          try:
+              with open(".shiki/config.yaml", encoding="utf-8") as f:
+                  for line in f:
+                      stripped = line.strip()
+                      if stripped.startswith("max_tokens_per_session:"):
+                          max_per_session = int(stripped.split(":")[1].strip())
+                      elif stripped.startswith("max_tokens_per_task:"):
+                          max_per_task = int(stripped.split(":")[1].strip())
+                      elif stripped.startswith("warn_threshold_pct:"):
+                          warn_pct = int(stripped.split(":")[1].strip())
+          except Exception:
+              pass
+
+          total_actual = 0
+          for task_file in glob.glob(".shiki/tasks/*.json"):
+              try:
+                  with open(task_file, encoding="utf-8") as f:
+                      task = json.load(f)
+                  total_actual += task.get("budget", {}).get("actual_tokens", 0)
+              except (json.JSONDecodeError, OSError):
+                  continue
+
+          remaining = max_per_session - total_actual
+          pct = (total_actual / max_per_session * 100) if max_per_session > 0 else 0
+
+          print(f"Budget: {total_actual}/{max_per_session} ({pct:.1f}%), remaining: {remaining}")
+
+          out_path = os.environ.get("GITHUB_OUTPUT", "/dev/null")
+          with open(out_path, "a") as out:
+              if remaining <= 0:
+                  print("Budget exceeded, cannot attempt CI fix")
+                  out.write("budget_ok=false\n")
+              elif pct >= warn_pct:
+                  print(f"Budget warning: usage at {pct:.1f}% (threshold: {warn_pct}%)")
+                  out.write("budget_ok=true\n")
+                  out.write("budget_warning=true\n")
+              else:
+                  out.write("budget_ok=true\n")
+                  out.write("budget_warning=false\n")
+              out.write(f"remaining_tokens={remaining}\n")
+              out.write(f"budget_pct={pct:.1f}\n")
+          PYEOF
+
+      - name: "θ₄ EXECUTE - Run Codex (fix CI)"
+        if: steps.budget.outputs.budget_ok == 'true'
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt: |
+            You are Codex running in θ₄ EXECUTE phase for CI autofix.
+
+            CI failed. Diagnose the failure using the workflow logs if available in the repo output,
+            fix the smallest possible change, and re-run the relevant tests locally.
+
+            **Budget context:**
+            - Remaining session budget: ${{ steps.budget.outputs.remaining_tokens }} tokens
+            - Budget warning: ${{ steps.budget.outputs.budget_warning }}
+            - Keep the fix minimal to conserve budget
+
+            **Theta phase tracking:**
+            - This is a θ₄ EXECUTE phase operation (CI fix)
+            - Write the report with theta_phase noted
+
+            Write a report to .shiki/reports/CI-FIX-${{ github.run_id }}.md including:
+            - Failure diagnosis
+            - Fix description
+            - Tests run
+            - Budget tokens estimated for this fix
+            - Theta phase: θ₄ EXECUTE (CI-FIX)
+          sandbox: workspace-write
+          output-file: codex-ci-fix.md
+
+      - name: Update labels on fix attempt
+        if: always() && steps.budget.outputs.budget_ok == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Find PRs associated with the failed run
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          HEAD_BRANCH="${{ github.event.workflow_run.head_branch }}"
+
+          # Try to find and label the associated PR
+          PR_NUMBER=$(gh pr list --head "$HEAD_BRANCH" --json number --jq '.[0].number' \
+            --repo "${{ github.repository }}" 2>/dev/null || echo "")
+
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr edit "$PR_NUMBER" \
+              --add-label "auto/ci-fix,theta/4-execute" \
+              --repo "${{ github.repository }}" || true
+          fi
+
+      - name: Create PR with CI fix
+        if: steps.budget.outputs.budget_ok == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "shiki: ci autofix [θ₄ EXECUTE]"
+          title: "Shiki: CI autofix [θ₄]"
+          branch: shiki/ci-fix-${{ github.run_id }}
+          body: |
+            Automated CI fix generated by Codex (θ₄ EXECUTE phase).
+
+            **Budget:** ${{ steps.budget.outputs.budget_pct }}% session budget used
+            **Budget warning:** ${{ steps.budget.outputs.budget_warning }}
+
+            See .shiki/reports and codex-ci-fix.md.
+          labels: ai-codex, ci-fix, theta/4-execute, auto/ci-fix, needs-review
+
+      - name: Budget exceeded notification
+        if: steps.budget.outputs.budget_ok == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "[Shiki] CI fix skipped: budget exceeded" \
+            --body "CI autofix was skipped because the session budget has been exceeded.
+
+          - **Budget usage:** ${{ steps.budget.outputs.budget_pct }}%
+          - **Failed run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }})
+
+          Manual intervention required to fix CI and/or increase budget." \
+            --label "P1-high,status/blocked,ci-fix" \
+            --repo "${{ github.repository }}" || true

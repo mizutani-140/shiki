@@ -1,0 +1,229 @@
+name: Shiki - Orchestrator (Claude)
+
+# θ₁ UNDERSTAND → θ₂ GENERATE → θ₃ ALLOCATE を一気通貫で実行する
+# Issue に "ai-goal" ラベルが付いた時、または "@claude orchestrate" コメントで起動
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  orchestrate:
+    if: >
+      (github.event_name == 'issues' && github.event.label.name == 'ai-goal') ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude orchestrate'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------------------------------------------------------------
+      # Step 1: θ₁ UNDERSTAND - ゴール理解、スコープ確定、受入条件の明確化
+      # ---------------------------------------------------------------
+      - name: "θ₁ UNDERSTAND - Read issue and clarify scope"
+        id: theta1
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the AI Orchestrator performing θ₁ UNDERSTAND phase.
+            Read CLAUDE.md, .shiki/config.yaml, and roles/roles.yaml for context.
+
+            **Current Issue:**
+            - Title: ${{ github.event.issue.title }}
+            - Body: ${{ github.event.issue.body }}
+            - Labels: ${{ join(github.event.issue.labels.*.name, ', ') }}
+
+            **θ₁ UNDERSTAND tasks:**
+            1. Parse the goal and acceptance criteria from the issue
+            2. Identify ambiguities or missing information
+            3. Define scope boundaries (in/out)
+            4. If GOAL.md does not exist, create it from the issue content
+            5. Write a scope clarification summary to .shiki/state/theta1-${{ github.event.issue.number }}.json
+
+            **Exit criteria for θ₁:**
+            - acceptance_criteria_defined: clear, testable acceptance criteria exist
+            - scope_bounded: what is in scope and out of scope is explicit
+
+            Output format: Create/update files, then comment on the issue with:
+            - Parsed goal summary
+            - Acceptance criteria (numbered)
+            - Scope boundaries
+            - Any clarification questions (if ambiguity remains, ask in comment)
+          claude_args: >-
+            --max-turns 8
+
+      # ---------------------------------------------------------------
+      # Step 2: θ₂ GENERATE - 設計、タスク分解、契約策定
+      # ---------------------------------------------------------------
+      - name: "θ₂ GENERATE - Create plan, tasks, and contracts"
+        id: theta2
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the AI Orchestrator performing θ₂ GENERATE phase.
+            Read CLAUDE.md, .shiki/config.yaml, and the θ₁ output in .shiki/state/theta1-${{ github.event.issue.number }}.json.
+            Also read GOAL.md if it exists, and .shiki/schemas/ for JSON structure.
+
+            **θ₂ GENERATE tasks:**
+            1. Create .shiki/plans/PLAN.md with the design proposal
+            2. Decompose the goal into tasks in .shiki/tasks/*.json:
+               - Each task must have: id, title, assigned_to, status=pending, priority, depends_on, acceptance, theta_phase
+               - Include budget.estimated_tokens for each task
+               - Set authority_layer appropriately (coordinator/executor/monitor)
+               - Assign engine: claude-team, codex, or human
+            3. Create contracts in .shiki/contracts/*.json for interface boundaries
+            4. Estimate total budget across all tasks
+
+            **Constraints:**
+            - Do NOT implement features in this workflow
+            - Focus on planning, decomposition, and risk management
+            - Keep team size <= 5 roles
+            - Each task must have clear acceptance criteria (testable commands)
+            - Set theta_phase="execute" for implementation tasks
+
+            **Exit criteria for θ₂:**
+            - plan_created: PLAN.md exists with clear structure
+            - tasks_decomposed: all tasks have required fields
+            - contracts_drafted: interface boundaries documented
+
+            Comment on the issue with:
+            - Plan summary
+            - Task list (IDs, titles, assigned engines)
+            - Budget estimate
+          claude_args: >-
+            --max-turns 8
+
+      # ---------------------------------------------------------------
+      # Step 3: θ₃ ALLOCATE - DAG構築、ロール割当、依存解決
+      # ---------------------------------------------------------------
+      - name: "θ₃ ALLOCATE - Generate execution DAG"
+        id: theta3
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the AI Orchestrator performing θ₃ ALLOCATE phase.
+            Read CLAUDE.md, .shiki/config.yaml, .shiki/schemas/dag.schema.json.
+            Read all tasks in .shiki/tasks/*.json.
+            Read .shiki/plans/PLAN.md for the plan.
+
+            **θ₃ ALLOCATE tasks:**
+            1. Build a DAG from task dependencies:
+               - Parse depends_on from each task
+               - Compute batch numbers (topological sort: tasks with no deps = batch 0, etc.)
+               - Respect max_parallel_batch from config (default 4)
+            2. Write the DAG to .shiki/dag/dag-${{ github.event.issue.number }}.json with schema:
+               {
+                 "dag_id": "DAG-<issue_number>",
+                 "plan_ref": "PLAN.md",
+                 "status": "pending",
+                 "theta_phase": "allocate",
+                 "nodes": [ { "node_id", "task_id", "batch", "status": "pending", "worktree_branch", "engine", "estimated_tokens" } ],
+                 "edges": [ { "from", "to", "type": "depends_on" } ],
+                 "metadata": { "created_at", "total_batches", "current_batch": 0 }
+               }
+            3. For each node, set worktree_branch: "shiki/task-<task_id>"
+            4. Validate: no cycles, all dependencies satisfied, batch ordering correct
+
+            **Exit criteria for θ₃:**
+            - dag_valid: DAG has no cycles, valid JSON
+            - roles_assigned: each node has an engine
+            - dependencies_resolved: all depends_on references exist as nodes
+
+            Comment on the issue with:
+            - DAG summary (number of batches, nodes per batch)
+            - Execution order visualization (text)
+          claude_args: >-
+            --max-turns 8
+
+      # ---------------------------------------------------------------
+      # Step 4: Apply labels based on task properties
+      # ---------------------------------------------------------------
+      - name: Apply labels to issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE=${{ github.event.issue.number }}
+
+          # Apply theta phase labels
+          gh issue edit "$ISSUE" --add-label "theta/2-generate,theta/3-allocate,mode/github" \
+            --repo "${{ github.repository }}" || true
+
+          # Read tasks and apply engine/priority labels
+          for task_file in .shiki/tasks/*.json; do
+            [ -f "$task_file" ] || continue
+            ENGINE=$(python3 -c "import json; t=json.load(open('$task_file')); print(t.get('assigned_to',''))" 2>/dev/null || echo "")
+            PRIORITY=$(python3 -c "import json; t=json.load(open('$task_file')); print(t.get('priority',''))" 2>/dev/null || echo "")
+
+            case "$ENGINE" in
+              codex)       gh issue edit "$ISSUE" --add-label "engine/codex" --repo "${{ github.repository }}" || true ;;
+              claude-team) gh issue edit "$ISSUE" --add-label "engine/claude-team" --repo "${{ github.repository }}" || true ;;
+              human)       gh issue edit "$ISSUE" --add-label "engine/human" --repo "${{ github.repository }}" || true ;;
+            esac
+
+            case "$PRIORITY" in
+              critical) gh issue edit "$ISSUE" --add-label "P0-critical" --repo "${{ github.repository }}" || true ;;
+              high)     gh issue edit "$ISSUE" --add-label "P1-high" --repo "${{ github.repository }}" || true ;;
+              medium)   gh issue edit "$ISSUE" --add-label "P2-medium" --repo "${{ github.repository }}" || true ;;
+              low)      gh issue edit "$ISSUE" --add-label "P3-low" --repo "${{ github.repository }}" || true ;;
+            esac
+          done
+
+      # ---------------------------------------------------------------
+      # Step 5: Trigger DAG executor via repository_dispatch
+      # ---------------------------------------------------------------
+      - name: Trigger DAG executor
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DAG_FILE=$(ls -t .shiki/dag/dag-*.json 2>/dev/null | head -1)
+          if [ -n "$DAG_FILE" ]; then
+            DAG_ID=$(python3 -c "import json; print(json.load(open('$DAG_FILE'))['dag_id'])")
+            gh api repos/${{ github.repository }}/dispatches \
+              -f event_type=dag-execute \
+              -f "client_payload[dag_file]=$DAG_FILE" \
+              -f "client_payload[dag_id]=$DAG_ID" \
+              -f "client_payload[issue_number]=${{ github.event.issue.number }}" || true
+          fi
+
+      # ---------------------------------------------------------------
+      # Step 6: Create PR with planning artifacts
+      # ---------------------------------------------------------------
+      - name: Create PR with planning artifacts
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "shiki: orchestrate θ₁→θ₂→θ₃ for issue #${{ github.event.issue.number }}"
+          title: "Shiki Orchestration: Issue #${{ github.event.issue.number }}"
+          branch: shiki/orchestrate-${{ github.event.issue.number }}-${{ github.run_id }}
+          body: |
+            ## Shiki Orchestration Results
+
+            **Issue:** #${{ github.event.issue.number }}
+            **Phases completed:** θ₁ UNDERSTAND → θ₂ GENERATE → θ₃ ALLOCATE
+
+            ### Artifacts created:
+            - `GOAL.md` - Goal definition
+            - `.shiki/plans/PLAN.md` - Design plan
+            - `.shiki/tasks/*.json` - Decomposed tasks
+            - `.shiki/contracts/*.json` - Interface contracts
+            - `.shiki/dag/dag-${{ github.event.issue.number }}.json` - Execution DAG
+
+            ### Next steps:
+            1. Review and merge this PR to accept the plan
+            2. DAG executor will automatically begin θ₄ EXECUTE phase
+            3. Workers will be dispatched per the DAG batch schedule
+
+            ---
+            *Generated by Shiki Orchestrator (θ₁→θ₃)*
+          labels: ai-plan, theta/3-allocate, needs-review, mode/github

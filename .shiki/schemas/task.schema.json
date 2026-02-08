@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shiki Task",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "assigned_to",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]+-\\d{4,}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3
+    },
+    "assigned_to": {
+      "type": "string",
+      "enum": [
+        "claude-team",
+        "claude-leader",
+        "claude-member",
+        "codex",
+        "human"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "review",
+        "completed",
+        "blocked",
+        "failed"
+      ]
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium"
+    },
+    "authority_layer": {
+      "type": "string",
+      "enum": [
+        "guardian",
+        "coordinator",
+        "executor",
+        "monitor"
+      ],
+      "description": "Required authority level to work on this task"
+    },
+    "mode_origin": {
+      "type": "string",
+      "enum": [
+        "cli",
+        "github"
+      ],
+      "description": "Which mode created this task"
+    },
+    "dag_node_id": {
+      "type": ["string", "null"],
+      "description": "Reference to DAG node if part of a DAG execution"
+    },
+    "theta_phase": {
+      "type": "string",
+      "enum": [
+        "understand",
+        "generate",
+        "allocate",
+        "execute",
+        "verify",
+        "integrate"
+      ],
+      "description": "Current convergence phase"
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "estimated_tokens": { "type": "integer" },
+        "actual_tokens": { "type": "integer" },
+        "max_tokens": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "worktree_branch": {
+      "type": ["string", "null"],
+      "description": "Git worktree branch for isolated execution (GitHub mode)"
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "acceptance": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "claimed_by": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lease_expires_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "created_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

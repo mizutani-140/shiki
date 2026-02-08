@@ -1,0 +1,139 @@
+name: Shiki - Review (Claude)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    if: contains(github.event.pull_request.labels.*.name, 'ai-codex') || contains(github.event.pull_request.labels.*.name, 'needs-review')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check authority layer
+        id: authority
+        shell: bash
+        run: |
+          # Verify that the review is being performed with appropriate authority
+          # In GitHub mode, the review workflow acts as a monitor-level authority
+          echo "authority_layer=monitor" >> "$GITHUB_OUTPUT"
+
+          # Check if any task requires coordinator-level review
+          NEEDS_COORDINATOR=$(python3 << 'PY'
+          import json, glob
+          for f in glob.glob('.shiki/tasks/*.json'):
+              try:
+                  with open(f, encoding='utf-8') as fh:
+                      t = json.load(fh)
+                  if t.get('status') == 'review' and t.get('authority_layer') == 'coordinator':
+                      print("true")
+                      break
+              except Exception:
+                  pass
+          else:
+              print("false")
+          PY
+          )
+          echo "needs_coordinator=$NEEDS_COORDINATOR" >> "$GITHUB_OUTPUT"
+
+      - name: Check budget impact
+        id: budget
+        shell: bash
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import glob
+          import os
+
+          total_actual = 0
+          max_session = 500000
+
+          try:
+              with open(".shiki/config.yaml", encoding="utf-8") as f:
+                  for line in f:
+                      if "max_tokens_per_session:" in line:
+                          max_session = int(line.split(":")[1].strip())
+          except Exception:
+              pass
+
+          for task_file in glob.glob(".shiki/tasks/*.json"):
+              try:
+                  with open(task_file, encoding="utf-8") as f:
+                      task = json.load(f)
+                  total_actual += task.get("budget", {}).get("actual_tokens", 0)
+              except (json.JSONDecodeError, OSError):
+                  continue
+
+          pct = (total_actual / max_session * 100) if max_session > 0 else 0
+          print(f"Budget usage: {total_actual}/{max_session} ({pct:.1f}%)")
+
+          with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as out:
+              out.write(f"budget_pct={pct:.1f}\n")
+              out.write(f"budget_actual={total_actual}\n")
+              out.write(f"budget_max={max_session}\n")
+          PYEOF
+
+      - name: "θ₅ VERIFY - Claude review PR"
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the reviewer performing θ₅ VERIFY phase.
+            Read CLAUDE.md and the PR diff.
+            Read .shiki/config.yaml for project configuration.
+
+            **Authority context:**
+            - Your authority layer: monitor (read-only, can flag issues, can create blocking tasks)
+            - Coordinator review needed: ${{ steps.authority.outputs.needs_coordinator }}
+            - If coordinator review is needed, flag this in your review comment
+
+            **Budget context:**
+            - Session budget usage: ${{ steps.budget.outputs.budget_pct }}%
+            - Actual tokens used: ${{ steps.budget.outputs.budget_actual }}
+            - Session limit: ${{ steps.budget.outputs.budget_max }}
+            - Flag if budget is concerning (>80%)
+
+            **Review checklist (θ₅ VERIFY):**
+            1) **Contract compliance:** Check .shiki/contracts for interface agreements.
+               Verify that implementations satisfy contract specifications.
+            2) **Acceptance criteria coverage:** Check .shiki/tasks acceptance fields.
+               Verify that all testable criteria are met.
+            3) **Tests added/updated:** Ensure test coverage matches changes.
+            4) **Security concerns:** Check for vulnerabilities, credential leaks, injection risks.
+            5) **Minimal change:** Verify changes are task-scoped, no unrelated refactors.
+            6) **Authority compliance:** Verify the implementer worked within their authority layer.
+            7) **Budget compliance:** Check if budget.actual_tokens is reasonable vs estimated.
+
+            **Contract verification:**
+            - For each modified file, check if it falls under a contract scope
+            - Verify interfaces match contract specifications
+            - Flag any contract violations
+
+            Provide actionable review comments.
+            If coordinator-level review is required, add a comment saying:
+            "⚠️ This PR requires coordinator-level review before merge."
+
+            End your review with a summary:
+            - θ₅ VERIFY status: PASS / NEEDS_CHANGES / BLOCKED
+            - Contract compliance: OK / VIOLATION
+            - Budget impact: OK / WARNING / EXCEEDED
+          claude_args: >-
+            --max-turns 6
+
+      - name: Update review labels
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          gh pr edit "$PR_NUMBER" \
+            --add-label "theta/5-verify,auto/review" \
+            --repo "${{ github.repository }}" || true

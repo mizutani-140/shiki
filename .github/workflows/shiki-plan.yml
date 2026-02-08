@@ -1,0 +1,223 @@
+name: Shiki - Plan (Claude)
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  plan:
+    if: contains(github.event.comment.body, '@claude plan')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "θ₁ + θ₂: Claude - create PLAN / TASKS / CONTRACTS"
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the AI Orchestrator performing θ₁ UNDERSTAND and θ₂ GENERATE phases.
+            Read CLAUDE.md, .shiki/config.yaml, and roles/roles.yaml for context.
+            Read .shiki/schemas/ for JSON structure requirements.
+
+            **θ₁ UNDERSTAND:**
+            - Read GOAL.md if present, otherwise use the issue body and comments as the goal
+            - Identify acceptance criteria and scope boundaries
+            - If GOAL.md does not exist, create it from the issue content
+
+            **θ₂ GENERATE:**
+            Create or update:
+            - .shiki/plans/PLAN.md (proposal with architecture, risks, timeline)
+            - .shiki/tasks/*.json with these fields:
+              - id, title, assigned_to, status=pending (or blocked), priority
+              - depends_on (task dependency references)
+              - acceptance (testable commands/checks)
+              - theta_phase="execute" for implementation tasks
+              - authority_layer (coordinator/executor/monitor)
+              - budget.estimated_tokens (estimate token usage per task)
+              - budget.max_tokens (from config: 100000 default)
+              - context.target_files, context.contract_ref
+            - .shiki/contracts/*.json (status=proposed if needed)
+
+            **Budget estimation:**
+            - Estimate total tokens across all tasks
+            - Compare against session limit (500000 default from config)
+            - Include budget summary in the plan
+
+            Constraints:
+            - Do not implement features in this workflow.
+            - Focus on planning, decomposition, and risk management.
+            - Keep team size <= 5 roles.
+            - Each task must have clear, testable acceptance criteria.
+
+            Finally, comment on the issue with:
+            - A short plan summary
+            - The list of tasks created (IDs, titles, engines)
+            - Budget estimate (total estimated tokens / session limit)
+          claude_args: >-
+            --max-turns 6
+
+      - name: Apply planning labels
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE=$(echo '${{ github.event.issue.number }}')
+          gh issue edit "$ISSUE" \
+            --add-label "ai-plan,theta/2-generate,auto/plan" \
+            --repo "${{ github.repository }}" || true
+
+      - name: Generate DAG from task dependencies
+        shell: bash
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import glob
+          import os
+          from datetime import datetime, timezone
+          from collections import defaultdict
+
+          tasks = {}
+          for task_file in sorted(glob.glob(".shiki/tasks/*.json")):
+              try:
+                  with open(task_file, encoding="utf-8") as f:
+                      task = json.load(f)
+                  if task.get("id"):
+                      tasks[task["id"]] = task
+              except (json.JSONDecodeError, OSError):
+                  continue
+
+          if not tasks:
+              print("No tasks found, skipping DAG generation")
+              exit(0)
+
+          # Build dependency graph
+          deps = defaultdict(set)
+          for tid, task in tasks.items():
+              for dep in task.get("depends_on", []):
+                  if dep in tasks:
+                      deps[tid].add(dep)
+
+          # Topological sort to assign batch numbers
+          in_degree = {tid: 0 for tid in tasks}
+          for tid, dep_set in deps.items():
+              in_degree[tid] = len(dep_set)
+
+          batch_map = {}
+          remaining = set(tasks.keys())
+          batch_num = 0
+
+          while remaining:
+              # Find nodes with no unresolved dependencies
+              batch = [tid for tid in remaining if in_degree.get(tid, 0) == 0]
+              if not batch:
+                  print("WARNING: Cycle detected in dependencies, assigning remaining to last batch")
+                  for tid in remaining:
+                      batch_map[tid] = batch_num
+                  break
+
+              for tid in batch:
+                  batch_map[tid] = batch_num
+                  remaining.remove(tid)
+                  # Decrease in-degree of dependents
+                  for other_tid in list(remaining):
+                      if tid in deps.get(other_tid, set()):
+                          in_degree[other_tid] -= 1
+
+              batch_num += 1
+
+          # Read config for max parallel batch
+          max_parallel = 4
+          try:
+              with open(".shiki/config.yaml", encoding="utf-8") as f:
+                  for line in f:
+                      if "max_parallel_batch:" in line:
+                          max_parallel = int(line.split(":")[1].strip())
+          except Exception:
+              pass
+
+          # Build DAG structure
+          issue_num = os.environ.get("ISSUE_NUMBER", "plan")
+          dag_id = f"DAG-{issue_num}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+
+          nodes = []
+          edges = []
+
+          for tid, task in tasks.items():
+              engine_map = {
+                  "codex": "codex",
+                  "claude-team": "claude-team",
+                  "claude-leader": "claude-leader",
+                  "claude-member": "claude-member",
+                  "human": "human",
+              }
+              engine = engine_map.get(task.get("assigned_to", "codex"), "codex")
+              estimated = task.get("budget", {}).get("estimated_tokens", 0)
+
+              nodes.append({
+                  "node_id": f"N-{tid}",
+                  "task_id": tid,
+                  "batch": batch_map.get(tid, 0),
+                  "status": "pending",
+                  "worktree_branch": f"shiki/task-{tid}",
+                  "engine": engine,
+                  "estimated_tokens": estimated,
+              })
+
+              for dep in task.get("depends_on", []):
+                  if dep in tasks:
+                      edges.append({
+                          "from": f"N-{dep}",
+                          "to": f"N-{tid}",
+                          "type": "depends_on",
+                      })
+
+          dag = {
+              "dag_id": dag_id,
+              "plan_ref": "PLAN.md",
+              "status": "pending",
+              "theta_phase": "allocate",
+              "nodes": nodes,
+              "edges": edges,
+              "metadata": {
+                  "created_at": datetime.now(timezone.utc).isoformat(),
+                  "updated_at": datetime.now(timezone.utc).isoformat(),
+                  "total_batches": batch_num if batch_num > 0 else 1,
+                  "current_batch": 0,
+                  "max_parallel": max_parallel,
+              },
+          }
+
+          os.makedirs(".shiki/dag", exist_ok=True)
+          dag_path = f".shiki/dag/{dag_id}.json"
+          with open(dag_path, "w", encoding="utf-8") as f:
+              json.dump(dag, f, indent=2, ensure_ascii=False)
+
+          print(f"Generated DAG: {dag_path}")
+          print(f"  Nodes: {len(nodes)}, Edges: {len(edges)}, Batches: {dag['metadata']['total_batches']}")
+          PYEOF
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+      - name: Create PR with plan artifacts
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "shiki: propose plan & tasks (θ₂ GENERATE)"
+          title: "Shiki Plan proposal"
+          branch: shiki/plan-${{ github.run_id }}
+          body: |
+            This PR contains Shiki planning artifacts (θ₁ UNDERSTAND + θ₂ GENERATE):
+            - GOAL.md (if created)
+            - .shiki/plans/PLAN.md
+            - .shiki/tasks/*.json
+            - .shiki/contracts/*.json
+            - .shiki/dag/*.json (execution DAG)
+
+            **Budget estimate** is included in the plan.
+            Review and merge to start θ₄ EXECUTE phase.
+          labels: ai-plan, theta/2-generate, needs-review

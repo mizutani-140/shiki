@@ -1,0 +1,222 @@
+name: Shiki - Budget Check
+
+# バジェット使用量の定期監視
+# 6時間ごとまたは手動実行で、トークン使用量を集計し閾値チェック
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  budget-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check budget usage
+        id: check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import glob
+          import os
+          import subprocess
+          import sys
+
+          repo = os.environ.get("GITHUB_REPOSITORY", "")
+
+          # -----------------------------------------------------------
+          # Read config for budget limits
+          # -----------------------------------------------------------
+          config_path = ".shiki/config.yaml"
+          max_tokens_per_task = 100000
+          max_tokens_per_session = 500000
+          warn_threshold_pct = 80
+
+          try:
+              # Try to parse YAML (without requiring pyyaml)
+              with open(config_path, encoding="utf-8") as f:
+                  content = f.read()
+
+              # Simple YAML value extraction
+              for line in content.split("\n"):
+                  stripped = line.strip()
+                  if stripped.startswith("max_tokens_per_task:"):
+                      max_tokens_per_task = int(stripped.split(":")[1].strip())
+                  elif stripped.startswith("max_tokens_per_session:"):
+                      max_tokens_per_session = int(stripped.split(":")[1].strip())
+                  elif stripped.startswith("warn_threshold_pct:"):
+                      warn_threshold_pct = int(stripped.split(":")[1].strip())
+          except Exception as e:
+              print(f"Warning: Could not read config: {e}")
+              print("Using default budget limits")
+
+          # -----------------------------------------------------------
+          # Scan task files for budget usage
+          # -----------------------------------------------------------
+          task_files = sorted(glob.glob(".shiki/tasks/*.json"))
+          total_estimated = 0
+          total_actual = 0
+          over_budget_tasks = []
+          task_budgets = []
+
+          for task_file in task_files:
+              try:
+                  with open(task_file, encoding="utf-8") as f:
+                      task = json.load(f)
+              except (json.JSONDecodeError, OSError):
+                  continue
+
+              task_id = task.get("id", os.path.basename(task_file))
+              budget = task.get("budget", {})
+              estimated = budget.get("estimated_tokens", 0)
+              actual = budget.get("actual_tokens", 0)
+              max_task = budget.get("max_tokens", max_tokens_per_task)
+
+              total_estimated += estimated
+              total_actual += actual
+
+              task_budgets.append({
+                  "task_id": task_id,
+                  "status": task.get("status", "unknown"),
+                  "estimated": estimated,
+                  "actual": actual,
+                  "max": max_task,
+              })
+
+              # Check per-task budget
+              if actual > 0 and max_task > 0 and actual > max_task:
+                  over_budget_tasks.append({
+                      "task_id": task_id,
+                      "actual": actual,
+                      "max": max_task,
+                      "overage_pct": round((actual / max_task - 1) * 100, 1),
+                  })
+
+          # -----------------------------------------------------------
+          # Calculate session-level budget
+          # -----------------------------------------------------------
+          session_usage_pct = (total_actual / max_tokens_per_session * 100) if max_tokens_per_session > 0 else 0
+          warn_threshold_tokens = max_tokens_per_session * warn_threshold_pct / 100
+
+          print(f"Budget Summary:")
+          print(f"  Session limit:    {max_tokens_per_session:,} tokens")
+          print(f"  Total estimated:  {total_estimated:,} tokens")
+          print(f"  Total actual:     {total_actual:,} tokens")
+          print(f"  Usage:            {session_usage_pct:.1f}%")
+          print(f"  Warn threshold:   {warn_threshold_pct}% ({warn_threshold_tokens:,.0f} tokens)")
+          print(f"  Per-task limit:   {max_tokens_per_task:,} tokens")
+          print(f"  Tasks scanned:    {len(task_files)}")
+          print(f"  Over-budget tasks: {len(over_budget_tasks)}")
+
+          # -----------------------------------------------------------
+          # Determine alert level
+          # -----------------------------------------------------------
+          alert_level = "ok"
+          if total_actual >= max_tokens_per_session:
+              alert_level = "hard_limit"
+          elif total_actual >= warn_threshold_tokens:
+              alert_level = "warning"
+
+          # -----------------------------------------------------------
+          # Create warning issue if threshold exceeded
+          # -----------------------------------------------------------
+          if alert_level == "warning":
+              body = f"""## Shiki Budget Warning
+
+          **Session token usage has exceeded the warning threshold ({warn_threshold_pct}%).**
+
+          | Metric | Value |
+          |--------|-------|
+          | Session limit | {max_tokens_per_session:,} tokens |
+          | Total actual | {total_actual:,} tokens |
+          | Usage | {session_usage_pct:.1f}% |
+          | Warning threshold | {warn_threshold_pct}% |
+
+          ### Task Breakdown
+
+          | Task | Status | Estimated | Actual | Max |
+          |------|--------|-----------|--------|-----|
+          """
+              for tb in task_budgets:
+                  if tb["actual"] > 0:
+                      body += f"| {tb['task_id']} | {tb['status']} | {tb['estimated']:,} | {tb['actual']:,} | {tb['max']:,} |\n"
+
+              if over_budget_tasks:
+                  body += "\n### Over-Budget Tasks\n\n"
+                  for obt in over_budget_tasks:
+                      body += f"- **{obt['task_id']}**: {obt['actual']:,} / {obt['max']:,} tokens (+{obt['overage_pct']}%)\n"
+
+              body += "\n\n---\n*Generated by Shiki Budget Check workflow*"
+
+              subprocess.run([
+                  "gh", "issue", "create",
+                  "--title", f"[Shiki] Budget Warning: {session_usage_pct:.0f}% of session limit used",
+                  "--body", body,
+                  "--label", "P1-high,status/blocked,type/infra",
+                  "--repo", repo,
+              ], capture_output=True, text=True)
+              print(f"\nCreated budget warning issue")
+
+          # -----------------------------------------------------------
+          # Hard limit: block active tasks
+          # -----------------------------------------------------------
+          if alert_level == "hard_limit":
+              body = f"""## Shiki Budget EXCEEDED
+
+          **Session token usage has exceeded the hard limit!**
+
+          - **Limit:** {max_tokens_per_session:,} tokens
+          - **Actual:** {total_actual:,} tokens
+          - **Overage:** {total_actual - max_tokens_per_session:,} tokens
+
+          All active tasks have been blocked. Human approval required to continue.
+
+          ---
+          *Generated by Shiki Budget Check workflow*"""
+
+              subprocess.run([
+                  "gh", "issue", "create",
+                  "--title", f"[Shiki] BUDGET EXCEEDED: {total_actual:,} / {max_tokens_per_session:,} tokens",
+                  "--body", body,
+                  "--label", "P0-critical,status/blocked,type/infra",
+                  "--repo", repo,
+              ], capture_output=True, text=True)
+              print(f"\nCreated budget exceeded issue")
+
+              # Add "status/blocked" label to all active task issues
+              for task_file in task_files:
+                  try:
+                      with open(task_file, encoding="utf-8") as f:
+                          task = json.load(f)
+                  except (json.JSONDecodeError, OSError):
+                      continue
+
+                  if task.get("status") in ("pending", "in_progress"):
+                      links = task.get("links", [])
+                      for link in links:
+                          link_str = str(link)
+                          if link_str.startswith("#"):
+                              issue_num = link_str[1:]
+                              subprocess.run([
+                                  "gh", "issue", "edit", issue_num,
+                                  "--add-label", "status/blocked",
+                                  "--repo", repo,
+                              ], capture_output=True, text=True)
+                              print(f"  Blocked issue #{issue_num}")
+
+          # Write summary for GitHub Actions
+          with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as out:
+              out.write(f"alert_level={alert_level}\n")
+              out.write(f"usage_pct={session_usage_pct:.1f}\n")
+              out.write(f"total_actual={total_actual}\n")
+              out.write(f"total_estimated={total_estimated}\n")
+          PYEOF

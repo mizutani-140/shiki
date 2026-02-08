@@ -1,0 +1,155 @@
+# Shiki roles (suggested)
+# ここは"チームを作るための辞書"です。プロジェクトに合わせて編集してください。
+
+# --- 4-Layer Authority Model ---
+# guardian:    人間の最終権限者。全権限。エスカレーション先
+# coordinator: 計画・調整・承認。実装ファイルを直接編集しない
+# executor:    実装・テスト。Plan Mode開始→承認後にStandard Mode
+# monitor:     監視・品質チェック。読取専用、ブロッキングタスク作成権限あり
+
+authority_layers:
+  guardian:
+    description: "人間の最終権限者。憲法修正、緊急停止、ゴール変更の承認"
+    permissions:
+      - "全権限"
+      - "緊急停止命令"
+      - "憲法修正承認"
+      - "バジェット変更承認"
+      - "デプロイ承認"
+    restrictions:
+      - "人間のみが担当（AIエージェントは割当不可）"
+    escalation_from:
+      - coordinator
+    reference: ".github/GUARDIAN.md"
+  coordinator:
+    description: "計画・調整・承認に専念。実装ファイルを直接編集しない"
+    permissions:
+      - TeamCreate
+      - SendMessage
+      - TaskCreate
+      - TaskUpdate
+      - TaskList
+      - EnterPlanMode
+      - ExitPlanMode
+    restrictions:
+      - "Edit/Write禁止（Delegate Mode強制）"
+      - "実装コードに直接触れない"
+  executor:
+    description: "実装・テスト担当。承認後のみStandard Mode"
+    permissions:
+      - Read
+      - Edit
+      - Write
+      - Bash
+      - TaskUpdate
+      - SendMessage
+    restrictions:
+      - "Plan Mode開始→Leader承認後にStandard Mode移行"
+      - "ファイル所有権スコープ内でのみ編集可"
+  monitor:
+    description: "品質・安全監視。読取専用"
+    permissions:
+      - Read
+      - Grep
+      - Glob
+      - TaskCreate
+      - SendMessage
+    restrictions:
+      - "常時Plan Mode（読取専用）"
+      - "ブロッキングタスク作成権限あり"
+      - "実装ファイル編集不可"
+
+# --- Role Definitions ---
+roles:
+  - role: TeamLeader
+    description: "チーム統括 / 計画・調整・承認 / Delegate Mode"
+    authority_layer: coordinator
+    cli_agent_type: coordinator
+    github_job_type: orchestrator
+    default_mode: delegate
+    ownership:
+      include: ["GOAL.md", ".shiki/plans/**", ".shiki/dag/**"]
+    tasks:
+      - "全体計画の策定"
+      - "タスク割当と承認"
+      - "チーム間調整"
+      - "θフェーズ進行管理"
+
+  - role: GoalClarifier
+    description: "ゴールを受け入れ条件に落とす / スコープ管理"
+    authority_layer: coordinator
+    cli_agent_type: coordinator
+    github_job_type: planner
+    default_mode: plan
+    ownership:
+      include: ["GOAL.md", ".shiki/plans/**"]
+    tasks:
+      - "不明点の洗い出し"
+      - "受け入れ条件の定義"
+      - "スコープの固定"
+
+  - role: Architect
+    description: "設計 / 契約(contracts) / 依存関係整理"
+    authority_layer: coordinator
+    cli_agent_type: coordinator
+    github_job_type: planner
+    default_mode: plan
+    ownership:
+      include: [".shiki/contracts/**", "docs/**"]
+    tasks:
+      - "アーキテクチャ設計"
+      - "インターフェース合意"
+      - "技術選定/制約整理"
+
+  - role: Implementer
+    description: "実装担当（主にCodexに委託しても良い）"
+    authority_layer: executor
+    cli_agent_type: executor
+    github_job_type: worker
+    default_mode: standard
+    ownership:
+      include: ["src/**", "app/**", "api/**"]
+    tasks:
+      - "機能実装"
+      - "リファクタ"
+      - "バグ修正"
+
+  - role: QA
+    description: "テスト設計/追加/回帰 / 受け入れ基準の検証"
+    authority_layer: executor
+    cli_agent_type: executor
+    github_job_type: worker
+    default_mode: plan
+    ownership:
+      include: ["tests/**", "e2e/**"]
+    tasks:
+      - "ユニットテスト"
+      - "E2E/統合テスト"
+      - "エッジケース洗い出し"
+
+  - role: SecurityReviewer
+    description: "脆弱性/安全性レビュー"
+    authority_layer: monitor
+    cli_agent_type: monitor
+    github_job_type: reviewer
+    default_mode: plan
+    ownership:
+      include: ["**"]
+      exclude: ["secrets/**"]
+    tasks:
+      - "入力検証/認可"
+      - "秘密情報の取り扱い"
+      - "依存脆弱性の確認"
+
+  - role: ReleaseCaptain
+    description: "統合/CI安定化/リリース手順"
+    authority_layer: coordinator
+    cli_agent_type: coordinator
+    github_job_type: integrator
+    default_mode: plan
+    ownership:
+      include: [".github/**", "Dockerfile", "compose.yml", "infra/**"]
+    tasks:
+      - "CI/CD整備"
+      - "リリース手順"
+      - "マージ/統合"

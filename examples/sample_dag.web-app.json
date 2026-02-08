@@ -1,0 +1,77 @@
+{
+  "dag_id": "DAG-WEB-001",
+  "plan_ref": ".shiki/plans/PLAN.md",
+  "status": "pending",
+  "theta_phase": "allocate",
+  "nodes": [
+    {
+      "node_id": "N-001",
+      "task_id": "T-0001",
+      "batch": 0,
+      "status": "pending",
+      "worktree_branch": null,
+      "engine": "claude-team",
+      "estimated_tokens": 5000
+    },
+    {
+      "node_id": "N-002",
+      "task_id": "T-0002",
+      "batch": 1,
+      "status": "pending",
+      "worktree_branch": "worktree/T-0002-frontend-setup",
+      "engine": "codex",
+      "estimated_tokens": 30000
+    },
+    {
+      "node_id": "N-003",
+      "task_id": "T-0003",
+      "batch": 1,
+      "status": "pending",
+      "worktree_branch": "worktree/T-0003-backend-api",
+      "engine": "codex",
+      "estimated_tokens": 40000
+    },
+    {
+      "node_id": "N-004",
+      "task_id": "T-0004",
+      "batch": 1,
+      "status": "pending",
+      "worktree_branch": "worktree/T-0004-db-schema",
+      "engine": "codex",
+      "estimated_tokens": 15000
+    },
+    {
+      "node_id": "N-005",
+      "task_id": "T-0005",
+      "batch": 2,
+      "status": "pending",
+      "worktree_branch": "worktree/T-0005-integration",
+      "engine": "claude-team",
+      "estimated_tokens": 20000
+    },
+    {
+      "node_id": "N-006",
+      "task_id": "T-0006",
+      "batch": 3,
+      "status": "pending",
+      "worktree_branch": null,
+      "engine": "claude-team",
+      "estimated_tokens": 15000
+    }
+  ],
+  "edges": [
+    { "from": "N-001", "to": "N-002", "type": "depends_on" },
+    { "from": "N-001", "to": "N-003", "type": "depends_on" },
+    { "from": "N-001", "to": "N-004", "type": "depends_on" },
+    { "from": "N-002", "to": "N-005", "type": "depends_on" },
+    { "from": "N-003", "to": "N-005", "type": "depends_on" },
+    { "from": "N-004", "to": "N-005", "type": "depends_on" },
+    { "from": "N-005", "to": "N-006", "type": "depends_on" }
+  ],
+  "metadata": {
+    "created_at": "2025-01-15T10:00:00Z",
+    "total_batches": 4,
+    "current_batch": 0,
+    "description": "Web app DAG: Design → Frontend+Backend+DB (parallel) → Integration → QA/Review"
+  }
+}

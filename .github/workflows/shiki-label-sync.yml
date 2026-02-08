@@ -1,0 +1,263 @@
+name: Shiki - Label Sync
+
+# Issue ラベルと .shiki/tasks/*.json の双方向同期
+# ラベル変更 → タスク JSON 更新、タスク JSON 変更 → Issue ラベル更新
+
+on:
+  issues:
+    types: [labeled, unlabeled]
+  push:
+    paths:
+      - ".shiki/tasks/*.json"
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  # -------------------------------------------------------------------
+  # Job 1: Issue label changes → update task JSON files
+  # -------------------------------------------------------------------
+  label-to-task:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync label change to task files
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ github.event.issue.number }}"
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          ACTION="${{ github.event.action }}"
+          LABEL="${{ github.event.label.name }}"
+
+          echo "Issue #$ISSUE_NUMBER: $ACTION label '$LABEL'"
+
+          python3 << 'PYEOF'
+          import json
+          import glob
+          import os
+          from datetime import datetime, timezone
+
+          issue_number = os.environ.get("ISSUE_NUMBER", "")
+          action = os.environ.get("ACTION", "")
+          label = os.environ.get("LABEL", "")
+
+          if not label:
+              print("No label change detected, skipping")
+              exit(0)
+
+          # Label-to-field mapping
+          LABEL_MAP = {
+              # Priority
+              "P0-critical": ("priority", "critical"),
+              "P1-high": ("priority", "high"),
+              "P2-medium": ("priority", "medium"),
+              "P3-low": ("priority", "low"),
+              # Status
+              "status/pending": ("status", "pending"),
+              "status/in-progress": ("status", "in_progress"),
+              "status/review": ("status", "review"),
+              "status/blocked": ("status", "blocked"),
+              "status/completed": ("status", "completed"),
+              "status/failed": ("status", "failed"),
+              # Authority
+              "authority/coordinator": ("authority_layer", "coordinator"),
+              "authority/executor": ("authority_layer", "executor"),
+              "authority/monitor": ("authority_layer", "monitor"),
+              # Theta phase
+              "theta/1-understand": ("theta_phase", "understand"),
+              "theta/2-generate": ("theta_phase", "generate"),
+              "theta/3-allocate": ("theta_phase", "allocate"),
+              "theta/4-execute": ("theta_phase", "execute"),
+              "theta/5-verify": ("theta_phase", "verify"),
+              "theta/6-integrate": ("theta_phase", "integrate"),
+              # Engine
+              "engine/claude-team": ("assigned_to", "claude-team"),
+              "engine/codex": ("assigned_to", "codex"),
+              "engine/human": ("assigned_to", "human"),
+              "engine/claude-leader": ("assigned_to", "claude-leader"),
+              "engine/claude-member": ("assigned_to", "claude-member"),
+          }
+
+          if label not in LABEL_MAP:
+              print(f"Label '{label}' not in sync map, skipping")
+              exit(0)
+
+          field, value = LABEL_MAP[label]
+
+          # Find task files linked to this issue
+          updated = 0
+          for task_file in glob.glob(".shiki/tasks/*.json"):
+              with open(task_file, encoding="utf-8") as f:
+                  task = json.load(f)
+
+              # Check if task is linked to this issue
+              links = task.get("links", [])
+              is_linked = any(f"#{issue_number}" in str(l) for l in links)
+
+              # Also check if issue title matches task title
+              if not is_linked:
+                  continue
+
+              if action == "labeled":
+                  task[field] = value
+              elif action == "unlabeled":
+                  # For unlabeled: reset to default only if current value matches
+                  if task.get(field) == value:
+                      defaults = {
+                          "priority": "medium",
+                          "status": "pending",
+                          "authority_layer": "executor",
+                          "theta_phase": "execute",
+                      }
+                      if field in defaults:
+                          task[field] = defaults[field]
+
+              task["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+              with open(task_file, "w", encoding="utf-8") as f:
+                  json.dump(task, f, indent=2, ensure_ascii=False)
+
+              updated += 1
+              print(f"Updated {task_file}: {field}={task.get(field)}")
+
+          print(f"Updated {updated} task file(s)")
+          PYEOF
+
+      - name: Commit task updates
+        shell: bash
+        run: |
+          git config user.name "shiki-bot"
+          git config user.email "shiki-bot@users.noreply.github.com"
+          git add .shiki/tasks/ || true
+          git diff --cached --quiet || git commit -m "shiki: sync label '${{ github.event.label.name }}' to task files"
+          git push || true
+
+  # -------------------------------------------------------------------
+  # Job 2: Task JSON changes → update Issue labels
+  # -------------------------------------------------------------------
+  task-to-label:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed task files
+        id: changed
+        shell: bash
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD -- '.shiki/tasks/*.json' 2>/dev/null | tr '\n' ' ')
+          echo "files=$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "Changed task files: $CHANGED"
+
+      - name: Sync task changes to issue labels
+        if: steps.changed.outputs.files != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import os
+
+          changed_files = os.environ.get("CHANGED_FILES", "").strip().split()
+          if not changed_files:
+              # Fallback: read from step output
+              import subprocess
+              result = subprocess.run(
+                  ["git", "diff", "--name-only", "HEAD~1", "HEAD", "--", ".shiki/tasks/*.json"],
+                  capture_output=True, text=True
+              )
+              changed_files = result.stdout.strip().split("\n")
+              changed_files = [f for f in changed_files if f]
+
+          repo = os.environ.get("GITHUB_REPOSITORY", "")
+
+          # Field-to-label mapping (reverse of label-to-task)
+          FIELD_TO_LABELS = {
+              "priority": {
+                  "critical": "P0-critical",
+                  "high": "P1-high",
+                  "medium": "P2-medium",
+                  "low": "P3-low",
+              },
+              "status": {
+                  "pending": "status/pending",
+                  "in_progress": "status/in-progress",
+                  "review": "status/review",
+                  "blocked": "status/blocked",
+                  "completed": "status/completed",
+                  "failed": "status/failed",
+              },
+              "authority_layer": {
+                  "coordinator": "authority/coordinator",
+                  "executor": "authority/executor",
+                  "monitor": "authority/monitor",
+              },
+              "theta_phase": {
+                  "understand": "theta/1-understand",
+                  "generate": "theta/2-generate",
+                  "allocate": "theta/3-allocate",
+                  "execute": "theta/4-execute",
+                  "verify": "theta/5-verify",
+                  "integrate": "theta/6-integrate",
+              },
+              "assigned_to": {
+                  "claude-team": "engine/claude-team",
+                  "codex": "engine/codex",
+                  "human": "engine/human",
+                  "claude-leader": "engine/claude-leader",
+                  "claude-member": "engine/claude-member",
+              },
+          }
+
+          import subprocess
+
+          for task_file in changed_files:
+              if not os.path.exists(task_file):
+                  continue
+
+              with open(task_file, encoding="utf-8") as f:
+                  task = json.load(f)
+
+              # Find linked issue numbers
+              links = task.get("links", [])
+              issue_numbers = []
+              for link in links:
+                  link_str = str(link)
+                  if link_str.startswith("#"):
+                      try:
+                          issue_numbers.append(int(link_str[1:]))
+                      except ValueError:
+                          pass
+
+              if not issue_numbers:
+                  print(f"No linked issues for {task_file}, skipping")
+                  continue
+
+              # Build label add/remove lists
+              add_labels = []
+              for field, mapping in FIELD_TO_LABELS.items():
+                  value = task.get(field, "")
+                  if value in mapping:
+                      add_labels.append(mapping[value])
+
+              for issue_num in issue_numbers:
+                  if add_labels:
+                      label_str = ",".join(add_labels)
+                      subprocess.run([
+                          "gh", "issue", "edit", str(issue_num),
+                          "--add-label", label_str,
+                          "--repo", repo
+                      ], capture_output=True, text=True)
+                      print(f"Issue #{issue_num}: added labels {label_str}")
+
+          PYEOF
+        env:
+          CHANGED_FILES: ${{ steps.changed.outputs.files }}

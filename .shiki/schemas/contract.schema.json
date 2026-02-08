@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shiki Contract",
+  "type": "object",
+  "required": [
+    "contract_id",
+    "status",
+    "defined_by"
+  ],
+  "properties": {
+    "contract_id": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of this contract (e.g. 1.0.0)",
+      "default": "1.0.0"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "agreed",
+        "implemented",
+        "verified",
+        "integrated"
+      ]
+    },
+    "mode_origin": {
+      "type": "string",
+      "enum": [
+        "cli",
+        "github"
+      ],
+      "description": "Which mode created this contract"
+    },
+    "defined_by": {
+      "type": "string"
+    },
+    "implemented_by": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "review_required_by": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "coordinator",
+          "executor",
+          "monitor"
+        ]
+      },
+      "description": "Authority layers required to review this contract",
+      "default": ["coordinator"]
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "tests_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "notes": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true
+}

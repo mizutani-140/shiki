@@ -1,0 +1,207 @@
+name: Shiki - Implement (Codex)
+
+on:
+  push:
+    paths:
+      - ".shiki/tasks/*.json"
+      - ".shiki/contracts/*.json"
+      - "AGENTS.md"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # If your project needs deps (npm/pip/apt), install them HERE.
+      # Codex default sandbox is often network-isolated, so do installs before Codex step.
+      # - run: npm ci
+      # - run: pip install -r requirements.txt
+
+      - name: Detect pending Codex tasks
+        id: find
+        shell: bash
+        run: |
+          TASKS=$(python3 - << 'PY'
+          import json, glob
+          ids=[]
+          for f in glob.glob('.shiki/tasks/*.json'):
+              with open(f, encoding='utf-8') as fh:
+                  t=json.load(fh)
+              if t.get('assigned_to')=='codex' and t.get('status')=='pending':
+                  if t.get('id'):
+                      ids.append(t['id'])
+          print(",".join(ids))
+          PY
+          )
+          echo "tasks=$TASKS" >> $GITHUB_OUTPUT
+
+      - name: Check budget before execution
+        id: budget
+        if: steps.find.outputs.tasks != ''
+        shell: bash
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import glob
+          import os
+
+          # Read config for budget limits
+          max_per_session = 500000
+          try:
+              with open(".shiki/config.yaml", encoding="utf-8") as f:
+                  for line in f:
+                      if "max_tokens_per_session:" in line:
+                          max_per_session = int(line.split(":")[1].strip())
+          except Exception:
+              pass
+
+          # Sum actual tokens from all tasks
+          total_actual = 0
+          for task_file in glob.glob(".shiki/tasks/*.json"):
+              try:
+                  with open(task_file, encoding="utf-8") as f:
+                      task = json.load(f)
+                  total_actual += task.get("budget", {}).get("actual_tokens", 0)
+              except (json.JSONDecodeError, OSError):
+                  continue
+
+          remaining = max_per_session - total_actual
+          print(f"Budget: {total_actual}/{max_per_session} tokens used, {remaining} remaining")
+
+          if remaining <= 0:
+              print("::error::Budget exceeded! Cannot proceed with implementation.")
+              with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as out:
+                  out.write("budget_ok=false\n")
+              exit(1)
+          else:
+              with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as out:
+                  out.write("budget_ok=true\n")
+                  out.write(f"remaining_tokens={remaining}\n")
+          PYEOF
+
+      - name: Setup worktree branch (if specified)
+        id: worktree
+        if: steps.find.outputs.tasks != '' && steps.budget.outputs.budget_ok == 'true'
+        shell: bash
+        run: |
+          # Check if any pending task has a worktree_branch specified
+          BRANCH=$(python3 << 'PY'
+          import json, glob
+          for f in glob.glob('.shiki/tasks/*.json'):
+              with open(f, encoding='utf-8') as fh:
+                  t = json.load(fh)
+              if t.get('assigned_to') == 'codex' and t.get('status') == 'pending':
+                  branch = t.get('worktree_branch', '')
+                  if branch:
+                      print(branch)
+                      break
+          PY
+          )
+
+          if [ -n "$BRANCH" ]; then
+            echo "Using worktree branch: $BRANCH"
+            git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH" 2>/dev/null || true
+            echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+            echo "using_worktree=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No worktree branch specified, using current branch"
+            echo "using_worktree=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "θ₄ EXECUTE - Run Codex (implement tasks)"
+        if: steps.find.outputs.tasks != '' && steps.budget.outputs.budget_ok == 'true'
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt: |
+            You are Codex, the implementation engine running in θ₄ EXECUTE phase.
+
+            Read AGENTS.md for conventions.
+            For each task in .shiki/tasks where:
+              - assigned_to == "codex"
+              - status == "pending"
+            do:
+              1) Mark status=in_progress, claimed_by="codex-gh-action", set updated_at
+              2) Set theta_phase="execute" in the task
+              3) If task references a contract, read .shiki/contracts
+              4) Implement minimal changes to satisfy acceptance criteria
+              5) Run acceptance commands
+              6) Write .shiki/reports/<TASK_ID>.md using templates/REPORT.template.md format
+              7) Mark status=review (or completed if you are confident), update outputs and updated_at
+              8) Track token budget: update budget.actual_tokens in the task file (estimate)
+
+            Constraints:
+              - Keep changes minimal and task-scoped.
+              - Do not modify contracts unless task explicitly says so.
+              - Respect budget.max_tokens per task (do not exceed).
+              - Stay within the worktree branch scope if one is specified.
+
+            **Budget remaining for session:** ${{ steps.budget.outputs.remaining_tokens }} tokens
+          sandbox: workspace-write
+          output-file: codex-output.md
+
+      - name: Update labels after completion
+        if: steps.find.outputs.tasks != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Find related issues and update labels
+          python3 << 'PYEOF'
+          import json
+          import glob
+          import subprocess
+          import os
+
+          repo = os.environ.get("GITHUB_REPOSITORY", "")
+          for task_file in glob.glob(".shiki/tasks/*.json"):
+              try:
+                  with open(task_file, encoding="utf-8") as f:
+                      task = json.load(f)
+              except (json.JSONDecodeError, OSError):
+                  continue
+
+              if task.get("assigned_to") != "codex":
+                  continue
+              if task.get("status") not in ("review", "completed"):
+                  continue
+
+              # Find linked issues
+              for link in task.get("links", []):
+                  link_str = str(link)
+                  if link_str.startswith("#"):
+                      issue_num = link_str[1:]
+                      status_label = "status/review" if task["status"] == "review" else "status/completed"
+                      subprocess.run([
+                          "gh", "issue", "edit", issue_num,
+                          "--add-label", f"{status_label},theta/4-execute,engine/codex",
+                          "--remove-label", "status/pending,status/in-progress",
+                          "--repo", repo,
+                      ], capture_output=True, text=True)
+                      print(f"Updated labels for issue #{issue_num}")
+          PYEOF
+
+      - name: Create PR with implementation
+        if: steps.find.outputs.tasks != '' && steps.budget.outputs.budget_ok == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "shiki(codex): implement tasks ${{ steps.find.outputs.tasks }} [θ₄ EXECUTE]"
+          title: "Shiki: Codex implementation (${{ steps.find.outputs.tasks }})"
+          branch: shiki/codex-${{ github.run_id }}
+          body: |
+            Codex implemented tasks: ${{ steps.find.outputs.tasks }}.
+
+            **Phase:** θ₄ EXECUTE
+            **Worktree:** ${{ steps.worktree.outputs.using_worktree }}
+            **Budget remaining:** ${{ steps.budget.outputs.remaining_tokens }} tokens
+
+            See .shiki/reports/ and codex-output.md for details.
+          labels: ai-codex, theta/4-execute, needs-review

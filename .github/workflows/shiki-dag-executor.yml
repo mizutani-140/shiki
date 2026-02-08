@@ -1,0 +1,348 @@
+name: Shiki - DAG Executor
+
+# DAG ファイルの push または手動起動で実行
+# バッチ単位で並列ノードを処理し、worktree ブランチを管理する
+
+on:
+  push:
+    paths:
+      - ".shiki/dag/*.json"
+  workflow_dispatch:
+    inputs:
+      dag_file:
+        description: "Path to DAG JSON file (e.g., .shiki/dag/dag-1.json)"
+        required: true
+        type: string
+      issue_number:
+        description: "Related issue number"
+        required: false
+        type: string
+  repository_dispatch:
+    types: [dag-execute]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  execute-dag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ---------------------------------------------------------------
+      # Step 1: Resolve DAG file path
+      # ---------------------------------------------------------------
+      - name: Resolve DAG file
+        id: resolve
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            DAG_FILE="${{ github.event.client_payload.dag_file }}"
+            ISSUE="${{ github.event.client_payload.issue_number }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            DAG_FILE="${{ inputs.dag_file }}"
+            ISSUE="${{ inputs.issue_number }}"
+          else
+            # Push trigger: find the most recently modified DAG file
+            DAG_FILE=$(ls -t .shiki/dag/dag-*.json 2>/dev/null | head -1)
+            ISSUE=""
+          fi
+
+          if [ -z "$DAG_FILE" ] || [ ! -f "$DAG_FILE" ]; then
+            echo "::error::No DAG file found: $DAG_FILE"
+            exit 1
+          fi
+
+          echo "dag_file=$DAG_FILE" >> "$GITHUB_OUTPUT"
+          echo "issue_number=$ISSUE" >> "$GITHUB_OUTPUT"
+          echo "Found DAG file: $DAG_FILE"
+
+      # ---------------------------------------------------------------
+      # Step 2: Execute DAG batches
+      # ---------------------------------------------------------------
+      - name: Execute DAG batches
+        id: execute
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DAG_FILE: ${{ steps.resolve.outputs.dag_file }}
+          ISSUE_NUMBER: ${{ steps.resolve.outputs.issue_number }}
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import os
+          import subprocess
+          import sys
+          import time
+          from datetime import datetime, timezone
+
+          dag_file = os.environ["DAG_FILE"]
+          issue_number = os.environ.get("ISSUE_NUMBER", "")
+          repo = os.environ.get("GITHUB_REPOSITORY", "")
+
+          with open(dag_file, encoding="utf-8") as f:
+              dag = json.load(f)
+
+          # Mark DAG as running
+          dag["status"] = "running"
+          dag["metadata"]["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+          # Build batch map
+          batches = {}
+          for node in dag["nodes"]:
+              b = node.get("batch", 0)
+              batches.setdefault(b, []).append(node)
+
+          total_batches = max(batches.keys()) + 1 if batches else 0
+          dag["metadata"]["total_batches"] = total_batches
+
+          print(f"DAG {dag['dag_id']}: {total_batches} batches, {len(dag['nodes'])} nodes")
+
+          failed_nodes = []
+
+          for batch_num in sorted(batches.keys()):
+              batch_nodes = batches[batch_num]
+              dag["metadata"]["current_batch"] = batch_num
+              print(f"\n{'='*60}")
+              print(f"Batch {batch_num}/{total_batches - 1}: {len(batch_nodes)} nodes")
+              print(f"{'='*60}")
+
+              # Check if any dependency has failed
+              skip_batch = False
+              for node in batch_nodes:
+                  node_id = node["node_id"]
+                  # Find edges where this node is the target
+                  deps = [e["from"] for e in dag["edges"] if e["to"] == node_id]
+                  for dep_id in deps:
+                      dep_node = next((n for n in dag["nodes"] if n["node_id"] == dep_id), None)
+                      if dep_node and dep_node["status"] == "failed":
+                          print(f"  Node {node_id}: dependency {dep_id} failed, marking as skipped")
+                          node["status"] = "skipped"
+                          skip_batch = True
+
+              # Create worktree branches for each node in this batch
+              dispatched = []
+              for node in batch_nodes:
+                  if node["status"] in ("skipped", "completed"):
+                      continue
+
+                  node_id = node["node_id"]
+                  task_id = node["task_id"]
+                  engine = node.get("engine", "codex")
+                  branch = node.get("worktree_branch", f"shiki/task-{task_id}")
+
+                  print(f"  Dispatching node {node_id} (task {task_id}, engine: {engine})")
+                  node["status"] = "running"
+
+                  # Create branch from current HEAD
+                  try:
+                      subprocess.run(
+                          ["git", "checkout", "-b", branch],
+                          check=True, capture_output=True, text=True
+                      )
+                      subprocess.run(
+                          ["git", "checkout", "-"],
+                          check=True, capture_output=True, text=True
+                      )
+                  except subprocess.CalledProcessError:
+                      # Branch may already exist
+                      pass
+
+                  # Dispatch worker workflow
+                  try:
+                      subprocess.run([
+                          "gh", "workflow", "run", "shiki-worktree-worker.yml",
+                          "-f", f"task_id={task_id}",
+                          "-f", f"worktree_branch={branch}",
+                          "-f", f"engine={engine}",
+                          "-f", f"dag_file={dag_file}",
+                          "-f", f"node_id={node_id}",
+                          "--repo", repo
+                      ], check=True, capture_output=True, text=True)
+                      dispatched.append(node)
+                  except subprocess.CalledProcessError as e:
+                      print(f"  WARNING: Failed to dispatch worker for {node_id}: {e.stderr}")
+                      node["status"] = "failed"
+                      failed_nodes.append(node_id)
+
+              # Save intermediate DAG state
+              with open(dag_file, "w", encoding="utf-8") as f:
+                  json.dump(dag, f, indent=2, ensure_ascii=False)
+
+              if not dispatched:
+                  print("  No nodes dispatched in this batch, moving to next")
+                  continue
+
+              # Poll for worker completion
+              max_wait = 30 * 60  # 30 minutes
+              poll_interval = 30  # seconds
+              elapsed = 0
+
+              print(f"\n  Waiting for {len(dispatched)} workers (max {max_wait//60} min)...")
+
+              while elapsed < max_wait:
+                  time.sleep(poll_interval)
+                  elapsed += poll_interval
+
+                  # Check task files for status updates
+                  all_done = True
+                  for node in dispatched:
+                      task_file = f".shiki/tasks/{node['task_id']}.json"
+                      try:
+                          # Pull latest changes
+                          subprocess.run(["git", "pull", "--rebase", "origin", "main"],
+                                       capture_output=True, text=True)
+                      except Exception:
+                          pass
+
+                      if os.path.exists(task_file):
+                          with open(task_file, encoding="utf-8") as tf:
+                              task = json.load(tf)
+                          status = task.get("status", "pending")
+                          if status in ("completed", "review"):
+                              node["status"] = "completed"
+                          elif status == "failed":
+                              node["status"] = "failed"
+                              failed_nodes.append(node["node_id"])
+                          else:
+                              all_done = False
+                      else:
+                          all_done = False
+
+                  if all_done:
+                      print(f"  All workers in batch {batch_num} completed")
+                      break
+
+                  if elapsed % 120 == 0:
+                      pending = [n for n in dispatched if n["status"] == "running"]
+                      print(f"  Still waiting for {len(pending)} workers ({elapsed//60} min elapsed)")
+
+              # Timeout: mark remaining as failed
+              for node in dispatched:
+                  if node["status"] == "running":
+                      print(f"  Node {node['node_id']}: timed out, marking as failed")
+                      node["status"] = "failed"
+                      failed_nodes.append(node["node_id"])
+
+              # Merge completed worktree branches back
+              for node in dispatched:
+                  if node["status"] == "completed":
+                      branch = node.get("worktree_branch", "")
+                      if branch:
+                          try:
+                              subprocess.run(
+                                  ["git", "merge", f"origin/{branch}", "--no-edit"],
+                                  check=True, capture_output=True, text=True
+                              )
+                              print(f"  Merged branch {branch}")
+                          except subprocess.CalledProcessError as e:
+                              print(f"  WARNING: Merge conflict on {branch}: {e.stderr}")
+                              # Abort the merge and mark node for manual resolution
+                              subprocess.run(["git", "merge", "--abort"],
+                                           capture_output=True, text=True)
+                              node["status"] = "failed"
+                              failed_nodes.append(node["node_id"])
+
+              # Save DAG state after batch
+              with open(dag_file, "w", encoding="utf-8") as f:
+                  json.dump(dag, f, indent=2, ensure_ascii=False)
+
+          # Final status
+          completed_count = sum(1 for n in dag["nodes"] if n["status"] == "completed")
+          failed_count = sum(1 for n in dag["nodes"] if n["status"] == "failed")
+          skipped_count = sum(1 for n in dag["nodes"] if n["status"] == "skipped")
+          total = len(dag["nodes"])
+
+          if failed_count == 0 and skipped_count == 0:
+              dag["status"] = "completed"
+          elif failed_count > 0:
+              dag["status"] = "failed"
+          else:
+              dag["status"] = "completed"
+
+          dag["metadata"]["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+          with open(dag_file, "w", encoding="utf-8") as f:
+              json.dump(dag, f, indent=2, ensure_ascii=False)
+
+          print(f"\nDAG execution complete: {completed_count}/{total} completed, "
+                f"{failed_count} failed, {skipped_count} skipped")
+
+          if failed_count > 0:
+              print(f"Failed nodes: {', '.join(failed_nodes)}")
+              sys.exit(1)
+          PYEOF
+
+      # ---------------------------------------------------------------
+      # Step 3: Update issue with DAG status
+      # ---------------------------------------------------------------
+      - name: Update issue with DAG status
+        if: always() && steps.resolve.outputs.issue_number != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE="${{ steps.resolve.outputs.issue_number }}"
+          DAG_FILE="${{ steps.resolve.outputs.dag_file }}"
+
+          if [ -f "$DAG_FILE" ]; then
+            STATUS=$(python3 -c "import json; print(json.load(open('$DAG_FILE'))['status'])")
+            SUMMARY=$(python3 << PYEOF
+          import json
+          dag = json.load(open("$DAG_FILE"))
+          nodes = dag["nodes"]
+          completed = sum(1 for n in nodes if n["status"] == "completed")
+          failed = sum(1 for n in nodes if n["status"] == "failed")
+          skipped = sum(1 for n in nodes if n["status"] == "skipped")
+          pending = sum(1 for n in nodes if n["status"] == "pending")
+          total = len(nodes)
+          batches = dag["metadata"].get("total_batches", 0)
+          print(f"**DAG Status:** {dag['status']}")
+          print(f"- Batches: {batches}")
+          print(f"- Nodes: {total} total")
+          print(f"  - ✅ Completed: {completed}")
+          print(f"  - ❌ Failed: {failed}")
+          print(f"  - ⏭ Skipped: {skipped}")
+          print(f"  - ⏳ Pending: {pending}")
+          PYEOF
+          )
+
+            gh issue comment "$ISSUE" \
+              --repo "${{ github.repository }}" \
+              --body "## DAG Execution Report
+
+          $SUMMARY
+
+          Run: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" || true
+
+            # Update labels based on status
+            if [ "$STATUS" = "completed" ]; then
+              gh issue edit "$ISSUE" --add-label "status/completed" --remove-label "status/in-progress" \
+                --repo "${{ github.repository }}" || true
+            elif [ "$STATUS" = "failed" ]; then
+              gh issue edit "$ISSUE" --add-label "status/failed" --remove-label "status/in-progress" \
+                --repo "${{ github.repository }}" || true
+            fi
+          fi
+
+      # ---------------------------------------------------------------
+      # Step 4: Commit updated DAG state
+      # ---------------------------------------------------------------
+      - name: Commit DAG state
+        if: always()
+        shell: bash
+        run: |
+          git config user.name "shiki-bot"
+          git config user.email "shiki-bot@users.noreply.github.com"
+          git add .shiki/dag/ .shiki/tasks/ .shiki/reports/ || true
+          git diff --cached --quiet || git commit -m "shiki: update DAG state after execution"
+          git push || true
