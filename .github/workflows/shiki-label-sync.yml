@@ -161,6 +161,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANGED_FILES: ${{ steps.changed.outputs.files }}
         run: |
           python3 << 'PYEOF'
           import json
@@ -259,5 +260,3 @@ jobs:
                       print(f"Issue #{issue_num}: added labels {label_str}")
 
           PYEOF
-        env:
-          CHANGED_FILES: ${{ steps.changed.outputs.files }}
