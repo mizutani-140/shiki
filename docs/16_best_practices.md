@@ -313,6 +313,34 @@ coordinator が承認すると、executor はそのタスクを着手できる�
 
 ## 6. GitHubモードの実践パターン
 
+### 認証方式の選択
+
+**Claude:**
+
+| 方式 | Secret 名 | 課金 | 推奨 |
+|------|-----------|------|------|
+| **Max プラン OAuth** | `CLAUDE_CODE_OAUTH_TOKEN` | サブスク枠内（追加費用なし） | 推奨 |
+| API キー | `ANTHROPIC_API_KEY` | 従量課金 | フォールバック |
+
+Max プランユーザーは OAuth を使うことで、GitHub Actions の実行コストを大幅に削減できる。
+セットアップ: `claude /install-github-app` → `claude setup-token` → GitHub Secret に登録。
+
+**Codex:**
+
+| 方式 | 環境 | 課金 | 推奨 |
+|------|------|------|------|
+| **Pro plan login** | CLI のみ | サブスク枠内 | CLI で推奨 |
+| API キー (`OPENAI_API_KEY`) | CLI + CI | 従量課金 | CI で必須 |
+
+CLI モードでは `codex login` でサブスク枠内実行を推奨。GitHub Actions では CI にブラウザ認証を持ち込めないため `OPENAI_API_KEY` が必須。
+
+**Dual Engine 認証の推奨構成:**
+
+| エンジン | CLI モード | GitHub Actions |
+|---------|-----------|---------------|
+| Claude | CLI ログイン済み | `CLAUDE_CODE_OAUTH_TOKEN` |
+| Codex | `codex login` (Pro plan) | `OPENAI_API_KEY` |
+
 ### Issue からの開発フロー
 
 ```

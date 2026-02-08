@@ -32,6 +32,8 @@ jobs:
         id: theta1
         uses: anthropics/claude-code-action@v1
         with:
+          # OAuth token (Max plan) を優先。未設定なら API key にフォールバック
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             You are the AI Orchestrator performing θ₁ UNDERSTAND phase.
@@ -68,6 +70,7 @@ jobs:
         id: theta2
         uses: anthropics/claude-code-action@v1
         with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             You are the AI Orchestrator performing θ₂ GENERATE phase.
@@ -110,6 +113,7 @@ jobs:
         id: theta3
         uses: anthropics/claude-code-action@v1
         with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             You are the AI Orchestrator performing θ₃ ALLOCATE phase.
@@ -145,6 +149,21 @@ jobs:
             - Execution order visualization (text)
           claude_args: >-
             --max-turns 8
+
+      # ---------------------------------------------------------------
+      # Step 3.5: Auto-assign engines via engine_router
+      # ---------------------------------------------------------------
+      - name: Auto-assign engines to tasks
+        shell: bash
+        run: |
+          echo "Running engine router on all pending tasks..."
+          python3 scripts/engine_router.py --all 2>&1 || echo "Engine router completed with warnings"
+
+          # Commit engine assignments
+          git config user.name "shiki-bot"
+          git config user.email "shiki-bot@users.noreply.github.com"
+          git add .shiki/tasks/ || true
+          git diff --cached --quiet || git commit -m "shiki: auto-assign engines via router (θ₃)" || true
 
       # ---------------------------------------------------------------
       # Step 4: Apply labels based on task properties

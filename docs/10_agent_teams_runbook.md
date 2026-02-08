@@ -14,7 +14,8 @@ Agent Teams をCLIモードで運用するための包括的な手順書です�
 6. [Plan Mode → Standard Mode 移行](#6-plan-mode--standard-mode-移行)
 7. [バジェット監視](#7-バジェット監視)
 8. [θフェーズ報告](#8-θフェーズ報告)
-9. [トラブルシューティング](#9-トラブルシューティング)
+9. [Dual Engine 運用（Claude + Codex）](#9-dual-engine-運用claude--codex)
+10. [トラブルシューティング](#10-トラブルシューティング)
 
 ---
 
@@ -453,7 +454,87 @@ exit_criteria:
 
 ---
 
-## 9. トラブルシューティング
+## 9. Dual Engine 運用（Claude + Codex）
+
+### 概要
+
+Agent Teams では Codex MCP Server を通じて、タスクの特性に応じたエンジン振分を行います。coordinator が θ₃ でエンジンを割り当て、executor が実行時にエンジンを切り替えます。
+
+### coordinator のエンジン管理
+
+#### θ₃ ALLOCATE でのエンジン振分
+
+```bash
+# 全タスクに最適エンジンを自動割当
+python3 scripts/engine_router.py --all
+
+# ドライランで確認
+python3 scripts/engine_router.py --all --dry-run
+```
+
+#### θ₄ EXECUTE でのエンジン指示
+
+| タスクの engine | coordinator の指示 |
+|----------------|-------------------|
+| `codex` | "Codex MCP 経由で委託してください" |
+| `claude-team` | "直接実装してください" |
+| `auto` | "engine_router.py の判定に従ってください" |
+
+#### Fallback 発生時の対応
+
+executor が Fallback を報告した場合：
+1. 失敗原因を確認する
+2. タスク仕様の明確化が必要なら contract を修正する
+3. 繰り返し失敗する場合はエンジン固定（`engine: claude-team`）を検討する
+
+### executor のエンジン切替
+
+#### Codex MCP 委託の判断基準
+
+以下に該当する場合は Codex 委託が効果的：
+- 受け入れ条件がテストコマンドで明確に定義されている
+- 変更が 1-2 ファイルに収まる
+- Contract が存在し、インターフェースが確定している
+
+#### 委託時のプロンプト構成
+
+```
+タスクID: T-XXXX
+対象ファイル: src/api/handler.ts
+受け入れ条件: npm test -- --filter=handler
+契約: contract-003（ApiHandler インターフェース）
+バジェット: 50,000 tokens
+
+上記の仕様に基づいて最小限の実装を行ってください。
+```
+
+#### Fallback の報告
+
+```
+coordinator 宛:
+"T-XXXX: Codex MCP 委託が失敗しました（テスト 2/8 不合格）。
+ 直接実装にフォールバックし、exec verify を再実行します。
+ execution_path: fallback"
+```
+
+### トラブルシューティング: Codex MCP 接続
+
+```bash
+# Codex CLI の確認
+codex --version
+
+# MCP サーバーの動作確認
+codex mcp-server --help
+
+# 環境変数の確認
+echo $OPENAI_API_KEY | head -c 8
+```
+
+Codex MCP が利用不可の場合、executor は全タスクを Claude で直接実装します（graceful degradation）。
+
+---
+
+## 10. トラブルシューティング
 
 ### 問題: タスク状態の更新漏れ
 

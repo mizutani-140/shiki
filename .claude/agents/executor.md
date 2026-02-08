@@ -97,10 +97,43 @@ Plan Mode 中に以下の形式で実行計画を coordinator に提出してく
 TaskUpdate: status → in_progress, claimed_by → [自分の名前]
 ```
 
-### 2. 実装
+### 2. エンジン確認
+
+タスクの `engine` フィールドを確認し、実行方法を決定する：
+
+```
+engine.primary == "codex"      → Codex MCP 経由で委託（下記参照）
+engine.primary == "claude-team" → 自分で直接実装
+engine.primary == "auto"       → engine_router.py で判断
+```
+
+### 2a. Codex MCP 委託（engine=codex の場合）
+
+Codex に適したタスク（仕様が明確、単一ファイル、テスト生成等）は Codex MCP 経由で委託する。
+MCP サーバーは `codex login`（Pro plan）または `OPENAI_API_KEY` の認証情報を自動継承する。
+認証方式に関わらず、executor 側の操作は同一。
+
+1. タスクの仕様（title, acceptance, contract_ref, target_files）を整理する
+2. Codex MCP にプロンプトを送信する：
+   ```
+   タスクID: T-XXXX
+   対象ファイル: [target_files]
+   受け入れ条件: [acceptance]
+   契約: [contract_ref]（あれば）
+   バジェット: [max_tokens]
+
+   上記の仕様に基づいて最小限の実装を行ってください。
+   ```
+3. Codex の出力をレビューする
+4. exec verify を実行して受け入れ条件を検証する
+5. **失敗した場合**: 自分で直接実装にフォールバックする（execution_path=fallback）
+
+### 2b. 直接実装（engine=claude-team の場合）
+
 - ファイル所有権スコープ内で変更を行う
 - 契約（`.shiki/contracts/`）がある場合は厳守する
 - 最小限の変更に留める
+- **失敗した場合**: Codex MCP にフォールバック委託を試みる
 
 ### 3. exec verify（Verification Auto-Loop）
 タスクの `acceptance` 配列に定義されたすべての条件を **auto-loop** でクリアする：

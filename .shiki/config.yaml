@@ -19,8 +19,14 @@ cli:
   plan_mode_required: true  # Members start in Plan Mode
 
 # --- GitHub Mode Settings ---
+# 認証方式:
+#   oauth: Claude Max/Pro プランの OAuth トークン（推奨・サブスク枠内）
+#   api_key: Anthropic API キー（従量課金）
+# GitHub Secrets に CLAUDE_CODE_OAUTH_TOKEN または ANTHROPIC_API_KEY を設定
+# 両方設定した場合、OAuth が優先される
 github:
   enabled: true
+  auth_method: oauth   # oauth | api_key（ドキュメント用。実際の切替は GitHub Secrets で行う）
   worktree:
     enabled: true
     base_dir: ../worktrees
@@ -54,12 +60,53 @@ convergence:
     description: "Integration, merge, and release"
     exit_criteria: ["ci_passed", "merged", "deployed_or_tagged"]
 
-# --- Codex Integration ---
-codex:
-  enabled: true
-  sandbox: workspace-write
-  max_turns: 10
-  fallback_on_failure: claude-team
+# --- Dual Engine Architecture ---
+# Claude Agent Teams: 判断・協調（計画/レビュー/リファクタリング/デバッグ）
+# Codex:              隔離実行（実装/テスト生成/CI修復/定型コード）
+engines:
+  claude:
+    enabled: true
+    auth: oauth                    # oauth | api_key
+    # GitHub Secrets: CLAUDE_CODE_OAUTH_TOKEN (oauth) or ANTHROPIC_API_KEY (api_key)
+    strengths:
+      - planning                   # θ₁-θ₃
+      - review                     # θ₅
+      - architecture
+      - debugging
+      - multi-file-refactor
+      - security-fix
+    max_turns: 8
+
+  codex:
+    enabled: true
+    # 認証方式:
+    #   login: Pro/Plus プランの codex login（推奨・サブスク枠内、CLI のみ）
+    #   api_key: OPENAI_API_KEY（従量課金、CLI + GitHub Actions 両対応）
+    # CLI モード: login を推奨（codex login でブラウザ認証、~/.codex/ にトークン保存）
+    # GitHub Actions: api_key のみ対応（CI はブラウザ認証不可のため）
+    auth: login                    # login | api_key
+    sandbox: workspace-write       # workspace-write | read-only | danger-full-access
+    strengths:
+      - implementation             # 単一ファイル実装
+      - test-writing
+      - ci-fix
+      - boilerplate
+      - docs-generation
+      - single-file-bugfix
+    max_turns: 10
+
+  routing:
+    strategy: affinity             # affinity (タスク特性) | round-robin | claude-only | codex-only
+    fallback: true                 # primary 失敗時に secondary で再試行
+    fallback_max_retries: 1        # フォールバック再試行回数
+    # θフェーズ別デフォルトエンジン
+    phase_defaults:
+      understand: claude           # θ₁
+      generate: claude             # θ₂
+      allocate: claude             # θ₃
+      execute: auto                # θ₄ → router が判断
+      verify: claude               # θ₅
+      integrate: claude            # θ₆
 
 # --- State Machines ---
 states:

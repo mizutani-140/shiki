@@ -35,6 +35,53 @@ test -d .shiki/schemas && echo "SCHEMAS: OK" || echo "SCHEMAS: MISSING"
 
 ---
 
+## Dual Engine パターン（CLI モード）
+
+CLI モードでは Claude Agent Teams が Codex MCP を活用して Dual Engine 実行を行う。
+
+### 認証
+
+Codex MCP サーバーは以下の認証情報を自動継承する：
+- **Pro/Plus plan**: `codex login` で取得した OAuth トークン（`~/.codex/` に保存）
+- **API key**: 環境変数 `OPENAI_API_KEY`
+
+認証状態は `codex login status` で確認可能。セッション起動時に `start_cli_session.sh` が自動チェックする。
+
+### エンジン判定
+
+```bash
+# タスクの最適エンジンを確認
+python3 scripts/engine_router.py .shiki/tasks/T-0001.json
+
+# 全タスクの一括振分（coordinator が θ₃ で実行）
+python3 scripts/engine_router.py --all
+```
+
+### Codex 委託パターン（executor が実行）
+
+engine=codex のタスクは Codex MCP 経由で実装を委託する：
+
+```
+1. タスク仕様（acceptance, target_files, contract_ref）を整理
+2. Codex MCP にプロンプトを送信
+3. Codex の出力をレビュー
+4. exec verify で検証
+5. 失敗 → Claude executor が自分でフォールバック実装
+```
+
+### Fallback Chain
+
+```
+Primary engine 失敗
+  → エラー分析
+  → Secondary engine で再試行
+    → codex 失敗 → claude executor が直接実装
+    → claude 失敗 → codex MCP に委託
+  → 両方失敗 → coordinator にエスカレーション
+```
+
+---
+
 ## コマンド実行パターン
 
 ### Pattern 1: タスク状態確認

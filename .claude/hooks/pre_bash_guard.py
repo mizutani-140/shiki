@@ -17,8 +17,12 @@ from typing import Any, Dict
 DANGEROUS_PATTERNS = [
     # Secret exfiltration
     r"\b(printenv|env)\b.*\b(KEY|TOKEN|SECRET)\b",
-    r"\becho\b\s+\$?\{?(OPENAI_API_KEY|ANTHROPIC_API_KEY|GITHUB_TOKEN)\}?",
+    r"\becho\b\s+\$?\{?(OPENAI_API_KEY|ANTHROPIC_API_KEY|CLAUDE_CODE_OAUTH_TOKEN|GITHUB_TOKEN)\}?",
     r"\bcat\b\s+.*(\.env|id_rsa|authorized_keys)\b",
+    # Codex credential protection (~/.codex/auth.json, auth_token.json)
+    r"\bcat\b\s+.*\.codex/(auth\.json|auth_token\.json)\b",
+    r"\bcp\b\s+.*\.codex/(auth\.json|auth_token\.json)\b",
+    r"\bcurl\b.*\.codex/(auth\.json|auth_token\.json)\b",
     # Destructive
     r"\brm\b\s+-rf\s+/",
     r"\bmkfs\.",

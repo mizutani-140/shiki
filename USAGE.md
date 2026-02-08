@@ -125,6 +125,22 @@ Leader が全タスクの完了を確認、レポートをレビュー、θ₅ �
 
 ## 3. GitHubモード: Issue駆動開発
 
+### 前提: 認証の設定
+
+GitHubモードを使うには GitHub Secret の設定が必要。
+
+**推奨: Max プラン OAuth（サブスク枠内・従量課金なし）**
+
+```bash
+claude /install-github-app   # Claude GitHub App をインストール
+claude setup-token            # OAuth トークンを生成
+# → 表示されたトークンを GitHub Secret「CLAUDE_CODE_OAUTH_TOKEN」に設定
+```
+
+**代替: API キー（従量課金）**
+
+GitHub Secret「ANTHROPIC_API_KEY」に Anthropic API キーを設定。
+
 ### Issue を作成
 
 ```markdown

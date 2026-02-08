@@ -121,6 +121,43 @@ def main() -> int:
                     f"- {dag_files[-1].name}: {dag_status} ({completed}/{total} nodes done)"
                 )
 
+    # Dual Engine status
+    engines_config = config.get("engines", {})
+    if engines_config:
+        engine_parts: List[str] = []
+        # Claude status
+        claude_cfg = engines_config.get("claude", {})
+        if claude_cfg.get("enabled"):
+            claude_auth = claude_cfg.get("auth", "unknown")
+            engine_parts.append(f"- Claude: enabled (auth={claude_auth})")
+        # Codex status
+        codex_cfg = engines_config.get("codex", {})
+        if codex_cfg.get("enabled"):
+            codex_auth = codex_cfg.get("auth", "unknown")
+            codex_status = "unknown"
+            # Check codex authentication
+            import shutil
+            import subprocess
+            if shutil.which("codex"):
+                try:
+                    result = subprocess.run(
+                        ["codex", "login", "status"],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    if result.returncode == 0:
+                        codex_status = "authenticated"
+                    else:
+                        codex_status = "not authenticated"
+                except Exception:
+                    codex_status = "check failed"
+            else:
+                codex_status = "not installed"
+            engine_parts.append(
+                f"- Codex: enabled (auth={codex_auth}, status={codex_status})"
+            )
+        if engine_parts:
+            parts.append("## Dual Engine\n" + "\n".join(engine_parts))
+
     # Budget summary
     budget_config = config.get("github", {}).get("budget", {})
     if budget_config:

@@ -274,6 +274,33 @@ launch_claude() {
     log_info "Delegate Mode: $(get_delegate_mode)"
     log_info "Self-Claim: $(get_self_claim)"
     log_info "Plan Mode Required: $(get_plan_mode_required)"
+
+    # --- Dual Engine 認証チェック ---
+    echo ""
+    log_step "Dual Engine 認証チェック..."
+
+    # Claude CLI
+    if command -v claude &>/dev/null; then
+        log_info "Claude CLI: OK"
+    else
+        log_warn "Claude CLI: not found"
+    fi
+
+    # Codex CLI + 認証状態
+    if command -v codex &>/dev/null; then
+        if codex login status &>/dev/null; then
+            log_info "Codex CLI: OK (authenticated)"
+        elif [[ -n "${OPENAI_API_KEY:-}" ]]; then
+            log_info "Codex CLI: OK (API key)"
+        else
+            log_warn "Codex CLI: installed but not authenticated"
+            log_warn "  Pro plan: codex login"
+            log_warn "  API key:  export OPENAI_API_KEY=\"sk-...\""
+        fi
+    else
+        log_warn "Codex CLI: not installed (Dual Engine disabled)"
+        log_warn "  Install: npm i -g @openai/codex"
+    fi
     echo ""
 
     # Claude Code 起動

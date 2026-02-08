@@ -120,6 +120,40 @@
       },
       "default": []
     },
+    "engine": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "properties": {
+            "primary": {
+              "type": "string",
+              "enum": ["codex", "claude-team", "claude-leader", "claude-member", "auto"],
+              "description": "Primary execution engine"
+            },
+            "fallback": {
+              "type": "string",
+              "enum": ["codex", "claude-team", "claude-leader", "claude-member"],
+              "description": "Fallback engine if primary fails"
+            },
+            "routing_reason": {
+              "type": "string",
+              "description": "Why this engine was selected (set by engine_router.py)"
+            }
+          }
+        }
+      ],
+      "description": "Execution engine configuration (string for simple, object for routing)"
+    },
+    "executed_by": {
+      "type": ["string", "null"],
+      "description": "Which engine actually executed this task (set after execution)"
+    },
+    "execution_path": {
+      "type": ["string", "null"],
+      "enum": ["primary", "fallback", null],
+      "description": "Whether task was completed by primary or fallback engine"
+    },
     "claimed_by": {
       "type": [
         "string",

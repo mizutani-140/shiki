@@ -1,5 +1,15 @@
 {
   "mcpServers": {
+    "codex": {
+      "command": "codex",
+      "args": ["mcp-server"],
+      "env": {
+        "CODEX_HOME": "${CODEX_HOME:-}"
+      },
+      "timeout": 300000,
+      "disabled": false,
+      "description": "Codex execution engine for sandboxed implementation tasks. Auth: 'codex login' (Pro plan, recommended) or OPENAI_API_KEY env var. MCP server inherits ~/.codex/ credentials automatically."
+    },
     "github-enhanced": {
       "command": "node",
       "args": [

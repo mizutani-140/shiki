@@ -13,7 +13,8 @@ CLIモードは、Claude Code Agent Teams をローカル環境で直接操作�
 5. [P2P コミュニケーション](#5-p2p-コミュニケーション)
 6. [セッション復旧](#6-セッション復旧)
 7. [バジェット監視](#7-バジェット監視)
-8. [θフェーズ追跡](#8-θフェーズ追跡)
+8. [Dual Engine（Claude + Codex 連携）](#8-dual-engineclaude--codex-連携)
+9. [θフェーズ追跡](#9-θフェーズ追跡)
 
 ---
 
@@ -391,7 +392,88 @@ github:
 
 ---
 
-## 8. θフェーズ追跡
+## 8. Dual Engine（Claude + Codex 連携）
+
+### 概要
+
+CLI モードでは Codex MCP Server を通じて、Claude Agent Teams と Codex の Dual Engine 実行が可能です。タスクの特性に応じて最適なエンジンを自動選択し、Fallback Chain で耐障害性を確保します。
+
+### セットアップ
+
+Codex CLI がインストール・認証済みであれば、`.claude/mcp.json` に定義済みの Codex MCP Server が自動的に利用可能になります。
+
+```bash
+# 1. Codex CLI のインストール
+npm i -g @openai/codex
+
+# 2. 認証（いずれか一方）
+codex login                    # 方式A: Pro/Plus plan（推奨・サブスク枠内）
+export OPENAI_API_KEY="sk-..." # 方式B: API key（従量課金）
+
+# 3. MCP サーバーの登録（プロジェクト単位で追加する場合）
+claude mcp add --transport stdio --scope project codex -- codex mcp-server
+
+# 4. 認証状態の確認
+codex login status
+```
+
+MCP サーバーは `codex login` の認証情報（`~/.codex/`）を自動継承します。Pro plan 使用時は `OPENAI_API_KEY` の設定は不要です。
+
+### エンジン振分
+
+coordinator が θ₃ ALLOCATE フェーズでエンジンを振り分けます：
+
+```bash
+# 全タスクに最適エンジンを自動割当
+python3 scripts/engine_router.py --all
+
+# 特定タスクの割当確認
+python3 scripts/engine_router.py .shiki/tasks/T-0001.json
+
+# ドライランで結果を確認（ファイル更新なし）
+python3 scripts/engine_router.py --all --dry-run
+```
+
+### エンジン選択の基準
+
+| タスク特性 | エンジン | 理由 |
+|-----------|---------|------|
+| Contract が明確に定義済み | Codex | 仕様→実装が機械的 |
+| 単一ファイル・関数実装 | Codex | スコープが狭い |
+| テスト生成 | Codex | パターン生成が得意 |
+| 複数ファイル横断の変更 | Claude | 文脈理解が必要 |
+| リファクタリング | Claude | 判断力が必要 |
+| 設計判断を含む | Claude | トレードオフ評価 |
+
+簡易ルール: **「仕様が Contract に書ける → Codex」「判断・議論が必要 → Claude」**
+
+### executor の Codex MCP 委託フロー
+
+executor は `engine=codex` のタスクを受け取った場合、Codex MCP 経由で実装を委託します：
+
+```
+1. タスク仕様を整理（title, acceptance, contract_ref, target_files）
+2. Codex MCP にプロンプトを送信
+3. Codex の出力をレビュー
+4. exec verify で受け入れ条件を検証
+5. 失敗 → executor が自分で直接実装にフォールバック
+```
+
+### Fallback Chain
+
+Primary engine が失敗した場合、自動的に Secondary engine で再試行します：
+
+```
+codex 失敗 → executor が Claude で直接実装
+claude 失敗 → Codex MCP に委託
+両方失敗   → coordinator にエスカレーション
+```
+
+`execution_path` フィールドに "primary" または "fallback" が記録され、どちらのエンジンで完了したかを追跡できます。
+
+---
+
+## 9. θフェーズ追跡
 
 ### 6フェーズの概要
 

@@ -2,6 +2,8 @@ name: Shiki - Worktree Worker
 
 # タスクごとの worktree ワーカー
 # DAG Executor または手動でディスパッチされる
+# Dual Engine: Codex (primary for implementation) / Claude (fallback or primary for complex tasks)
+# Fallback Chain: primary 失敗 → secondary で自動再試行
 
 on:
   workflow_dispatch:
@@ -15,15 +17,16 @@ on:
         required: true
         type: string
       engine:
-        description: "Execution engine (codex, claude-team, claude-leader, claude-member)"
+        description: "Primary engine (auto = engine_router decides)"
         required: true
         type: choice
         options:
+          - auto
           - codex
           - claude-team
           - claude-leader
           - claude-member
-        default: codex
+        default: auto
       dag_file:
         description: "Path to DAG file (optional)"
         required: false
@@ -37,6 +40,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  id-token: write
 
 jobs:
   worker:
@@ -46,8 +50,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       # ---------------------------------------------------------------
-      # Step 1: Setup worktree branch
+      # Step 1: Setup worktree branch + resolve engine
       # ---------------------------------------------------------------
       - name: Setup worktree branch
         id: setup
@@ -91,6 +99,31 @@ jobs:
           echo "target_files=$TARGET_FILES" >> "$GITHUB_OUTPUT"
           echo "budget_max=$BUDGET_MAX" >> "$GITHUB_OUTPUT"
 
+          # ── Engine Resolution ──
+          INPUT_ENGINE="${{ inputs.engine }}"
+          if [ "$INPUT_ENGINE" = "auto" ]; then
+            # Use engine_router.py to determine optimal engine
+            ENGINE=$(python3 scripts/engine_router.py "$TASK_FILE" 2>/dev/null || echo "codex")
+            echo "Engine router selected: $ENGINE"
+          else
+            ENGINE="$INPUT_ENGINE"
+          fi
+
+          # Determine fallback engine
+          FALLBACK_ENGINE=$(python3 -c "
+          import json
+          t = json.load(open('$TASK_FILE'))
+          eng = t.get('engine', {})
+          if isinstance(eng, dict):
+              print(eng.get('fallback', 'claude-team' if '$ENGINE' == 'codex' else 'codex'))
+          else:
+              print('claude-team' if '$ENGINE' == 'codex' else 'codex')
+          " 2>/dev/null || echo "claude-team")
+
+          echo "primary_engine=$ENGINE" >> "$GITHUB_OUTPUT"
+          echo "fallback_engine=$FALLBACK_ENGINE" >> "$GITHUB_OUTPUT"
+          echo "Primary: $ENGINE, Fallback: $FALLBACK_ENGINE"
+
           # Mark task as in_progress
           python3 << PYEOF
           import json
@@ -98,7 +131,7 @@ jobs:
           with open("$TASK_FILE", encoding="utf-8") as f:
               task = json.load(f)
           task["status"] = "in_progress"
-          task["claimed_by"] = "${{ inputs.engine }}-gh-action"
+          task["claimed_by"] = "$ENGINE-gh-action"
           task["updated_at"] = datetime.now(timezone.utc).isoformat()
           task["worktree_branch"] = "$BRANCH"
           with open("$TASK_FILE", "w", encoding="utf-8") as f:
@@ -108,13 +141,19 @@ jobs:
           git add "$TASK_FILE"
           git config user.name "shiki-bot"
           git config user.email "shiki-bot@users.noreply.github.com"
-          git commit -m "shiki: mark $TASK_ID as in_progress" || true
+          git commit -m "shiki: mark $TASK_ID as in_progress (engine: $ENGINE)" || true
+
+      # ═══════════════════════════════════════════════════════════════
+      # PRIMARY ENGINE EXECUTION
+      # ═══════════════════════════════════════════════════════════════
 
       # ---------------------------------------------------------------
-      # Step 2a: Run Codex engine
+      # Step 2a: Run Codex engine (primary)
       # ---------------------------------------------------------------
-      - name: "θ₄ EXECUTE - Codex implementation"
-        if: inputs.engine == 'codex'
+      - name: "θ₄ EXECUTE - Codex (primary)"
+        id: codex_primary
+        if: steps.setup.outputs.primary_engine == 'codex'
+        continue-on-error: true
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -147,12 +186,15 @@ jobs:
           output-file: codex-output-${{ inputs.task_id }}.md
 
       # ---------------------------------------------------------------
-      # Step 2b: Run Claude engine
+      # Step 2b: Run Claude engine (primary)
       # ---------------------------------------------------------------
-      - name: "θ₄ EXECUTE - Claude implementation"
-        if: inputs.engine != 'codex'
+      - name: "θ₄ EXECUTE - Claude (primary)"
+        id: claude_primary
+        if: steps.setup.outputs.primary_engine != 'codex'
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             You are Claude, the implementation engine running in θ₄ EXECUTE phase.
@@ -183,20 +225,15 @@ jobs:
             --max-turns 8
 
       # ---------------------------------------------------------------
-      # Step 3: Run acceptance criteria
+      # Step 3: Run acceptance criteria (after primary)
       # ---------------------------------------------------------------
-      - name: Run acceptance criteria
-        id: acceptance
-        shell: bash
+      - name: Run acceptance criteria (primary)
+        id: acceptance_primary
         continue-on-error: true
+        shell: bash
         run: |
-          TASK_FILE="${{ steps.setup.outputs.task_file }}"
-          RESULT="pass"
-
           python3 << 'PYEOF'
-          import json
-          import subprocess
-          import sys
+          import json, subprocess, sys
 
           task_file = "${{ steps.setup.outputs.task_file }}"
           with open(task_file, encoding="utf-8") as f:
@@ -226,20 +263,195 @@ jobs:
               print(f"\nAll {len(acceptance)} acceptance criteria passed")
           PYEOF
 
-          echo "result=$?" >> "$GITHUB_OUTPUT"
+      # ---------------------------------------------------------------
+      # Step 4: Determine if fallback is needed
+      # ---------------------------------------------------------------
+      - name: Check if fallback needed
+        id: fallback_check
+        shell: bash
+        run: |
+          PRIMARY="${{ steps.setup.outputs.primary_engine }}"
+          FALLBACK="${{ steps.setup.outputs.fallback_engine }}"
+
+          # Check primary engine outcome
+          if [ "$PRIMARY" = "codex" ]; then
+            PRIMARY_OUTCOME="${{ steps.codex_primary.outcome }}"
+          else
+            PRIMARY_OUTCOME="${{ steps.claude_primary.outcome }}"
+          fi
+
+          ACCEPTANCE_OUTCOME="${{ steps.acceptance_primary.outcome }}"
+
+          echo "Primary engine: $PRIMARY (outcome: $PRIMARY_OUTCOME)"
+          echo "Acceptance: $ACCEPTANCE_OUTCOME"
+          echo "Fallback engine: $FALLBACK"
+
+          # Fallback if: primary engine failed OR acceptance failed
+          if [ "$PRIMARY_OUTCOME" = "failure" ] || [ "$ACCEPTANCE_OUTCOME" = "failure" ]; then
+            if [ "$PRIMARY" != "$FALLBACK" ]; then
+              echo "needs_fallback=true" >> "$GITHUB_OUTPUT"
+              echo "::warning::Primary engine ($PRIMARY) failed. Attempting fallback to $FALLBACK..."
+            else
+              echo "needs_fallback=false" >> "$GITHUB_OUTPUT"
+              echo "::error::Primary engine failed and no different fallback available"
+            fi
+          else
+            echo "needs_fallback=false" >> "$GITHUB_OUTPUT"
+            echo "Primary engine succeeded"
+          fi
+
+      # ═══════════════════════════════════════════════════════════════
+      # FALLBACK ENGINE EXECUTION
+      # ═══════════════════════════════════════════════════════════════
 
       # ---------------------------------------------------------------
-      # Step 4: Update task status and create report
+      # Step 5a: Fallback - Codex
+      # ---------------------------------------------------------------
+      - name: "θ₄ EXECUTE - Codex (fallback)"
+        id: codex_fallback
+        if: steps.fallback_check.outputs.needs_fallback == 'true' && steps.setup.outputs.fallback_engine == 'codex'
+        continue-on-error: true
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt: |
+            You are Codex, running as FALLBACK engine in θ₄ EXECUTE phase.
+            The primary engine (Claude) failed to complete this task.
+            Read AGENTS.md for conventions.
+
+            **Task:** ${{ steps.setup.outputs.title }}
+            **Task ID:** ${{ inputs.task_id }}
+            **Task file:** ${{ steps.setup.outputs.task_file }}
+            **Target files:** ${{ steps.setup.outputs.target_files }}
+            **Contract ref:** ${{ steps.setup.outputs.contract }}
+
+            **Instructions:**
+            1. Read the task file and any existing partial work
+            2. Complete the implementation to satisfy acceptance criteria
+            3. Run: ${{ steps.setup.outputs.acceptance }}
+            4. Write report to .shiki/reports/${{ inputs.task_id }}.md
+            5. Update task: status=review, add note about fallback execution
+          sandbox: workspace-write
+          output-file: codex-fallback-${{ inputs.task_id }}.md
+
+      # ---------------------------------------------------------------
+      # Step 5b: Fallback - Claude
+      # ---------------------------------------------------------------
+      - name: "θ₄ EXECUTE - Claude (fallback)"
+        id: claude_fallback
+        if: steps.fallback_check.outputs.needs_fallback == 'true' && steps.setup.outputs.fallback_engine != 'codex'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are Claude, running as FALLBACK engine in θ₄ EXECUTE phase.
+            The primary engine (Codex) failed to complete this task.
+            Read CLAUDE.md and AGENTS.md for conventions.
+
+            **Task:** ${{ steps.setup.outputs.title }}
+            **Task ID:** ${{ inputs.task_id }}
+            **Task file:** ${{ steps.setup.outputs.task_file }}
+            **Target files:** ${{ steps.setup.outputs.target_files }}
+            **Contract ref:** ${{ steps.setup.outputs.contract }}
+
+            **Context:** The primary engine attempted this task but failed.
+            Check for any partial work already done. Build on it or start fresh as needed.
+
+            **Instructions:**
+            1. Read the task and understand what was attempted
+            2. Complete the implementation to satisfy acceptance criteria
+            3. Run: ${{ steps.setup.outputs.acceptance }}
+            4. Write report to .shiki/reports/${{ inputs.task_id }}.md
+            5. Update task: status=review, add note about fallback execution
+          claude_args: >-
+            --max-turns 8
+
+      # ---------------------------------------------------------------
+      # Step 6: Run acceptance criteria (after fallback)
+      # ---------------------------------------------------------------
+      - name: Run acceptance criteria (fallback)
+        id: acceptance_fallback
+        if: steps.fallback_check.outputs.needs_fallback == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          python3 << 'PYEOF'
+          import json, subprocess, sys
+
+          task_file = "${{ steps.setup.outputs.task_file }}"
+          with open(task_file, encoding="utf-8") as f:
+              task = json.load(f)
+
+          acceptance = task.get("acceptance", [])
+          if not acceptance:
+              sys.exit(0)
+
+          failed = []
+          for i, cmd in enumerate(acceptance):
+              print(f"\n--- Acceptance [{i+1}/{len(acceptance)}]: {cmd}")
+              result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+              if result.returncode != 0:
+                  print(f"  FAILED (exit {result.returncode})")
+                  failed.append(cmd)
+              else:
+                  print("  PASSED")
+
+          if failed:
+              print(f"\n{len(failed)}/{len(acceptance)} failed (fallback)")
+              sys.exit(1)
+          else:
+              print(f"\nAll {len(acceptance)} passed (fallback)")
+          PYEOF
+
+      # ═══════════════════════════════════════════════════════════════
+      # FINALIZATION
+      # ═══════════════════════════════════════════════════════════════
+
+      # ---------------------------------------------------------------
+      # Step 7: Determine final result
+      # ---------------------------------------------------------------
+      - name: Determine final result
+        id: final
+        shell: bash
+        run: |
+          NEEDS_FALLBACK="${{ steps.fallback_check.outputs.needs_fallback }}"
+          PRIMARY_ENGINE="${{ steps.setup.outputs.primary_engine }}"
+          FALLBACK_ENGINE="${{ steps.setup.outputs.fallback_engine }}"
+
+          if [ "$NEEDS_FALLBACK" = "true" ]; then
+            # Used fallback
+            ACCEPTANCE="${{ steps.acceptance_fallback.outcome }}"
+            USED_ENGINE="$FALLBACK_ENGINE"
+            EXECUTION_PATH="fallback"
+          else
+            # Primary succeeded
+            ACCEPTANCE="${{ steps.acceptance_primary.outcome }}"
+            USED_ENGINE="$PRIMARY_ENGINE"
+            EXECUTION_PATH="primary"
+          fi
+
+          echo "used_engine=$USED_ENGINE" >> "$GITHUB_OUTPUT"
+          echo "execution_path=$EXECUTION_PATH" >> "$GITHUB_OUTPUT"
+          echo "acceptance_result=$ACCEPTANCE" >> "$GITHUB_OUTPUT"
+
+          echo "Final: engine=$USED_ENGINE, path=$EXECUTION_PATH, acceptance=$ACCEPTANCE"
+
+      # ---------------------------------------------------------------
+      # Step 8: Update task status
       # ---------------------------------------------------------------
       - name: Update task status
         shell: bash
         run: |
           TASK_FILE="${{ steps.setup.outputs.task_file }}"
           TASK_ID="${{ inputs.task_id }}"
-          ACCEPTANCE_RESULT="${{ steps.acceptance.outcome }}"
+          ACCEPTANCE_RESULT="${{ steps.final.outputs.acceptance_result }}"
+          USED_ENGINE="${{ steps.final.outputs.used_engine }}"
+          EXECUTION_PATH="${{ steps.final.outputs.execution_path }}"
 
           python3 << PYEOF
-          import json
+          import json, os
           from datetime import datetime, timezone
 
           task_file = "$TASK_FILE"
@@ -253,25 +465,26 @@ jobs:
 
           task["updated_at"] = datetime.now(timezone.utc).isoformat()
           task["theta_phase"] = "execute"
+          task["executed_by"] = "$USED_ENGINE"
+          task["execution_path"] = "$EXECUTION_PATH"
 
           with open(task_file, "w", encoding="utf-8") as f:
               json.dump(task, f, indent=2, ensure_ascii=False)
 
           # Ensure report exists
-          import os
           report_path = f".shiki/reports/{task['id']}.md"
           if not os.path.exists(report_path):
               with open(report_path, "w", encoding="utf-8") as rf:
-                  rf.write(f"# Report: {task['id']}\\n\\n")
-                  rf.write(f"**Task:** {task.get('title', '')}\\n")
-                  rf.write(f"**Status:** {task['status']}\\n")
-                  rf.write(f"**Engine:** ${{ inputs.engine }}\\n")
-                  rf.write(f"**Acceptance:** {'PASSED' if '$ACCEPTANCE_RESULT' == 'success' else 'FAILED'}\\n")
-                  rf.write(f"**Updated:** {task['updated_at']}\\n")
+                  rf.write(f"# Report: {task['id']}\n\n")
+                  rf.write(f"**Task:** {task.get('title', '')}\n")
+                  rf.write(f"**Status:** {task['status']}\n")
+                  rf.write(f"**Engine:** $USED_ENGINE ($EXECUTION_PATH)\n")
+                  rf.write(f"**Acceptance:** {'PASSED' if '$ACCEPTANCE_RESULT' == 'success' else 'FAILED'}\n")
+                  rf.write(f"**Updated:** {task['updated_at']}\n")
           PYEOF
 
       # ---------------------------------------------------------------
-      # Step 5: Apply labels
+      # Step 9: Apply labels
       # ---------------------------------------------------------------
       - name: Update labels
         shell: bash
@@ -279,9 +492,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TASK_FILE="${{ steps.setup.outputs.task_file }}"
-          ACCEPTANCE_RESULT="${{ steps.acceptance.outcome }}"
+          ACCEPTANCE_RESULT="${{ steps.final.outputs.acceptance_result }}"
+          USED_ENGINE="${{ steps.final.outputs.used_engine }}"
 
-          # Find related issue (if any)
           ISSUE=$(python3 -c "
           import json
           t = json.load(open('$TASK_FILE'))
@@ -293,31 +506,35 @@ jobs:
           " 2>/dev/null || echo "")
 
           if [ -n "$ISSUE" ]; then
+            ENGINE_LABEL="engine/${USED_ENGINE}"
             if [ "$ACCEPTANCE_RESULT" = "success" ]; then
-              gh issue edit "$ISSUE" --add-label "status/review,theta/4-execute" \
+              gh issue edit "$ISSUE" --add-label "status/review,theta/4-execute,$ENGINE_LABEL" \
                 --remove-label "status/in-progress" \
                 --repo "${{ github.repository }}" || true
             else
-              gh issue edit "$ISSUE" --add-label "status/failed,theta/4-execute" \
+              gh issue edit "$ISSUE" --add-label "status/failed,theta/4-execute,$ENGINE_LABEL" \
                 --remove-label "status/in-progress" \
                 --repo "${{ github.repository }}" || true
             fi
           fi
 
       # ---------------------------------------------------------------
-      # Step 6: Commit and push results
+      # Step 10: Commit and push results
       # ---------------------------------------------------------------
       - name: Commit and push results
         shell: bash
         run: |
+          USED_ENGINE="${{ steps.final.outputs.used_engine }}"
+          EXECUTION_PATH="${{ steps.final.outputs.execution_path }}"
+
           git config user.name "shiki-bot"
           git config user.email "shiki-bot@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || git commit -m "shiki(${{ inputs.engine }}): complete task ${{ inputs.task_id }}"
+          git diff --cached --quiet || git commit -m "shiki($USED_ENGINE): complete task ${{ inputs.task_id }} [$EXECUTION_PATH]"
           git push origin "${{ inputs.worktree_branch }}" || git push --set-upstream origin "${{ inputs.worktree_branch }}"
 
       # ---------------------------------------------------------------
-      # Step 7: Update DAG node status (if part of a DAG)
+      # Step 11: Update DAG node status (if part of a DAG)
       # ---------------------------------------------------------------
       - name: Update DAG node status
         if: inputs.dag_file != '' && inputs.node_id != ''
@@ -325,7 +542,8 @@ jobs:
         run: |
           DAG_FILE="${{ inputs.dag_file }}"
           NODE_ID="${{ inputs.node_id }}"
-          ACCEPTANCE_RESULT="${{ steps.acceptance.outcome }}"
+          ACCEPTANCE_RESULT="${{ steps.final.outputs.acceptance_result }}"
+          USED_ENGINE="${{ steps.final.outputs.used_engine }}"
 
           if [ -f "$DAG_FILE" ]; then
             python3 << PYEOF
@@ -341,6 +559,7 @@ jobs:
                       node["status"] = "completed"
                   else:
                       node["status"] = "failed"
+                  node["executed_by"] = "$USED_ENGINE"
                   break
 
           dag["metadata"]["updated_at"] = datetime.now(timezone.utc).isoformat()

@@ -158,12 +158,15 @@ jobs:
                       pass
 
                   # Dispatch worker workflow
+                  # engine=auto lets the worker's engine_router decide the optimal engine
+                  # with automatic fallback if primary fails
+                  dispatch_engine = "auto"
                   try:
                       subprocess.run([
                           "gh", "workflow", "run", "shiki-worktree-worker.yml",
                           "-f", f"task_id={task_id}",
                           "-f", f"worktree_branch={branch}",
-                          "-f", f"engine={engine}",
+                          "-f", f"engine={dispatch_engine}",
                           "-f", f"dag_file={dag_file}",
                           "-f", f"node_id={node_id}",
                           "--repo", repo

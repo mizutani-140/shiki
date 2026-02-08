@@ -26,22 +26,22 @@
 
 ```bash
 # Shiki（式） をクローン/コピー
-cp -r /path/to/ai-autodev-framework/.shiki /your/project/
-cp -r /path/to/ai-autodev-framework/.claude /your/project/
-cp -r /path/to/ai-autodev-framework/.github /your/project/
-cp -r /path/to/ai-autodev-framework/.ai /your/project/
-cp /path/to/ai-autodev-framework/CLAUDE.md /your/project/
-cp /path/to/ai-autodev-framework/AGENTS.md /your/project/
-cp -r /path/to/ai-autodev-framework/roles /your/project/
-cp -r /path/to/ai-autodev-framework/scripts /your/project/
-cp -r /path/to/ai-autodev-framework/templates /your/project/
+cp -r /path/to/shiki/.shiki /your/project/
+cp -r /path/to/shiki/.claude /your/project/
+cp -r /path/to/shiki/.github /your/project/
+cp -r /path/to/shiki/.ai /your/project/
+cp /path/to/shiki/CLAUDE.md /your/project/
+cp /path/to/shiki/AGENTS.md /your/project/
+cp -r /path/to/shiki/roles /your/project/
+cp -r /path/to/shiki/scripts /your/project/
+cp -r /path/to/shiki/templates /your/project/
 ```
 
 ### 既存プロジェクトの場合
 
 ```bash
 cd /your/project
-/path/to/ai-autodev-framework/scripts/init_shiki.sh
+/path/to/shiki/scripts/init_shiki.sh
 ```
 
 ---
@@ -157,10 +157,38 @@ claude
 
 Repository → Settings → Secrets and variables → Actions:
 
+**認証方式は2つから選択：**
+
+#### 方式A: Max プラン OAuth（推奨）
+
+Claude Max / Pro プランのサブスクリプション枠内で実行。API 従量課金が発生しない。
+
+```bash
+# 1. Claude GitHub App をインストール（ブラウザで）
+#    https://claude.ai/settings → "Install GitHub App" → 対象リポジトリを選択
+
+# 2. OAuth トークンを生成
+claude /install-github-app   # GitHub App 未インストールの場合
+claude setup-token            # トークン生成
+
+# 3. 表示されたトークンを GitHub Secret に設定
+```
+
 | Secret 名 | 内容 |
 |-----------|------|
-| `ANTHROPIC_API_KEY` | Claude API キー |
-| `OPENAI_API_KEY` | Codex API キー（Codex 使用時） |
+| `CLAUDE_CODE_OAUTH_TOKEN` | `claude setup-token` で取得した OAuth トークン |
+| `OPENAI_API_KEY` | Codex API キー（Codex 使用時。CI はブラウザ認証不可のため API キー必須） |
+
+#### 方式B: API キー（従量課金）
+
+Anthropic API の従量課金で実行。
+
+| Secret 名 | 内容 |
+|-----------|------|
+| `ANTHROPIC_API_KEY` | Claude API キー（Anthropic Console で取得） |
+| `OPENAI_API_KEY` | Codex API キー（Codex 使用時。CI はブラウザ認証不可のため API キー必須） |
+
+> **Note:** 両方設定した場合、OAuth トークンが優先されます。
 
 ### 4-2. ラベルを作成
 
@@ -183,11 +211,40 @@ Repository → Settings → Secrets and variables → Actions:
 
 ## 5. Codex 連携（任意）
 
+### 5-1. インストール
+
 ```bash
 npm i -g @openai/codex
+```
+
+### 5-2. 認証（2つの方式から選択）
+
+**方式A: Pro/Plus プランログイン（推奨）**
+
+サブスクリプション枠内で実行。API 従量課金が発生しない。
+
+```bash
+codex login                    # ブラウザ OAuth 認証
+codex login status             # 認証状態の確認
+```
+
+**方式B: API キー（従量課金）**
+
+```bash
 export OPENAI_API_KEY="sk-..."
+```
+
+> **Note:** CLI モードでは方式A（Pro plan login）を推奨。GitHub Actions では方式B（API key）が必須（CI はブラウザ認証不可）。
+
+### 5-3. MCP 登録
+
+```bash
 claude mcp add --transport stdio --scope project codex -- codex mcp-server
 ```
+
+MCP サーバーは `codex login` の認証情報を自動継承するため、Pro plan 使用時は `OPENAI_API_KEY` 不要。
+
+詳細は `docs/05_local_setup_codex.md` を参照。
 
 ---
 
@@ -228,7 +285,8 @@ guardian:
 - [ ] `GOAL.md` を作成した
 - [ ] `python3 scripts/validate_shiki.py` が `Validation OK` を返す
 - [ ] `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` が設定されている（CLIモード）
-- [ ] GitHub Secrets が設定されている（GitHubモード）
+- [ ] GitHub Secrets が設定されている（GitHubモード：`CLAUDE_CODE_OAUTH_TOKEN` または `ANTHROPIC_API_KEY`）
+- [ ] Codex 認証が完了している（Dual Engine 使用時：CLI は `codex login status` で確認、CI は `OPENAI_API_KEY`）
 
 ---
 

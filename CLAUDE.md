@@ -89,7 +89,31 @@ Guardian の詳細は `.github/GUARDIAN.md` を参照。
 
 ---
 
-## 5) Codex への委託（MCP/Actions）
+## 5) Dual Engine Architecture（Claude + Codex）
+
+### エンジン役割分担
+
+| エンジン | 強み | 担当 |
+|---------|------|------|
+| **Claude Agent Teams** | 協調・判断・多角的評価 | θ₁-θ₃計画、θ₅レビュー、リファクタリング、設計判断、デバッグ |
+| **Codex** | サンドボックス隔離実行・テスト駆動 | 関数実装、テスト生成、CI修復、定型コード、ドキュメント生成 |
+
+### エンジン選択基準
+
+> **「仕様が Contract に書ける」→ Codex**
+> **「判断・議論が必要」→ Claude Agent Teams**
+
+### Smart Router（自動振分）
+- `scripts/engine_router.py` がタスク特性を分析してエンジンを自動選択
+- θフェーズ、ファイル数、キーワード、Contract有無からスコアリング
+- `engine=auto` 指定時に router が判断
+
+### Fallback Chain（自動再試行）
+- Primary engine が失敗した場合、自動で Secondary engine で再試行
+- `engines.routing.fallback: true` で有効（デフォルト有効）
+- タスクの `execution_path` に "primary" / "fallback" が記録される
+
+### Codex への委託
 実装が明確な場合は Codex に委託してよい。
 
 委託時に必ず含める：
@@ -114,7 +138,8 @@ Guardian の詳細は `.github/GUARDIAN.md` を参照。
 ---
 
 ## 7) 安全
-- ANTHROPIC_API_KEY / OPENAI_API_KEY を**絶対に表示・出力・コミットしない**
+- ANTHROPIC_API_KEY / OPENAI_API_KEY / CLAUDE_CODE_OAUTH_TOKEN を**絶対に表示・出力・コミットしない**
+- `~/.codex/auth.json` / `~/.codex/auth_token.json` を**読取・コピー・出力しない**（Codex 認証トークンを含む）
 - 破壊的コマンドを提案/実行しない（rm -rf /、強制push等）
 - worktree の無断削除禁止
 - tmux kill-server 禁止

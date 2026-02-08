@@ -21,13 +21,20 @@
               │        共有コア基盤          │
               │  .shiki/ + Schemas + Hooks │
               │  θ収束モデル + 4層権限      │
-              │  Codex マルチエンジン       │
+              │  Dual Engine Architecture  │
+              └──────────┬─────────────────┘
+                         │
+              ┌──────────▼──────────────────┐
+              │  Claude          Codex      │
+              │  協調・判断      隔離実行    │
+              │  計画/レビュー   実装/テスト  │
+              │  ← Smart Router + Fallback →│
               └─────────────────────────────┘
 ```
 
 **CLIモード**：Agent Teams ネイティブ + tmux/iTerm2 で最大並列効率
-**GitHubモード**：Miyabi「GitHub as OS」+ Worktree 分離 + DAG 実行
-**共通**：Codex マルチエンジン連携、θ収束モデル、4層権限モデル
+**GitHubモード**：Issue/Label/DAG 駆動 + Worktree 分離 + Dual Engine 並列
+**Dual Engine**：Claude（判断・協調）+ Codex（隔離実行）を Smart Router で自動振分、Fallback Chain で耐障害性確保
 
 > **初めての方へ**: [SETUP.md](./SETUP.md)（セットアップ） → [USAGE.md](./USAGE.md)（使い方） → [docs/16_best_practices.md](./docs/16_best_practices.md)（ベストプラクティス）の順に読んでください。
 
@@ -108,7 +115,14 @@ export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ### 3-4) Codex CLI の導入（任意）
 ```bash
 npm i -g @openai/codex
+
+# 方式A: Pro/Plus プランログイン（推奨・サブスク枠内）
+codex login
+
+# 方式B: API キー（従量課金）
 export OPENAI_API_KEY="sk-..."
+
+# MCP 登録（認証情報は自動継承）
 claude mcp add --transport stdio --scope project codex -- codex mcp-server
 ```
 
@@ -132,8 +146,18 @@ claude
 
 ### 4-1) GitHub Secrets
 Repo → Settings → Secrets → New repository secret
+
+**方式A: Max プラン OAuth（推奨・従量課金なし）**
+```bash
+claude /install-github-app   # GitHub App インストール
+claude setup-token            # OAuth トークン生成 → CLAUDE_CODE_OAUTH_TOKEN に設定
+```
+
+**方式B: API キー（従量課金）**
 - `ANTHROPIC_API_KEY`
-- `OPENAI_API_KEY`
+
+**Codex 連携（任意）**
+- `OPENAI_API_KEY`（GitHub Actions での Codex 使用に必須。CI はブラウザ認証不可のため API キーが必要）
 
 ### 4-2) ラベル作成
 ```bash

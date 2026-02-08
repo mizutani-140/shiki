@@ -56,7 +56,10 @@ case "$MODE_CHOICE" in
     ;;
   2)
     echo "[Shiki] GitHub mode selected."
-    echo "[Shiki] Ensure GitHub Secrets are set: ANTHROPIC_API_KEY, OPENAI_API_KEY"
+    echo "[Shiki] Ensure GitHub Secrets are set:"
+    echo "  Recommended: CLAUDE_CODE_OAUTH_TOKEN (Max plan OAuth, no API billing)"
+    echo "  Alternative: ANTHROPIC_API_KEY (API key, pay-per-use)"
+    echo "  Optional:    OPENAI_API_KEY (for Codex engine)"
     echo "[Shiki] Run: scripts/setup_github_labels.sh to create labels."
     ;;
   *)
