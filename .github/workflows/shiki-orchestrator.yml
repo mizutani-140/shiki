@@ -207,15 +207,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          DAG_FILE=$(ls -t .shiki/dag/dag-*.json 2>/dev/null | head -1)
-          if [ -n "$DAG_FILE" ]; then
-            DAG_ID=$(python3 -c "import json; print(json.load(open('$DAG_FILE'))['dag_id'])")
-            gh api repos/${{ github.repository }}/dispatches \
-              -f event_type=dag-execute \
-              -f "client_payload[dag_file]=$DAG_FILE" \
-              -f "client_payload[dag_id]=$DAG_ID" \
-              -f "client_payload[issue_number]=${{ github.event.issue.number }}" || true
+          # Avoid failing the workflow when DAG artifacts are missing or malformed.
+          DAG_FILE=$(ls -t .shiki/dag/*.json 2>/dev/null | head -1 || true)
+          if [ -z "${DAG_FILE:-}" ] || [ ! -f "$DAG_FILE" ]; then
+            echo "[WARN] No DAG JSON found under .shiki/dag; skipping repository_dispatch."
+            exit 0
           fi
+
+          DAG_ID=$(python3 -c "import json; print(json.load(open('$DAG_FILE')).get('dag_id', ''))" 2>/dev/null || true)
+          if [ -z "${DAG_ID:-}" ]; then
+            echo "[WARN] dag_id is missing in $DAG_FILE; skipping repository_dispatch."
+            exit 0
+          fi
+
+          gh api repos/${{ github.repository }}/dispatches \
+            -f event_type=dag-execute \
+            -f "client_payload[dag_file]=$DAG_FILE" \
+            -f "client_payload[dag_id]=$DAG_ID" \
+            -f "client_payload[issue_number]=${{ github.event.issue.number }}" \
+            || echo "[WARN] repository_dispatch failed; continuing."
 
       # ---------------------------------------------------------------
       # Step 6: Create PR with planning artifacts
