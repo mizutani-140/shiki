@@ -22,26 +22,37 @@
 
 ## 1. フレームワークの配置
 
-### 新規プロジェクトの場合
+### 方法A: GitHub Template から作成（推奨）
 
 ```bash
-# Shiki（式） をクローン/コピー
-cp -r /path/to/shiki/.shiki /your/project/
-cp -r /path/to/shiki/.claude /your/project/
-cp -r /path/to/shiki/.github /your/project/
-cp -r /path/to/shiki/.ai /your/project/
-cp /path/to/shiki/CLAUDE.md /your/project/
-cp /path/to/shiki/AGENTS.md /your/project/
-cp -r /path/to/shiki/roles /your/project/
-cp -r /path/to/shiki/scripts /your/project/
-cp -r /path/to/shiki/templates /your/project/
+# 1コマンドで Shiki 構造を持つ新規リポジトリを作成
+gh repo create my-project --template mizutani-140/shiki --private --clone
+cd my-project
+
+# 初期化（ディレクトリ作成・モード選択）
+./scripts/init_shiki.sh
 ```
 
-### 既存プロジェクトの場合
+GitHub Web UI からも作成可能：リポジトリページの「**Use this template**」→「**Create a new repository**」
+
+### 方法B: 手動コピー（既存プロジェクトに導入）
 
 ```bash
-cd /your/project
-/path/to/shiki/scripts/init_shiki.sh
+cd /your/existing-project
+
+# Shiki の管理構造をコピー
+cp -r /path/to/shiki/.shiki ./
+cp -r /path/to/shiki/.claude ./
+cp -r /path/to/shiki/.github ./
+cp -r /path/to/shiki/.ai ./
+cp /path/to/shiki/CLAUDE.md ./
+cp /path/to/shiki/AGENTS.md ./
+cp -r /path/to/shiki/roles ./
+cp -r /path/to/shiki/scripts ./
+cp -r /path/to/shiki/templates ./
+
+# 初期化
+./scripts/init_shiki.sh
 ```
 
 ---

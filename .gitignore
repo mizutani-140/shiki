@@ -1,1 +1,28 @@
+# Python
 __pycache__/
+*.pyc
+*.pyo
+
+# Session-specific (generated at runtime, not part of template)
+.shiki/state/session-*.json
+.shiki/reports/SESSION-*.md
+.ai/logs/*.md
+!.ai/logs/.keep
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node (if using Codex MCP)
+node_modules/

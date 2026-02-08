@@ -1,5 +1,17 @@
 # Shiki（式） — デュアルモード AI自律駆動開発フレームワーク
 
+> **Use this template** ボタンまたは以下のコマンドで新規プロジェクトを作成できます：
+>
+> ```bash
+> gh repo create my-project --template mizutani-140/shiki --private --clone
+> cd my-project
+> ./scripts/init_shiki.sh
+> ```
+>
+> 詳細は [SETUP.md](./SETUP.md) を参照。
+
+---
+
 ```
               ┌─────────────────────────────────────────┐
               │           Shiki（式） v2                 │
