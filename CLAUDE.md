@@ -9,8 +9,9 @@
 2. **`.shiki/config.yaml` を読む** — モード（cli/github/auto）・エンジン設定を確認する
 3. **`.shiki/state/` を確認** — 復旧セッションがあれば再開を提案する
 4. **`.shiki/tasks/` を確認** — アクティブなタスク状態を把握する
-5. **θ₁ UNDERSTAND で開始** — 復旧セッション以外は必ずθ₁から開始する。いきなりコードを書かない
-6. **状態を報告** — 「セッション開始。モード: X。θフェーズ: Y。タスク: N件」と報告する
+5. **Agent Teams を作成する** — `TeamCreate` で即座にチームを作成する。GOAL に基づいて必要な役割を判断し、メンバーを編成する（詳細は Section 5a を参照）
+6. **θ₁ UNDERSTAND で開始** — 復旧セッション以外は必ずθ₁から開始する。いきなりコードを書かない
+7. **状態を報告** — 「セッション開始。モード: X。θフェーズ: Y。チーム: N名。タスク: N件」と報告する
 
 ### 違反行為（以下は禁止）
 
@@ -114,57 +115,90 @@ Guardian の詳細は `.github/GUARDIAN.md` を参照。
 
 ---
 
-## 5) Dual Engine Architecture（Claude + Codex）
+## 5) Agent Teams 必須構成
+
+> **重要**: セッション開始時に必ず `TeamCreate` でチームを作成すること。
+> GOAL.md の内容に基づいて、必要な役割を判断し、メンバーを編成する。
+
+### チーム編成ルール
+
+1. **coordinator（CC自身）** — 計画・設計・調整・マージ判断。Delegate Mode で動作
+2. **GOAL に応じた役割を動的に割り振る** — 以下のエンジン割当ルールに従う
+
+### エンジン割当ルール（厳守）
+
+| タスク種別 | 担当エンジン | Teams での役割例 |
+|-----------|-------------|-----------------|
+| 関数実装（単一/複数ファイル） | **Codex** | implementer |
+| テスト生成 | **Codex** | tester |
+| コードレビュー（θ₅） | **Codex** | reviewer |
+| 定型コード・ボイラープレート | **Codex** | implementer |
+| CI 修復（lint/typecheck） | **Codex** | ci-fixer |
+| 設計・アーキテクチャ判断 | **CC** | architect |
+| デバッグ（原因調査） | **CC** | debugger |
+| リファクタリング | **CC** | refactorer |
+| 計画・タスク分解 | **CC** | coordinator |
+| マージ判断 | **CC** | coordinator |
+
+**Codex に必ず委託する作業**: 関数実装、テスト生成、レビュー、定型コード、CI修復
+**CC が行う作業**: 上記以外（設計判断、デバッグ、リファクタリング、計画、マージ判断）
+
+### チーム編成例
+
+GOAL: 「認証APIを実装する」の場合:
+```
+TeamCreate: auth-api
+  coordinator (CC)    — 計画・設計・マージ判断
+  implementer (Codex) — 関数実装・定型コード
+  tester (Codex)      — テスト生成
+  reviewer (Codex)    — コードレビュー
+```
+
+GOAL: 「パフォーマンス改善」の場合:
+```
+TeamCreate: perf-improvement
+  coordinator (CC)    — 計画・マージ判断
+  debugger (CC)       — プロファイリング・原因調査
+  implementer (Codex) — 最適化実装
+  tester (Codex)      — ベンチマークテスト生成
+  reviewer (Codex)    — レビュー
+```
+
+---
+
+## 5a) Dual Engine Architecture（Claude + Codex）
 
 > **重要**: Codex は MCP サーバーとして `.claude/mcp.json` に登録済みです。
 > Claude Code のセッション内から MCP ツールとして直接呼び出せます。
 > 別ターミナルや tmux ペインでの起動は**不要**です。
 
-### エンジン役割分担（shiki の運用設計）
-
-> **注**: Codex は公式にコードレビュー機能（`/review`、`@codex review`）も提供しています。
-> 以下は shiki フレームワークにおける運用上の役割分担であり、各ツールの能力の限界ではありません。
-
-| エンジン | shiki での主な役割 | 理由 |
-|---------|------|------|
-| **Claude Agent Teams** | θ₁-θ₃計画、最終レビュー・マージ判断、リファクタリング、設計判断、デバッグ | Plan Mode / Delegate Mode による計画→委任のハブ |
-| **Codex** | 関数実装、テスト生成、CI修復、定型コード、ドキュメント生成、補助的レビュー | サンドボックス隔離実行・テスト駆動に強い |
-
 ### Codex MCP の使い方
 
 Codex は MCP ツールとしてセッション内で呼び出す。認証情報（`codex login` または `OPENAI_API_KEY`）は自動継承される。
 
-**Codex に委託すべきタスク：**
-- 仕様が明確な単一ファイルの関数実装
-- テストコード生成（ユニットテスト、統合テスト）
-- 定型コード・ボイラープレート生成
-- CI 修復（lint/typecheck エラーの自動修正）
-- ドキュメント生成
-- 実装後のコードレビュー補助（`/review` 相当）
+### θ₅ VERIFY でのレビュー（Codex が担当）
 
-**Claude が担当するタスク：**
-- 複数ファイル横断のリファクタリング
-- 設計判断・アーキテクチャ選択
-- デバッグ（原因調査が必要なもの）
-- 最終レビュー・マージ判断（セキュリティ観点を含む）
+**レビューは必ず Codex に委託する。** CC はレビュー結果を確認し、マージ判断のみ行う。
 
-### θ₃ ALLOCATE でのエンジン割当
+Codex へのレビュー委託プロンプト例：
+```
+以下の変更をレビューしてください。
 
-タスク分解（θ₂-θ₃）の際、各タスクの `engine` フィールドを設定する：
+タスクID: T-XXXX
+変更ファイル: [file list]
+受け入れ条件: [acceptance criteria]
 
-```json
-{
-  "engine": {
-    "primary": "codex",
-    "fallback": "claude-team",
-    "routing_reason": "単一ファイル実装、仕様が Contract に記述済み"
-  }
-}
+以下の観点でレビューしてください：
+1. 受け入れ条件を満たしているか
+2. バグやエッジケースの見落とし
+3. セキュリティ上の問題
+4. コード品質・可読性
+5. テストの網羅性
+
+問題があれば具体的な修正提案を含めてください。
 ```
 
-判断基準: `python3 scripts/engine_router.py .shiki/tasks/T-XXXX.json`
-
-### Codex への委託手順（executor が実行）
+### Codex への実装委託手順（executor が実行）
 
 1. タスクの仕様を整理する
 2. **MCP ツール `codex` を呼び出す**:
@@ -177,9 +211,10 @@ Codex は MCP ツールとしてセッション内で呼び出す。認証情報
    上記の仕様に基づいて最小限の実装を行ってください。
    テストも合わせて生成してください。
    ```
-3. Codex の出力をレビューする
-4. exec verify を実行して受け入れ条件を検証する
-5. 失敗した場合: 自分で直接実装にフォールバック（execution_path=fallback）
+3. exec verify を実行して受け入れ条件を検証する
+4. **Codex にレビューを委託する**（上記レビュープロンプト）
+5. レビュー指摘があれば修正 → 再度 exec verify
+6. 失敗した場合: CC が直接実装にフォールバック（execution_path=fallback）
 
 ### Smart Router（自動振分）
 - `scripts/engine_router.py` がタスク特性を分析してエンジンを自動選択

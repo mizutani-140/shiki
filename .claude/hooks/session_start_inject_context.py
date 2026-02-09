@@ -188,12 +188,13 @@ def main() -> int:
             # Add Codex usage directive if Codex is available
             if codex_cfg.get("enabled") and codex_status == "authenticated":
                 parts.append(
-                    "## Codex MCP 使用指示\n"
+                    "## Codex MCP 使用指示（厳守）\n"
                     "Codex は MCP サーバーとして利用可能です。\n"
-                    "実装タスク（関数実装・テスト生成・定型コード）は "
-                    "Codex MCP に委託してください。\n"
-                    "Codex のレビュー機能も補助として活用できます。\n"
-                    "最終レビュー・マージ判断は Claude が担保してください。"
+                    "以下は必ず Codex に委託してください：\n"
+                    "- 関数実装、テスト生成、定型コード、CI修復\n"
+                    "- **コードレビュー（θ₅ VERIFY）**\n"
+                    "CC が行う作業：設計判断、デバッグ、リファクタリング、マージ判断\n"
+                    "セッション開始時に TeamCreate でチームを必ず作成してください。"
                 )
 
     # Budget summary

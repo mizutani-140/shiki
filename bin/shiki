@@ -519,12 +519,15 @@ cmd_start() {
 3. .shiki/ ディレクトリをSource of Truthとして使用してください
 4. いかなる実装もθ₄ EXECUTEフェーズに入るまで行わないでください
 
-【Dual Engine — Codex MCP を積極的に使用してください】
-- Codex は .claude/mcp.json に MCP サーバーとして登録済みです
+【Agent Teams — 必ずチームを作成してください】
+- セッション開始直後に TeamCreate でチームを作成してください
+- GOAL に基づいて必要な役割を判断し、メンバーを編成してください
+
+【エンジン割当ルール（厳守）】
 - Codex 状態: ${codex_status}
-- 実装タスク（関数実装・テスト生成・定型コード）は Codex MCP に委託してください
-- θ₃ ALLOCATE で各タスクの engine フィールドに codex / claude-team を設定してください
-- 判断が必要なタスクのみ Claude が直接実装してください
+- Codex に必ず委託: 関数実装、テスト生成、コードレビュー（θ₅）、定型コード、CI修復
+- CC が担当: 設計判断、デバッグ、リファクタリング、計画、マージ判断
+- レビューは必ず Codex が行い、CC はレビュー結果を確認してマージ判断のみ行う
 
 【現在の状態】
 - θフェーズ: ${theta_phase}
@@ -533,7 +536,7 @@ cmd_start() {
 【GOAL（GOAL.md より）】
 ${goal_summary}
 
-まず${theta_phase}から開始してください。最初にGOAL.mdを読み、状態を報告してください。"
+まず${theta_phase}から開始してください。最初にGOAL.mdを読み、TeamCreateでチームを作成し、状態を報告してください。"
 
     # 5. Launch
     local config_file="${project_dir}/.shiki/config.yaml"

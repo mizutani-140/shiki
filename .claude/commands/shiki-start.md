@@ -19,8 +19,8 @@ CLAUDE.md を全文読み、憲法（Constitution）のルールを把握して�
 特に以下のセクションを理解すること：
 - MANDATORY: Session Start Protocol
 - θ収束モデル（6フェーズ）
-- 4-Layer Authority Model
-- Dual Engine Architecture（Codex MCP の使い方）
+- Section 5: Agent Teams 必須構成とエンジン割当ルール
+- Section 5a: Dual Engine Architecture（Codex MCP の使い方）
 
 ## 3. GOAL.md を読む
 
@@ -40,12 +40,16 @@ GOAL.md がテンプレートのまま（「（例）」を含む）の場合、
 - `.shiki/tasks/*.json` — アクティブなタスクの状態
 - `.shiki/plans/PLAN.md` — 既存の設計計画
 
-## 5. Dual Engine（Codex MCP）確認
+## 5. Agent Teams を作成する（必須）
 
-Codex MCP は `.claude/mcp.json` に登録済みです。
-実装タスク（関数実装・テスト生成・定型コード）は **Codex MCP に委託**してください。
-Codex のレビュー機能も補助として活用できます。
-最終レビュー・マージ判断・設計判断・デバッグは Claude が担当してください。
+**GOAL に基づいて `TeamCreate` で即座にチームを作成してください。**
+
+エンジン割当ルール（厳守）：
+- **Codex に委託**: 関数実装、テスト生成、コードレビュー、定型コード、CI修復
+- **CC が担当**: 設計判断、デバッグ、リファクタリング、計画、マージ判断
+
+GOAL の内容に応じて必要な役割（implementer, tester, reviewer, architect, debugger 等）を判断し、
+それぞれを Codex / CC に割り振ってチームを編成してください。
 
 ## 6. セッション開始報告
 
@@ -55,6 +59,7 @@ Codex のレビュー機能も補助として活用できます。
 セッション初期化完了。
   モード: [cli/github/auto]
   θフェーズ: [現在のフェーズ、初回は theta_1_understand]
+  チーム: [チーム名] — [N]名（CC: N名、Codex: N名）
   アクティブタスク: [N] 件
   GOAL: [ゴールの1行要約]
   Codex MCP: [利用可能/利用不可]
