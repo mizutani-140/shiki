@@ -79,14 +79,18 @@ python3 scripts/engine_router.py .shiki/tasks/T-0001.json
 python3 scripts/engine_router.py --all
 ```
 
-### Codex に委託すべきタスク（必須）
+### Codex に委託すべきタスク
 
-以下に該当するタスクは **必ず Codex MCP 経由で委託する**：
+以下に該当するタスクは Codex MCP 経由で委託する：
 - 仕様が明確な関数・クラスの実装（Contract が定義済み）
 - テストコード生成（ユニットテスト、統合テスト）
 - 定型コード・ボイラープレート生成
 - lint / typecheck エラーの自動修正
 - ドキュメント・型定義の生成
+- 実装後のコードレビュー補助（Codex の `/review` 機能相当）
+
+> **注**: 最終的なマージ判断・セキュリティレビューは Claude（coordinator/monitor）が行う。
+> Codex のレビューは補助として活用し、最終判断は Claude が担保する。
 
 ### Codex 委託の具体的手順（executor が実行）
 
