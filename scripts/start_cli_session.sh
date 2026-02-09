@@ -252,7 +252,12 @@ setup_in_process() {
 launch_claude() {
     local resume_prompt=""
 
-    # 復旧プロンプトの準備
+    # shiki start からの初期プロンプト（SHIKI_INIT_PROMPT）
+    if [[ -n "${SHIKI_INIT_PROMPT:-}" ]]; then
+        resume_prompt="${SHIKI_INIT_PROMPT}"
+    fi
+
+    # 復旧プロンプトの準備（復旧が優先）
     if [[ -n "${RECOVERY_SESSION_FILE:-}" ]]; then
         log_step "復旧プロンプトを生成中..."
         if [[ -f "${SCRIPT_DIR}/recover_session.py" ]]; then

@@ -1,14 +1,19 @@
 # Shiki（式） — デュアルモード AI自律駆動開発フレームワーク
 
-> **Use this template** ボタンまたは以下のコマンドで新規プロジェクトを作成できます：
+> **1コマンドで新規プロジェクトを作成できます：**
 >
 > ```bash
-> gh repo create my-project --template mizutani-140/shiki --private --clone
+> # shiki CLI でプロジェクト作成（テンプレートコピー + 初期化 + クリーンアップを自動実行）
+> ./bin/shiki new my-project
+>
+> # ゴールを定義して開発開始
 > cd my-project
-> ./scripts/init_shiki.sh
+> vim GOAL.md
+> ./bin/shiki start
 > ```
 >
-> 詳細は [SETUP.md](./SETUP.md) を参照。
+> 詳細は [SETUP.md](./.shiki/reference/SETUP.md) を参照。
+> （`shiki new` 実行後、フレームワークドキュメントは `.shiki/reference/` に自動アーカイブされます）
 
 ---
 
@@ -49,6 +54,8 @@
 **Dual Engine**：Claude（判断・協調）+ Codex（隔離実行）を Smart Router で自動振分、Fallback Chain で耐障害性確保
 
 > **初めての方へ**: [SETUP.md](./SETUP.md)（セットアップ） → [USAGE.md](./USAGE.md)（使い方） → [docs/16_best_practices.md](./docs/16_best_practices.md)（ベストプラクティス）の順に読んでください。
+>
+> **新規プロジェクト作成後**: `shiki new` によりドキュメントは `.shiki/reference/` にアーカイブされます。
 
 ---
 

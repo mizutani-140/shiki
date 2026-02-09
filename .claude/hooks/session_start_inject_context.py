@@ -50,6 +50,34 @@ def main() -> int:
 
     parts: List[str] = []
 
+    # --- Behavioral directive (MUST be first) ---
+    directive = (
+        "## SHIKI FRAMEWORK ACTIVE\n"
+        "あなたは Shiki（式）フレームワーク下で動作しています。\n"
+        "以下のプロトコルに必ず従ってください：\n"
+        "1. まず GOAL.md を読み、ゴールを把握してください\n"
+        "2. θ収束モデル（6フェーズ）に従って作業を進めてください\n"
+        "3. .shiki/ ディレクトリを Source of Truth として使用してください\n"
+        "4. 実装コードの編集はθ₄ EXECUTEフェーズに到達してから行ってください\n"
+        "5. CLAUDE.md の憲法（Constitution）を必ず読んでください"
+    )
+    parts.append(directive)
+
+    # --- GOAL.md content injection ---
+    goal_path = project_dir / "GOAL.md"
+    if goal_path.exists():
+        try:
+            goal_text = goal_path.read_text(encoding="utf-8")[:500]
+            if "（例）" in goal_text:
+                parts.append(
+                    "## WARNING: GOAL.md はテンプレートのままです\n"
+                    "ユーザーにプロジェクトのゴール定義を依頼してください。"
+                )
+            else:
+                parts.append(f"## Current GOAL (抜粋)\n{goal_text}")
+        except Exception:
+            pass
+
     # Read config
     config_path = shiki / "config.yaml"
     config = _read_yaml(config_path) if config_path.exists() else {}
@@ -157,6 +185,15 @@ def main() -> int:
             )
         if engine_parts:
             parts.append("## Dual Engine\n" + "\n".join(engine_parts))
+            # Add Codex usage directive if Codex is available
+            if codex_cfg.get("enabled") and codex_status == "authenticated":
+                parts.append(
+                    "## Codex MCP 使用指示\n"
+                    "Codex は MCP サーバーとして利用可能です。\n"
+                    "実装タスク（関数実装・テスト生成・定型コード）は "
+                    "Codex MCP に委託してください。\n"
+                    "判断が必要なタスクのみ Claude が直接実装してください。"
+                )
 
     # Budget summary
     budget_config = config.get("github", {}).get("budget", {})

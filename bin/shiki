@@ -1,0 +1,879 @@
+#!/usr/bin/env bash
+# shiki — Shiki（式） AI Autonomous Development Framework CLI
+#
+# Usage:
+#   shiki new <project-name> [--public]    Create a new project from template
+#   shiki init [--force]                    Initialize shiki in current directory
+#   shiki start [--resume]                  Start a development session
+#   shiki status                            Show project state
+#   shiki doctor                            Check setup health
+
+set -euo pipefail
+
+SHIKI_VERSION="2.1.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FRAMEWORK_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# --- Colors ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+log_info()  { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
+log_step()  { echo -e "${CYAN}[STEP]${NC} $*"; }
+
+# --- Utility Functions ---
+
+check_command() {
+    if ! command -v "$1" &>/dev/null; then
+        return 1
+    fi
+    return 0
+}
+
+read_config_value() {
+    local config_file="$1"
+    local key="$2"
+    local default="$3"
+    if [[ -f "${config_file}" ]]; then
+        local value
+        value=$(grep -E "^\s*${key}:" "${config_file}" 2>/dev/null | head -1 | sed 's/.*:\s*//' | sed 's/\s*#.*//' | tr -d '[:space:]')
+        if [[ -n "${value}" ]]; then
+            echo "${value}"
+            return
+        fi
+    fi
+    echo "${default}"
+}
+
+is_goal_template_default() {
+    local goal_file="$1"
+    if [[ ! -f "${goal_file}" ]]; then
+        return 0  # No file = treat as default
+    fi
+    if grep -q '（例）' "${goal_file}" 2>/dev/null; then
+        return 0  # Contains template placeholder
+    fi
+    # Check if only template structure with no real content
+    local content_lines
+    content_lines=$(grep -v '^#' "${goal_file}" | grep -v '^$' | grep -v '^\-' | grep -v '^>' | wc -l | tr -d ' ')
+    if [[ "${content_lines}" -lt 3 ]]; then
+        return 0  # Minimal content = likely template
+    fi
+    return 1
+}
+
+is_shiki_readme() {
+    local readme_file="$1"
+    if [[ ! -f "${readme_file}" ]]; then
+        return 1
+    fi
+    if grep -q 'Shiki（式）' "${readme_file}" 2>/dev/null || \
+       grep -q 'デュアルモード.*AI.*自律開発' "${readme_file}" 2>/dev/null || \
+       grep -q 'Dual-Mode AI.*Development Framework' "${readme_file}" 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+# --- Cleanup: Archive framework docs ---
+
+cleanup_framework_docs() {
+    local project_dir="$1"
+    local ref_dir="${project_dir}/.shiki/reference"
+
+    log_step "フレームワークドキュメントをアーカイブ中..."
+
+    mkdir -p "${ref_dir}"
+
+    # Archive framework README
+    if is_shiki_readme "${project_dir}/README.md"; then
+        mv "${project_dir}/README.md" "${ref_dir}/README.shiki.md"
+        log_info "README.md → .shiki/reference/README.shiki.md"
+    fi
+
+    # Archive SETUP.md and USAGE.md
+    for doc in SETUP.md USAGE.md; do
+        if [[ -f "${project_dir}/${doc}" ]]; then
+            mv "${project_dir}/${doc}" "${ref_dir}/${doc}"
+            log_info "${doc} → .shiki/reference/${doc}"
+        fi
+    done
+
+    # Archive docs/ directory
+    if [[ -d "${project_dir}/docs" ]]; then
+        mv "${project_dir}/docs" "${ref_dir}/docs"
+        log_info "docs/ → .shiki/reference/docs/"
+    fi
+
+    # Archive examples/ directory
+    if [[ -d "${project_dir}/examples" ]]; then
+        mv "${project_dir}/examples" "${ref_dir}/examples"
+        log_info "examples/ → .shiki/reference/examples/"
+    fi
+
+    log_info "アーカイブ完了。参照: .shiki/reference/"
+}
+
+# --- Generate project README ---
+
+generate_project_readme() {
+    local project_dir="$1"
+    local project_name="$2"
+
+    local template="${project_dir}/templates/PROJECT_README.template.md"
+    if [[ ! -f "${template}" ]]; then
+        # Fallback: use the one from framework root if we're in shiki new
+        template="${FRAMEWORK_ROOT}/templates/PROJECT_README.template.md"
+    fi
+
+    if [[ -f "${template}" ]]; then
+        sed "s/{{PROJECT_NAME}}/${project_name}/g" "${template}" > "${project_dir}/README.md"
+    else
+        # Minimal fallback
+        cat > "${project_dir}/README.md" << EOF
+# ${project_name}
+
+> TODO: プロジェクトの説明を追加してください
+
+## Development
+
+このプロジェクトは [Shiki](https://github.com/mizutani-140/shiki) フレームワークを使用しています。
+
+\`\`\`bash
+shiki start
+\`\`\`
+
+詳細は [GOAL.md](./GOAL.md) を参照してください。
+EOF
+    fi
+
+    log_info "プロジェクト用 README.md を生成しました"
+}
+
+# --- Init: Create directories and validate ---
+
+run_init_logic() {
+    local project_dir="$1"
+
+    log_step "Shiki ディレクトリ構造を確認中..."
+
+    # Create core directories
+    local dirs=(
+        ".shiki/tasks"
+        ".shiki/contracts"
+        ".shiki/reports"
+        ".shiki/plans"
+        ".shiki/state"
+        ".shiki/schemas"
+        ".shiki/dag"
+        ".ai/logs"
+    )
+    for d in "${dirs[@]}"; do
+        mkdir -p "${project_dir}/${d}"
+        touch "${project_dir}/${d}/.keep"
+    done
+
+    # Validate schemas exist
+    if [[ ! -f "${project_dir}/.shiki/schemas/task.schema.json" ]]; then
+        log_warn "スキーマファイルが見つかりません（.shiki/schemas/task.schema.json）"
+        log_warn "テンプレートからのコピーが不完全な可能性があります"
+    fi
+
+    # Seed PLAN.md if missing
+    if [[ ! -f "${project_dir}/.shiki/plans/PLAN.md" ]] && [[ -f "${project_dir}/templates/PLAN.template.md" ]]; then
+        cp "${project_dir}/templates/PLAN.template.md" "${project_dir}/.shiki/plans/PLAN.md"
+        log_info "PLAN.md をテンプレートから作成しました"
+    fi
+
+    # GOAL.md
+    if [[ ! -f "${project_dir}/GOAL.md" ]] && [[ -f "${project_dir}/templates/GOAL.template.md" ]]; then
+        cp "${project_dir}/templates/GOAL.template.md" "${project_dir}/GOAL.md"
+        log_info "GOAL.md をテンプレートから作成しました"
+    fi
+
+    # Remove sample task if exists
+    local sample_task="${project_dir}/.shiki/tasks/T-0001.json"
+    if [[ -f "${sample_task}" ]]; then
+        rm -f "${sample_task}"
+        log_info "サンプルタスク T-0001.json を削除しました"
+    fi
+
+    log_info "ディレクトリ構造の確認完了"
+}
+
+# --- Mode selection ---
+
+select_mode() {
+    local project_dir="$1"
+    local config_file="${project_dir}/.shiki/config.yaml"
+
+    if [[ ! -f "${config_file}" ]]; then
+        log_warn "config.yaml が見つかりません。スキップします"
+        return
+    fi
+
+    echo ""
+    echo -e "${BOLD}開発モードを選択してください:${NC}"
+    echo "  1) CLI モード — Agent Teams + tmux/iTerm2 でローカル開発"
+    echo "  2) GitHub モード — Issue/Label/DAG 駆動の CI/CD パイプライン"
+    echo "  3) Auto（デフォルト）— 環境に応じて自動判定"
+    echo ""
+    read -p "選択 [1-3, default=3]: " mode_choice
+
+    case "${mode_choice}" in
+        1)
+            sed -i '' 's/^mode:.*/mode: cli/' "${config_file}" 2>/dev/null || \
+            sed -i 's/^mode:.*/mode: cli/' "${config_file}"
+            log_info "モード: CLI に設定しました"
+            ;;
+        2)
+            sed -i '' 's/^mode:.*/mode: github/' "${config_file}" 2>/dev/null || \
+            sed -i 's/^mode:.*/mode: github/' "${config_file}"
+            log_info "モード: GitHub に設定しました"
+            ;;
+        *)
+            log_info "モード: Auto（デフォルト）"
+            ;;
+    esac
+}
+
+# ============================================================
+# Subcommands
+# ============================================================
+
+# --- shiki new ---
+
+cmd_new() {
+    local project_name=""
+    local visibility="--private"
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --public)
+                visibility="--public"
+                shift
+                ;;
+            --private)
+                visibility="--private"
+                shift
+                ;;
+            -*)
+                log_error "不明なオプション: $1"
+                exit 1
+                ;;
+            *)
+                project_name="$1"
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "${project_name}" ]]; then
+        log_error "プロジェクト名を指定してください"
+        echo "Usage: shiki new <project-name> [--public]"
+        exit 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║     Shiki（式） — New Project             ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
+    echo ""
+
+    # 1. Prerequisites
+    log_step "前提条件をチェック中..."
+    local missing=()
+    check_command gh      || missing+=("gh (GitHub CLI)")
+    check_command claude  || missing+=("claude (Claude Code CLI)")
+    check_command python3 || missing+=("python3")
+    check_command git     || missing+=("git")
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log_error "以下のツールがインストールされていません:"
+        for m in "${missing[@]}"; do
+            echo "  - ${m}"
+        done
+        exit 1
+    fi
+    log_info "前提条件OK"
+
+    # 2. Create repository from template
+    log_step "テンプレートからリポジトリを作成中..."
+    if ! gh repo create "${project_name}" --template mizutani-140/shiki ${visibility} --clone; then
+        log_error "リポジトリの作成に失敗しました"
+        log_info "手動で作成する場合: gh repo create ${project_name} --template mizutani-140/shiki ${visibility} --clone"
+        exit 1
+    fi
+
+    local project_dir
+    project_dir="$(pwd)/${project_name}"
+    log_info "リポジトリ作成完了: ${project_dir}"
+
+    # 3. Cleanup framework docs
+    cleanup_framework_docs "${project_dir}"
+
+    # 4. Generate project README
+    generate_project_readme "${project_dir}" "${project_name}"
+
+    # 5. Run init logic
+    run_init_logic "${project_dir}"
+
+    # 6. Mode selection
+    select_mode "${project_dir}"
+
+    # 7. Validate
+    log_step "バリデーション実行中..."
+    if [[ -f "${project_dir}/scripts/validate_shiki.py" ]]; then
+        (cd "${project_dir}" && python3 scripts/validate_shiki.py 2>/dev/null) && \
+            log_info "バリデーションOK" || \
+            log_warn "バリデーションに警告があります（続行可能）"
+    fi
+
+    # 8. Initial commit
+    log_step "初期コミットを作成中..."
+    (
+        cd "${project_dir}"
+        git add -A
+        git commit -m "shiki: initialize project from template" --quiet 2>/dev/null || true
+    )
+    log_info "初期コミット完了"
+
+    # 9. Summary
+    echo ""
+    echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║     プロジェクト作成完了！               ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "  プロジェクト: ${CYAN}${project_dir}${NC}"
+    echo ""
+    echo -e "  ${BOLD}次のステップ:${NC}"
+    echo -e "  1. ${CYAN}cd ${project_name}${NC}"
+    echo -e "  2. ${CYAN}vim GOAL.md${NC}  — プロジェクトのゴールを定義"
+    echo -e "  3. ${CYAN}./bin/shiki start${NC}  — 開発セッションを開始"
+    echo ""
+    echo -e "  フレームワーク参照ドキュメント: ${CYAN}.shiki/reference/${NC}"
+    echo ""
+}
+
+# --- shiki init ---
+
+cmd_init() {
+    local force=false
+    [[ "${1:-}" == "--force" ]] && force=true
+
+    local project_dir
+    project_dir="$(pwd)"
+
+    echo ""
+    echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║     Shiki（式） — Initialize              ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
+    echo ""
+
+    # Check if already initialized
+    if [[ -d "${project_dir}/.shiki" ]] && [[ "${force}" == false ]]; then
+        log_warn ".shiki/ ディレクトリが既に存在します"
+        read -p "再初期化しますか？ [y/N]: " answer
+        case "${answer}" in
+            [yY]|[yY][eE][sS]) ;;
+            *) log_info "中止しました"; exit 0 ;;
+        esac
+    fi
+
+    log_info "プロジェクト: ${project_dir}"
+
+    # Cleanup framework docs if this was created from template
+    if is_shiki_readme "${project_dir}/README.md"; then
+        cleanup_framework_docs "${project_dir}"
+        local project_name
+        project_name=$(basename "${project_dir}")
+        generate_project_readme "${project_dir}" "${project_name}"
+    fi
+
+    # Run init logic
+    run_init_logic "${project_dir}"
+
+    # Mode selection
+    select_mode "${project_dir}"
+
+    # Validate
+    if [[ -f "${project_dir}/scripts/validate_shiki.py" ]]; then
+        log_step "バリデーション実行中..."
+        python3 "${project_dir}/scripts/validate_shiki.py" 2>/dev/null && \
+            log_info "バリデーションOK" || \
+            log_warn "バリデーションに警告があります"
+    fi
+
+    echo ""
+    echo -e "${GREEN}初期化完了！${NC}"
+    echo ""
+    echo -e "  ${BOLD}次のステップ:${NC}"
+    echo -e "  1. ${CYAN}vim GOAL.md${NC}  — プロジェクトのゴールを定義"
+    echo -e "  2. ${CYAN}./bin/shiki start${NC}  — 開発セッションを開始"
+    echo ""
+}
+
+# --- shiki start ---
+
+cmd_start() {
+    local resume_flag="${1:-}"
+    local project_dir
+    project_dir="$(pwd)"
+
+    echo ""
+    echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║     Shiki（式） — Session Start           ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
+    echo ""
+
+    # 1. Prerequisites
+    if [[ ! -f "${project_dir}/.shiki/config.yaml" ]]; then
+        log_error ".shiki/config.yaml が見つかりません"
+        log_info "先に 'shiki init' を実行してください"
+        exit 1
+    fi
+
+    if [[ ! -f "${project_dir}/GOAL.md" ]]; then
+        log_error "GOAL.md が見つかりません"
+        log_info "'cp templates/GOAL.template.md GOAL.md' でテンプレートを作成し、ゴールを定義してください"
+        exit 1
+    fi
+
+    if is_goal_template_default "${project_dir}/GOAL.md"; then
+        log_warn "GOAL.md がテンプレートのままです"
+        log_warn "プロジェクトのゴールを定義してから再実行してください: vim GOAL.md"
+        read -p "テンプレートのまま起動しますか？ [y/N]: " answer
+        case "${answer}" in
+            [yY]|[yY][eE][sS]) ;;
+            *) exit 0 ;;
+        esac
+    fi
+
+    if [[ ! -f "${project_dir}/CLAUDE.md" ]]; then
+        log_error "CLAUDE.md が見つかりません。Shikiフレームワークが正しくセットアップされていません"
+        exit 1
+    fi
+
+    # 2. Set environment
+    export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+    log_info "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 を設定しました"
+
+    # 3. Determine current state
+    local theta_phase="theta_1_understand"
+    local task_count=0
+
+    # Check session state for theta phase
+    if [[ -d "${project_dir}/.shiki/state" ]]; then
+        local latest_state
+        latest_state=$(find "${project_dir}/.shiki/state" -name 'session-*.json' -type f 2>/dev/null | sort -r | head -1)
+        if [[ -n "${latest_state}" ]]; then
+            if check_command jq; then
+                theta_phase=$(jq -r '.theta_phase // "theta_1_understand"' "${latest_state}" 2>/dev/null || echo "theta_1_understand")
+            else
+                theta_phase=$(python3 -c "import json; print(json.load(open('${latest_state}')).get('theta_phase', 'theta_1_understand'))" 2>/dev/null || echo "theta_1_understand")
+            fi
+        fi
+    fi
+
+    # Count active tasks
+    if [[ -d "${project_dir}/.shiki/tasks" ]]; then
+        task_count=$(find "${project_dir}/.shiki/tasks" -name '*.json' -not -name '.keep' -type f 2>/dev/null | wc -l | tr -d ' ')
+    fi
+
+    # Read GOAL summary
+    local goal_summary
+    goal_summary=$(head -20 "${project_dir}/GOAL.md" 2>/dev/null || echo "GOAL.md を読み取れません")
+
+    log_info "θフェーズ: ${theta_phase}"
+    log_info "アクティブタスク: ${task_count} 件"
+
+    # 4. Check Codex availability
+    local codex_status="unavailable"
+    if command -v codex &>/dev/null; then
+        if codex login status &>/dev/null 2>&1; then
+            codex_status="authenticated (MCP ready)"
+        elif [[ -n "${OPENAI_API_KEY:-}" ]]; then
+            codex_status="API key (MCP ready)"
+        else
+            codex_status="installed but not authenticated"
+        fi
+    fi
+    log_info "Codex: ${codex_status}"
+
+    # 5. Construct framework-enforcing prompt
+    local init_prompt
+    init_prompt="あなたは Shiki（式）フレームワーク のセッションを開始します。
+
+【MANDATORY — 以下のプロトコルに必ず従ってください】
+
+1. CLAUDE.md を読み、憲法（Constitution）の全ルールを把握してください
+2. θ収束モデル（6フェーズ）に従って作業を進めてください
+3. .shiki/ ディレクトリをSource of Truthとして使用してください
+4. いかなる実装もθ₄ EXECUTEフェーズに入るまで行わないでください
+
+【Dual Engine — Codex MCP を積極的に使用してください】
+- Codex は .claude/mcp.json に MCP サーバーとして登録済みです
+- Codex 状態: ${codex_status}
+- 実装タスク（関数実装・テスト生成・定型コード）は Codex MCP に委託してください
+- θ₃ ALLOCATE で各タスクの engine フィールドに codex / claude-team を設定してください
+- 判断が必要なタスクのみ Claude が直接実装してください
+
+【現在の状態】
+- θフェーズ: ${theta_phase}
+- アクティブタスク: ${task_count} 件
+
+【GOAL（GOAL.md より）】
+${goal_summary}
+
+まず${theta_phase}から開始してください。最初にGOAL.mdを読み、状態を報告してください。"
+
+    # 5. Launch
+    local config_file="${project_dir}/.shiki/config.yaml"
+    local display_mode
+    display_mode=$(read_config_value "${config_file}" "display" "in-process")
+
+    if [[ "${display_mode}" == "tmux" ]] && [[ -f "${project_dir}/scripts/start_cli_session.sh" ]]; then
+        log_info "tmux モードで起動します..."
+        export SHIKI_INIT_PROMPT="${init_prompt}"
+        bash "${project_dir}/scripts/start_cli_session.sh" ${resume_flag}
+    else
+        log_info "Claude Code を起動します..."
+        cd "${project_dir}"
+        exec claude --prompt "${init_prompt}"
+    fi
+}
+
+# --- shiki status ---
+
+cmd_status() {
+    local project_dir
+    project_dir="$(pwd)"
+
+    if [[ ! -d "${project_dir}/.shiki" ]]; then
+        log_error "Shiki プロジェクトが見つかりません（.shiki/ が存在しません）"
+        exit 1
+    fi
+
+    echo ""
+    echo -e "${BOLD}Shiki Status${NC}"
+    echo -e "────────────────────────────────────────"
+
+    # Mode
+    local config_file="${project_dir}/.shiki/config.yaml"
+    local mode="unknown"
+    if [[ -f "${config_file}" ]]; then
+        mode=$(read_config_value "${config_file}" "mode" "auto")
+    fi
+    echo -e "  Mode:        ${CYAN}${mode}${NC}"
+
+    # Theta Phase
+    local theta_phase="(no session)"
+    if [[ -d "${project_dir}/.shiki/state" ]]; then
+        local latest_state
+        latest_state=$(find "${project_dir}/.shiki/state" -name 'session-*.json' -type f 2>/dev/null | sort -r | head -1)
+        if [[ -n "${latest_state}" ]]; then
+            theta_phase=$(python3 -c "import json; print(json.load(open('${latest_state}')).get('theta_phase', 'unknown'))" 2>/dev/null || echo "unknown")
+        fi
+    fi
+    echo -e "  Theta Phase: ${CYAN}${theta_phase}${NC}"
+
+    # Tasks
+    local pending=0 in_progress=0 review=0 completed=0 blocked=0 failed=0
+    if [[ -d "${project_dir}/.shiki/tasks" ]]; then
+        for f in "${project_dir}"/.shiki/tasks/*.json; do
+            [[ -f "$f" ]] || continue
+            local status
+            status=$(python3 -c "import json; print(json.load(open('$f')).get('status', 'unknown'))" 2>/dev/null || echo "unknown")
+            case "${status}" in
+                pending) ((pending++)) ;;
+                in_progress) ((in_progress++)) ;;
+                review) ((review++)) ;;
+                completed) ((completed++)) ;;
+                blocked) ((blocked++)) ;;
+                failed) ((failed++)) ;;
+            esac
+        done
+    fi
+    local total=$((pending + in_progress + review + completed + blocked + failed))
+    local active=$((pending + in_progress + review))
+    echo -e "  Tasks:       ${CYAN}${active} active${NC} (${pending} pending, ${in_progress} in_progress, ${review} review), ${completed} completed, ${blocked} blocked, ${failed} failed"
+
+    # Budget
+    if [[ -f "${config_file}" ]]; then
+        local max_session
+        max_session=$(python3 -c "
+import yaml
+try:
+    c = yaml.safe_load(open('${config_file}'))
+    print(c.get('github',{}).get('budget',{}).get('max_tokens_per_session', 0))
+except: print(0)
+" 2>/dev/null || echo "0")
+        if [[ "${max_session}" != "0" ]]; then
+            echo -e "  Budget:      ${CYAN}${max_session} tokens/session${NC}"
+        fi
+    fi
+
+    # DAG
+    if [[ -d "${project_dir}/.shiki/dag" ]]; then
+        local dag_file
+        dag_file=$(find "${project_dir}/.shiki/dag" -name '*.json' -type f 2>/dev/null | sort -r | head -1)
+        if [[ -n "${dag_file}" ]]; then
+            local dag_info
+            dag_info=$(python3 -c "
+import json
+d = json.load(open('${dag_file}'))
+nodes = d.get('nodes', [])
+done = sum(1 for n in nodes if n.get('status') == 'completed')
+print(f\"{d.get('status','unknown')} ({done}/{len(nodes)} nodes done)\")
+" 2>/dev/null || echo "unknown")
+            echo -e "  DAG:         ${CYAN}${dag_info}${NC}"
+        fi
+    fi
+
+    # GOAL defined?
+    if [[ -f "${project_dir}/GOAL.md" ]]; then
+        if is_goal_template_default "${project_dir}/GOAL.md"; then
+            echo -e "  GOAL.md:     ${YELLOW}テンプレートのまま（要定義）${NC}"
+        else
+            echo -e "  GOAL.md:     ${GREEN}定義済み${NC}"
+        fi
+    else
+        echo -e "  GOAL.md:     ${RED}未作成${NC}"
+    fi
+
+    # Validation
+    if [[ -f "${project_dir}/scripts/validate_shiki.py" ]]; then
+        if (cd "${project_dir}" && python3 scripts/validate_shiki.py &>/dev/null); then
+            echo -e "  Validation:  ${GREEN}OK${NC}"
+        else
+            echo -e "  Validation:  ${YELLOW}warnings${NC}"
+        fi
+    fi
+
+    echo -e "────────────────────────────────────────"
+    echo ""
+}
+
+# --- shiki doctor ---
+
+cmd_doctor() {
+    echo ""
+    echo -e "${BOLD}Shiki Doctor${NC}"
+    echo -e "────────────────────────────────────────"
+
+    local issues=0
+
+    # Python
+    if check_command python3; then
+        local py_version
+        py_version=$(python3 --version 2>&1 | grep -oE '[0-9]+\.[0-9]+')
+        echo -e "  ${GREEN}✓${NC} Python ${py_version}"
+    else
+        echo -e "  ${RED}✗${NC} Python 3 がインストールされていません"
+        ((issues++))
+    fi
+
+    # Claude CLI
+    if check_command claude; then
+        echo -e "  ${GREEN}✓${NC} Claude Code CLI"
+    else
+        echo -e "  ${RED}✗${NC} Claude Code CLI がインストールされていません"
+        ((issues++))
+    fi
+
+    # Git
+    if check_command git; then
+        echo -e "  ${GREEN}✓${NC} Git"
+    else
+        echo -e "  ${RED}✗${NC} Git がインストールされていません"
+        ((issues++))
+    fi
+
+    # GitHub CLI
+    if check_command gh; then
+        echo -e "  ${GREEN}✓${NC} GitHub CLI (gh)"
+    else
+        echo -e "  ${YELLOW}△${NC} GitHub CLI (gh) — shiki new に必要"
+    fi
+
+    # tmux
+    if check_command tmux; then
+        echo -e "  ${GREEN}✓${NC} tmux"
+    else
+        echo -e "  ${YELLOW}△${NC} tmux — CLI モード (tmux表示) に必要"
+    fi
+
+    # jq
+    if check_command jq; then
+        echo -e "  ${GREEN}✓${NC} jq"
+    else
+        echo -e "  ${YELLOW}△${NC} jq — 推奨（なくても動作可能）"
+    fi
+
+    # Codex
+    if check_command codex; then
+        if codex login status &>/dev/null; then
+            echo -e "  ${GREEN}✓${NC} Codex (authenticated)"
+        elif [[ -n "${OPENAI_API_KEY:-}" ]]; then
+            echo -e "  ${GREEN}✓${NC} Codex (API key)"
+        else
+            echo -e "  ${YELLOW}△${NC} Codex (installed but not authenticated)"
+        fi
+    else
+        echo -e "  ${YELLOW}△${NC} Codex — Dual Engine に必要（オプション）"
+    fi
+
+    echo ""
+
+    # Project checks
+    local project_dir
+    project_dir="$(pwd)"
+
+    if [[ -d "${project_dir}/.shiki" ]]; then
+        echo -e "  ${BOLD}Project:${NC} ${project_dir}"
+
+        # config.yaml
+        if [[ -f "${project_dir}/.shiki/config.yaml" ]]; then
+            echo -e "  ${GREEN}✓${NC} .shiki/config.yaml"
+        else
+            echo -e "  ${RED}✗${NC} .shiki/config.yaml が見つかりません"
+            ((issues++))
+        fi
+
+        # Schemas
+        if [[ -f "${project_dir}/.shiki/schemas/task.schema.json" ]]; then
+            echo -e "  ${GREEN}✓${NC} Schemas"
+        else
+            echo -e "  ${RED}✗${NC} スキーマファイルが見つかりません"
+            ((issues++))
+        fi
+
+        # CLAUDE.md
+        if [[ -f "${project_dir}/CLAUDE.md" ]]; then
+            echo -e "  ${GREEN}✓${NC} CLAUDE.md"
+        else
+            echo -e "  ${RED}✗${NC} CLAUDE.md が見つかりません"
+            ((issues++))
+        fi
+
+        # GOAL.md
+        if [[ -f "${project_dir}/GOAL.md" ]]; then
+            if is_goal_template_default "${project_dir}/GOAL.md"; then
+                echo -e "  ${YELLOW}△${NC} GOAL.md — テンプレートのままです"
+            else
+                echo -e "  ${GREEN}✓${NC} GOAL.md"
+            fi
+        else
+            echo -e "  ${RED}✗${NC} GOAL.md が見つかりません"
+            ((issues++))
+        fi
+
+        # Agent Teams env
+        if [[ "${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-}" == "1" ]]; then
+            echo -e "  ${GREEN}✓${NC} CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1"
+        else
+            echo -e "  ${YELLOW}△${NC} CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS が未設定"
+            echo -e "       shiki start 実行時に自動設定されます"
+        fi
+
+        # Home settings
+        if [[ -f "${HOME}/.claude/settings.json" ]]; then
+            if grep -q 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS' "${HOME}/.claude/settings.json" 2>/dev/null; then
+                echo -e "  ${GREEN}✓${NC} ~/.claude/settings.json (Agent Teams 設定)"
+            else
+                echo -e "  ${YELLOW}△${NC} ~/.claude/settings.json に Agent Teams 設定がありません"
+                echo -e "       参照: templates/home-claude-settings.json"
+            fi
+        else
+            echo -e "  ${YELLOW}△${NC} ~/.claude/settings.json が見つかりません"
+        fi
+
+        # Validate
+        if [[ -f "${project_dir}/scripts/validate_shiki.py" ]]; then
+            if (cd "${project_dir}" && python3 scripts/validate_shiki.py &>/dev/null); then
+                echo -e "  ${GREEN}✓${NC} Validation OK"
+            else
+                echo -e "  ${YELLOW}△${NC} Validation に警告があります"
+                echo -e "       python3 scripts/validate_shiki.py で詳細を確認"
+            fi
+        fi
+    else
+        echo -e "  ${YELLOW}△${NC} .shiki/ が見つかりません（Shikiプロジェクト外）"
+    fi
+
+    echo ""
+    echo -e "────────────────────────────────────────"
+    if [[ ${issues} -eq 0 ]]; then
+        echo -e "  ${GREEN}問題なし${NC}"
+    else
+        echo -e "  ${RED}${issues} 件の問題があります${NC}"
+    fi
+    echo ""
+}
+
+# ============================================================
+# Main Dispatcher
+# ============================================================
+
+print_usage() {
+    echo ""
+    echo -e "${BOLD}Shiki（式） v${SHIKI_VERSION}${NC} — AI Autonomous Development Framework"
+    echo ""
+    echo "Usage:"
+    echo "  shiki new <name> [--public]   テンプレートから新規プロジェクト作成"
+    echo "  shiki init [--force]          現在のディレクトリで Shiki を初期化"
+    echo "  shiki start [--resume]        開発セッションを開始"
+    echo "  shiki status                  プロジェクト状態を表示"
+    echo "  shiki doctor                  セットアップの健全性チェック"
+    echo "  shiki help                    このヘルプを表示"
+    echo ""
+    echo "Examples:"
+    echo "  shiki new my-app              プライベートリポジトリを作成"
+    echo "  shiki new my-app --public     パブリックリポジトリを作成"
+    echo "  shiki start                   セッション開始"
+    echo ""
+}
+
+main() {
+    local command="${1:-help}"
+    shift || true
+
+    case "${command}" in
+        new)
+            cmd_new "$@"
+            ;;
+        init)
+            cmd_init "$@"
+            ;;
+        start)
+            cmd_start "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        doctor)
+            cmd_doctor "$@"
+            ;;
+        help|--help|-h)
+            print_usage
+            ;;
+        version|--version|-v)
+            echo "shiki v${SHIKI_VERSION}"
+            ;;
+        *)
+            log_error "不明なコマンド: ${command}"
+            print_usage
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

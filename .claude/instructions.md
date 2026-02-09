@@ -4,6 +4,24 @@
 
 ---
 
+## FIRST ACTION（セッション開始時の必須手順）
+
+**ユーザーの発言に応答する前に、以下のチェックリストを必ず実行すること：**
+
+1. `GOAL.md` を読み、ゴールが定義済みであることを確認する
+2. `.shiki/config.yaml` を読み、モード（cli/github/auto）を確認する
+3. `.shiki/tasks/*.json` でアクティブタスクを確認する
+4. `.shiki/state/session-*.json` で復旧状態を確認する
+5. 現在のθフェーズを特定する
+6. 報告する: 「セッション初期化完了。モード: X。θフェーズ: Y。アクティブタスク: N件」
+
+**GOAL.md が未定義またはテンプレートのままの場合:**
+「GOAL.md が未定義です。プロジェクトのゴールと受け入れ条件を教えてください。」と応答する。
+
+**重要**: この手順を完了するまで、設計・実装・その他の作業を開始してはならない。
+
+---
+
 ## Core Principles
 
 Claude Code は以下を**必ず**守ること：
@@ -37,7 +55,11 @@ test -d .shiki/schemas && echo "SCHEMAS: OK" || echo "SCHEMAS: MISSING"
 
 ## Dual Engine パターン（CLI モード）
 
-CLI モードでは Claude Agent Teams が Codex MCP を活用して Dual Engine 実行を行う。
+CLI モードでは Claude Agent Teams が **Codex MCP を積極的に活用**して Dual Engine 実行を行う。
+
+> **重要**: Codex は `.claude/mcp.json` に MCP サーバーとして登録済みである。
+> セッション内から MCP ツールとして直接呼び出せる。別ターミナルでの起動は不要。
+> **実装タスクでは、まず Codex への委託を検討すること。**
 
 ### 認証
 
@@ -57,15 +79,35 @@ python3 scripts/engine_router.py .shiki/tasks/T-0001.json
 python3 scripts/engine_router.py --all
 ```
 
-### Codex 委託パターン（executor が実行）
+### Codex に委託すべきタスク（必須）
+
+以下に該当するタスクは **必ず Codex MCP 経由で委託する**：
+- 仕様が明確な関数・クラスの実装（Contract が定義済み）
+- テストコード生成（ユニットテスト、統合テスト）
+- 定型コード・ボイラープレート生成
+- lint / typecheck エラーの自動修正
+- ドキュメント・型定義の生成
+
+### Codex 委託の具体的手順（executor が実行）
 
 engine=codex のタスクは Codex MCP 経由で実装を委託する：
 
 ```
 1. タスク仕様（acceptance, target_files, contract_ref）を整理
-2. Codex MCP にプロンプトを送信
+2. Codex MCP ツールを呼び出す（プロンプト例）：
+   ---
+   タスクID: T-XXXX
+   対象ファイル: src/api/auth.ts（このファイルのみ編集可）
+   受け入れ条件:
+     - npm test -- --grep 'auth' が全パス
+     - npm run lint でエラー 0
+   契約: auth-api-v1
+
+   上記の仕様に基づいて最小限の実装を行ってください。
+   テストも合わせて生成してください。
+   ---
 3. Codex の出力をレビュー
-4. exec verify で検証
+4. exec verify で受け入れ条件を検証
 5. 失敗 → Claude executor が自分でフォールバック実装
 ```
 

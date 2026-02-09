@@ -24,5 +24,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Shiki reference docs (archived framework documentation)
+# Uncomment to exclude from version control:
+# .shiki/reference/
+
 # Node (if using Codex MCP)
 node_modules/

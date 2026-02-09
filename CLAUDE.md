@@ -1,3 +1,28 @@
+# MANDATORY: Shiki Session Start Protocol
+
+> **このセクションを読み終えるまで、いかなる作業も開始してはなりません。**
+> **ユーザーの発言内容に関わらず、まず以下の手順を実行してください。**
+
+## セッション開始手順（毎回必ず実行）
+
+1. **GOAL.md を読む** — ゴールと受け入れ条件を把握する。GOAL.mdが空またはテンプレートのままの場合、ユーザーにゴール定義を依頼する
+2. **`.shiki/config.yaml` を読む** — モード（cli/github/auto）・エンジン設定を確認する
+3. **`.shiki/state/` を確認** — 復旧セッションがあれば再開を提案する
+4. **`.shiki/tasks/` を確認** — アクティブなタスク状態を把握する
+5. **θ₁ UNDERSTAND で開始** — 復旧セッション以外は必ずθ₁から開始する。いきなりコードを書かない
+6. **状態を報告** — 「セッション開始。モード: X。θフェーズ: Y。タスク: N件」と報告する
+
+### 違反行為（以下は禁止）
+
+- この手順を飛ばしてユーザーの要求に直接応答する
+- GOAL.md を読まずに設計や実装を開始する
+- θ収束モデルを無視して直接コードを書き始める
+- `.shiki/` ディレクトリの状態を確認せずに作業する
+
+**実装コードの編集は、θ₄ EXECUTE フェーズに到達してから行ってください。**
+
+---
+
 # Project Constitution for Claude Code (Dual-Mode Architecture)
 
 あなたはこのリポジトリのAI開発チームです。**ゴール達成**が最優先です。
@@ -91,6 +116,10 @@ Guardian の詳細は `.github/GUARDIAN.md` を参照。
 
 ## 5) Dual Engine Architecture（Claude + Codex）
 
+> **重要**: Codex は MCP サーバーとして `.claude/mcp.json` に登録済みです。
+> Claude Code のセッション内から MCP ツールとして直接呼び出せます。
+> 別ターミナルや tmux ペインでの起動は**不要**です。
+
 ### エンジン役割分担
 
 | エンジン | 強み | 担当 |
@@ -98,10 +127,55 @@ Guardian の詳細は `.github/GUARDIAN.md` を参照。
 | **Claude Agent Teams** | 協調・判断・多角的評価 | θ₁-θ₃計画、θ₅レビュー、リファクタリング、設計判断、デバッグ |
 | **Codex** | サンドボックス隔離実行・テスト駆動 | 関数実装、テスト生成、CI修復、定型コード、ドキュメント生成 |
 
-### エンジン選択基準
+### Codex MCP の使い方
 
-> **「仕様が Contract に書ける」→ Codex**
-> **「判断・議論が必要」→ Claude Agent Teams**
+Codex は MCP ツールとしてセッション内で呼び出す。認証情報（`codex login` または `OPENAI_API_KEY`）は自動継承される。
+
+**必ず Codex に委託すべきタスク：**
+- 仕様が明確な単一ファイルの関数実装
+- テストコード生成（ユニットテスト、統合テスト）
+- 定型コード・ボイラープレート生成
+- CI 修復（lint/typecheck エラーの自動修正）
+- ドキュメント生成
+
+**Claude が直接行うべきタスク：**
+- 複数ファイル横断のリファクタリング
+- 設計判断・アーキテクチャ選択
+- デバッグ（原因調査が必要なもの）
+- コードレビュー・セキュリティ評価
+
+### θ₃ ALLOCATE でのエンジン割当
+
+タスク分解（θ₂-θ₃）の際、各タスクの `engine` フィールドを設定する：
+
+```json
+{
+  "engine": {
+    "primary": "codex",
+    "fallback": "claude-team",
+    "routing_reason": "単一ファイル実装、仕様が Contract に記述済み"
+  }
+}
+```
+
+判断基準: `python3 scripts/engine_router.py .shiki/tasks/T-XXXX.json`
+
+### Codex への委託手順（executor が実行）
+
+1. タスクの仕様を整理する
+2. **MCP ツール `codex` を呼び出す**:
+   ```
+   タスクID: T-XXXX
+   対象ファイル: [target_files]（編集して良い範囲）
+   受け入れ条件: [acceptance]
+   契約: [contract_ref]（あれば）
+
+   上記の仕様に基づいて最小限の実装を行ってください。
+   テストも合わせて生成してください。
+   ```
+3. Codex の出力をレビューする
+4. exec verify を実行して受け入れ条件を検証する
+5. 失敗した場合: 自分で直接実装にフォールバック（execution_path=fallback）
 
 ### Smart Router（自動振分）
 - `scripts/engine_router.py` がタスク特性を分析してエンジンを自動選択
@@ -112,16 +186,6 @@ Guardian の詳細は `.github/GUARDIAN.md` を参照。
 - Primary engine が失敗した場合、自動で Secondary engine で再試行
 - `engines.routing.fallback: true` で有効（デフォルト有効）
 - タスクの `execution_path` に "primary" / "fallback" が記録される
-
-### Codex への委託
-実装が明確な場合は Codex に委託してよい。
-
-委託時に必ず含める：
-- タスクID
-- 対象ファイルパス（編集して良い範囲）
-- 受け入れ条件（テストコマンド/チェック項目）
-- contract_id（あれば）
-- バジェット上限（推奨）
 
 ---
 
