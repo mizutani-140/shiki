@@ -1,0 +1,18 @@
+{
+  "id": "L-0005",
+  "timestamp": "2026-05-28T05:45:00Z",
+  "goal_id": "G-0001",
+  "task_id": "T-0005",
+  "type": "check",
+  "actor": "codex",
+  "summary": "Added global Shiki installation support, Claude /shiki command, Codex Shiki skill, and aligned branch protection defaults with the verified gate.",
+  "evidence": [
+    "path:scripts/shiki.py",
+    "path:.claude/commands/shiki.md",
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:docs/agents/bootstrap-command.md",
+    "skill:tdd",
+    "command:shiki install-target /private/tmp/shiki-install-target-smoke"
+  ],
+  "links": []
+}

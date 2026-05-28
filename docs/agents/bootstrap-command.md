@@ -2,13 +2,20 @@
 
 `bin/shiki` is the single operational entrypoint for repeatable Shiki setup.
 
-## Install The Command Once
+## Install Globally Once
 
 ```bash
-/Users/kio.mizutani/shiki/bin/shiki install-command
+/Users/kio.mizutani/shiki/bin/shiki install-global
 ```
 
-This creates `~/.local/bin/shiki`. Ensure `~/.local/bin` is on `PATH`.
+This creates or updates:
+
+- `~/.local/bin/shiki`
+- `~/.claude/commands/shiki.md`
+- `~/.codex/skills/shiki/SKILL.md`
+
+Ensure `~/.local/bin` is on `PATH`. Restart Codex or Claude Code if the
+running client does not reload commands dynamically.
 
 ## Publish This Shiki Repo
 
@@ -40,6 +47,21 @@ shiki install-target /path/to/target-repo
 ```
 
 Use `--force` only when you intentionally want to overwrite existing target files.
+
+## Slash Command
+
+After `shiki install-global`, Claude Code can invoke:
+
+```text
+/shiki <goal or task>
+```
+
+Codex can use the global `shiki` skill in future sessions and can always call
+the CLI directly:
+
+```bash
+shiki status
+```
 
 ## Required GitHub Checks
 

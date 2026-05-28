@@ -1,0 +1,40 @@
+{
+  "id": "T-0005",
+  "goal_id": "G-0001",
+  "github_issue": null,
+  "title": "Install Shiki as a global CLI and slash command",
+  "scope": "Make Shiki callable from any repository through the global CLI, Claude Code /shiki command, and Codex global skill while aligning bootstrap branch protection with the verified production gate.",
+  "non_goals": [
+    "Do not bypass branch protection.",
+    "Do not change CCA or MergeGate workflow behavior.",
+    "Do not require target repositories to install dependencies before Shiki can run."
+  ],
+  "dependencies": [],
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:.claude/commands/shiki.md",
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:docs/agents/bootstrap-command.md",
+    "path:.shiki/tasks/T-0005.json",
+    "path:.shiki/ledger/L-0005.json"
+  ],
+  "assigned_runtime": "codex-front",
+  "risk_level": "low",
+  "required_skills": [
+    "tdd"
+  ],
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py",
+    "python3 scripts/shiki.py --help lists install-global.",
+    "python3 scripts/shiki.py status reports global command and integration paths.",
+    "python3 scripts/shiki.py install-global installs CLI, Claude command, and Codex skill.",
+    "python3 scripts/shiki.py install-target installs command integrations without copying platform task or ledger state.",
+    "Branch protection payload defaults to the verified Shiki gate values."
+  ],
+  "expected_branch": "shiki-global-command-and-slash",
+  "expected_pr": null,
+  "ledger_evidence": [
+    "L-0005"
+  ],
+  "status": "review"
+}
