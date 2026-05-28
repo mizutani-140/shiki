@@ -1,0 +1,20 @@
+{
+  "id": "L-0002",
+  "timestamp": "2026-05-28T04:20:00Z",
+  "goal_id": "G-0001",
+  "task_id": "T-0002",
+  "type": "check",
+  "actor": "codex",
+  "summary": "Registered PR #6 as the branch-protection smoke test and recorded the task contract evidence required for CCA.",
+  "evidence": [
+    "path:.shiki/tasks/T-0002.json",
+    "path:docs/agents/branch-protection-smoke.md",
+    "pr:https://github.com/mizutani-140/shiki/pull/6",
+    "check:Validate Shiki mirror",
+    "check:CCA verdict",
+    "check:MergeGate policy check"
+  ],
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/6"
+  ]
+}

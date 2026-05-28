@@ -1,0 +1,37 @@
+{
+  "id": "T-0002",
+  "goal_id": "G-0001",
+  "github_issue": null,
+  "title": "Verify branch protection gates on a normal PR",
+  "scope": "Add a documentation-only smoke-test artifact and use the PR to verify branch protection, required checks, CCA, and MergeGate behavior.",
+  "non_goals": [
+    "Do not change Shiki runtime policy.",
+    "Do not change GitHub workflow behavior.",
+    "Do not merge unless required checks prove the gate behavior."
+  ],
+  "dependencies": [],
+  "locks": [
+    "path:docs/agents/branch-protection-smoke.md",
+    "path:.shiki/tasks/T-0002.json",
+    "path:.shiki/ledger/L-0002.json"
+  ],
+  "assigned_runtime": "codex-front",
+  "risk_level": "low",
+  "required_skills": [
+    "diagnose",
+    "tdd"
+  ],
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py",
+    "Validate Shiki mirror passes on PR #6.",
+    "CCA verdict produces a machine-readable verdict on PR #6.",
+    "MergeGate policy check consumes the CCA verdict and passes only when CCA is complete.",
+    "Branch protection blocks merge until required checks are green."
+  ],
+  "expected_branch": "shiki-branch-protection-smoke",
+  "expected_pr": 6,
+  "ledger_evidence": [
+    "L-0002"
+  ],
+  "status": "review"
+}
