@@ -15,6 +15,7 @@
     "path:.claude/commands/shiki.md",
     "path:.codex/skills/shiki/SKILL.md",
     "path:docs/agents/bootstrap-command.md",
+    "path:scripts/test_shiki_init.sh",
     "path:.shiki/tasks/T-0006.json",
     "path:.shiki/ledger/L-0006.json"
   ],
@@ -30,7 +31,8 @@
     "python3 scripts/shiki.py --help lists init and preflight.",
     "python3 scripts/shiki.py init /tmp/path without --repo exits non-zero.",
     "python3 scripts/shiki.py install-target /tmp/path without --local-only exits non-zero.",
-    "python3 scripts/shiki.py install-target /tmp/path --local-only validates template copy."
+    "python3 scripts/shiki.py install-target /tmp/path --local-only validates template copy.",
+    "bash scripts/test_shiki_init.sh passes and verifies committed .claude command content with git show."
   ],
   "expected_branch": "shiki-enforce-github-first-init",
   "expected_pr": null,
