@@ -1,0 +1,21 @@
+{
+  "id": "L-0010",
+  "timestamp": "2026-05-28T00:00:00+00:00",
+  "goal_id": "G-0001",
+  "task_id": "T-0008",
+  "type": "check",
+  "actor": "codex-front",
+  "summary": "Recorded PR #15 evidence for Shiki plan/run orchestration and CI coverage.",
+  "evidence": [
+    "PR #15: https://github.com/mizutani-140/shiki/pull/15",
+    "Validate Shiki mirror must run scripts/test_shiki_run_orchestrator.sh on the PR head SHA.",
+    "Local verification: python3 scripts/validate_shiki.py",
+    "Local verification: python3 -m py_compile scripts/shiki.py scripts/validate_shiki.py",
+    "Local verification: bash scripts/test_shiki_init.sh",
+    "Local verification: bash scripts/test_shiki_control_plane.sh",
+    "Local verification: bash scripts/test_shiki_run_orchestrator.sh"
+  ],
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/15"
+  ]
+}

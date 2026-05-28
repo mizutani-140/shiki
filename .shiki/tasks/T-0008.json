@@ -1,0 +1,53 @@
+{
+  "id": "T-0008",
+  "goal_id": "G-0001",
+  "github_issue": null,
+  "title": "Orchestrate grill-with-docs plans into Shiki runs",
+  "scope": "Add plan ingestion, guided plan prompting, shiki run orchestration, GitHub issue and PR evidence creation, and Codex task/repair handoff generation so settled grill-with-docs plans can drive the control plane without manually calling every primitive.",
+  "non_goals": [
+    "Do not bypass branch protection.",
+    "Do not require non-standard Python dependencies.",
+    "Do not create real GitHub issues or PRs in local tests.",
+    "Do not implement an always-on daemon or background service in this slice."
+  ],
+  "dependencies": [
+    "T-0007"
+  ],
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_run_orchestrator.sh",
+    "path:.github/workflows/shiki-validate.yml",
+    "path:.claude/commands/shiki.md",
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:docs/agents/bootstrap-command.md",
+    "path:docs/agents/control-commands.md",
+    "path:.shiki/schemas/plan.schema.json",
+    "path:.shiki/schemas/run.schema.json",
+    "path:.shiki/tasks/T-0008.json",
+    "path:.shiki/ledger/L-0009.json",
+    "path:.shiki/ledger/L-0010.json"
+  ],
+  "assigned_runtime": "codex-front",
+  "risk_level": "medium",
+  "required_skills": [
+    "shiki",
+    "tdd"
+  ],
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py",
+    "python3 -m py_compile scripts/shiki.py",
+    "bash scripts/test_shiki_init.sh",
+    "bash scripts/test_shiki_control_plane.sh",
+    "bash scripts/test_shiki_run_orchestrator.sh",
+    "Validate Shiki mirror runs the run orchestrator contract test in CI.",
+    "PR evidence includes CCA and MergeGate success."
+  ],
+  "expected_branch": "shiki-plan-run-orchestrator",
+  "expected_pr": 15,
+  "ledger_evidence": [
+    "L-0009",
+    "L-0010"
+  ],
+  "status": "review"
+}

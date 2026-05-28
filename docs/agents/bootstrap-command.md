@@ -89,12 +89,19 @@ After `shiki init` has connected the target repo to GitHub, use the control
 commands for durable execution state:
 
 ```bash
+shiki plan guide --prompt "..."
+shiki plan ingest --plan-file PLAN.json
+shiki run --plan P-0001
 shiki goal create --title "..." --outcome "..."
 shiki issue plan --goal-id G-0001 --title "..." --scope "..." --acceptance-check "..."
 shiki lock acquire T-0001
 shiki dispatch check T-0001
 shiki worktree allocate T-0001
+shiki github issue --task-id T-0001
+shiki github pr --task-id T-0001
 shiki repair packet --task-id T-0001 --pr 123 --minimal-change "..." --verification-command "..."
+shiki handoff task T-0001
+shiki handoff repair RP-0001
 shiki task status T-0001 --status done
 shiki goal complete G-0001
 ```
