@@ -25,6 +25,11 @@ Read:
 - Map every acceptance criterion to evidence.
 - Separate wrong implementation from missing evidence.
 - Treat green CI as necessary but not sufficient.
+- Do not block on the current run's `CCA verdict`; this job is the CCA verdict.
+- Do not block on `MergeGate policy check`; MergeGate runs after CCA and consumes this verdict.
+- Treat `Claude review` as advisory unless repository branch protection explicitly requires it.
+- Do not block low-risk documentation PRs on human PR reviews when branch protection requires zero approving reviews.
+- Do not block solely because same-head status checks are still in progress while this CCA job is running; record them as residual risk unless a completed required check has failed.
 - Treat missing required skill evidence as a blocker.
 - Treat unresolved high-risk/critical items as `needs_guardian`.
 - Treat missing task/Goal/PRD links as `insufficient_evidence` or `blocked`.

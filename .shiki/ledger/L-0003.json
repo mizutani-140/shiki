@@ -1,0 +1,24 @@
+{
+  "id": "L-0003",
+  "timestamp": "2026-05-28T04:25:00Z",
+  "goal_id": "G-0001",
+  "task_id": "T-0003",
+  "type": "check",
+  "actor": "codex",
+  "summary": "Diagnosed PR #6 CCA failure as recursive check blocking and registered the workflow prompt repair.",
+  "evidence": [
+    "path:.shiki/tasks/T-0003.json",
+    "path:.github/prompts/cca-completion-check.md",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:.github/workflows/shiki-claude-review.yml",
+    "skill:diagnose",
+    "skill:tdd",
+    "command:python3 scripts/validate_shiki.py => Shiki validation passed",
+    "command:ruby YAML load for shiki-cca-completion.yml and shiki-claude-review.yml => workflow yaml ok",
+    "pr:https://github.com/mizutani-140/shiki/pull/10"
+  ],
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/6",
+    "https://github.com/mizutani-140/shiki/pull/10"
+  ]
+}
