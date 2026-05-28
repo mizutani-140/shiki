@@ -83,7 +83,6 @@ jobs:
             Return structured JSON matching .shiki/schemas/cca-verdict.schema.json.
           claude_args: |
             --append-system-prompt "You are Shiki CCA. Judge completion only. Do not edit production code. Non-complete verdicts must include precise next actions."
-            --output-format json
             --json-schema '${{ steps.schema.outputs.json }}'
             --max-turns 15
             --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
