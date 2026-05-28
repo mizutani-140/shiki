@@ -48,4 +48,6 @@ jobs:
             4. Scope drift or unrelated cleanup.
 
             If there are no blocking findings, say that clearly and list any residual risk.
-          claude_args: "--max-turns 5"
+          claude_args: |
+            --max-turns 15
+            --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
