@@ -34,20 +34,19 @@ jobs:
           prompt: |
             You are the Shiki Reviewer runtime for this repository.
 
-            Read AGENTS.md, CLAUDE.md, CONTEXT.md, docs/agents/skill-gate.md,
-            .github/pull_request_template.md, and relevant .shiki artifacts.
+            Review only the pull request diff, PR body, changed `.shiki/`
+            artifacts, and directly relevant agent docs. Keep the review short.
 
             Review the pull request against the Shiki task contract and MergeGate.
-            Do not implement fixes in this job.
+            This job is advisory. Do not implement fixes in this job.
 
             Lead with concrete findings:
             1. Bugs, regressions, data loss, broken contracts, or security issues.
             2. Missing tests or unverifiable acceptance criteria.
-            3. MergeGate blockers: missing evidence, unresolved locks, failed checks,
-               missing required skills, missing review, or unapproved high risk.
+            3. MergeGate blockers: missing evidence, unresolved locks, or unapproved high risk.
             4. Scope drift or unrelated cleanup.
 
             If there are no blocking findings, say that clearly and list any residual risk.
           claude_args: |
-            --max-turns 15
-            --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
+            --max-turns 25
+            --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(git show:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
