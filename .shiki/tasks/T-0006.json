@@ -1,0 +1,41 @@
+{
+  "id": "T-0006",
+  "goal_id": "G-0001",
+  "github_issue": null,
+  "title": "Enforce GitHub-first Shiki target initialization",
+  "scope": "Make GitHub repository initialization the mandatory Shiki setup path for target repositories and demote local template copying to an explicit local-only operation.",
+  "non_goals": [
+    "Do not remove platform bootstrap compatibility.",
+    "Do not bypass branch protection.",
+    "Do not create real GitHub repositories in local tests."
+  ],
+  "dependencies": [],
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:.claude/commands/shiki.md",
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:docs/agents/bootstrap-command.md",
+    "path:.shiki/tasks/T-0006.json",
+    "path:.shiki/ledger/L-0006.json"
+  ],
+  "assigned_runtime": "codex-front",
+  "risk_level": "medium",
+  "required_skills": [
+    "diagnose",
+    "tdd"
+  ],
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py",
+    "python3 -m py_compile scripts/shiki.py",
+    "python3 scripts/shiki.py --help lists init and preflight.",
+    "python3 scripts/shiki.py init /tmp/path without --repo exits non-zero.",
+    "python3 scripts/shiki.py install-target /tmp/path without --local-only exits non-zero.",
+    "python3 scripts/shiki.py install-target /tmp/path --local-only validates template copy."
+  ],
+  "expected_branch": "shiki-enforce-github-first-init",
+  "expected_pr": null,
+  "ledger_evidence": [
+    "L-0006"
+  ],
+  "status": "review"
+}

@@ -17,10 +17,29 @@ This creates or updates:
 Ensure `~/.local/bin` is on `PATH`. Restart Codex or Claude Code if the
 running client does not reload commands dynamically.
 
-## Publish This Shiki Repo
+## Initialize A Target Repository
 
 ```bash
-CLAUDE_CODE_OAUTH_TOKEN=... shiki bootstrap-github --repo OWNER/shiki --private
+shiki init /path/to/target-repo --repo OWNER/REPO --private
+```
+
+This is the standard Shiki entrypoint. It will:
+
+- install Shiki template files;
+- initialize Git if needed;
+- create the GitHub repository if missing;
+- add or update `origin`;
+- write `.shiki/repo.json`;
+- commit and push the initial Shiki state;
+- set `CLAUDE_CODE_OAUTH_TOKEN` from the environment when present;
+- configure branch protection with Shiki required checks when GitHub permissions allow it.
+
+Do not use `install-target` for normal setup. Shiki is GitHub-first.
+
+## Publish This Shiki Platform Repo
+
+```bash
+CLAUDE_CODE_OAUTH_TOKEN=... shiki bootstrap-platform --repo OWNER/shiki --private
 ```
 
 The command is idempotent. It will:
@@ -37,15 +56,16 @@ The command is idempotent. It will:
 After defaults are saved, rerun:
 
 ```bash
-shiki bootstrap-github
+shiki bootstrap-platform
 ```
 
-## Install Shiki Into A Target Repository
+## Local-Only Template Copy
 
 ```bash
-shiki install-target /path/to/target-repo
+shiki install-target /path/to/target-repo --local-only
 ```
 
+Use this only for tests, fixtures, or explicit local-only template inspection.
 Use `--force` only when you intentionally want to overwrite existing target files.
 
 ## Slash Command

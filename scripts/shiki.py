@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -61,6 +62,7 @@ TARGET_STATE_DIRECTORIES = [
     ".shiki/locks",
     ".shiki/worktrees",
 ]
+GITHUB_REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 
 @dataclass
@@ -143,6 +145,11 @@ def ensure_remote(repo: str, path: Path) -> None:
         return
     run(["git", "remote", "add", "origin", remote_url], cwd=path)
     info(f"added origin {remote_url}")
+
+
+def require_github_repo_slug(repo: str) -> None:
+    if not GITHUB_REPO.match(repo):
+        raise ShikiError("repo must be a GitHub slug like OWNER/NAME")
 
 
 def github_repo_exists(repo: str) -> bool:
@@ -242,6 +249,11 @@ def validate_local_shiki() -> None:
     info("local Shiki validation passed")
 
 
+def validate_target_shiki(target: Path) -> None:
+    run(["python3", "scripts/validate_shiki.py"], cwd=target)
+    info("target Shiki validation passed")
+
+
 def save_default_config(repo: str, branch: str) -> None:
     LOCAL_CONFIG.parent.mkdir(parents=True, exist_ok=True)
     data = {
@@ -267,6 +279,7 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
     repo = args.repo or config.get("repo")
     if not repo:
         raise ShikiError("missing --repo OWNER/NAME and no default repo configured")
+    require_github_repo_slug(repo)
 
     branch = args.branch or config.get("default_branch") or "main"
     visibility = "private" if args.private else "public"
@@ -301,6 +314,116 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
     save_default_config(repo, branch)
     info("bootstrap complete")
     return 0
+
+
+def write_target_repo_config(target: Path, repo: str, branch: str) -> None:
+    payload = {
+        "source_of_truth": "github",
+        "repo": repo,
+        "default_branch": branch,
+        "mirror": ".shiki",
+    }
+    path = target / ".shiki" / "repo.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    info(f"wrote target GitHub config: {path}")
+
+
+def install_template(target: Path, *, force: bool, validate: bool) -> None:
+    for relative in TEMPLATE_PATHS:
+        source = ROOT / relative
+        if not source.exists():
+            warn(f"template path missing, skipped: {relative}")
+            continue
+        copy_path(source, target / relative, force=force, target_install=True)
+
+    for relative in TARGET_STATE_DIRECTORIES:
+        state_dir = target / relative
+        state_dir.mkdir(parents=True, exist_ok=True)
+        info(f"ensured empty state directory: {state_dir}")
+
+    if validate:
+        validate_target_shiki(target)
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    require_tool("git")
+    require_tool("gh")
+
+    target = Path(args.target).expanduser().resolve()
+    target.mkdir(parents=True, exist_ok=True)
+
+    if not args.repo:
+        raise ShikiError("shiki init requires --repo OWNER/NAME because Shiki is GitHub-first")
+    repo = args.repo
+    require_github_repo_slug(repo)
+
+    branch = args.branch
+    visibility = "private" if args.private else "public"
+
+    run(["gh", "auth", "status"])
+    install_template(target, force=args.force, validate=args.validate)
+    write_target_repo_config(target, repo, branch)
+    ensure_git_repo(target, branch)
+    ensure_github_repo(repo, visibility)
+    ensure_remote(repo, target)
+
+    active_branch = current_branch(target)
+    if active_branch != branch:
+        run(["git", "checkout", "-B", branch], cwd=target)
+
+    if args.commit:
+        commit_all(target, args.commit_message)
+
+    if args.push:
+        push_branch(target, branch)
+        set_default_branch(repo, branch)
+
+    secret_value = os.environ.get(args.secret_env, "")
+    if args.set_secret:
+        if not secret_value:
+            warn(f"{args.secret_env} is not set; skipping GitHub secret")
+        else:
+            set_secret(repo, "CLAUDE_CODE_OAUTH_TOKEN", secret_value)
+
+    if args.protect:
+        protect_branch(repo, branch, args.required_check)
+
+    info("GitHub-first init complete")
+    return 0
+
+
+def github_origin(path: Path) -> str | None:
+    result = run(["git", "remote", "get-url", "origin"], cwd=path, check=False)
+    if result.returncode != 0:
+        return None
+    origin = result.stdout.strip()
+    if "github.com" not in origin:
+        return None
+    return origin
+
+
+def cmd_preflight(args: argparse.Namespace) -> int:
+    target = Path(args.target).expanduser().resolve()
+    blocking: list[str] = []
+
+    if not is_git_repo(target):
+        blocking.append("not a git repository")
+    elif args.require_github and not github_origin(target):
+        blocking.append("missing GitHub origin")
+
+    repo_config = target / ".shiki" / "repo.json"
+    if args.require_github and not repo_config.exists():
+        blocking.append("missing .shiki/repo.json GitHub config")
+
+    result = {
+        "target": str(target),
+        "github_required": args.require_github,
+        "status": "blocked" if blocking else "ready",
+        "blocking_reasons": blocking,
+    }
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 1 if blocking else 0
 
 
 def should_skip(path: Path, *, target_install: bool = False) -> bool:
@@ -339,21 +462,10 @@ def cmd_install_target(args: argparse.Namespace) -> int:
     if not target.is_dir():
         raise ShikiError(f"target is not a directory: {target}")
 
-    for relative in TEMPLATE_PATHS:
-        source = ROOT / relative
-        if not source.exists():
-            warn(f"template path missing, skipped: {relative}")
-            continue
-        copy_path(source, target / relative, force=args.force, target_install=True)
+    if not args.local_only:
+        raise ShikiError("install-target is template-only; use shiki init TARGET --repo OWNER/NAME for GitHub-first setup, or pass --local-only explicitly")
 
-    for relative in TARGET_STATE_DIRECTORIES:
-        state_dir = target / relative
-        state_dir.mkdir(parents=True, exist_ok=True)
-        info(f"ensured empty state directory: {state_dir}")
-
-    if args.validate:
-        run(["python3", "scripts/validate_shiki.py"], cwd=target)
-        info("target Shiki validation passed")
+    install_template(target, force=args.force, validate=args.validate)
 
     return 0
 
@@ -420,7 +532,29 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="shiki")
     subcommands = parser.add_subparsers(dest="command", required=True)
 
-    github = subcommands.add_parser("bootstrap-github", help="Initialize and publish this Shiki repo to GitHub")
+    init = subcommands.add_parser("init", help="Install Shiki into a target repo and publish it to GitHub")
+    init.add_argument("target", help="Target repository path")
+    init.add_argument("--repo", required=True, help="GitHub repository as OWNER/NAME")
+    init.add_argument("--branch", default="main", help="Default branch, default main")
+    init.add_argument("--private", action="store_true", help="Create a private repo")
+    init.add_argument("--public", action="store_true", help=argparse.SUPPRESS)
+    init.add_argument("--force", action="store_true", help="Overwrite existing target files")
+    init.add_argument("--validate", action=argparse.BooleanOptionalAction, default=True)
+    init.add_argument("--commit", action=argparse.BooleanOptionalAction, default=True)
+    init.add_argument("--commit-message", default="shiki: initialize GitHub-first control plane")
+    init.add_argument("--push", action=argparse.BooleanOptionalAction, default=True)
+    init.add_argument("--set-secret", action=argparse.BooleanOptionalAction, default=True)
+    init.add_argument("--secret-env", default="CLAUDE_CODE_OAUTH_TOKEN")
+    init.add_argument("--protect", action=argparse.BooleanOptionalAction, default=True)
+    init.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
+    init.set_defaults(func=cmd_init)
+
+    preflight = subcommands.add_parser("preflight", help="Check whether a target repo is ready for Shiki")
+    preflight.add_argument("target", nargs="?", default=".", help="Target repository path")
+    preflight.add_argument("--require-github", action="store_true", help="Fail unless target is connected to GitHub")
+    preflight.set_defaults(func=cmd_preflight)
+
+    github = subcommands.add_parser("bootstrap-platform", help="Initialize and publish the Shiki platform repo to GitHub")
     github.add_argument("--repo", help="GitHub repository as OWNER/NAME")
     github.add_argument("--branch", default=None, help="Default branch, default main")
     github.add_argument("--private", action="store_true", help="Create a private repo")
@@ -434,8 +568,23 @@ def build_parser() -> argparse.ArgumentParser:
     github.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
     github.set_defaults(func=cmd_bootstrap_github)
 
-    target = subcommands.add_parser("install-target", help="Install Shiki template files into a target repo")
+    deprecated = subcommands.add_parser("bootstrap-github", help="Deprecated alias for bootstrap-platform")
+    deprecated.add_argument("--repo", help="GitHub repository as OWNER/NAME")
+    deprecated.add_argument("--branch", default=None, help="Default branch, default main")
+    deprecated.add_argument("--private", action="store_true", help="Create a private repo")
+    deprecated.add_argument("--public", action="store_true", help=argparse.SUPPRESS)
+    deprecated.add_argument("--commit", action=argparse.BooleanOptionalAction, default=True)
+    deprecated.add_argument("--commit-message", default="shiki: bootstrap control plane")
+    deprecated.add_argument("--push", action=argparse.BooleanOptionalAction, default=True)
+    deprecated.add_argument("--set-secret", action=argparse.BooleanOptionalAction, default=True)
+    deprecated.add_argument("--secret-env", default="CLAUDE_CODE_OAUTH_TOKEN")
+    deprecated.add_argument("--protect", action=argparse.BooleanOptionalAction, default=True)
+    deprecated.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
+    deprecated.set_defaults(func=cmd_bootstrap_github)
+
+    target = subcommands.add_parser("install-target", help="Install Shiki template files only; GitHub-first setup uses init")
     target.add_argument("target", help="Target repository path")
+    target.add_argument("--local-only", action="store_true", help="Allow template-only install without GitHub bootstrap")
     target.add_argument("--force", action="store_true", help="Overwrite existing files")
     target.add_argument("--validate", action=argparse.BooleanOptionalAction, default=True)
     target.set_defaults(func=cmd_install_target)

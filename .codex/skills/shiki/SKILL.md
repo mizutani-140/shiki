@@ -19,6 +19,14 @@ shiki status
 Then inspect the target repository's `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`,
 `.shiki/`, `docs/agents/`, and open PR/issue state before changing files.
 
+If Shiki is not installed in the target repository, do not use a local-only
+template install by default. Ask for the GitHub repository slug if it is
+missing, then run:
+
+```bash
+shiki init . --repo OWNER/NAME
+```
+
 ## Responsibilities
 
 - Codex implements and repairs.
@@ -34,13 +42,13 @@ Then inspect the target repository's `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`,
 - Keep tasks as vertical slices with explicit locks and verification.
 - Use TDD for implementation work when behavior changes.
 - Do not call implementation complete until GitHub evidence, CCA, and MergeGate support it.
+- Do not use `shiki install-target` unless the user explicitly asks for local-only template copying.
 - Do not bypass branch protection or use admin merge.
 - If a workflow change needs a bootstrap exception, ask for explicit Guardian approval first.
 
 ## Commands
 
 - `shiki install-global`
-- `shiki install-target /path/to/repo`
-- `shiki bootstrap-github --repo OWNER/REPO`
+- `shiki init /path/to/repo --repo OWNER/REPO`
+- `shiki preflight --require-github`
 - `shiki status`
-
