@@ -1,0 +1,95 @@
+name: Shiki Goal
+description: Register a Shiki Goal for agentic implementation.
+title: "[Goal] "
+labels:
+  - shiki:goal
+  - shiki:planning
+body:
+  - type: input
+    id: goal_id
+    attributes:
+      label: Goal id
+      description: Use G-0001 style. Leave blank if the planner should assign it.
+      placeholder: G-0001
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: Describe the target outcome in user-observable terms.
+    validations:
+      required: true
+  - type: textarea
+    id: completion_conditions
+    attributes:
+      label: Completion conditions
+      description: List the conditions that prove the Goal is complete.
+      placeholder: |
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals
+      description: List what must stay out of scope.
+      placeholder: |
+        - ...
+  - type: dropdown
+    id: risk_level
+    attributes:
+      label: Risk level
+      options:
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true
+  - type: checkboxes
+    id: required_skills
+    attributes:
+      label: Required skills
+      options:
+        - label: setup-matt-pocock-skills
+        - label: grill-with-docs
+        - label: zoom-out
+        - label: to-prd
+        - label: to-issues
+        - label: triage
+        - label: tdd
+        - label: diagnose
+        - label: improve-codebase-architecture
+        - label: prototype
+  - type: textarea
+    id: acceptance_evidence
+    attributes:
+      label: Acceptance evidence
+      description: List the evidence Shiki must preserve before completion.
+      placeholder: |
+        - Task DAG
+        - PR checks
+        - Review
+        - CCA verdict
+        - MergeGate ledger entry
+    validations:
+      required: true
+  - type: textarea
+    id: cca_profile
+    attributes:
+      label: CCA checklist profile
+      description: List the checklist families CCA must evaluate, such as G, GD, CI, PRD, ISS, H, TDD, PR, V, CCA, MG, GC.
+      placeholder: |
+        - G
+        - GD
+        - CI
+        - PRD
+        - ISS
+        - H
+        - TDD
+        - PR
+        - V
+        - CCA
+        - MG
+        - GC
+    validations:
+      required: true

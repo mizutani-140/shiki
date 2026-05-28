@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/repair-packet.schema.json",
+  "title": "Shiki Repair Packet",
+  "type": "object",
+  "required": [
+    "repair_id",
+    "goal_id",
+    "task_id",
+    "pr",
+    "attempt",
+    "failing_checklist_items",
+    "failing_acceptance_criteria",
+    "minimal_required_changes",
+    "prohibited_changes",
+    "required_skill",
+    "verification_commands",
+    "evidence_required",
+    "stop_condition"
+  ],
+  "properties": {
+    "repair_id": { "type": "string", "pattern": "^RP-[0-9]{4,}$" },
+    "goal_id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
+    "task_id": { "type": "string", "pattern": "^T-[0-9]{4,}$" },
+    "pr": { "type": "integer", "minimum": 1 },
+    "attempt": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "failing_checklist_items": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "failing_acceptance_criteria": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "minimal_required_changes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "prohibited_changes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "required_skill": {
+      "enum": [
+        "tdd",
+        "diagnose",
+        "grill-with-docs",
+        "improve-codebase-architecture",
+        "none"
+      ]
+    },
+    "verification_commands": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "evidence_required": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "stop_condition": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true
+}

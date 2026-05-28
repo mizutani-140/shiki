@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/dag.schema.json",
+  "title": "Shiki Task DAG",
+  "type": "object",
+  "required": ["goal_id", "nodes", "edges"],
+  "properties": {
+    "goal_id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
+    "nodes": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^T-[0-9]{4,}$" },
+      "minItems": 1
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "type": "string", "pattern": "^T-[0-9]{4,}$" },
+          "to": { "type": "string", "pattern": "^T-[0-9]{4,}$" },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": true
+}

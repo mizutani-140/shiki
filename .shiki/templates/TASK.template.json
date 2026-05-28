@@ -1,0 +1,18 @@
+{
+  "id": "T-0001",
+  "goal_id": "G-0001",
+  "github_issue": null,
+  "title": "Task title",
+  "scope": "One executable vertical slice.",
+  "non_goals": [],
+  "dependencies": [],
+  "locks": [],
+  "assigned_runtime": "codex",
+  "risk_level": "low",
+  "required_skills": ["tdd"],
+  "acceptance_checks": ["python3 scripts/validate_shiki.py"],
+  "expected_branch": "shiki/T-0001-task-title",
+  "expected_pr": null,
+  "ledger_evidence": ["task-registered", "check", "review", "mergegate"],
+  "status": "planned"
+}

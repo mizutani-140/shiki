@@ -1,0 +1,118 @@
+name: Shiki CCA Completion
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - edited
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to judge.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: write
+
+jobs:
+  cca:
+    name: CCA verdict
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate Shiki artifacts
+        run: python3 scripts/validate_shiki.py
+
+      - name: Prepare CCA context
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          mkdir -p .shiki/gha
+          gh pr view "$PR_NUMBER" --json number,title,body,headRefName,baseRefName,headRefOid,labels,files,reviews,statusCheckRollup > .shiki/gha/pr.json
+          base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
+          git fetch origin "$base_ref" --depth=1
+          git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
+
+      - name: Prepare CCA schema
+        id: schema
+        shell: bash
+        run: |
+          {
+            echo "json<<EOF"
+            jq -c . .shiki/schemas/cca-verdict.schema.json
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run CCA
+        id: cca
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPOSITORY: ${{ github.repository }}
+            PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+            HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+            Run the Shiki CCA Completion Check using:
+            - .github/prompts/cca-completion-check.md
+            - AGENTS.md
+            - CLAUDE.md
+            - CONTEXT.md
+            - docs/agents/checklists.md
+            - docs/agents/completion-check-agent.md
+            - docs/agents/runtime-auth-model.md
+            - .shiki/gha/pr.json
+            - .shiki/gha/changed-files.txt
+
+            Judge completion only. Do not edit production code.
+            Return structured JSON matching .shiki/schemas/cca-verdict.schema.json.
+          claude_args: |
+            --append-system-prompt "You are Shiki CCA. Judge completion only. Do not edit production code. Non-complete verdicts must include precise next actions."
+            --json-schema '${{ steps.schema.outputs.json }}'
+            --max-turns 5
+
+      - name: Enforce CCA verdict
+        env:
+          STRUCTURED_OUTPUT: ${{ steps.cca.outputs.structured_output }}
+        run: python3 scripts/enforce_cca_verdict.py
+
+      - name: Upload CCA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiki-cca-evidence
+          path: .shiki/gha
+
+  mergegate:
+    name: MergeGate policy check
+    runs-on: ubuntu-latest
+    needs: cca
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download CCA evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: shiki-cca-evidence
+          path: .shiki/gha
+
+      - name: Validate Shiki artifacts
+        run: python3 scripts/validate_shiki.py
+
+      - name: Enforce MergeGate
+        run: python3 scripts/mergegate_check.py

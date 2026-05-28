@@ -1,0 +1,41 @@
+version: 1
+platform: shiki
+source_of_truth:
+  operational: github
+  mirror: .shiki
+defaults:
+  branch_prefix: shiki
+  automatic_repair_limit: 3
+  required_review: true
+  required_ledger_evidence: true
+runtimes:
+  front: codex
+  planner: claude-code
+  implementer: codex-front
+  completion_checker: github-cca
+  reviewer: claude-code-action
+  verifier: github-actions
+auth:
+  default_mode: subscription_oauth
+  codex_front: chatgpt_oauth
+  claude_code_action_secret: CLAUDE_CODE_OAUTH_TOKEN
+  api_key_mode: opt_in_only
+skills:
+  required_registry: skills/engineering
+  gate: docs/agents/skill-gate.md
+mergegate:
+  required_checks:
+    - shiki-required-checks
+    - CCA verdict
+    - MergeGate policy check
+  block_on:
+    - incomplete_dependencies
+    - missing_locks
+    - conflicting_locks
+    - failed_checks
+    - cca_not_complete
+    - missing_review
+    - unresolved_review_findings
+    - incomplete_ledger
+    - missing_required_skill
+    - unapproved_high_risk

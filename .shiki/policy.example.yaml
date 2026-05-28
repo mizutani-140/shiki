@@ -1,0 +1,169 @@
+version: 1
+
+principle: "LLM outputs may vary. State transitions must not vary."
+
+roles:
+  planner: claude
+  implementer: codex
+  completion_checker: github_cca
+  verifier: github_actions
+  merge_authorizer: mergegate
+  high_risk_authorizer: guardian
+
+execution:
+  max_parallel_worktrees: 4
+  default_runtime: codex
+  default_repair_runtime: codex
+  automatic_repair_attempt_limit: 3
+  codex_may_judge_completion: false
+  codex_may_change_scope: false
+  codex_may_merge: false
+  codex_may_deploy_production: false
+
+worktrees:
+  default_strategy: per_task_when_local_or_parallel
+  path_template: "../.worktrees/{task_id}-{slug}"
+  branch_template: "shiki/{task_id}-{slug}"
+  required_when:
+    - parallel_local_agent_execution
+    - long_running_task
+    - repair_isolation_required
+    - risky_or_large_change
+  not_required_when:
+    - github_actions_checkout
+    - read_only_planning
+    - read_only_review
+    - serial_docs_only_change
+  registry: ".shiki/worktrees/{task_id}.json"
+  block_unregistered_worktree: true
+
+ci_profiles:
+  docs:
+    label: "ci:docs"
+    required_checks:
+      - docs-lint
+    triggers:
+      paths:
+        - "docs/**"
+        - "*.md"
+  unit:
+    label: "ci:unit"
+    required_checks:
+      - lint
+      - typecheck
+      - unit-tests
+    triggers:
+      risk_max: medium
+  integration:
+    label: "ci:integration"
+    required_checks:
+      - lint
+      - typecheck
+      - unit-tests
+      - integration-tests
+    triggers:
+      paths:
+        - "src/api/**"
+        - "src/db/**"
+        - "packages/**"
+  e2e:
+    label: "ci:e2e"
+    required_checks:
+      - lint
+      - typecheck
+      - unit-tests
+      - integration-tests
+      - e2e-tests
+    triggers:
+      keywords:
+        - "auth"
+        - "session"
+        - "checkout"
+        - "critical flow"
+  security:
+    label: "ci:security"
+    required_checks:
+      - lint
+      - typecheck
+      - unit-tests
+      - security-scan
+      - guardian-approval
+    triggers:
+      paths:
+        - "**/*auth*"
+        - "**/*secret*"
+        - "**/*permission*"
+        - ".github/workflows/**"
+  infra:
+    label: "ci:infra"
+    required_checks:
+      - workflow-validation
+      - infra-plan-or-dry-run
+      - guardian-approval
+    triggers:
+      paths:
+        - ".github/workflows/**"
+        - "Dockerfile"
+        - "docker-compose*.yml"
+        - "infra/**"
+        - "terraform/**"
+  full:
+    label: "ci:full"
+    required_checks:
+      - lint
+      - typecheck
+      - unit-tests
+      - integration-tests
+      - e2e-tests
+      - security-scan
+      - cca-verdict
+      - mergegate-policy-check
+    triggers:
+      risk_min: high
+
+mergegate:
+  required_evidence:
+    - task_id
+    - goal_link
+    - acceptance_criteria
+    - tdd_evidence
+    - verification_results
+    - changed_locks
+    - risk_level
+    - cca_verdict_complete
+    - ledger_entry
+  required_checks:
+    - cca-verdict
+    - mergegate-policy-check
+  block_if:
+    - dependencies_incomplete
+    - lock_conflict
+    - stale_checks
+    - missing_task_contract
+    - missing_ledger
+    - scope_drift
+    - required_review_missing
+    - guardian_required_but_missing
+
+cd:
+  preview:
+    label: "cd:preview"
+    allowed_from: pull_request
+    requires:
+      - safe_preview_target
+      - no_production_secrets
+  staging:
+    label: "cd:staging"
+    allowed_from: main_or_cca_complete
+    requires:
+      - environment_gate
+      - deployment_record
+  production:
+    label: "cd:production"
+    allowed_from: protected_main_release
+    requires:
+      - guardian_approval
+      - protected_environment
+      - rollback_plan
+      - monitoring_signal
+    automatic: false

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/task.schema.json",
+  "title": "Shiki Task",
+  "type": "object",
+  "required": [
+    "id",
+    "goal_id",
+    "title",
+    "scope",
+    "non_goals",
+    "dependencies",
+    "locks",
+    "assigned_runtime",
+    "risk_level",
+    "acceptance_checks",
+    "expected_branch",
+    "ledger_evidence"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^T-[0-9]{4,}$" },
+    "goal_id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
+    "github_issue": { "type": ["integer", "null"] },
+    "title": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string", "minLength": 1 },
+    "non_goals": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^T-[0-9]{4,}$" }
+    },
+    "locks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "assigned_runtime": {
+      "enum": ["codex", "claude-code", "github-actions", "hermes-runner", "human", "other"]
+    },
+    "risk_level": { "enum": ["low", "medium", "high", "critical"] },
+    "required_skills": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "acceptance_checks": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "expected_branch": { "type": "string", "minLength": 1 },
+    "expected_pr": { "type": ["integer", "null"] },
+    "ledger_evidence": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "status": {
+      "enum": ["planned", "ready", "running", "blocked", "review", "repair-needed", "done"]
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/goal.schema.json",
+  "title": "Shiki Goal",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "outcome",
+    "completion_conditions",
+    "non_goals",
+    "risk_level",
+    "required_skills",
+    "acceptance_evidence"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
+    "github_issue": { "type": ["integer", "null"] },
+    "title": { "type": "string", "minLength": 1 },
+    "outcome": { "type": "string", "minLength": 1 },
+    "completion_conditions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "non_goals": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "risk_level": { "enum": ["low", "medium", "high", "critical"] },
+    "required_skills": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "acceptance_evidence": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    }
+  },
+  "additionalProperties": true
+}

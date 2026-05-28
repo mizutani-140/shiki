@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/report.schema.json",
+  "title": "Shiki Report",
+  "type": "object",
+  "required": ["id", "goal_id", "status", "summary", "evidence", "mergegate"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^R-[0-9]{4,}$" },
+    "goal_id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
+    "status": {
+      "enum": ["ready", "blocked", "repair-needed", "complete", "needs-guardian"]
+    },
+    "summary": { "type": "string", "minLength": 1 },
+    "evidence": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "mergegate": {
+      "type": "object",
+      "required": ["dependencies", "locks", "checks", "review", "ledger", "risk"],
+      "properties": {
+        "dependencies": { "type": "string" },
+        "locks": { "type": "string" },
+        "checks": { "type": "string" },
+        "review": { "type": "string" },
+        "ledger": { "type": "string" },
+        "risk": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

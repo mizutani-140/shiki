@@ -1,0 +1,29 @@
+{
+  "verdict": "insufficient_evidence",
+  "summary": "Durable evidence is not sufficient to prove completion.",
+  "goal_id": "G-0001",
+  "task_id": "T-0001",
+  "pr": 1,
+  "head_sha": "0000000",
+  "can_merge": false,
+  "checklist": [
+    {
+      "id": "CCA-01",
+      "status": "insufficient_evidence",
+      "blocking": true,
+      "evidence": "",
+      "reason": "CCA input evidence was not provided."
+    }
+  ],
+  "acceptance": [],
+  "mergegate": {
+    "dependencies": "unknown",
+    "locks": "unknown",
+    "checks": "unknown",
+    "review": "unknown",
+    "ledger": "unknown",
+    "risk": "unknown"
+  },
+  "repair_packet": null,
+  "confidence": 0
+}

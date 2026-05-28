@@ -1,0 +1,63 @@
+name: Shiki Task
+about: Create a vertical-slice Shiki task.
+title: "[Task] "
+labels: ["task:blocked", "runtime:codex", "runtime:cca"]
+body:
+  - type: input
+    id: parent
+    attributes:
+      label: Parent Goal / PRD
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What to build
+      description: Describe the end-to-end vertical slice.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: blocked_by
+    attributes:
+      label: Blocked by
+      description: Use "None - can start immediately" when applicable.
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: AFK/HITL
+      options: [AFK, HITL]
+    validations:
+      required: true
+  - type: textarea
+    id: skills
+    attributes:
+      label: Required skills
+    validations:
+      required: true
+  - type: textarea
+    id: locks
+    attributes:
+      label: Candidate locks
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification commands/checks
+    validations:
+      required: true
+  - type: textarea
+    id: cca
+    attributes:
+      label: CCA checklist profile
+      description: "Example: ISS, H, TDD, PR, V, CCA, MG."
+    validations:
+      required: true

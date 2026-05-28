@@ -1,0 +1,19 @@
+.DS_Store
+**/.DS_Store
+
+# Local auth and environment files
+.env
+.env.*
+!.env.example
+
+# Runtime-local state
+.claude/settings.local.json
+**/.claude/settings.local.json
+
+# Generated files
+__pycache__/
+*.py[cod]
+.shiki/gha/
+
+# Local input bundles
+shiki_prompt_bundle*.zip

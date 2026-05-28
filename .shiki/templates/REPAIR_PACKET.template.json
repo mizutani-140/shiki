@@ -1,0 +1,15 @@
+{
+  "repair_id": "RP-0001",
+  "goal_id": "G-0001",
+  "task_id": "T-0001",
+  "pr": 1,
+  "attempt": 1,
+  "failing_checklist_items": ["CCA-02"],
+  "failing_acceptance_criteria": ["Acceptance criterion missing evidence."],
+  "minimal_required_changes": ["Add the missing evidence or bounded implementation fix."],
+  "prohibited_changes": ["Do not broaden scope.", "Do not refactor unrelated code."],
+  "required_skill": "tdd",
+  "verification_commands": ["python3 scripts/validate_shiki.py"],
+  "evidence_required": ["Updated PR evidence and ledger entry."],
+  "stop_condition": "Stop after this bounded repair is verified or after 3 failed attempts."
+}

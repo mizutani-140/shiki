@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/ledger.schema.json",
+  "title": "Shiki Ledger Entry",
+  "type": "object",
+  "required": ["id", "timestamp", "goal_id", "type", "actor", "summary", "evidence"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^L-[0-9]{4,}$" },
+    "timestamp": { "type": "string" },
+    "goal_id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
+    "task_id": { "type": ["string", "null"], "pattern": "^T-[0-9]{4,}$" },
+    "type": {
+      "enum": [
+        "goal-created",
+        "context-impact",
+        "task-registered",
+        "lock",
+        "check",
+        "review",
+        "repair",
+        "mergegate",
+        "completion",
+        "handoff"
+      ]
+    },
+    "actor": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "evidence": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "links": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": true
+}
