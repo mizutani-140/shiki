@@ -19,10 +19,11 @@ shiki status
 ```
 
 If the current repository does not have Shiki installed and the user asked to
-set up the repository, run:
+set up the repository, do not run a local-only install. Ask for the GitHub repo
+slug if it is not provided, then run:
 
 ```bash
-shiki install-target .
+shiki init . --repo OWNER/NAME
 ```
 
 ## Operating Rules
@@ -30,6 +31,7 @@ shiki install-target .
 - Treat Codex as implementer, CCA as completion judge, and MergeGate as merge authorization.
 - For non-trivial goals, use `grill-with-docs`, then Context and Impact, then PRD/issues/triage.
 - Do not claim completion from local work alone. Completion requires PR evidence, CCA, and MergeGate.
+- Do not use `shiki install-target` unless the user explicitly asks for a local-only template copy.
 - Do not bypass branch protection. Do not use admin merge.
 - For workflow changes that cannot pass CCA until merged, require explicit Guardian approval before any temporary protection exception.
 
@@ -40,4 +42,3 @@ Use the command arguments as the goal or task prompt:
 ```text
 $ARGUMENTS
 ```
-

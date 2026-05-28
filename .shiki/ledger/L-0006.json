@@ -1,0 +1,25 @@
+{
+  "id": "L-0006",
+  "timestamp": "2026-05-28T07:45:00Z",
+  "goal_id": "G-0001",
+  "task_id": "T-0006",
+  "type": "check",
+  "actor": "codex",
+  "summary": "Changed Shiki target setup so GitHub-first initialization uses shiki init --repo, while install-target requires explicit local-only intent.",
+  "evidence": [
+    "path:scripts/shiki.py",
+    "path:.claude/commands/shiki.md",
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:docs/agents/bootstrap-command.md",
+    "path:scripts/test_shiki_init.sh",
+    "skill:diagnose",
+    "skill:tdd",
+    "command:git show HEAD:.claude/commands/shiki.md | grep 'shiki init . --repo OWNER/NAME' verifies committed slash command content even when Claude Action restores .claude from main",
+    "command:python3 scripts/shiki.py init /private/tmp/shiki-init-missing-repo => exits non-zero without --repo",
+    "command:python3 scripts/shiki.py install-target /private/tmp/shiki-install-no-local => exits non-zero without --local-only",
+    "command:python3 scripts/shiki.py install-target /private/tmp/shiki-local-only-smoke --local-only => validates local-only template copy",
+    "command:python3 scripts/shiki.py preflight /private/tmp/shiki-local-only-smoke --require-github => exits non-zero",
+    "command:bash scripts/test_shiki_init.sh => shiki init tests passed"
+  ],
+  "links": []
+}
