@@ -1,0 +1,15 @@
+{
+  "id": "L-0007",
+  "timestamp": "2026-05-28T00:00:00+00:00",
+  "goal_id": "G-0001",
+  "task_id": "T-0007",
+  "type": "task-registered",
+  "actor": "codex-front",
+  "summary": "Registered Shiki control-plane command implementation with TDD evidence requirements.",
+  "evidence": [
+    ".shiki/tasks/T-0007.json",
+    "scripts/test_shiki_control_plane.sh",
+    "scripts/shiki.py"
+  ],
+  "links": []
+}
