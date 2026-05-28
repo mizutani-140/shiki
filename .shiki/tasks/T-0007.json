@@ -1,0 +1,45 @@
+{
+  "id": "T-0007",
+  "goal_id": "G-0001",
+  "github_issue": null,
+  "title": "Implement Shiki control-plane state commands",
+  "scope": "Add GitHub-first CLI commands for Goal registration, vertical-slice task planning, lock acquisition, dispatch checks, worktree allocation, bounded repair packets, task status updates, and goal completion reports.",
+  "non_goals": [
+    "Do not bypass branch protection.",
+    "Do not require non-standard Python dependencies.",
+    "Do not create real GitHub repositories in local tests."
+  ],
+  "dependencies": [],
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:.github/workflows/shiki-validate.yml",
+    "path:.claude/commands/shiki.md",
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:docs/agents/bootstrap-command.md",
+    "path:docs/agents/control-commands.md",
+    "path:.shiki/tasks/T-0007.json",
+    "path:.shiki/ledger/L-0007.json",
+    "path:.shiki/ledger/L-0008.json"
+  ],
+  "assigned_runtime": "codex-front",
+  "risk_level": "medium",
+  "required_skills": [
+    "shiki",
+    "tdd"
+  ],
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py",
+    "python3 -m py_compile scripts/shiki.py",
+    "bash scripts/test_shiki_init.sh",
+    "bash scripts/test_shiki_control_plane.sh",
+    "python3 scripts/shiki.py --help lists control-plane subcommands through argparse help."
+  ],
+  "expected_branch": "shiki-control-plane-commands",
+  "expected_pr": 14,
+  "ledger_evidence": [
+    "L-0007",
+    "L-0008"
+  ],
+  "status": "review"
+}

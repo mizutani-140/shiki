@@ -83,6 +83,24 @@ the CLI directly:
 shiki status
 ```
 
+## Control Plane Commands
+
+After `shiki init` has connected the target repo to GitHub, use the control
+commands for durable execution state:
+
+```bash
+shiki goal create --title "..." --outcome "..."
+shiki issue plan --goal-id G-0001 --title "..." --scope "..." --acceptance-check "..."
+shiki lock acquire T-0001
+shiki dispatch check T-0001
+shiki worktree allocate T-0001
+shiki repair packet --task-id T-0001 --pr 123 --minimal-change "..." --verification-command "..."
+shiki task status T-0001 --status done
+shiki goal complete G-0001
+```
+
+See `docs/agents/control-commands.md` for the full sequence.
+
 ## Required GitHub Checks
 
 The bootstrap command attempts to require:
