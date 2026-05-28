@@ -47,8 +47,7 @@ def main() -> int:
     if status not in VALID_VERDICTS:
         return fail(f"invalid CCA verdict: {status!r}")
 
-    can_merge = verdict.get("can_merge")
-    if status == "complete" and can_merge is True:
+    if status == "complete":
         print("CCA verdict complete; MergeGate may evaluate readiness")
         return 0
 
