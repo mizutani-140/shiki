@@ -1,0 +1,37 @@
+{
+  "id": "T-0004",
+  "goal_id": "G-0001",
+  "github_issue": null,
+  "title": "Separate CCA completion from MergeGate merge authorization",
+  "scope": "Update deterministic enforcement so CCA passes on a complete verdict while MergeGate evaluates merge readiness separately.",
+  "non_goals": [
+    "Do not weaken branch protection.",
+    "Do not bypass CCA or MergeGate.",
+    "Do not change Claude Code Action authentication."
+  ],
+  "dependencies": [],
+  "locks": [
+    "path:scripts/enforce_cca_verdict.py",
+    "path:scripts/mergegate_check.py",
+    "path:.shiki/tasks/T-0004.json",
+    "path:.shiki/ledger/L-0004.json"
+  ],
+  "assigned_runtime": "codex-front",
+  "risk_level": "low",
+  "required_skills": [
+    "diagnose",
+    "tdd"
+  ],
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py",
+    "CCA enforcement exits zero for verdict=complete even when can_merge=false.",
+    "MergeGate blocks non-complete CCA verdicts.",
+    "MergeGate treats can_merge=false on a complete CCA verdict as a warning, not a CCA failure."
+  ],
+  "expected_branch": "shiki-separate-cca-mergegate-enforcement",
+  "expected_pr": 11,
+  "ledger_evidence": [
+    "L-0004"
+  ],
+  "status": "review"
+}

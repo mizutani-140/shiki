@@ -55,7 +55,7 @@ def main() -> int:
         if cca.get("verdict") != "complete":
             blocking.append(f"CCA verdict is not complete: {cca.get('verdict')!r}")
         if cca.get("can_merge") is not True:
-            blocking.append("CCA verdict did not set can_merge=true")
+            warnings.append("CCA verdict did not set can_merge=true; MergeGate will rely on required checks and policy inputs")
     elif not args.allow_missing_cca:
         blocking.append(f"CCA verdict file not found at {args.cca_verdict}")
 
