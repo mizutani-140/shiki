@@ -1,0 +1,39 @@
+{
+  "id": "T-0003",
+  "goal_id": "G-0001",
+  "github_issue": null,
+  "title": "Prevent CCA recursive check blocking",
+  "scope": "Refine CCA and advisory Claude review workflow prompts so CCA can produce a verdict without waiting on itself, downstream MergeGate, or advisory review checks.",
+  "non_goals": [
+    "Do not weaken branch protection.",
+    "Do not remove CCA or MergeGate required checks.",
+    "Do not change production code."
+  ],
+  "dependencies": [],
+  "locks": [
+    "path:.github/prompts/cca-completion-check.md",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:.github/workflows/shiki-claude-review.yml",
+    "path:.shiki/tasks/T-0003.json",
+    "path:.shiki/ledger/L-0003.json"
+  ],
+  "assigned_runtime": "codex-front",
+  "risk_level": "low",
+  "required_skills": [
+    "diagnose",
+    "tdd"
+  ],
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py",
+    "Ruby YAML load succeeds for changed workflow files.",
+    "CCA prompt states that CCA must not wait for its own check.",
+    "CCA prompt states that MergeGate policy check runs after CCA.",
+    "Claude review is advisory and scoped to PR evidence."
+  ],
+  "expected_branch": "shiki-cca-nonrecursive-checks",
+  "expected_pr": 10,
+  "ledger_evidence": [
+    "L-0003"
+  ],
+  "status": "review"
+}
