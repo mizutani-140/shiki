@@ -13,12 +13,14 @@
   "locks": [
     "path:scripts/shiki.py",
     "path:scripts/test_shiki_control_plane.sh",
+    "path:.github/workflows/shiki-validate.yml",
     "path:.claude/commands/shiki.md",
     "path:.codex/skills/shiki/SKILL.md",
     "path:docs/agents/bootstrap-command.md",
     "path:docs/agents/control-commands.md",
     "path:.shiki/tasks/T-0007.json",
-    "path:.shiki/ledger/L-0007.json"
+    "path:.shiki/ledger/L-0007.json",
+    "path:.shiki/ledger/L-0008.json"
   ],
   "assigned_runtime": "codex-front",
   "risk_level": "medium",
@@ -36,7 +38,8 @@
   "expected_branch": "shiki-control-plane-commands",
   "expected_pr": 14,
   "ledger_evidence": [
-    "L-0007"
+    "L-0007",
+    "L-0008"
   ],
   "status": "review"
 }
