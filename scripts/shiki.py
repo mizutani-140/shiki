@@ -118,13 +118,18 @@ def ensure_git_repo(path: Path, branch: str) -> None:
 
 
 def ensure_remote(repo: str, path: Path) -> None:
-    ssh_url = f"git@github.com:{repo}.git"
+    remote_url = f"https://github.com/{repo}.git"
     existing = run(["git", "remote", "get-url", "origin"], cwd=path, check=False)
     if existing.returncode == 0:
-        info(f"origin already configured: {existing.stdout.strip()}")
+        current = existing.stdout.strip()
+        if current != remote_url:
+            run(["git", "remote", "set-url", "origin", remote_url], cwd=path)
+            info(f"updated origin to {remote_url}")
+        else:
+            info(f"origin already configured: {current}")
         return
-    run(["git", "remote", "add", "origin", ssh_url], cwd=path)
-    info(f"added origin {ssh_url}")
+    run(["git", "remote", "add", "origin", remote_url], cwd=path)
+    info(f"added origin {remote_url}")
 
 
 def github_repo_exists(repo: str) -> bool:
