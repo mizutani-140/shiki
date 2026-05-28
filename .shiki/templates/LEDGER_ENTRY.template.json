@@ -1,0 +1,11 @@
+{
+  "id": "L-0001",
+  "timestamp": "2026-01-01T00:00:00Z",
+  "goal_id": "G-0001",
+  "task_id": "T-0001",
+  "type": "task-registered",
+  "actor": "codex",
+  "summary": "Registered task contract.",
+  "evidence": ["path:.shiki/tasks/T-0001.json"],
+  "links": []
+}

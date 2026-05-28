@@ -1,32 +1,19 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
+.DS_Store
+**/.DS_Store
 
-# Session-specific (generated at runtime, not part of template)
-.shiki/state/session-*.json
-.shiki/reports/SESSION-*.md
-.ai/logs/*.md
-!.ai/logs/.keep
-
-# Environment & secrets
+# Local auth and environment files
 .env
 .env.*
 !.env.example
 
-# OS
-.DS_Store
-Thumbs.db
+# Runtime-local state
+.claude/settings.local.json
+**/.claude/settings.local.json
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+# Generated files
+__pycache__/
+*.py[cod]
+.shiki/gha/
 
-# Shiki reference docs (archived framework documentation)
-# Uncomment to exclude from version control:
-# .shiki/reference/
-
-# Node (if using Codex MCP)
-node_modules/
+# Local input bundles
+shiki_prompt_bundle*.zip

@@ -1,267 +1,315 @@
 #!/usr/bin/env python3
-"""Validate .shiki/ artifacts against JSON Schemas.
-
-Validates tasks, contracts, DAGs, and session states.
-Also performs DAG cycle detection and budget verification.
-
-Usage:
-  python3 scripts/validate_shiki.py
-
-Optional dependency:
-  pip install jsonschema
-"""
+"""Dependency-free validation for Shiki mirror artifacts."""
 
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
-ROOT = Path.cwd()
+
+ROOT = Path(__file__).resolve().parents[1]
 SHIKI = ROOT / ".shiki"
-SCHEMAS = SHIKI / "schemas"
+
+TASK_ID = re.compile(r"^T-[0-9]{4,}$")
+GOAL_ID = re.compile(r"^G-[0-9]{4,}$")
+LEDGER_ID = re.compile(r"^L-[0-9]{4,}$")
+
+TASK_REQUIRED = {
+    "id",
+    "goal_id",
+    "title",
+    "scope",
+    "non_goals",
+    "dependencies",
+    "locks",
+    "assigned_runtime",
+    "risk_level",
+    "acceptance_checks",
+    "expected_branch",
+    "ledger_evidence",
+}
+
+DAG_REQUIRED = {"goal_id", "nodes", "edges"}
+LEDGER_REQUIRED = {"id", "timestamp", "goal_id", "type", "actor", "summary", "evidence"}
+
+RUNTIMES = {
+    "codex",
+    "codex-front",
+    "claude-code",
+    "claude-code-action",
+    "github-cca",
+    "github-actions",
+    "hermes-runner",
+    "human",
+    "other",
+}
+RISK_LEVELS = {"low", "medium", "high", "critical"}
+TASK_STATUSES = {"planned", "ready", "running", "blocked", "review", "repair-needed", "done"}
+LEDGER_TYPES = {
+    "goal-created",
+    "context-impact",
+    "task-registered",
+    "lock",
+    "check",
+    "review",
+    "cca-verdict",
+    "repair",
+    "mergegate",
+    "completion",
+    "handoff",
+}
 
 
-def load_json(path: Path) -> Dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+class ValidationError(Exception):
+    pass
 
 
-def minimal_task_check(t: Dict[str, Any]) -> list[str]:
-    errs = []
-    for k in ["id", "title", "assigned_to", "status"]:
-        if k not in t:
-            errs.append(f"missing '{k}'")
-    valid_assigned = {"claude-team", "claude-leader", "claude-member", "codex", "human"}
-    if t.get("assigned_to") and t["assigned_to"] not in valid_assigned:
-        errs.append(f"invalid assigned_to: {t['assigned_to']}")
-    valid_status = {"pending", "in_progress", "review", "completed", "blocked", "failed"}
-    if t.get("status") and t["status"] not in valid_status:
-        errs.append(f"invalid status: {t['status']}")
-    return errs
-
-
-def minimal_contract_check(c: Dict[str, Any]) -> list[str]:
-    errs = []
-    for k in ["contract_id", "status", "defined_by"]:
-        if k not in c:
-            errs.append(f"missing '{k}'")
-    return errs
-
-
-def minimal_dag_check(d: Dict[str, Any]) -> list[str]:
-    errs = []
-    for k in ["dag_id", "nodes", "edges"]:
-        if k not in d:
-            errs.append(f"missing '{k}'")
-    return errs
-
-
-def detect_dag_cycles(dag: Dict[str, Any]) -> list[str]:
-    """Detect cycles in a DAG using DFS."""
-    errs = []
-    nodes = dag.get("nodes", [])
-    edges = dag.get("edges", [])
-
-    node_ids = {n["node_id"] for n in nodes if "node_id" in n}
-    adjacency: dict[str, list[str]] = {nid: [] for nid in node_ids}
-    for edge in edges:
-        src = edge.get("from", "")
-        dst = edge.get("to", "")
-        if src in adjacency:
-            adjacency[src].append(dst)
-
-    # DFS cycle detection
-    WHITE, GRAY, BLACK = 0, 1, 2
-    color = {nid: WHITE for nid in node_ids}
-
-    def dfs(node: str) -> bool:
-        color[node] = GRAY
-        for neighbor in adjacency.get(node, []):
-            if neighbor not in color:
-                continue
-            if color[neighbor] == GRAY:
-                return True  # cycle found
-            if color[neighbor] == WHITE and dfs(neighbor):
-                return True
-        color[node] = BLACK
-        return False
-
-    for nid in node_ids:
-        if color[nid] == WHITE:
-            if dfs(nid):
-                errs.append(f"Cycle detected in DAG involving node {nid}")
-                break
-
-    return errs
-
-
-def validate_budget(tasks_dir: Path, config_path: Path) -> list[str]:
-    """Check budget constraints across tasks."""
-    errs = []
-    if not tasks_dir.exists():
-        return errs
-
+def load_json(path: Path) -> Any:
     try:
-        import yaml
-        config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    except Exception:
-        return errs
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ValidationError(f"{path}: invalid JSON: {error}") from error
 
-    budget_config = config.get("github", {}).get("budget", {})
-    max_per_task = budget_config.get("max_tokens_per_task", 0)
-    max_per_session = budget_config.get("max_tokens_per_session", 0)
 
-    total_actual = 0
-    for fp in sorted(tasks_dir.glob("*.json")):
-        try:
-            t = load_json(fp)
-        except Exception:
-            continue
-        budget = t.get("budget", {})
-        actual = budget.get("actual_tokens", 0)
-        estimated = budget.get("estimated_tokens", 0)
-        task_max = budget.get("max_tokens", max_per_task)
+def require_keys(path: Path, data: dict[str, Any], keys: set[str]) -> None:
+    missing = sorted(keys - set(data))
+    if missing:
+        raise ValidationError(f"{path}: missing required keys: {', '.join(missing)}")
 
-        if task_max and actual > task_max:
-            errs.append(f"Task {t.get('id', fp.stem)}: actual_tokens ({actual}) exceeds max ({task_max})")
 
-        total_actual += actual
+def require_list(path: Path, data: dict[str, Any], key: str, *, non_empty: bool = False) -> list[Any]:
+    value = data.get(key)
+    if not isinstance(value, list):
+        raise ValidationError(f"{path}: {key} must be a list")
+    if non_empty and not value:
+        raise ValidationError(f"{path}: {key} must not be empty")
+    return value
 
-    if max_per_session and total_actual > max_per_session:
-        errs.append(f"Total token usage ({total_actual}) exceeds session limit ({max_per_session})")
 
-    return errs
+def require_string(path: Path, data: dict[str, Any], key: str, *, non_empty: bool = True) -> str:
+    value = data.get(key)
+    if not isinstance(value, str):
+        raise ValidationError(f"{path}: {key} must be a string")
+    if non_empty and not value.strip():
+        raise ValidationError(f"{path}: {key} must not be empty")
+    return value
+
+
+def validate_task(path: Path, data: dict[str, Any]) -> tuple[str, list[str]]:
+    require_keys(path, data, TASK_REQUIRED)
+
+    task_id = require_string(path, data, "id")
+    if not TASK_ID.match(task_id):
+        raise ValidationError(f"{path}: id must match T-0001 style")
+
+    goal_id = require_string(path, data, "goal_id")
+    if not GOAL_ID.match(goal_id):
+        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+
+    require_string(path, data, "title")
+    require_string(path, data, "scope")
+    require_string(path, data, "expected_branch")
+
+    require_list(path, data, "non_goals")
+    dependencies = require_list(path, data, "dependencies")
+    require_list(path, data, "locks")
+    require_list(path, data, "acceptance_checks", non_empty=True)
+    require_list(path, data, "ledger_evidence", non_empty=True)
+
+    runtime = require_string(path, data, "assigned_runtime")
+    if runtime not in RUNTIMES:
+        raise ValidationError(f"{path}: assigned_runtime must be one of {sorted(RUNTIMES)}")
+
+    risk_level = require_string(path, data, "risk_level")
+    if risk_level not in RISK_LEVELS:
+        raise ValidationError(f"{path}: risk_level must be one of {sorted(RISK_LEVELS)}")
+
+    status = data.get("status")
+    if status is not None and status not in TASK_STATUSES:
+        raise ValidationError(f"{path}: status must be one of {sorted(TASK_STATUSES)}")
+
+    for dependency in dependencies:
+        if not isinstance(dependency, str) or not TASK_ID.match(dependency):
+            raise ValidationError(f"{path}: dependencies must contain T-0001 style ids")
+
+    return task_id, dependencies
+
+
+def validate_dag(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
+    require_keys(path, data, DAG_REQUIRED)
+    goal_id = require_string(path, data, "goal_id")
+    if not GOAL_ID.match(goal_id):
+        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+
+    nodes = require_list(path, data, "nodes", non_empty=True)
+    edges = require_list(path, data, "edges")
+
+    for node in nodes:
+        if not isinstance(node, str) or not TASK_ID.match(node):
+            raise ValidationError(f"{path}: nodes must contain T-0001 style ids")
+        if known_tasks and node not in known_tasks:
+            raise ValidationError(f"{path}: node {node} has no matching task file")
+
+    node_set = set(nodes)
+    adjacency: dict[str, list[str]] = {node: [] for node in node_set}
+
+    for edge in edges:
+        if not isinstance(edge, dict):
+            raise ValidationError(f"{path}: edges must contain objects")
+        from_id = edge.get("from")
+        to_id = edge.get("to")
+        if from_id not in node_set or to_id not in node_set:
+            raise ValidationError(f"{path}: edge {from_id!r}->{to_id!r} references unknown node")
+        adjacency[from_id].append(to_id)
+
+    detect_cycles(path, adjacency)
+
+
+def detect_cycles(path: Path, adjacency: dict[str, list[str]]) -> None:
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(node: str, stack: list[str]) -> None:
+        if node in visiting:
+            cycle = " -> ".join(stack + [node])
+            raise ValidationError(f"{path}: DAG cycle detected: {cycle}")
+        if node in visited:
+            return
+        visiting.add(node)
+        for child in adjacency.get(node, []):
+            visit(child, stack + [node])
+        visiting.remove(node)
+        visited.add(node)
+
+    for node in adjacency:
+        visit(node, [])
+
+
+def validate_ledger(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
+    require_keys(path, data, LEDGER_REQUIRED)
+
+    ledger_id = require_string(path, data, "id")
+    if not LEDGER_ID.match(ledger_id):
+        raise ValidationError(f"{path}: id must match L-0001 style")
+
+    goal_id = require_string(path, data, "goal_id")
+    if not GOAL_ID.match(goal_id):
+        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+
+    task_id = data.get("task_id")
+    if task_id is not None:
+        if not isinstance(task_id, str) or not TASK_ID.match(task_id):
+            raise ValidationError(f"{path}: task_id must match T-0001 style or null")
+        if known_tasks and task_id not in known_tasks:
+            raise ValidationError(f"{path}: task_id {task_id} has no matching task file")
+
+    ledger_type = require_string(path, data, "type")
+    if ledger_type not in LEDGER_TYPES:
+        raise ValidationError(f"{path}: type must be one of {sorted(LEDGER_TYPES)}")
+
+    require_string(path, data, "timestamp")
+    require_string(path, data, "actor")
+    require_string(path, data, "summary")
+    require_list(path, data, "evidence", non_empty=True)
+
+
+def validate_worktree(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
+    required = {
+        "task_id",
+        "goal_id",
+        "branch",
+        "path",
+        "runtime",
+        "state",
+        "locks",
+        "created_by",
+        "created_at",
+        "pr",
+    }
+    require_keys(path, data, required)
+
+    task_id = require_string(path, data, "task_id")
+    if not TASK_ID.match(task_id):
+        raise ValidationError(f"{path}: task_id must match T-0001 style")
+    if known_tasks and task_id not in known_tasks:
+        raise ValidationError(f"{path}: task_id {task_id} has no matching task file")
+
+    goal_id = require_string(path, data, "goal_id")
+    if not GOAL_ID.match(goal_id):
+        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+
+    require_string(path, data, "branch")
+    require_string(path, data, "path")
+    require_string(path, data, "runtime")
+    require_string(path, data, "state")
+    require_string(path, data, "created_by")
+    require_string(path, data, "created_at")
+    require_list(path, data, "locks")
+
+
+def json_files(directory: Path) -> list[Path]:
+    if not directory.exists():
+        return []
+    return sorted(path for path in directory.glob("*.json") if path.is_file())
 
 
 def main() -> int:
-    if not SHIKI.exists():
-        print("No .shiki directory found", file=sys.stderr)
-        return 1
+    errors: list[str] = []
+    task_dependencies: dict[str, list[str]] = {}
 
     try:
-        import jsonschema  # type: ignore
-    except Exception:
-        jsonschema = None  # type: ignore
+        for schema in json_files(SHIKI / "schemas"):
+            load_json(schema)
 
-    errors = 0
+        for task_path in json_files(SHIKI / "tasks"):
+            data = load_json(task_path)
+            if not isinstance(data, dict):
+                raise ValidationError(f"{task_path}: task must be a JSON object")
+            task_id, dependencies = validate_task(task_path, data)
+            if task_id in task_dependencies:
+                raise ValidationError(f"{task_path}: duplicate task id {task_id}")
+            task_dependencies[task_id] = dependencies
 
-    # Collect files
-    task_files = sorted((SHIKI / "tasks").glob("*.json"))
-    contract_files = sorted((SHIKI / "contracts").glob("*.json"))
-    dag_files = sorted((SHIKI / "dag").glob("*.json"))
-    session_files = sorted((SHIKI / "state").glob("session-*.json"))
+        known_tasks = set(task_dependencies)
+        for task_id, dependencies in task_dependencies.items():
+            for dependency in dependencies:
+                if dependency not in known_tasks:
+                    raise ValidationError(f".shiki/tasks: {task_id} depends on unknown {dependency}")
 
-    # Load schemas
-    schema_map = {
-        "task": SCHEMAS / "task.schema.json",
-        "contract": SCHEMAS / "contract.schema.json",
-        "dag": SCHEMAS / "dag.schema.json",
-        "session": SCHEMAS / "session.schema.json",
-    }
-    schemas = {}
-    for name, path in schema_map.items():
-        if path.exists():
-            try:
-                schemas[name] = load_json(path)
-            except Exception:
-                pass
+        detect_cycles(Path(".shiki/tasks"), {task_id: deps for task_id, deps in task_dependencies.items()})
 
-    # Validate tasks
-    for fp in task_files:
-        try:
-            t = load_json(fp)
-        except Exception as e:
-            print(f"[TASK] {fp}: Invalid JSON: {e}", file=sys.stderr)
-            errors += 1
-            continue
-        if jsonschema and "task" in schemas:
-            try:
-                jsonschema.validate(t, schemas["task"])
-            except Exception as e:
-                print(f"[TASK] {fp}: {e}", file=sys.stderr)
-                errors += 1
-        else:
-            errs = minimal_task_check(t)
-            if errs:
-                print(f"[TASK] {fp}: {', '.join(errs)}", file=sys.stderr)
-                errors += 1
+        for dag_path in json_files(SHIKI / "dag"):
+            data = load_json(dag_path)
+            if not isinstance(data, dict):
+                raise ValidationError(f"{dag_path}: DAG must be a JSON object")
+            validate_dag(dag_path, data, known_tasks)
 
-    # Validate contracts
-    for fp in contract_files:
-        try:
-            c = load_json(fp)
-        except Exception as e:
-            print(f"[CONTRACT] {fp}: Invalid JSON: {e}", file=sys.stderr)
-            errors += 1
-            continue
-        if jsonschema and "contract" in schemas:
-            try:
-                jsonschema.validate(c, schemas["contract"])
-            except Exception as e:
-                print(f"[CONTRACT] {fp}: {e}", file=sys.stderr)
-                errors += 1
-        else:
-            errs = minimal_contract_check(c)
-            if errs:
-                print(f"[CONTRACT] {fp}: {', '.join(errs)}", file=sys.stderr)
-                errors += 1
+        for ledger_path in json_files(SHIKI / "ledger"):
+            data = load_json(ledger_path)
+            if not isinstance(data, dict):
+                raise ValidationError(f"{ledger_path}: ledger entry must be a JSON object")
+            validate_ledger(ledger_path, data, known_tasks)
 
-    # Validate DAGs
-    for fp in dag_files:
-        try:
-            d = load_json(fp)
-        except Exception as e:
-            print(f"[DAG] {fp}: Invalid JSON: {e}", file=sys.stderr)
-            errors += 1
-            continue
-        if jsonschema and "dag" in schemas:
-            try:
-                jsonschema.validate(d, schemas["dag"])
-            except Exception as e:
-                print(f"[DAG] {fp}: {e}", file=sys.stderr)
-                errors += 1
-        else:
-            errs = minimal_dag_check(d)
-            if errs:
-                print(f"[DAG] {fp}: {', '.join(errs)}", file=sys.stderr)
-                errors += 1
+        for worktree_path in json_files(SHIKI / "worktrees"):
+            data = load_json(worktree_path)
+            if not isinstance(data, dict):
+                raise ValidationError(f"{worktree_path}: worktree record must be a JSON object")
+            validate_worktree(worktree_path, data, known_tasks)
 
-        # Cycle detection
-        cycle_errs = detect_dag_cycles(d)
-        for err in cycle_errs:
-            print(f"[DAG] {fp}: {err}", file=sys.stderr)
-            errors += 1
-
-    # Validate session states
-    for fp in session_files:
-        try:
-            s = load_json(fp)
-        except Exception as e:
-            print(f"[SESSION] {fp}: Invalid JSON: {e}", file=sys.stderr)
-            errors += 1
-            continue
-        if jsonschema and "session" in schemas:
-            try:
-                jsonschema.validate(s, schemas["session"])
-            except Exception as e:
-                print(f"[SESSION] {fp}: {e}", file=sys.stderr)
-                errors += 1
-
-    # Budget validation
-    config_path = SHIKI / "config.yaml"
-    if config_path.exists():
-        budget_errs = validate_budget(SHIKI / "tasks", config_path)
-        for err in budget_errs:
-            print(f"[BUDGET] {err}", file=sys.stderr)
-            errors += 1
+    except ValidationError as error:
+        errors.append(str(error))
 
     if errors:
-        print(f"Validation failed: {errors} error(s)", file=sys.stderr)
+        for error in errors:
+            print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
-    print("Validation OK")
+    print("Shiki validation passed")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

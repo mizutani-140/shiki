@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/dispatch-guard.schema.json",
+  "title": "Shiki Dispatch Guard",
+  "type": "object",
+  "required": [
+    "dispatchable",
+    "task_id",
+    "runtime",
+    "dependencies_complete",
+    "locks_granted",
+    "guardian_approval_required",
+    "verification_profile_present",
+    "handoff_complete",
+    "worktree_allocated",
+    "blocking_reasons"
+  ],
+  "properties": {
+    "dispatchable": { "type": "boolean" },
+    "task_id": { "type": "string", "pattern": "^T-[0-9]{4,}$" },
+    "runtime": { "type": "string" },
+    "dependencies_complete": { "type": "boolean" },
+    "locks_granted": { "type": "boolean" },
+    "guardian_approval_required": { "type": "boolean" },
+    "verification_profile_present": { "type": "boolean" },
+    "handoff_complete": { "type": "boolean" },
+    "worktree_allocated": { "type": "boolean" },
+    "blocking_reasons": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": true
+}

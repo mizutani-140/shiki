@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ShikiWorktreeRecord",
+  "type": "object",
+  "required": ["task_id", "goal_id", "branch", "path", "runtime", "state", "locks", "created_by", "created_at"],
+  "properties": {
+    "task_id": { "type": "string" },
+    "goal_id": { "type": "string" },
+    "branch": { "type": "string" },
+    "path": { "type": "string" },
+    "runtime": { "type": "string", "enum": ["codex", "claude", "github-actions", "human", "other"] },
+    "state": { "type": "string", "enum": ["planned", "registered", "active", "pr-open", "frozen", "merged", "abandoned", "archived", "removed"] },
+    "locks": { "type": "array", "items": { "type": "string" } },
+    "created_by": { "type": "string" },
+    "created_at": { "type": "string" },
+    "pr": { "type": ["integer", "null"] },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": false
+}

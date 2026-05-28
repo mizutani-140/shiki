@@ -1,0 +1,47 @@
+name: Shiki MergeGate
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - edited
+      - labeled
+      - unlabeled
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  mergegate:
+    name: MergeGate metadata check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate Shiki artifacts
+        run: python3 scripts/validate_shiki.py
+
+      - name: Prepare PR context
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p .shiki/gha
+          gh pr view "$PR_NUMBER" --json number,title,body,headRefName,baseRefName,headRefOid,labels,files,reviews,statusCheckRollup > .shiki/gha/pr.json
+          base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
+          git fetch origin "$base_ref"
+          git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
+
+      - name: MergeGate metadata check
+        run: python3 scripts/mergegate_check.py --allow-missing-cca
