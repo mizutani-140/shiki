@@ -1,0 +1,15 @@
+{
+  "id": "L-0009",
+  "timestamp": "2026-05-28T00:00:00+00:00",
+  "goal_id": "G-0001",
+  "task_id": "T-0008",
+  "type": "task-registered",
+  "actor": "codex-front",
+  "summary": "Registered Shiki plan ingestion and run orchestration implementation with TDD evidence requirements.",
+  "evidence": [
+    ".shiki/tasks/T-0008.json",
+    "scripts/test_shiki_run_orchestrator.sh",
+    "scripts/shiki.py"
+  ],
+  "links": []
+}

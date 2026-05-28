@@ -30,7 +30,9 @@ shiki init . --repo OWNER/NAME
 
 - Treat Codex as implementer, CCA as completion judge, and MergeGate as merge authorization.
 - For non-trivial goals, use `grill-with-docs`, then Context and Impact, then PRD/issues/triage.
+- After `grill-with-docs` is settled, prefer `shiki plan ingest` and `shiki run` over manually calling each lower-level command.
 - Register durable state through Shiki commands: `goal create`, `issue plan`, `lock acquire`, `dispatch check`, `worktree allocate`, `repair packet`, `task status`, and `goal complete`.
+- Use `shiki github issue`, `shiki github pr`, and `shiki handoff` to create durable GitHub and Codex evidence instead of free-form handoff text.
 - Do not claim completion from local work alone. Completion requires PR evidence, CCA, and MergeGate.
 - Do not use `shiki install-target` unless the user explicitly asks for a local-only template copy.
 - Do not bypass branch protection. Do not use admin merge.

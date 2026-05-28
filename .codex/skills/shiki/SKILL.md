@@ -38,6 +38,7 @@ shiki init . --repo OWNER/NAME
 ## Rules
 
 - For non-trivial goals, enter through `grill-with-docs`.
+- Convert the settled `grill-with-docs` result into a machine-readable plan and run it with `shiki plan ingest` followed by `shiki run`.
 - Use Context and Impact before implementation.
 - Keep tasks as vertical slices with explicit locks and verification.
 - Use TDD for implementation work when behavior changes.
@@ -51,11 +52,18 @@ shiki init . --repo OWNER/NAME
 - `shiki install-global`
 - `shiki init /path/to/repo --repo OWNER/REPO`
 - `shiki preflight --require-github`
+- `shiki plan guide --prompt "..."`
+- `shiki plan ingest --plan-file PLAN.json`
+- `shiki run --plan P-0001`
 - `shiki goal create --title ... --outcome ...`
 - `shiki issue plan --goal-id G-0001 --title ... --scope ... --acceptance-check ...`
 - `shiki lock acquire T-0001`
 - `shiki dispatch check T-0001`
 - `shiki worktree allocate T-0001`
+- `shiki github issue --task-id T-0001`
+- `shiki github pr --task-id T-0001`
+- `shiki handoff task T-0001`
+- `shiki handoff repair RP-0001`
 - `shiki repair packet --task-id T-0001 --pr 123 --minimal-change ... --verification-command ...`
 - `shiki task status T-0001 --status done`
 - `shiki goal complete G-0001`

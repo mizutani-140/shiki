@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/run.schema.json",
+  "title": "Shiki Run",
+  "type": "object",
+  "required": [
+    "id",
+    "plan_id",
+    "goal_id",
+    "task_ids",
+    "dispatchable_task_ids",
+    "blocked_task_ids",
+    "dag",
+    "worktrees",
+    "created_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^RUN-[0-9]{4,}$" },
+    "plan_id": { "type": "string", "pattern": "^P-[0-9]{4,}$" },
+    "goal_id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
+    "task_ids": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^T-[0-9]{4,}$" }
+    },
+    "dispatchable_task_ids": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^T-[0-9]{4,}$" }
+    },
+    "blocked_task_ids": { "type": "object" },
+    "dag": { "type": "string", "minLength": 1 },
+    "worktrees": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "created_at": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true
+}

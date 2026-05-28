@@ -16,6 +16,8 @@ SHIKI = ROOT / ".shiki"
 TASK_ID = re.compile(r"^T-[0-9]{4,}$")
 GOAL_ID = re.compile(r"^G-[0-9]{4,}$")
 LEDGER_ID = re.compile(r"^L-[0-9]{4,}$")
+PLAN_ID = re.compile(r"^P-[0-9]{4,}$")
+RUN_ID = re.compile(r"^RUN-[0-9]{4,}$")
 
 TASK_REQUIRED = {
     "id",
@@ -34,6 +36,18 @@ TASK_REQUIRED = {
 
 DAG_REQUIRED = {"goal_id", "nodes", "edges"}
 LEDGER_REQUIRED = {"id", "timestamp", "goal_id", "type", "actor", "summary", "evidence"}
+PLAN_REQUIRED = {"id", "title", "outcome", "grill_with_docs", "tasks"}
+RUN_REQUIRED = {
+    "id",
+    "plan_id",
+    "goal_id",
+    "task_ids",
+    "dispatchable_task_ids",
+    "blocked_task_ids",
+    "dag",
+    "worktrees",
+    "created_at",
+}
 
 RUNTIMES = {
     "codex",
@@ -250,6 +264,55 @@ def validate_worktree(path: Path, data: dict[str, Any], known_tasks: set[str]) -
     require_list(path, data, "locks")
 
 
+def validate_plan(path: Path, data: dict[str, Any]) -> None:
+    require_keys(path, data, PLAN_REQUIRED)
+    plan_id = require_string(path, data, "id")
+    if not PLAN_ID.match(plan_id):
+        raise ValidationError(f"{path}: id must match P-0001 style")
+    require_string(path, data, "title")
+    require_string(path, data, "outcome")
+
+    grill = data.get("grill_with_docs")
+    if not isinstance(grill, dict):
+        raise ValidationError(f"{path}: grill_with_docs must be an object")
+    if grill.get("status") != "complete":
+        raise ValidationError(f"{path}: grill_with_docs.status must be complete")
+
+    tasks = require_list(path, data, "tasks", non_empty=True)
+    for index, task in enumerate(tasks, start=1):
+        if not isinstance(task, dict):
+            raise ValidationError(f"{path}: tasks[{index}] must be an object")
+        for key in ("title", "scope", "acceptance_checks"):
+            if key not in task:
+                raise ValidationError(f"{path}: tasks[{index}] missing {key}")
+        if not isinstance(task.get("acceptance_checks"), list) or not task["acceptance_checks"]:
+            raise ValidationError(f"{path}: tasks[{index}].acceptance_checks must not be empty")
+
+
+def validate_run(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
+    require_keys(path, data, RUN_REQUIRED)
+    run_id = require_string(path, data, "id")
+    if not RUN_ID.match(run_id):
+        raise ValidationError(f"{path}: id must match RUN-0001 style")
+    plan_id = require_string(path, data, "plan_id")
+    if not PLAN_ID.match(plan_id):
+        raise ValidationError(f"{path}: plan_id must match P-0001 style")
+    goal_id = require_string(path, data, "goal_id")
+    if not GOAL_ID.match(goal_id):
+        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+    for key in ("task_ids", "dispatchable_task_ids"):
+        for task_id in require_list(path, data, key):
+            if not isinstance(task_id, str) or not TASK_ID.match(task_id):
+                raise ValidationError(f"{path}: {key} must contain T-0001 style ids")
+            if known_tasks and task_id not in known_tasks:
+                raise ValidationError(f"{path}: {key} references unknown task {task_id}")
+    if not isinstance(data.get("blocked_task_ids"), dict):
+        raise ValidationError(f"{path}: blocked_task_ids must be an object")
+    require_string(path, data, "dag")
+    require_string(path, data, "created_at")
+    require_list(path, data, "worktrees")
+
+
 def json_files(directory: Path) -> list[Path]:
     if not directory.exists():
         return []
@@ -287,6 +350,12 @@ def main() -> int:
                 raise ValidationError(f"{dag_path}: DAG must be a JSON object")
             validate_dag(dag_path, data, known_tasks)
 
+        for plan_path in json_files(SHIKI / "plans"):
+            data = load_json(plan_path)
+            if not isinstance(data, dict):
+                raise ValidationError(f"{plan_path}: plan must be a JSON object")
+            validate_plan(plan_path, data)
+
         for ledger_path in json_files(SHIKI / "ledger"):
             data = load_json(ledger_path)
             if not isinstance(data, dict):
@@ -298,6 +367,12 @@ def main() -> int:
             if not isinstance(data, dict):
                 raise ValidationError(f"{worktree_path}: worktree record must be a JSON object")
             validate_worktree(worktree_path, data, known_tasks)
+
+        for run_path in json_files(SHIKI / "runs"):
+            data = load_json(run_path)
+            if not isinstance(data, dict):
+                raise ValidationError(f"{run_path}: run must be a JSON object")
+            validate_run(run_path, data, known_tasks)
 
     except ValidationError as error:
         errors.append(str(error))
