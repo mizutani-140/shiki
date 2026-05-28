@@ -34,7 +34,7 @@
     "python3 scripts/shiki.py --help lists control-plane subcommands through argparse help."
   ],
   "expected_branch": "shiki-control-plane-commands",
-  "expected_pr": null,
+  "expected_pr": 14,
   "ledger_evidence": [
     "L-0007"
   ],
