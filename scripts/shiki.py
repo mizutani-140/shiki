@@ -27,6 +27,8 @@ TEMPLATE_PATHS = [
     "CLAUDE.md",
     "CONTEXT.md",
     "SYSTEM_PROMPT.md",
+    ".claude/commands/shiki.md",
+    ".codex/skills/shiki/SKILL.md",
     ".shiki",
     ".github/ISSUE_TEMPLATE",
     ".github/PULL_REQUEST_TEMPLATE",
@@ -47,6 +49,17 @@ DEFAULT_REQUIRED_CHECKS = [
     "Validate Shiki mirror",
     "CCA verdict",
     "MergeGate policy check",
+]
+
+DEFAULT_GLOBAL_COMMAND_PATH = "~/.local/bin/shiki"
+DEFAULT_CLAUDE_COMMAND_PATH = "~/.claude/commands/shiki.md"
+DEFAULT_CODEX_SKILL_PATH = "~/.codex/skills/shiki/SKILL.md"
+TARGET_STATE_DIRECTORIES = [
+    ".shiki/goals",
+    ".shiki/tasks",
+    ".shiki/ledger",
+    ".shiki/locks",
+    ".shiki/worktrees",
 ]
 
 
@@ -192,14 +205,15 @@ def protect_branch(repo: str, branch: str, required_checks: list[str]) -> None:
             "strict": True,
             "contexts": required_checks,
         },
-        "enforce_admins": False,
+        "enforce_admins": True,
         "required_pull_request_reviews": {
             "dismiss_stale_reviews": True,
             "require_code_owner_reviews": False,
-            "required_approving_review_count": 1,
+            "required_approving_review_count": 0,
         },
         "restrictions": None,
-        "required_linear_history": True,
+        "required_conversation_resolution": True,
+        "required_linear_history": False,
         "allow_force_pushes": False,
         "allow_deletions": False,
     }
@@ -289,17 +303,24 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
     return 0
 
 
-def should_skip(path: Path) -> bool:
+def should_skip(path: Path, *, target_install: bool = False) -> bool:
     parts = set(path.parts)
-    return "__pycache__" in parts or path.name == ".DS_Store" or path.suffix == ".pyc"
+    if "__pycache__" in parts or path.name == ".DS_Store" or path.suffix == ".pyc":
+        return True
+    if target_install:
+        relative = path.relative_to(ROOT)
+        relative_text = relative.as_posix()
+        state_prefixes = tuple(f"{directory}/" for directory in TARGET_STATE_DIRECTORIES)
+        return relative_text.startswith(state_prefixes)
+    return False
 
 
-def copy_path(source: Path, target: Path, *, force: bool) -> None:
-    if should_skip(source):
+def copy_path(source: Path, target: Path, *, force: bool, target_install: bool = False) -> None:
+    if should_skip(source, target_install=target_install):
         return
     if source.is_dir():
         for child in source.iterdir():
-            copy_path(child, target / child.name, force=force)
+            copy_path(child, target / child.name, force=force, target_install=target_install)
         return
 
     if target.exists() and not force:
@@ -323,7 +344,12 @@ def cmd_install_target(args: argparse.Namespace) -> int:
         if not source.exists():
             warn(f"template path missing, skipped: {relative}")
             continue
-        copy_path(source, target / relative, force=args.force)
+        copy_path(source, target / relative, force=args.force, target_install=True)
+
+    for relative in TARGET_STATE_DIRECTORIES:
+        state_dir = target / relative
+        state_dir.mkdir(parents=True, exist_ok=True)
+        info(f"ensured empty state directory: {state_dir}")
 
     if args.validate:
         run(["python3", "scripts/validate_shiki.py"], cwd=target)
@@ -333,19 +359,60 @@ def cmd_install_target(args: argparse.Namespace) -> int:
 
 
 def cmd_install_command(args: argparse.Namespace) -> int:
-    destination = Path(args.path).expanduser().resolve()
+    destination = Path(args.path).expanduser()
+    install_cli_command(destination)
+    info("ensure the parent directory is on PATH")
+    return 0
+
+
+def install_cli_command(destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists() or destination.is_symlink():
         destination.unlink()
     destination.symlink_to(ROOT / "bin" / "shiki")
     info(f"installed command: {destination}")
-    info("ensure the parent directory is on PATH")
+
+
+def install_file(source: Path, destination: Path) -> None:
+    if not source.exists():
+        raise ShikiError(f"source file not found: {source}")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
+    info(f"installed {destination}")
+
+
+def cmd_install_global(args: argparse.Namespace) -> int:
+    install_cli_command(Path(args.path).expanduser())
+
+    if args.claude_command:
+        install_file(
+            ROOT / ".claude" / "commands" / "shiki.md",
+            Path(args.claude_command_path).expanduser(),
+        )
+
+    if args.codex_skill:
+        install_file(
+            ROOT / ".codex" / "skills" / "shiki" / "SKILL.md",
+            Path(args.codex_skill_path).expanduser(),
+        )
+
+    info("global install complete")
+    info("restart Codex or Claude Code if the running client does not reload commands dynamically")
     return 0
 
 
 def cmd_status(_: argparse.Namespace) -> int:
     config = load_default_config()
-    print(json.dumps({"root": str(ROOT), "config": config}, indent=2, sort_keys=True))
+    status = {
+        "root": str(ROOT),
+        "config": config,
+        "command": shutil.which("shiki"),
+        "claude_command": str(Path(DEFAULT_CLAUDE_COMMAND_PATH).expanduser()),
+        "claude_command_installed": Path(DEFAULT_CLAUDE_COMMAND_PATH).expanduser().exists(),
+        "codex_skill": str(Path(DEFAULT_CODEX_SKILL_PATH).expanduser()),
+        "codex_skill_installed": Path(DEFAULT_CODEX_SKILL_PATH).expanduser().exists(),
+    }
+    print(json.dumps(status, indent=2, sort_keys=True))
     return 0
 
 
@@ -374,8 +441,16 @@ def build_parser() -> argparse.ArgumentParser:
     target.set_defaults(func=cmd_install_target)
 
     install = subcommands.add_parser("install-command", help="Install a shiki command symlink")
-    install.add_argument("--path", default="~/.local/bin/shiki")
+    install.add_argument("--path", default=DEFAULT_GLOBAL_COMMAND_PATH)
     install.set_defaults(func=cmd_install_command)
+
+    global_install = subcommands.add_parser("install-global", help="Install global Shiki CLI, Claude slash command, and Codex skill")
+    global_install.add_argument("--path", default=DEFAULT_GLOBAL_COMMAND_PATH)
+    global_install.add_argument("--claude-command", action=argparse.BooleanOptionalAction, default=True)
+    global_install.add_argument("--claude-command-path", default=DEFAULT_CLAUDE_COMMAND_PATH)
+    global_install.add_argument("--codex-skill", action=argparse.BooleanOptionalAction, default=True)
+    global_install.add_argument("--codex-skill-path", default=DEFAULT_CODEX_SKILL_PATH)
+    global_install.set_defaults(func=cmd_install_global)
 
     status = subcommands.add_parser("status", help="Show local Shiki CLI configuration")
     status.set_defaults(func=cmd_status)
