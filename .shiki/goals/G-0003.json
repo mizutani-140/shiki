@@ -1,0 +1,22 @@
+{
+  "acceptance_evidence": [
+    "CI Validate Shiki mirror \u304cPR\u3067pass"
+  ],
+  "completion_conditions": [
+    "install-target/start \u304c shiki-orchestrator.yml \u3092target\u306b\u30b3\u30d4\u30fc\u3059\u308b",
+    "\u5168 test_shiki_*.sh \u3068 validate \u304cCI\u76f8\u5f53\u3067\u901a\u308b"
+  ],
+  "created_at": "2026-05-29T10:12:44+00:00",
+  "github_issue": null,
+  "id": "G-0003",
+  "non_goals": [
+    "orchestrator workflow\u306e\u6319\u52d5\u5909\u66f4"
+  ],
+  "outcome": "shiki start\u3067\u4f5c\u6210\u3059\u308b\u5168target repo\u306bshiki-orchestrator.yml\u304c\u914d\u5099\u3055\u308c\u3001daemon_runner\u81ea\u5df1\u30c6\u30b9\u30c8\u3068Validate\u304c\u6700\u521d\u304b\u3089\u901a\u308b",
+  "required_skills": [
+    "diagnose"
+  ],
+  "risk_level": "medium",
+  "status": "planned",
+  "title": "\u30a4\u30f3\u30b9\u30c8\u30fc\u30e9\u4fee\u5fa9: target\u914d\u5099workflow\u306bshiki-orchestrator.yml\u3092\u8ffd\u52a0"
+}

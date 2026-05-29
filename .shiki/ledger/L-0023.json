@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0012.json"
+  ],
+  "goal_id": "G-0003",
+  "id": "L-0023",
+  "links": [],
+  "summary": "Task registered: install manifest\u306bshiki-orchestrator.yml\u3092\u8ffd\u52a0",
+  "task_id": "T-0012",
+  "timestamp": "2026-05-29T10:12:55+00:00",
+  "type": "task-registered"
+}
