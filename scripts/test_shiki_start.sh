@@ -42,6 +42,14 @@ case "$1 $2" in
     echo "https://github.com/example/shiki-start-test/issues/101"
     exit 0
     ;;
+  "secret set")
+    cat >/dev/null
+    exit 0
+    ;;
+  "secret list")
+    echo "CLAUDE_CODE_OAUTH_TOKEN"
+    exit 0
+    ;;
 esac
 echo "fake gh unsupported: $*" >&2
 exit 1
@@ -53,6 +61,7 @@ export GIT_AUTHOR_NAME="Shiki Test"
 export GIT_AUTHOR_EMAIL="shiki-test@example.local"
 export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
 export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+export CLAUDE_CODE_OAUTH_TOKEN="fake-test-token"
 
 cat >"$TMP_ROOT/answers.json" <<'JSON'
 {
@@ -87,7 +96,6 @@ python3 scripts/shiki.py start \
   --answers-file "$TMP_ROOT/answers.json" \
   --no-push \
   --no-protect \
-  --no-set-secret \
   >/tmp/shiki-start.json
 
 test -f "$TARGET/.shiki/repo.json"
@@ -97,6 +105,8 @@ test -f "$TARGET/.shiki/starts/START-0001.json"
 test -n "$(find "$TARGET/.shiki/tasks" -type f -name 'T-*.json' -print -quit)"
 grep "repo create" "$SHIKI_FAKE_GH_LOG" >/dev/null
 grep "issue create" "$SHIKI_FAKE_GH_LOG" >/dev/null
+grep "secret set CLAUDE_CODE_OAUTH_TOKEN --repo example/shiki-start-test" "$SHIKI_FAKE_GH_LOG" >/dev/null
+grep '"configured": true' /tmp/shiki-start.json >/dev/null
 
 START_ID="$(json_get /tmp/shiki-start.json start_id)"
 GOAL_ID="$(json_get /tmp/shiki-start.json goal_id)"

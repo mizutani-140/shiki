@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0013.json"
+  ],
+  "goal_id": "G-0004",
+  "id": "L-0026",
+  "links": [],
+  "summary": "Task registered: shiki doctor \u3068 runner codex \u3092\u5b8c\u6210\u3055\u305b\u308b",
+  "task_id": "T-0013",
+  "timestamp": "2026-05-29T10:31:51+00:00",
+  "type": "task-registered"
+}

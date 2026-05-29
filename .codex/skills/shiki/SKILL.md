@@ -8,23 +8,49 @@ description: Use when the user invokes Shiki, /shiki, or asks to run the GitHub-
 Shiki is the user's GitHub-first, runtime-agnostic control plane for agentic
 engineering.
 
+Codex CLI does not register this skill as a custom `/shiki` slash command. When
+the user types `/shiki` in Codex CLI and gets "Unrecognized command", explain
+that this is expected: invoke Shiki in Codex with natural language such as
+"Shiki: create a new GitHub-backed target repo ..." or run the shell command
+`shiki start ...`.
+
 ## Start
 
 Run:
 
 ```bash
 shiki status
+shiki doctor
 ```
 
-Then inspect the target repository's `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`,
-`.shiki/`, `docs/agents/`, and open PR/issue state before changing files.
+`shiki status` reports the installed Shiki platform/template root and default
+config. Its `config.repo` value is not automatically the requested Target
+Repository. Do not route work to `/Users/kio.mizutani/shiki` or
+`mizutani-140/shiki` unless the user explicitly asks to work on the Shiki
+platform repo itself.
+
+Use `shiki doctor` to distinguish Shiki availability from Agent Runtime
+authentication. If Claude Code reports `Please run /login` or `API Error: 401
+Invalid authentication credentials`, the Claude Code adapter cannot run `/shiki`
+until `claude auth login` or `/login` succeeds. Do not block the Codex path on
+Claude auth; use `shiki start` from Codex or a terminal when Codex/GitHub are
+ready.
+
+When `/shiki` or Shiki is invoked without a clear target, first establish
+whether the user wants a new GitHub-backed Target Repository or an existing
+repository. For new repo requests, collect the target path and GitHub slug before
+inspecting repo contents.
+
+Then inspect the selected target repository's `AGENTS.md`, `CLAUDE.md`,
+`CONTEXT.md`, `.shiki/`, `docs/agents/`, and open PR/issue state before changing
+files.
 
 If Shiki is not installed in the target repository, do not give the user a
 manual sequence. Ask for the missing repo and Goal values one question at a
 time, then run the one-command entrypoint:
 
 ```bash
-shiki start . --repo OWNER/NAME --goal "..." --outcome "..."
+shiki start TARGET --repo OWNER/NAME --goal "..." --outcome "..."
 ```
 
 The default engineering Skill Gate directory is
@@ -46,6 +72,7 @@ start record, plan, and handoff must preserve the selected skills directory.
 - Convert the settled `grill-with-docs` result into a machine-readable plan and run it with `shiki plan ingest` followed by `shiki run`.
 - For unattended execution, queue the plan with `shiki daemon enqueue-plan` and process it with `shiki daemon run`.
 - For headless runtime integration, use `shiki runner next` and `shiki runner execute` to pick up ready tasks and record execution evidence.
+- When a ready task is assigned to Codex, do not hand the user a manual `codex` command and wait. Run the implementation adapter with `shiki runner codex --target TARGET --task-id T-XXXX`. This creates or reuses the task worktree, invokes `codex exec` with the handoff, and records runner evidence. Stop for user input only when Codex auth/tooling is missing, dispatch is blocked, or Guardian approval is required.
 - Use Context and Impact before implementation.
 - Keep tasks as vertical slices with explicit locks and verification.
 - Use TDD for implementation work when behavior changes.
@@ -67,6 +94,7 @@ start record, plan, and handoff must preserve the selected skills directory.
 - `shiki daemon run --once`
 - `shiki runner next`
 - `shiki runner execute --task-id T-0001 --command "..."`
+- `shiki runner codex --task-id T-0001`
 - `shiki smoke live --plan-file PLAN.json --dry-run`
 - `shiki smoke live --plan-file PLAN.json --execute-github`
 - `shiki smoke live --plan-file PLAN.json --execute-github --push-branch`

@@ -52,7 +52,9 @@ TEMPLATE_PATHS = [
     "scripts/test_shiki_control_plane.sh",
     "scripts/test_shiki_run_orchestrator.sh",
     "scripts/test_shiki_daemon_runner.sh",
+    "scripts/test_shiki_runner_codex.sh",
     "scripts/test_shiki_start.sh",
+    "scripts/test_shiki_runtime_auth.sh",
 ]
 
 DEFAULT_REQUIRED_CHECKS = [
@@ -239,6 +241,57 @@ def set_default_branch(repo: str, branch: str) -> None:
 def set_secret(repo: str, secret_name: str, value: str) -> None:
     run(["gh", "secret", "set", secret_name, "--repo", repo], input_text=value)
     info(f"set GitHub secret: {secret_name}")
+
+
+def claude_secret_remediation(repo: str, secret_env: str) -> str:
+    return (
+        f"Create a long-lived Claude Code token with `claude setup-token`, "
+        f"export it as {secret_env}, then run "
+        f"`gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo {repo}` or rerun Shiki init/start."
+    )
+
+
+def configure_claude_code_secret(repo: str, *, enabled: bool, secret_env: str) -> dict[str, Any]:
+    status: dict[str, Any] = {
+        "name": "CLAUDE_CODE_OAUTH_TOKEN",
+        "enabled": enabled,
+        "configured": False,
+        "source": None,
+        "remediation": "",
+    }
+    if not enabled:
+        status["remediation"] = "Secret setup was disabled with --no-set-secret."
+        return status
+
+    secret_value = os.environ.get(secret_env, "")
+    if not secret_value:
+        status["remediation"] = claude_secret_remediation(repo, secret_env)
+        warn(f"{secret_env} is not set; skipping GitHub secret CLAUDE_CODE_OAUTH_TOKEN")
+        warn("Claude Code login does not automatically expose a GitHub Actions token to Shiki.")
+        warn(status["remediation"])
+        return status
+
+    set_secret(repo, "CLAUDE_CODE_OAUTH_TOKEN", secret_value)
+    status["configured"] = True
+    status["source"] = f"env:{secret_env}"
+    return status
+
+
+def github_secret_status(repo: str, secret_name: str) -> dict[str, Any]:
+    result = run(["gh", "secret", "list", "--repo", repo], check=False)
+    if result.returncode != 0:
+        return {
+            "name": secret_name,
+            "checked": False,
+            "configured": None,
+            "error": first_line(result.stderr) or first_line(result.stdout),
+        }
+    names = {line.split()[0] for line in result.stdout.splitlines() if line.strip()}
+    return {
+        "name": secret_name,
+        "checked": True,
+        "configured": secret_name in names,
+    }
 
 
 def protect_branch(repo: str, branch: str, required_checks: list[str]) -> None:
@@ -1096,6 +1149,9 @@ def cmd_start(args: argparse.Namespace) -> int:
 
     start_id = next_control_id(target, "START")
     start_file = shiki_path(target, "starts", f"{start_id}.json")
+    claude_secret = github_secret_status(answers["repo"], "CLAUDE_CODE_OAUTH_TOKEN")
+    if claude_secret.get("configured") is False:
+        claude_secret["remediation"] = claude_secret_remediation(answers["repo"], args.secret_env)
     start_record = {
         "id": start_id,
         "repo": answers["repo"],
@@ -1108,6 +1164,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         "dispatchable_task_ids": result["dispatchable_task_ids"],
         "issues": issues,
         "handoffs": handoffs,
+        "claude_code_oauth_secret": claude_secret,
         "created_at": utc_now(),
     }
     write_json(start_file, start_record)
@@ -1136,6 +1193,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         "dispatchable_task_ids": result["dispatchable_task_ids"],
         "issues": issues,
         "handoffs": handoffs,
+        "claude_code_oauth_secret": claude_secret,
         "start_file": str(start_file),
         "ledger_id": ledger_id,
     }
@@ -1788,6 +1846,156 @@ def cmd_runner_execute(args: argparse.Namespace) -> int:
     return process.returncode
 
 
+def branch_exists(target: Path, branch: str) -> bool:
+    return subprocess.run(
+        ["git", "rev-parse", "--verify", branch],
+        cwd=str(target),
+        text=True,
+        capture_output=True,
+        check=False,
+    ).returncode == 0
+
+
+def ensure_physical_worktree(target: Path, task: dict[str, Any]) -> dict[str, Any]:
+    record = worktree_record(target, task["id"])
+    branch = str((record or {}).get("branch") or task["expected_branch"])
+    path = Path((record or {}).get("path") or (target.parent / ".worktrees" / slugify(branch))).expanduser().resolve()
+
+    if record is None:
+        record = {
+            "task_id": task["id"],
+            "goal_id": task["goal_id"],
+            "branch": branch,
+            "path": str(path),
+            "runtime": task["assigned_runtime"],
+            "state": "registered",
+            "locks": task.get("locks", []),
+            "created_by": "shiki-cli",
+            "created_at": utc_now(),
+            "pr": task.get("expected_pr"),
+        }
+        write_json(shiki_path(target, "worktrees", f"{task['id']}.json"), record)
+        ledger_id = append_ledger(
+            target,
+            goal_id=task["goal_id"],
+            task_id=task["id"],
+            ledger_type="handoff",
+            summary=f"Worktree registered for {task['id']}",
+            evidence=[f".shiki/worktrees/{task['id']}.json"],
+        )
+        task.setdefault("ledger_evidence", []).append(ledger_id)
+        write_json(shiki_path(target, "tasks", f"{task['id']}.json"), task)
+
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if branch_exists(target, branch):
+            run(["git", "worktree", "add", str(path), branch], cwd=target)
+        else:
+            run(["git", "worktree", "add", "-b", branch, str(path)], cwd=target)
+        record["state"] = "active"
+        record["path"] = str(path)
+        write_json(shiki_path(target, "worktrees", f"{task['id']}.json"), record)
+
+    return record
+
+
+def record_runner_result(target: Path, task: dict[str, Any], command: str, returncode: int, stdout: str, stderr: str) -> tuple[Path, str]:
+    record_id = next_control_id(target, "EXEC")
+    record_file = shiki_path(target, "runner", f"{record_id}.json")
+    record = {
+        "id": record_id,
+        "task_id": task["id"],
+        "goal_id": task["goal_id"],
+        "command": command,
+        "returncode": returncode,
+        "stdout": stdout,
+        "stderr": stderr,
+        "created_at": utc_now(),
+    }
+    write_json(record_file, record)
+    ledger_id = append_ledger(
+        target,
+        goal_id=task["goal_id"],
+        task_id=task["id"],
+        ledger_type="check",
+        summary=f"Runner command exited {returncode} for {task['id']}",
+        evidence=[str(record_file.relative_to(target))],
+    )
+    return record_file, ledger_id
+
+
+def cmd_runner_codex(args: argparse.Namespace) -> int:
+    target = target_path(args.target)
+    require_github_first_target(target)
+    ensure_control_dirs(target)
+    require_tool("codex")
+
+    task = load_task(target, args.task_id)
+    runtime = str(task.get("assigned_runtime", "codex"))
+    if runtime != "codex" and not args.force:
+        raise ShikiError(f"task {args.task_id} is assigned to {runtime}, not codex")
+    if task.get("status") not in {"ready", "running"}:
+        raise ShikiError(f"task {args.task_id} is not ready for Codex execution")
+
+    codex = codex_auth_status()
+    if not codex["ready"]:
+        raise ShikiError("Codex CLI is not ready. Run `codex login` or sign in to Codex App before dispatch.")
+
+    handoff_file = shiki_path(target, "handoffs", f"{args.task_id}-task.md")
+    if not handoff_file.exists():
+        raise ShikiError(f"missing handoff file: {handoff_file}. Run `shiki handoff task {args.task_id}` first.")
+
+    worktree = ensure_physical_worktree(target, task)
+    worktree_path = Path(worktree["path"]).expanduser().resolve()
+    command_label = f"codex exec <{handoff_file.relative_to(target)}>"
+
+    if args.dry_run:
+        print_json(
+            {
+                "task_id": args.task_id,
+                "would_execute": command_label,
+                "cwd": str(worktree_path),
+                "handoff_file": str(handoff_file),
+            }
+        )
+        return 0
+
+    task["status"] = "running"
+    write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
+    prompt = handoff_file.read_text()
+    process = subprocess.run(
+        ["codex", "exec", "-"],
+        cwd=str(worktree_path),
+        input=prompt,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    record_file, ledger_id = record_runner_result(
+        target,
+        task,
+        command_label,
+        process.returncode,
+        process.stdout,
+        process.stderr,
+    )
+    task = load_task(target, args.task_id)
+    task.setdefault("ledger_evidence", []).append(ledger_id)
+    task["status"] = "review" if process.returncode == 0 else "repair-needed"
+    write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
+    print_json(
+        {
+            "task_id": args.task_id,
+            "returncode": process.returncode,
+            "runner_record": str(record_file),
+            "ledger_id": ledger_id,
+            "worktree": str(worktree_path),
+            "status": task["status"],
+        }
+    )
+    return process.returncode
+
+
 def cmd_smoke_live(args: argparse.Namespace) -> int:
     target = target_path(args.target)
     require_github_first_target(target)
@@ -1881,12 +2089,7 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
         push_branch(ROOT, branch)
         set_default_branch(repo, branch)
 
-    secret_value = os.environ.get(args.secret_env, "")
-    if args.set_secret:
-        if not secret_value:
-            warn(f"{args.secret_env} is not set; skipping GitHub secret")
-        else:
-            set_secret(repo, "CLAUDE_CODE_OAUTH_TOKEN", secret_value)
+    configure_claude_code_secret(repo, enabled=args.set_secret, secret_env=args.secret_env)
 
     if args.protect:
         protect_branch(repo, branch, args.required_check)
@@ -1959,12 +2162,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         push_branch(target, branch)
         set_default_branch(repo, branch)
 
-    secret_value = os.environ.get(args.secret_env, "")
-    if args.set_secret:
-        if not secret_value:
-            warn(f"{args.secret_env} is not set; skipping GitHub secret")
-        else:
-            set_secret(repo, "CLAUDE_CODE_OAUTH_TOKEN", secret_value)
+    configure_claude_code_secret(repo, enabled=args.set_secret, secret_env=args.secret_env)
 
     if args.protect:
         protect_branch(repo, branch, args.required_check)
@@ -2108,6 +2306,197 @@ def cmd_status(_: argparse.Namespace) -> int:
     return 0
 
 
+def command_exists(name: str) -> bool:
+    return shutil.which(name) is not None
+
+
+def first_line(value: str) -> str:
+    return value.strip().splitlines()[0] if value.strip() else ""
+
+
+def combined_output(probe: dict[str, Any]) -> str:
+    return "\n".join(
+        part
+        for part in [str(probe.get("stdout", "")).strip(), str(probe.get("stderr", "")).strip()]
+        if part
+    )
+
+
+def command_probe(name: str, args: list[str]) -> dict[str, Any]:
+    if not command_exists(name):
+        return {
+            "installed": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": "",
+        }
+    result = run([name, *args], cwd=ROOT, check=False)
+    return {
+        "installed": True,
+        "returncode": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip(),
+    }
+
+
+def claude_auth_status() -> dict[str, Any]:
+    version = command_probe("claude", ["--version"])
+    auth = command_probe("claude", ["auth", "status"])
+    logged_in = False
+    auth_method = "unknown"
+    api_provider = "unknown"
+
+    if auth["stdout"]:
+        try:
+            data = json.loads(auth["stdout"])
+            logged_in = bool(data.get("loggedIn"))
+            auth_method = str(data.get("authMethod", "unknown"))
+            api_provider = str(data.get("apiProvider", "unknown"))
+        except json.JSONDecodeError:
+            logged_in = auth["returncode"] == 0
+    elif auth["returncode"] == 0:
+        logged_in = True
+
+    ready = bool(version["installed"] and logged_in)
+    blocking = []
+    if not version["installed"]:
+        blocking.append("Claude Code CLI is not installed.")
+    elif not logged_in:
+        blocking.append("Claude Code is not authenticated; /shiki cannot run inside Claude Code until Claude Code login succeeds.")
+
+    return {
+        "installed": version["installed"],
+        "version": first_line(version["stdout"]),
+        "logged_in": logged_in,
+        "auth_method": auth_method,
+        "api_provider": api_provider,
+        "ready": ready,
+        "blocking_reasons": blocking,
+        "remediation": "Run `claude auth login` in a terminal or `/login` inside Claude Code, then rerun `/shiki`." if blocking else "",
+    }
+
+
+def codex_auth_status() -> dict[str, Any]:
+    version = command_probe("codex", ["--version"])
+    auth = command_probe("codex", ["login", "status"])
+    logged_in = auth["returncode"] == 0 and "logged in" in combined_output(auth).lower()
+    ready = bool(version["installed"] and logged_in)
+    blocking = []
+    if not version["installed"]:
+        blocking.append("Codex CLI is not installed.")
+    elif not logged_in:
+        blocking.append("Codex CLI is not authenticated.")
+
+    return {
+        "installed": version["installed"],
+        "version": first_line(combined_output(version)),
+        "logged_in": logged_in,
+        "ready": ready,
+        "blocking_reasons": blocking,
+        "remediation": "Run `codex login` or sign in to Codex App before using the Codex entrypoint." if blocking else "",
+    }
+
+
+def github_auth_status() -> dict[str, Any]:
+    version = command_probe("gh", ["--version"])
+    auth = command_probe("gh", ["auth", "status"])
+    logged_in = auth["returncode"] == 0
+    ready = bool(version["installed"] and logged_in)
+    blocking = []
+    if not version["installed"]:
+        blocking.append("GitHub CLI is not installed.")
+    elif not logged_in:
+        detail = first_line(auth["stderr"]) or first_line(auth["stdout"])
+        blocking.append(f"GitHub CLI is not authenticated or token is invalid: {detail}".rstrip())
+
+    return {
+        "installed": version["installed"],
+        "version": first_line(version["stdout"]),
+        "logged_in": logged_in,
+        "ready": ready,
+        "blocking_reasons": blocking,
+        "remediation": "Run `gh auth login -h github.com` before Shiki creates GitHub repositories, issues, PRs, or branch protection." if blocking else "",
+    }
+
+
+def shiki_entrypoints_status() -> dict[str, Any]:
+    claude = claude_auth_status()
+    codex = codex_auth_status()
+    github = github_auth_status()
+    shiki_command = shutil.which("shiki")
+    claude_command = Path(DEFAULT_CLAUDE_COMMAND_PATH).expanduser()
+    codex_skill = Path(DEFAULT_CODEX_SKILL_PATH).expanduser()
+
+    entrypoints = {
+        "cli": {
+            "ready": bool(shiki_command),
+            "path": shiki_command,
+            "remediation": "" if shiki_command else "Run `shiki install-global` and ensure ~/.local/bin is on PATH.",
+        },
+        "codex": {
+            "ready": codex_skill.exists() and codex["ready"],
+            "skill": str(codex_skill),
+            "installed": codex_skill.exists(),
+            "slash_command_supported": False,
+            "usage": "In Codex CLI/App, invoke Shiki with natural language such as `Shiki: create a new GitHub-backed target repo ...`, or run the shell command `shiki start ...`.",
+            "remediation": "" if codex_skill.exists() and codex["ready"] else "Run `shiki install-global`, then sign in to Codex. Do not expect `/shiki` in Codex CLI; Codex skills are not custom slash commands.",
+        },
+        "claude_code": {
+            "ready": claude_command.exists() and claude["ready"],
+            "slash_command": str(claude_command),
+            "installed": claude_command.exists(),
+            "remediation": "" if claude_command.exists() and claude["ready"] else "Run `shiki install-global`, then run `claude auth login` or `/login` in Claude Code.",
+        },
+        "github_backed_operations": {
+            "ready": github["ready"],
+            "remediation": github["remediation"],
+        },
+    }
+    usable = [name for name, data in entrypoints.items() if data["ready"]]
+    blockers = [
+        reason
+        for status in (claude, codex, github)
+        for reason in status["blocking_reasons"]
+    ]
+
+    return {
+        "root": str(ROOT),
+        "config": load_default_config(),
+        "entrypoints": entrypoints,
+        "runtimes": {
+            "codex_front": codex,
+            "claude_code": claude,
+            "github_cli": github,
+        },
+        "usable_entrypoints": usable,
+        "blocking_reasons": blockers,
+        "note": "Claude Code supports `/shiki` through its command file. Codex uses the installed Shiki skill through natural language, not a `/shiki` slash command. Use `shiki start` from Codex or a terminal when a slash command is unavailable.",
+    }
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    status = shiki_entrypoints_status()
+    if args.json:
+        print_json(status)
+        return 0
+
+    print("Shiki doctor")
+    print(f"root: {status['root']}")
+    print(f"usable entrypoints: {', '.join(status['usable_entrypoints']) or 'none'}")
+    for name, entrypoint in status["entrypoints"].items():
+        marker = "ready" if entrypoint["ready"] else "blocked"
+        print(f"- {name}: {marker}")
+        remediation = entrypoint.get("remediation")
+        if remediation:
+            print(f"  remediation: {remediation}")
+    if status["blocking_reasons"]:
+        print("blocking reasons:")
+        for reason in status["blocking_reasons"]:
+            print(f"- {reason}")
+    print(status["note"])
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="shiki")
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -2184,6 +2573,10 @@ def build_parser() -> argparse.ArgumentParser:
     status = subcommands.add_parser("status", help="Show local Shiki CLI configuration")
     status.set_defaults(func=cmd_status)
 
+    doctor = subcommands.add_parser("doctor", help="Check Shiki runtime auth and entrypoint readiness")
+    doctor.add_argument("--json", action="store_true", help="Print machine-readable status")
+    doctor.set_defaults(func=cmd_doctor)
+
     start = subcommands.add_parser("start", help="One-command interactive Shiki project setup and first run")
     start.add_argument("target_positional", nargs="?", help="Target repository path")
     start.add_argument("--target", default=".", help="Target repository path")
@@ -2255,6 +2648,12 @@ def build_parser() -> argparse.ArgumentParser:
     runner_execute.add_argument("--task-id", required=True)
     runner_execute.add_argument("--command", required=True)
     runner_execute.set_defaults(func=cmd_runner_execute)
+    runner_codex = runner_subcommands.add_parser("codex", help="Run Codex autonomously for a ready Shiki task")
+    runner_codex.add_argument("--target", default=".", help="Target repository path")
+    runner_codex.add_argument("--task-id", required=True)
+    runner_codex.add_argument("--dry-run", action="store_true", help="Show the Codex dispatch without executing it")
+    runner_codex.add_argument("--force", action="store_true", help="Run even if the task runtime is not codex")
+    runner_codex.set_defaults(func=cmd_runner_codex)
 
     smoke = subcommands.add_parser("smoke", help="Run live Shiki smoke checks against a GitHub-backed target")
     smoke_subcommands = smoke.add_subparsers(dest="smoke_command", required=True)

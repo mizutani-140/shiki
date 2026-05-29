@@ -17,6 +17,17 @@ This creates or updates:
 Ensure `~/.local/bin` is on `PATH`. Restart Codex or Claude Code if the
 running client does not reload commands dynamically.
 
+Check which adapters are currently usable:
+
+```bash
+shiki doctor
+```
+
+`shiki doctor` separates Shiki CLI availability from runtime authentication. If
+Claude Code shows `Please run /login` or `API Error: 401 Invalid authentication
+credentials`, log Claude Code in with `claude auth login` or `/login`; Codex and
+terminal entrypoints can still use `shiki start` when their own auth is ready.
+
 ## Start A Target Repository
 
 ```bash
@@ -49,6 +60,28 @@ handoff evidence. By default, Shiki uses
 `/Users/kio.mizutani/Documents/lead-os/skills/engineering` when present.
 
 Do not use `install-target` for normal setup. Shiki is GitHub-first.
+
+### Claude Code Action Secret
+
+`shiki start`, `shiki init`, and `shiki bootstrap-platform` automatically set
+the GitHub secret `CLAUDE_CODE_OAUTH_TOKEN` only when the environment variable
+`CLAUDE_CODE_OAUTH_TOKEN` is present in the shell that runs Shiki. Claude Code
+login by itself does not expose a GitHub Actions token to child processes.
+
+If the secret is missing, create a long-lived Claude Code token:
+
+```bash
+claude setup-token
+```
+
+Then export the token as `CLAUDE_CODE_OAUTH_TOKEN` before running Shiki, or set
+it directly:
+
+```bash
+gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo OWNER/REPO
+```
+
+Shiki must never read local Claude OAuth credential files or print token values.
 
 ## Publish This Shiki Platform Repo
 
@@ -90,12 +123,33 @@ After `shiki install-global`, Claude Code can invoke:
 /shiki <goal or task>
 ```
 
-Codex can use the global `shiki` skill in future sessions and can always call
-the CLI directly:
+Codex CLI does not currently expose installed skills as custom slash commands,
+so `/shiki` is expected to be unrecognized there. In Codex, invoke Shiki with
+natural language, for example:
+
+```text
+Shiki: create a new GitHub-backed target repository for ...
+```
+
+Codex can also call the CLI directly:
 
 ```bash
 shiki status
+shiki doctor
+shiki start /path/to/target-repo --repo OWNER/REPO
 ```
+
+After `shiki start` creates a ready Codex task, the coordinator should continue
+autonomously:
+
+```bash
+shiki runner codex --target /path/to/target-repo --task-id T-0001
+```
+
+Do not present this as a manual next step for the user during the normal Shiki
+flow. Run it from the coordinator/runtime that is driving Shiki. Stop for user
+input only when Codex auth/tooling is unavailable, dispatch is blocked, or
+Guardian approval is required.
 
 ## Control Plane Commands
 
@@ -110,6 +164,7 @@ shiki daemon enqueue-plan --plan-file PLAN.json
 shiki daemon run --once
 shiki runner next
 shiki runner execute --task-id T-0001 --command "..."
+shiki runner codex --task-id T-0001
 shiki smoke live --plan-file PLAN.json --dry-run
 shiki smoke live --plan-file PLAN.json --execute-github
 shiki smoke live --plan-file PLAN.json --execute-github --push-branch
