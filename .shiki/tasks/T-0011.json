@@ -1,0 +1,30 @@
+{
+  "acceptance_checks": [
+    "\u5168 test_shiki_*.sh \u304cCI\u76f8\u5f53\u3067EXIT=0",
+    "Validate Shiki mirror \u304cPR\u3067pass"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/fix-hermetic-test-git-identity",
+  "expected_pr": 19,
+  "github_issue": null,
+  "goal_id": "G-0002",
+  "id": "T-0011",
+  "ledger_evidence": [
+    "L-0020",
+    "L-0021"
+  ],
+  "locks": [
+    "path:scripts/test_shiki_*.sh"
+  ],
+  "non_goals": [
+    "\u30d7\u30ed\u30c0\u30af\u30c8/\u30e9\u30f3\u30bf\u30a4\u30e0\u6319\u52d5\u306e\u5909\u66f4"
+  ],
+  "required_skills": [
+    "diagnose"
+  ],
+  "risk_level": "low",
+  "scope": "scripts/test_shiki_{control_plane,daemon_runner,run_orchestrator}.sh \u306e git init \u76f4\u5f8c\u306b repo-local git identity \u3092\u8a2d\u5b9a",
+  "status": "done",
+  "title": "hermetic\u81ea\u5df1\u30c6\u30b9\u30c8\u306bgit identity\u3092\u8a2d\u5b9a"
+}

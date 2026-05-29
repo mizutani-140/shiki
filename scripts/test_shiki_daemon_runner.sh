@@ -26,6 +26,9 @@ python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-daemo
 
 cd "$TARGET"
 git init -b main >/tmp/shiki-daemon-git-init.out
+# Hermetic git identity so `git commit` works in CI where no global git user is configured.
+git config user.email "shiki-test@example.com"
+git config user.name "Shiki Test"
 git remote add origin https://github.com/example/shiki-daemon-test.git
 
 cat >"$TMP_ROOT/plan.json" <<'JSON'

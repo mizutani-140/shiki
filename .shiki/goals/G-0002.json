@@ -1,0 +1,22 @@
+{
+  "acceptance_evidence": [
+    "CI 'Validate Shiki mirror' \u304cPR\u3067pass"
+  ],
+  "completion_conditions": [
+    "\u5168 scripts/test_shiki_*.sh \u304cCI\u76f8\u5f53\u74b0\u5883(EXIT=0)\u3067\u901a\u308b",
+    "validate_shiki.py \u304c\u901a\u308b"
+  ],
+  "created_at": "2026-05-29T09:49:00+00:00",
+  "github_issue": null,
+  "id": "G-0002",
+  "non_goals": [
+    "\u30d7\u30ed\u30c0\u30af\u30c8/\u30e9\u30f3\u30bf\u30a4\u30e0\u6319\u52d5\u306e\u5909\u66f4"
+  ],
+  "outcome": "git\u672a\u8a2d\u5b9a\u306eCI\u30e9\u30f3\u30ca\u30fc\u3067 Validate Shiki mirror \u304cgreen\u306b\u306a\u308b",
+  "required_skills": [
+    "diagnose"
+  ],
+  "risk_level": "low",
+  "status": "planned",
+  "title": "CI\u4fee\u5fa9: hermetic\u81ea\u5df1\u30c6\u30b9\u30c8\u306bgit identity\u3092\u8a2d\u5b9a"
+}
