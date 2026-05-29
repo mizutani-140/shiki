@@ -15,6 +15,7 @@ from typing import Any
 import shutil
 import subprocess
 import sys
+import time
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,6 +50,7 @@ TEMPLATE_PATHS = [
     "scripts/test_shiki_init.sh",
     "scripts/test_shiki_control_plane.sh",
     "scripts/test_shiki_run_orchestrator.sh",
+    "scripts/test_shiki_daemon_runner.sh",
 ]
 
 DEFAULT_REQUIRED_CHECKS = [
@@ -71,7 +73,10 @@ TARGET_STATE_DIRECTORIES = [
     ".shiki/repairs",
     ".shiki/reports",
     ".shiki/runs",
+    ".shiki/inbox",
     ".shiki/handoffs",
+    ".shiki/runner",
+    ".shiki/smoke",
 ]
 GITHUB_REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
@@ -636,6 +641,93 @@ def allocate_worktree_record(target: Path, task_id: str) -> tuple[Path, str]:
     return worktree_file, ledger_id
 
 
+def orchestrate_plan(target: Path, plan: dict[str, Any]) -> dict[str, Any]:
+    require_grilled_plan(plan)
+    if "id" not in plan:
+        plan["id"] = next_control_id(target, "P")
+        plan["status"] = "ingested"
+        plan["ingested_at"] = utc_now()
+        write_json(shiki_path(target, "plans", f"{plan['id']}.json"), plan)
+
+    goal_id, goal_ledger = register_goal_from_plan(target, plan)
+    task_ids: list[str] = []
+    task_ids_by_title: dict[str, str] = {}
+    dependency_edges: list[dict[str, str]] = []
+
+    for task_plan in plan["tasks"]:
+        dependency_refs = task_plan.get("dependencies") or []
+        dependencies: list[str] = []
+        for dependency in dependency_refs:
+            if dependency in task_ids_by_title:
+                dependencies.append(task_ids_by_title[dependency])
+            elif isinstance(dependency, str) and re.match(r"^T-[0-9]{4,}$", dependency):
+                dependencies.append(dependency)
+            else:
+                raise ShikiError(f"task {task_plan['title']} references unknown dependency: {dependency}")
+
+        task_id, _ = register_task_from_plan(
+            target,
+            goal_id=goal_id,
+            task_plan=task_plan,
+            dependencies=dependencies,
+        )
+        task_ids.append(task_id)
+        task_ids_by_title[task_plan["title"]] = task_id
+        for dependency in dependencies:
+            dependency_edges.append({"from": dependency, "to": task_id, "reason": "declared plan dependency"})
+
+    dag_file = update_goal_dag(target, goal_id, task_ids, dependency_edges)
+
+    dispatchable: list[str] = []
+    blocked: dict[str, list[str]] = {}
+    worktrees: list[str] = []
+    for task_id in task_ids:
+        task = load_task(target, task_id)
+        if task.get("dependencies"):
+            blocked[task_id] = ["dependencies are not complete"]
+            continue
+        lock_ok, lock_blockers, _ = try_acquire_locks(target, task_id)
+        if not lock_ok:
+            blocked[task_id] = lock_blockers
+            continue
+        worktree_file, _ = allocate_worktree_record(target, task_id)
+        dispatchable.append(task_id)
+        worktrees.append(str(worktree_file.relative_to(target)))
+
+    run_id = next_control_id(target, "RUN")
+    run_file = shiki_path(target, "runs", f"{run_id}.json")
+    run_payload = {
+        "id": run_id,
+        "plan_id": plan["id"],
+        "goal_id": goal_id,
+        "task_ids": task_ids,
+        "dispatchable_task_ids": dispatchable,
+        "blocked_task_ids": blocked,
+        "dag": str(dag_file.relative_to(target)),
+        "worktrees": worktrees,
+        "created_at": utc_now(),
+    }
+    write_json(run_file, run_payload)
+    ledger_id = append_ledger(
+        target,
+        goal_id=goal_id,
+        ledger_type="handoff",
+        summary=f"Shiki run {run_id} created {len(task_ids)} task(s) from plan {plan['id']}",
+        evidence=[str(run_file.relative_to(target)), str(dag_file.relative_to(target))],
+    )
+    return {
+        "run_id": run_id,
+        "plan_id": plan["id"],
+        "goal_id": goal_id,
+        "goal_ledger_id": goal_ledger,
+        "task_ids": task_ids,
+        "dispatchable_task_ids": dispatchable,
+        "blocked_task_ids": blocked,
+        "run_file": str(run_file),
+        "ledger_id": ledger_id,
+    }
+
+
 def cmd_goal_create(args: argparse.Namespace) -> int:
     target = target_path(args.target)
     require_github_first_target(target)
@@ -734,87 +826,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             write_json(shiki_path(target, "plans", f"{plan_id}.json"), plan)
     else:
         plan = load_plan(target, args.plan)
-        require_grilled_plan(plan)
 
-    goal_id, goal_ledger = register_goal_from_plan(target, plan)
-    task_ids: list[str] = []
-    task_ids_by_title: dict[str, str] = {}
-    dependency_edges: list[dict[str, str]] = []
-
-    for task_plan in plan["tasks"]:
-        dependency_refs = task_plan.get("dependencies") or []
-        dependencies: list[str] = []
-        for dependency in dependency_refs:
-            if dependency in task_ids_by_title:
-                dependencies.append(task_ids_by_title[dependency])
-            elif isinstance(dependency, str) and re.match(r"^T-[0-9]{4,}$", dependency):
-                dependencies.append(dependency)
-            else:
-                raise ShikiError(f"task {task_plan['title']} references unknown dependency: {dependency}")
-
-        task_id, _ = register_task_from_plan(
-            target,
-            goal_id=goal_id,
-            task_plan=task_plan,
-            dependencies=dependencies,
-        )
-        task_ids.append(task_id)
-        task_ids_by_title[task_plan["title"]] = task_id
-        for dependency in dependencies:
-            dependency_edges.append({"from": dependency, "to": task_id, "reason": "declared plan dependency"})
-
-    dag_file = update_goal_dag(target, goal_id, task_ids, dependency_edges)
-
-    dispatchable: list[str] = []
-    blocked: dict[str, list[str]] = {}
-    worktrees: list[str] = []
-    for task_id in task_ids:
-        task = load_task(target, task_id)
-        if task.get("dependencies"):
-            blocked[task_id] = ["dependencies are not complete"]
-            continue
-        lock_ok, lock_blockers, _ = try_acquire_locks(target, task_id)
-        if not lock_ok:
-            blocked[task_id] = lock_blockers
-            continue
-        worktree_file, _ = allocate_worktree_record(target, task_id)
-        dispatchable.append(task_id)
-        worktrees.append(str(worktree_file.relative_to(target)))
-
-    run_id = next_control_id(target, "RUN")
-    run_file = shiki_path(target, "runs", f"{run_id}.json")
-    run_payload = {
-        "id": run_id,
-        "plan_id": plan["id"],
-        "goal_id": goal_id,
-        "task_ids": task_ids,
-        "dispatchable_task_ids": dispatchable,
-        "blocked_task_ids": blocked,
-        "dag": str(dag_file.relative_to(target)),
-        "worktrees": worktrees,
-        "created_at": utc_now(),
-    }
-    write_json(run_file, run_payload)
-    ledger_id = append_ledger(
-        target,
-        goal_id=goal_id,
-        ledger_type="handoff",
-        summary=f"Shiki run {run_id} created {len(task_ids)} task(s) from plan {plan['id']}",
-        evidence=[str(run_file.relative_to(target)), str(dag_file.relative_to(target))],
-    )
-    print_json(
-        {
-            "run_id": run_id,
-            "plan_id": plan["id"],
-            "goal_id": goal_id,
-            "goal_ledger_id": goal_ledger,
-            "task_ids": task_ids,
-            "dispatchable_task_ids": dispatchable,
-            "blocked_task_ids": blocked,
-            "run_file": str(run_file),
-            "ledger_id": ledger_id,
-        }
-    )
+    print_json(orchestrate_plan(target, plan))
     return 0
 
 
@@ -1158,11 +1171,9 @@ def github_pr_body(task: dict[str, Any]) -> str:
     )
 
 
-def cmd_github_issue(args: argparse.Namespace) -> int:
-    target = target_path(args.target)
-    require_github_first_target(target)
+def create_github_issue_for_task(target: Path, task_id: str) -> dict[str, Any]:
     require_tool("gh")
-    task = load_task(target, args.task_id)
+    task = load_task(target, task_id)
     result = run(
         [
             "gh",
@@ -1189,24 +1200,28 @@ def cmd_github_issue(args: argparse.Namespace) -> int:
     )
     task.setdefault("ledger_evidence", []).append(ledger_id)
     write_json(shiki_path(target, "tasks", f"{task['id']}.json"), task)
-    print_json({"task_id": task["id"], "issue": issue_number, "url": url, "ledger_id": ledger_id})
+    return {"task_id": task["id"], "issue": issue_number, "url": url, "ledger_id": ledger_id}
+
+
+def cmd_github_issue(args: argparse.Namespace) -> int:
+    target = target_path(args.target)
+    require_github_first_target(target)
+    print_json(create_github_issue_for_task(target, args.task_id))
     return 0
 
 
-def cmd_github_pr(args: argparse.Namespace) -> int:
-    target = target_path(args.target)
-    require_github_first_target(target)
+def create_github_pr_for_task(target: Path, task_id: str, *, base: str, head: str | None = None) -> dict[str, Any]:
     require_tool("gh")
-    task = load_task(target, args.task_id)
+    task = load_task(target, task_id)
     result = run(
         [
             "gh",
             "pr",
             "create",
             "--base",
-            args.base,
+            base,
             "--head",
-            args.head or task["expected_branch"],
+            head or task["expected_branch"],
             "--title",
             f"{task['id']}: {task['title']}",
             "--body",
@@ -1232,7 +1247,13 @@ def cmd_github_pr(args: argparse.Namespace) -> int:
     if worktree:
         worktree["pr"] = pr_number
         write_json(shiki_path(target, "worktrees", f"{task['id']}.json"), worktree)
-    print_json({"task_id": task["id"], "pr": pr_number, "url": url, "ledger_id": ledger_id})
+    return {"task_id": task["id"], "pr": pr_number, "url": url, "ledger_id": ledger_id}
+
+
+def cmd_github_pr(args: argparse.Namespace) -> int:
+    target = target_path(args.target)
+    require_github_first_target(target)
+    print_json(create_github_pr_for_task(target, args.task_id, base=args.base, head=args.head))
     return 0
 
 
@@ -1320,6 +1341,201 @@ def cmd_handoff_repair(args: argparse.Namespace) -> int:
         evidence=[str(handoff_file.relative_to(target))],
     )
     print_json({"repair_id": repair["repair_id"], "handoff_file": str(handoff_file), "ledger_id": ledger_id})
+    return 0
+
+
+def cmd_daemon_enqueue_plan(args: argparse.Namespace) -> int:
+    target = target_path(args.target)
+    require_github_first_target(target)
+    ensure_control_dirs(target)
+    source = Path(args.plan_file).expanduser().resolve()
+    plan = read_json(source)
+    require_grilled_plan(plan)
+    inbox_id = next_control_id(target, "INBOX")
+    inbox_file = shiki_path(target, "inbox", f"{inbox_id}.json")
+    write_json(
+        inbox_file,
+        {
+            "id": inbox_id,
+            "type": "plan",
+            "state": "pending",
+            "source_file": str(source),
+            "plan": plan,
+            "created_at": utc_now(),
+        },
+    )
+    print_json({"inbox_id": inbox_id, "inbox_file": str(inbox_file), "state": "pending"})
+    return 0
+
+
+def process_inbox_item(target: Path, path: Path) -> dict[str, Any]:
+    item = read_json(path)
+    if item.get("state") != "pending":
+        return {"inbox_id": item.get("id"), "state": "skipped"}
+    if item.get("type") != "plan":
+        raise ShikiError(f"unsupported inbox item type: {item.get('type')}")
+    result = orchestrate_plan(target, item["plan"])
+    archive = shiki_path(target, "inbox", "processed", path.name)
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    item.update({"state": "processed", "processed_at": utc_now(), "result": result})
+    write_json(archive, item)
+    path.unlink()
+    return result
+
+
+def cmd_daemon_run(args: argparse.Namespace) -> int:
+    target = target_path(args.target)
+    require_github_first_target(target)
+    ensure_control_dirs(target)
+    processed: list[dict[str, Any]] = []
+
+    while True:
+        pending = sorted(
+            path
+            for path in shiki_path(target, "inbox").glob("*.json")
+            if path.is_file()
+        )
+        for path in pending:
+            processed.append(process_inbox_item(target, path))
+            if args.once:
+                result = processed[-1]
+                result["processed_count"] = len(processed)
+                print_json(result)
+                return 0
+        if args.once:
+            print_json({"processed_count": 0, "state": "idle"})
+            return 0
+        time.sleep(args.interval)
+
+
+def dispatchable_task_ids(target: Path) -> list[str]:
+    ids: list[str] = []
+    for path in task_files(target):
+        task = read_json(path)
+        if task.get("status") != "ready":
+            continue
+        if worktree_record(target, task["id"]) is None:
+            continue
+        if task.get("dependencies"):
+            dependencies = [load_task(target, dep) for dep in task.get("dependencies", [])]
+            if any(dep.get("status") != "done" for dep in dependencies):
+                continue
+        ids.append(task["id"])
+    return ids
+
+
+def cmd_runner_next(args: argparse.Namespace) -> int:
+    target = target_path(args.target)
+    require_github_first_target(target)
+    ids = dispatchable_task_ids(target)
+    if not ids:
+        print_json({"dispatchable": False, "task_id": None, "blocking_reasons": ["no ready task with worktree record"]})
+        return 1
+    task = load_task(target, ids[0])
+    print_json({"dispatchable": True, "task_id": task["id"], "goal_id": task["goal_id"], "branch": task["expected_branch"]})
+    return 0
+
+
+def cmd_runner_execute(args: argparse.Namespace) -> int:
+    target = target_path(args.target)
+    require_github_first_target(target)
+    ensure_control_dirs(target)
+    task = load_task(target, args.task_id)
+    if task.get("status") not in {"ready", "running"}:
+        raise ShikiError(f"task {args.task_id} is not ready for runner execution")
+    task["status"] = "running"
+    write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
+
+    process = subprocess.run(args.command, cwd=str(target), shell=True, text=True, capture_output=True, check=False)
+    record_id = next_control_id(target, "EXEC")
+    record_file = shiki_path(target, "runner", f"{record_id}.json")
+    record = {
+        "id": record_id,
+        "task_id": args.task_id,
+        "goal_id": task["goal_id"],
+        "command": args.command,
+        "returncode": process.returncode,
+        "stdout": process.stdout,
+        "stderr": process.stderr,
+        "created_at": utc_now(),
+    }
+    write_json(record_file, record)
+    ledger_id = append_ledger(
+        target,
+        goal_id=task["goal_id"],
+        task_id=args.task_id,
+        ledger_type="check",
+        summary=f"Runner command exited {process.returncode} for {args.task_id}",
+        evidence=[str(record_file.relative_to(target))],
+    )
+    task = load_task(target, args.task_id)
+    task.setdefault("ledger_evidence", []).append(ledger_id)
+    task["status"] = "ready" if process.returncode == 0 else "repair-needed"
+    write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
+    print_json({"task_id": args.task_id, "returncode": process.returncode, "runner_record": str(record_file), "ledger_id": ledger_id})
+    return process.returncode
+
+
+def cmd_smoke_live(args: argparse.Namespace) -> int:
+    target = target_path(args.target)
+    require_github_first_target(target)
+    require_tool("gh")
+    if args.dry_run and args.execute_github:
+        raise ShikiError("--dry-run and --execute-github cannot be used together")
+    repo = github_repo_from_origin(target)
+    if not repo:
+        raise ShikiError("could not infer GitHub repo from origin")
+    run(["gh", "auth", "status"], cwd=target)
+    run(["gh", "repo", "view", repo, "--json", "name"], cwd=target)
+
+    plan = read_json(Path(args.plan_file).expanduser().resolve())
+    require_grilled_plan(plan)
+    if args.dry_run:
+        smoke_id = next_control_id(target, "SMOKE")
+        smoke_file = shiki_path(target, "smoke", f"{smoke_id}.json")
+        payload = {
+            "id": smoke_id,
+            "repo": repo,
+            "dry_run": True,
+            "execute_github": False,
+            "plan_title": plan["title"],
+            "task_count": len(plan["tasks"]),
+            "created_at": utc_now(),
+        }
+        write_json(smoke_file, payload)
+        print_json({"smoke_id": smoke_id, "smoke_file": str(smoke_file), "dry_run": True, "task_count": len(plan["tasks"])})
+        return 0
+
+    result = orchestrate_plan(target, plan)
+    first_task = result["dispatchable_task_ids"][0] if result["dispatchable_task_ids"] else None
+    github_result: dict[str, Any] = {"executed": False}
+    if args.execute_github and first_task:
+        issue_result = create_github_issue_for_task(target, first_task)
+        if args.push_branch:
+            task = load_task(target, first_task)
+            run(["git", "checkout", "-B", task["expected_branch"]], cwd=target)
+            run(["git", "add", ".shiki"], cwd=target)
+            staged = run(["git", "diff", "--cached", "--quiet"], cwd=target, check=False)
+            if staged.returncode != 0:
+                run(["git", "commit", "-m", f"shiki: smoke evidence for {first_task}"], cwd=target)
+            run(["git", "push", "-u", "origin", task["expected_branch"]], cwd=target)
+        pr_result = create_github_pr_for_task(target, first_task, base=args.base)
+        github_result = {"executed": True, "task_id": first_task, "issue": issue_result, "pr": pr_result}
+
+    smoke_id = next_control_id(target, "SMOKE")
+    smoke_file = shiki_path(target, "smoke", f"{smoke_id}.json")
+    payload = {
+        "id": smoke_id,
+        "repo": repo,
+        "dry_run": args.dry_run,
+        "execute_github": args.execute_github,
+        "result": result,
+        "github": github_result,
+        "created_at": utc_now(),
+    }
+    write_json(smoke_file, payload)
+    output = {"smoke_id": smoke_id, "smoke_file": str(smoke_file), **result, "github": github_result}
+    print_json(output)
     return 0
 
 
@@ -1671,6 +1887,40 @@ def build_parser() -> argparse.ArgumentParser:
     run_command.add_argument("--target", default=".", help="Target repository path")
     run_command.add_argument("--plan", required=True, help="Plan id like P-0001 or path to a grilled plan JSON")
     run_command.set_defaults(func=cmd_run)
+
+    daemon = subcommands.add_parser("daemon", help="Run the Shiki background inbox processor")
+    daemon_subcommands = daemon.add_subparsers(dest="daemon_command", required=True)
+    daemon_enqueue = daemon_subcommands.add_parser("enqueue-plan", help="Queue a grilled plan for daemon processing")
+    daemon_enqueue.add_argument("--target", default=".", help="Target repository path")
+    daemon_enqueue.add_argument("--plan-file", required=True)
+    daemon_enqueue.set_defaults(func=cmd_daemon_enqueue_plan)
+    daemon_run = daemon_subcommands.add_parser("run", help="Process queued Shiki inbox items")
+    daemon_run.add_argument("--target", default=".", help="Target repository path")
+    daemon_run.add_argument("--once", action="store_true", help="Process at most one item and exit")
+    daemon_run.add_argument("--interval", type=float, default=5.0, help="Polling interval in seconds")
+    daemon_run.set_defaults(func=cmd_daemon_run)
+
+    runner = subcommands.add_parser("runner", help="Pick up and execute dispatchable Shiki tasks")
+    runner_subcommands = runner.add_subparsers(dest="runner_command", required=True)
+    runner_next = runner_subcommands.add_parser("next", help="Return the next dispatchable task")
+    runner_next.add_argument("--target", default=".", help="Target repository path")
+    runner_next.set_defaults(func=cmd_runner_next)
+    runner_execute = runner_subcommands.add_parser("execute", help="Execute a command for a ready task and record evidence")
+    runner_execute.add_argument("--target", default=".", help="Target repository path")
+    runner_execute.add_argument("--task-id", required=True)
+    runner_execute.add_argument("--command", required=True)
+    runner_execute.set_defaults(func=cmd_runner_execute)
+
+    smoke = subcommands.add_parser("smoke", help="Run live Shiki smoke checks against a GitHub-backed target")
+    smoke_subcommands = smoke.add_subparsers(dest="smoke_command", required=True)
+    smoke_live = smoke_subcommands.add_parser("live", help="Verify plan/run and optional GitHub issue/PR creation")
+    smoke_live.add_argument("--target", default=".", help="Target repository path")
+    smoke_live.add_argument("--plan-file", required=True)
+    smoke_live.add_argument("--dry-run", action="store_true", help="Run local plan orchestration without GitHub issue/PR creation")
+    smoke_live.add_argument("--execute-github", action="store_true", help="Also create GitHub issue and PR evidence")
+    smoke_live.add_argument("--push-branch", action="store_true", help="Create, commit, and push the smoke task branch before PR creation")
+    smoke_live.add_argument("--base", default="main")
+    smoke_live.set_defaults(func=cmd_smoke_live)
 
     goal = subcommands.add_parser("goal", help="Manage Shiki goals")
     goal_subcommands = goal.add_subparsers(dest="goal_command", required=True)

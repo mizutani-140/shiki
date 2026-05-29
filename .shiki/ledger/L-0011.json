@@ -1,0 +1,16 @@
+{
+  "id": "L-0011",
+  "timestamp": "2026-05-29T00:00:00+00:00",
+  "goal_id": "G-0001",
+  "task_id": "T-0009",
+  "type": "task-registered",
+  "actor": "codex-front",
+  "summary": "Registered Shiki daemon, runner, live smoke, and GitHub orchestrator automation implementation with TDD evidence requirements.",
+  "evidence": [
+    ".shiki/tasks/T-0009.json",
+    "scripts/test_shiki_daemon_runner.sh",
+    "scripts/shiki.py",
+    ".github/workflows/shiki-orchestrator.yml"
+  ],
+  "links": []
+}

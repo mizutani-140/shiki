@@ -92,6 +92,13 @@ commands for durable execution state:
 shiki plan guide --prompt "..."
 shiki plan ingest --plan-file PLAN.json
 shiki run --plan P-0001
+shiki daemon enqueue-plan --plan-file PLAN.json
+shiki daemon run --once
+shiki runner next
+shiki runner execute --task-id T-0001 --command "..."
+shiki smoke live --plan-file PLAN.json --dry-run
+shiki smoke live --plan-file PLAN.json --execute-github
+shiki smoke live --plan-file PLAN.json --execute-github --push-branch
 shiki goal create --title "..." --outcome "..."
 shiki issue plan --goal-id G-0001 --title "..." --scope "..." --acceptance-check "..."
 shiki lock acquire T-0001

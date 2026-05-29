@@ -1,0 +1,19 @@
+{
+  "id": "L-0012",
+  "timestamp": "2026-05-29T00:00:00+00:00",
+  "goal_id": "G-0001",
+  "task_id": "T-0008",
+  "type": "completion",
+  "actor": "codex-front",
+  "summary": "Marked T-0008 complete after PR #15 merged with Validate, CCA, and MergeGate checks passing.",
+  "evidence": [
+    "PR #15 merged: https://github.com/mizutani-140/shiki/pull/15",
+    "Merge commit: 63ed49df0a7e779ea03d6c9ce871f2c570cc1e45",
+    "CCA verdict: success",
+    "MergeGate policy check: success",
+    "Validate Shiki mirror: success"
+  ],
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/15"
+  ]
+}

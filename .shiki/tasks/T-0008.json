@@ -47,7 +47,8 @@
   "expected_pr": 15,
   "ledger_evidence": [
     "L-0009",
-    "L-0010"
+    "L-0010",
+    "L-0012"
   ],
-  "status": "review"
+  "status": "done"
 }

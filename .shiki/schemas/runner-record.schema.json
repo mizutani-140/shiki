@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/runner-record.schema.json",
+  "title": "Shiki Runner Record",
+  "type": "object",
+  "required": ["id", "task_id", "goal_id", "command", "returncode", "stdout", "stderr", "created_at"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^EXEC-[0-9]{4,}$" },
+    "task_id": { "type": "string", "pattern": "^T-[0-9]{4,}$" },
+    "goal_id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
+    "command": { "type": "string", "minLength": 1 },
+    "returncode": { "type": "integer" },
+    "stdout": { "type": "string" },
+    "stderr": { "type": "string" },
+    "created_at": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true
+}

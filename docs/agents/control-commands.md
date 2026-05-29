@@ -53,6 +53,53 @@ shiki plan guide --prompt "user goal"
 
 The lower-level commands remain available for explicit control or repair:
 
+## Daemon And Runner
+
+For unattended execution on a local or self-hosted machine, queue a settled plan
+and process it from the inbox:
+
+```bash
+shiki daemon enqueue-plan --plan-file PLAN.json
+shiki daemon run --once
+```
+
+Omit `--once` when a supervisor such as `launchd`, `systemd`, or a long-running
+terminal session should keep polling `.shiki/inbox`.
+
+Headless runners pick up dispatchable tasks and record command evidence:
+
+```bash
+shiki runner next
+shiki runner execute --task-id T-0001 --command "your-agent-command"
+```
+
+Use the runner command as the adapter boundary for Codex headless, Hermes
+Runner, or another runtime. The command is intentionally explicit: Shiki records
+the task, command, stdout, stderr, return code, and Ledger evidence, but the
+runtime command itself is supplied by the operator.
+
+## Live Smoke
+
+Before trusting a target repository, run:
+
+```bash
+shiki smoke live --plan-file PLAN.json --dry-run
+```
+
+When you intentionally want to create GitHub evidence:
+
+```bash
+shiki smoke live --plan-file PLAN.json --execute-github
+```
+
+The live smoke verifies GitHub auth, repository visibility, plan validity, Shiki
+run orchestration, and optional GitHub Issue / PR evidence creation.
+For a real PR smoke where the branch does not already exist, use:
+
+```bash
+shiki smoke live --plan-file PLAN.json --execute-github --push-branch
+```
+
 ```bash
 shiki goal create \
   --title "Goal title" \
@@ -115,6 +162,9 @@ shiki goal complete G-0001
 - `.shiki/reports/*.json` records goal completion judgments.
 - `.shiki/runs/*.json` records orchestrator runs.
 - `.shiki/handoffs/*.md` records Codex task and repair handoffs.
+- `.shiki/inbox/*.json` records queued daemon work.
+- `.shiki/runner/*.json` records headless runner command evidence.
+- `.shiki/smoke/*.json` records live smoke results.
 - `.shiki/ledger/*.json` records durable evidence for every transition.
 
 ## Authority Boundary

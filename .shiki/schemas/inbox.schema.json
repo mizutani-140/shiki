@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/inbox.schema.json",
+  "title": "Shiki Inbox Item",
+  "type": "object",
+  "required": ["id", "type", "state", "created_at"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^INBOX-[0-9]{4,}$" },
+    "type": { "enum": ["plan"] },
+    "state": { "enum": ["pending", "processed", "failed"] },
+    "source_file": { "type": "string" },
+    "created_at": { "type": "string", "minLength": 1 },
+    "processed_at": { "type": "string" },
+    "plan": { "type": "object" },
+    "result": { "type": "object" }
+  },
+  "additionalProperties": true
+}
