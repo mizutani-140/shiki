@@ -1,0 +1,17 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    ".shiki/tasks/T-0010.json",
+    "https://github.com/mizutani-140/shiki/pull/17",
+    "merge commit 8691d2e"
+  ],
+  "goal_id": "G-0001",
+  "id": "L-0018",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/17"
+  ],
+  "summary": "Completed T-0010 after PR #17 passed Validate Shiki mirror, Claude review, CCA verdict, MergeGate metadata check, and MergeGate policy check, then merged to main.",
+  "task_id": "T-0010",
+  "timestamp": "2026-05-29T07:38:07+00:00",
+  "type": "completion"
+}
