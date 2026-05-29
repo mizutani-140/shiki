@@ -1,0 +1,79 @@
+name: Shiki Orchestrator
+
+on:
+  workflow_dispatch:
+    inputs:
+      plan_path:
+        description: "Path to a grilled Shiki plan JSON in the repository"
+        required: true
+        default: ".shiki/inbox/plan.json"
+      mode:
+        description: "dry-run or execute-github"
+        required: true
+        default: "dry-run"
+        type: choice
+        options:
+          - dry-run
+          - execute-github
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  shiki-run:
+    name: Shiki orchestrator run
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.comment.body, '/shiki')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve command
+        id: command
+        shell: bash
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "plan_path=${{ inputs.plan_path }}" >> "$GITHUB_OUTPUT"
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          plan_path="$(printf '%s\n' "$COMMENT_BODY" | awk '/^plan:/{print $2; exit}')"
+          mode="$(printf '%s\n' "$COMMENT_BODY" | awk '/^mode:/{print $2; exit}')"
+          echo "plan_path=${plan_path:-.shiki/inbox/plan.json}" >> "$GITHUB_OUTPUT"
+          echo "mode=${mode:-dry-run}" >> "$GITHUB_OUTPUT"
+
+      - name: Run Shiki plan
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.command.outputs.mode }}" == "execute-github" ]]; then
+            python3 scripts/shiki.py smoke live --target . --plan-file "${{ steps.command.outputs.plan_path }}" --execute-github
+          else
+            python3 scripts/shiki.py smoke live --target . --plan-file "${{ steps.command.outputs.plan_path }}" --dry-run
+          fi
+
+      - name: Commit Shiki evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No Shiki evidence changes to commit."
+            exit 0
+          fi
+          git config user.name "shiki-orchestrator"
+          git config user.email "shiki-orchestrator@users.noreply.github.com"
+          git add .shiki
+          git commit -m "shiki: record orchestrator evidence"
+          git push

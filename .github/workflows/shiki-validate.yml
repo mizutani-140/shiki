@@ -32,3 +32,6 @@ jobs:
 
       - name: Run Shiki run orchestrator contract test
         run: bash scripts/test_shiki_run_orchestrator.sh
+
+      - name: Run Shiki daemon and runner contract test
+        run: bash scripts/test_shiki_daemon_runner.sh

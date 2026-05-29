@@ -1,0 +1,23 @@
+{
+  "id": "L-0013",
+  "timestamp": "2026-05-29T00:00:00+00:00",
+  "goal_id": "G-0001",
+  "task_id": "T-0009",
+  "type": "check",
+  "actor": "codex-front",
+  "summary": "Recorded PR #16 evidence for Shiki daemon, runner, live smoke, and GitHub orchestrator automation.",
+  "evidence": [
+    "PR #16: https://github.com/mizutani-140/shiki/pull/16",
+    "Validate Shiki mirror must run scripts/test_shiki_daemon_runner.sh on the PR head SHA.",
+    "Local verification: python3 scripts/validate_shiki.py",
+    "Local verification: python3 -m py_compile scripts/shiki.py scripts/validate_shiki.py",
+    "Local verification: bash scripts/test_shiki_init.sh",
+    "Local verification: bash scripts/test_shiki_control_plane.sh",
+    "Local verification: bash scripts/test_shiki_run_orchestrator.sh",
+    "Local verification: bash scripts/test_shiki_daemon_runner.sh",
+    "Local verification: Ruby YAML load for .github/workflows/*.yml"
+  ],
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/16"
+  ]
+}

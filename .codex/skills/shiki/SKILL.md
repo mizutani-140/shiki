@@ -39,6 +39,8 @@ shiki init . --repo OWNER/NAME
 
 - For non-trivial goals, enter through `grill-with-docs`.
 - Convert the settled `grill-with-docs` result into a machine-readable plan and run it with `shiki plan ingest` followed by `shiki run`.
+- For unattended execution, queue the plan with `shiki daemon enqueue-plan` and process it with `shiki daemon run`.
+- For headless runtime integration, use `shiki runner next` and `shiki runner execute` to pick up ready tasks and record execution evidence.
 - Use Context and Impact before implementation.
 - Keep tasks as vertical slices with explicit locks and verification.
 - Use TDD for implementation work when behavior changes.
@@ -55,6 +57,13 @@ shiki init . --repo OWNER/NAME
 - `shiki plan guide --prompt "..."`
 - `shiki plan ingest --plan-file PLAN.json`
 - `shiki run --plan P-0001`
+- `shiki daemon enqueue-plan --plan-file PLAN.json`
+- `shiki daemon run --once`
+- `shiki runner next`
+- `shiki runner execute --task-id T-0001 --command "..."`
+- `shiki smoke live --plan-file PLAN.json --dry-run`
+- `shiki smoke live --plan-file PLAN.json --execute-github`
+- `shiki smoke live --plan-file PLAN.json --execute-github --push-branch`
 - `shiki goal create --title ... --outcome ...`
 - `shiki issue plan --goal-id G-0001 --title ... --scope ... --acceptance-check ...`
 - `shiki lock acquire T-0001`

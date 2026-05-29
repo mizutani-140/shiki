@@ -18,6 +18,9 @@ GOAL_ID = re.compile(r"^G-[0-9]{4,}$")
 LEDGER_ID = re.compile(r"^L-[0-9]{4,}$")
 PLAN_ID = re.compile(r"^P-[0-9]{4,}$")
 RUN_ID = re.compile(r"^RUN-[0-9]{4,}$")
+INBOX_ID = re.compile(r"^INBOX-[0-9]{4,}$")
+EXEC_ID = re.compile(r"^EXEC-[0-9]{4,}$")
+SMOKE_ID = re.compile(r"^SMOKE-[0-9]{4,}$")
 
 TASK_REQUIRED = {
     "id",
@@ -48,6 +51,8 @@ RUN_REQUIRED = {
     "worktrees",
     "created_at",
 }
+RUNNER_REQUIRED = {"id", "task_id", "goal_id", "command", "returncode", "stdout", "stderr", "created_at"}
+SMOKE_REQUIRED = {"id", "repo", "dry_run", "execute_github", "created_at"}
 
 RUNTIMES = {
     "codex",
@@ -313,6 +318,40 @@ def validate_run(path: Path, data: dict[str, Any], known_tasks: set[str]) -> Non
     require_list(path, data, "worktrees")
 
 
+def validate_runner_record(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
+    require_keys(path, data, RUNNER_REQUIRED)
+    exec_id = require_string(path, data, "id")
+    if not EXEC_ID.match(exec_id):
+        raise ValidationError(f"{path}: id must match EXEC-0001 style")
+    task_id = require_string(path, data, "task_id")
+    if not TASK_ID.match(task_id):
+        raise ValidationError(f"{path}: task_id must match T-0001 style")
+    if known_tasks and task_id not in known_tasks:
+        raise ValidationError(f"{path}: task_id {task_id} has no matching task file")
+    goal_id = require_string(path, data, "goal_id")
+    if not GOAL_ID.match(goal_id):
+        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+    require_string(path, data, "command")
+    if not isinstance(data.get("returncode"), int):
+        raise ValidationError(f"{path}: returncode must be an integer")
+    require_string(path, data, "stdout", non_empty=False)
+    require_string(path, data, "stderr", non_empty=False)
+    require_string(path, data, "created_at")
+
+
+def validate_smoke(path: Path, data: dict[str, Any]) -> None:
+    require_keys(path, data, SMOKE_REQUIRED)
+    smoke_id = require_string(path, data, "id")
+    if not SMOKE_ID.match(smoke_id):
+        raise ValidationError(f"{path}: id must match SMOKE-0001 style")
+    require_string(path, data, "repo")
+    if not isinstance(data.get("dry_run"), bool):
+        raise ValidationError(f"{path}: dry_run must be a boolean")
+    if not isinstance(data.get("execute_github"), bool):
+        raise ValidationError(f"{path}: execute_github must be a boolean")
+    require_string(path, data, "created_at")
+
+
 def json_files(directory: Path) -> list[Path]:
     if not directory.exists():
         return []
@@ -373,6 +412,18 @@ def main() -> int:
             if not isinstance(data, dict):
                 raise ValidationError(f"{run_path}: run must be a JSON object")
             validate_run(run_path, data, known_tasks)
+
+        for runner_path in json_files(SHIKI / "runner"):
+            data = load_json(runner_path)
+            if not isinstance(data, dict):
+                raise ValidationError(f"{runner_path}: runner record must be a JSON object")
+            validate_runner_record(runner_path, data, known_tasks)
+
+        for smoke_path in json_files(SHIKI / "smoke"):
+            data = load_json(smoke_path)
+            if not isinstance(data, dict):
+                raise ValidationError(f"{smoke_path}: smoke record must be a JSON object")
+            validate_smoke(smoke_path, data)
 
     except ValidationError as error:
         errors.append(str(error))

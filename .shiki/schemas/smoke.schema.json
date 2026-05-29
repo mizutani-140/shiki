@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/smoke.schema.json",
+  "title": "Shiki Smoke Record",
+  "type": "object",
+  "required": ["id", "repo", "dry_run", "execute_github", "created_at"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^SMOKE-[0-9]{4,}$" },
+    "repo": { "type": "string", "minLength": 1 },
+    "dry_run": { "type": "boolean" },
+    "execute_github": { "type": "boolean" },
+    "result": { "type": "object" },
+    "github": { "type": "object" },
+    "created_at": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true
+}
