@@ -15,7 +15,8 @@
   "ledger_evidence": [
     "L-0026",
     "L-0027",
-    "L-0028"
+    "L-0028",
+    "L-0029"
   ],
   "locks": [
     "path:scripts/shiki.py",
@@ -31,6 +32,6 @@
   "required_skills": [],
   "risk_level": "low",
   "scope": "scripts/shiki.py, command/skill docs, docs/agents runtime/auth/handoff/control docs, Shiki self-tests",
-  "status": "review",
+  "status": "done",
   "title": "shiki doctor \u3068 runner codex \u3092\u5b8c\u6210\u3055\u305b\u308b"
 }

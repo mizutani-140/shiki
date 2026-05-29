@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0013.json"
+  ],
+  "goal_id": "G-0004",
+  "id": "L-0029",
+  "links": [],
+  "summary": "Task T-0013 status changed to done",
+  "task_id": "T-0013",
+  "timestamp": "2026-05-29T10:42:12+00:00",
+  "type": "check"
+}
