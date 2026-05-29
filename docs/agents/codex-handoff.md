@@ -6,6 +6,19 @@ Run Codex through the operator-facing Codex App, Codex CLI, Codex IDE extension,
 
 Codex should receive a self-contained handoff. It should not infer product decisions from chat history.
 
+Coordinator rule: do not stop after printing a Codex command for the user to
+run. For a ready task assigned to Codex, run:
+
+```bash
+shiki runner codex --task-id T-0001
+```
+
+Use `--target TARGET` when the current directory is not the Target Repository.
+This is the autonomous implementation adapter: it materializes the task
+worktree, invokes `codex exec` with the handoff, and records runner/Ledger
+evidence. Ask the user only when Codex authentication/tooling is unavailable,
+dispatch is blocked, or Guardian approval is required.
+
 ## Task Handoff Template
 
 ```markdown

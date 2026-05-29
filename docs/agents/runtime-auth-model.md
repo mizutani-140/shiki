@@ -13,6 +13,18 @@ Shiki's default operator model is subscription-authenticated, not API-key-first.
 
 Codex is not the default GitHub Actions backend in Shiki.
 
+Each Agent Runtime still has its own login gate before it can invoke Shiki:
+
+- Codex App / Codex CLI must be signed in with ChatGPT/Codex auth.
+- Claude Code must be signed in before `/shiki` can run as a Claude slash command.
+- GitHub CLI must be authenticated before Shiki can create repositories, issues, PRs, secrets, or branch protection.
+
+Run `shiki doctor` to see which entrypoints are currently usable. A Claude Code
+error such as `Please run /login` or `API Error: 401 Invalid authentication
+credentials` means Claude Code failed before Shiki received control. Fix it with
+`claude auth login` or `/login` in Claude Code, or start the same Shiki flow from
+Codex or a terminal with `shiki start` while Claude auth is unavailable.
+
 Do not assume `openai/codex-action` or `OPENAI_API_KEY` unless a target repository explicitly opts into an API-key based automation mode. The default Shiki loop is:
 
 1. GitHub Issue or PR defines the Goal/task contract.
@@ -27,7 +39,13 @@ Default Claude Code Action secret:
 
 - `CLAUDE_CODE_OAUTH_TOKEN`
 
-Do not store OAuth tokens in repository files, `.env`, logs, prompts, or `.shiki/` artifacts.
+Generate a long-lived token with `claude setup-token`. Shiki can set the GitHub
+secret automatically during `start`, `init`, or `bootstrap-platform` only when
+that token is already available in the current process environment as
+`CLAUDE_CODE_OAUTH_TOKEN`. Claude Code login confirms the local interactive
+runtime, but it does not by itself give Shiki a GitHub Actions token.
+
+Do not store OAuth tokens in repository files, `.env`, logs, prompts, or `.shiki/` artifacts. Shiki must not read local Claude OAuth credential files to populate GitHub secrets.
 
 ## Optional API-Key Mode
 

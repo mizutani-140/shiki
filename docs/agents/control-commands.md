@@ -101,12 +101,21 @@ Headless runners pick up dispatchable tasks and record command evidence:
 ```bash
 shiki runner next
 shiki runner execute --task-id T-0001 --command "your-agent-command"
+shiki runner codex --task-id T-0001
 ```
 
 Use the runner command as the adapter boundary for Codex headless, Hermes
-Runner, or another runtime. The command is intentionally explicit: Shiki records
-the task, command, stdout, stderr, return code, and Ledger evidence, but the
-runtime command itself is supplied by the operator.
+Runner, or another runtime. For Codex-assigned tasks, prefer
+`shiki runner codex`: Shiki materializes the registered worktree, sends the task
+handoff to `codex exec`, records stdout/stderr/return code, and moves the task
+to `review` on a zero exit. Do not turn this into a user instruction unless
+Codex auth/tooling is missing, dispatch is blocked, or Guardian approval is
+required.
+
+`shiki runner execute` remains the generic adapter for non-Codex commands. It is
+intentionally explicit: Shiki records the task, command, stdout, stderr, return
+code, and Ledger evidence, but the runtime command itself is supplied by the
+operator.
 
 ## Live Smoke
 

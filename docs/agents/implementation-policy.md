@@ -167,6 +167,16 @@ Required behavior:
 
 Codex must not claim completion. It may state that implementation is ready for CCA.
 
+Coordinator dispatch rule:
+
+- If the task is ready and `runtime:codex`, the coordinator runs
+  `shiki runner codex --task-id T-XXXX` instead of telling the user to run
+  Codex manually.
+- `shiki runner codex` is responsible for materializing the worktree, invoking
+  `codex exec` with the task handoff, and recording runner/Ledger evidence.
+- Stop and ask the user only when Codex auth/tooling is unavailable, dispatch is
+  blocked, or Guardian approval is required.
+
 ## Phase 7 — PR Evidence
 
 Every implementation PR must include:

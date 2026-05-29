@@ -19,10 +19,15 @@ cd "$ROOT"
 python3 scripts/validate_shiki.py
 python3 -m py_compile scripts/shiki.py
 python3 scripts/shiki.py --help | grep -E "goal|issue|dispatch|repair" >/dev/null
+python3 scripts/shiki.py runner --help | grep "codex" >/dev/null
 python3 scripts/shiki.py goal --help | grep "complete" >/dev/null
 python3 scripts/shiki.py issue --help | grep "plan" >/dev/null
 grep "goal create" .codex/skills/shiki/SKILL.md >/dev/null
 grep "Register durable state" .claude/commands/shiki.md >/dev/null
+grep "shiki runner codex --target TARGET --task-id T-XXXX" .claude/commands/shiki.md >/dev/null
+grep "manual \`codex\` command" .codex/skills/shiki/SKILL.md >/dev/null
+grep "operator's requested Target Repository" .claude/commands/shiki.md >/dev/null
+grep "not automatically the requested Target" .codex/skills/shiki/SKILL.md >/dev/null
 
 mkdir -p "$TARGET"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-control-install.out
