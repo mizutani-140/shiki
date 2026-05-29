@@ -11,7 +11,8 @@
   "goal_id": "G-0002",
   "id": "T-0011",
   "ledger_evidence": [
-    "L-0020"
+    "L-0020",
+    "L-0021"
   ],
   "locks": [
     "path:scripts/test_shiki_*.sh"
@@ -24,6 +25,6 @@
   ],
   "risk_level": "low",
   "scope": "scripts/test_shiki_{control_plane,daemon_runner,run_orchestrator}.sh \u306e git init \u76f4\u5f8c\u306b repo-local git identity \u3092\u8a2d\u5b9a",
-  "status": "planned",
+  "status": "done",
   "title": "hermetic\u81ea\u5df1\u30c6\u30b9\u30c8\u306bgit identity\u3092\u8a2d\u5b9a"
 }
