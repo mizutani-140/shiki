@@ -1,0 +1,16 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    ".shiki/tasks/T-0010.json",
+    "https://github.com/mizutani-140/shiki/pull/17"
+  ],
+  "goal_id": "G-0001",
+  "id": "L-0016",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/17"
+  ],
+  "summary": "Opened PR #17 for the one-command guided Shiki start flow.",
+  "task_id": "T-0010",
+  "timestamp": "2026-05-29T07:26:16+00:00",
+  "type": "handoff"
+}

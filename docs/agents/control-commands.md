@@ -5,6 +5,36 @@ with `shiki init TARGET --repo OWNER/REPO`. Control commands refuse to run when
 the target does not have a `.shiki` mirror, a git repository, and a GitHub
 `origin`.
 
+## One Command Start
+
+For normal use, `/shiki` should ask the missing questions and then run:
+
+```bash
+shiki start /path/to/repo --repo OWNER/REPO --goal "Goal title" --outcome "Observable outcome"
+```
+
+`shiki start` is the single command that performs GitHub-first setup, persists a
+settled `grill-with-docs` plan, runs the Shiki orchestrator, creates the first
+GitHub task issue, writes handoff evidence, commits the resulting state, and
+pushes it unless disabled with `--no-push`.
+
+The default engineering Skill Gate directory is
+`/Users/kio.mizutani/Documents/lead-os/skills/engineering` when it exists, or
+`~/skills/skills/engineering` otherwise. Override it with `--skills-dir` when a
+target repository uses a different skills checkout.
+
+When Claude Code invokes `/shiki`, it should ask for these values one at a time
+instead of asking the user to manually chain setup commands:
+
+- GitHub repo slug
+- Project name
+- Goal title
+- Observable outcome
+- Completion conditions
+- Non-goals
+- First vertical-slice task
+- Acceptance checks
+
 ## Standard Flow
 
 For non-trivial work, do not start by manually creating each task. First run

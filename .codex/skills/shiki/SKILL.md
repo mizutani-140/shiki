@@ -19,13 +19,17 @@ shiki status
 Then inspect the target repository's `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`,
 `.shiki/`, `docs/agents/`, and open PR/issue state before changing files.
 
-If Shiki is not installed in the target repository, do not use a local-only
-template install by default. Ask for the GitHub repository slug if it is
-missing, then run:
+If Shiki is not installed in the target repository, do not give the user a
+manual sequence. Ask for the missing repo and Goal values one question at a
+time, then run the one-command entrypoint:
 
 ```bash
-shiki init . --repo OWNER/NAME
+shiki start . --repo OWNER/NAME --goal "..." --outcome "..."
 ```
+
+The default engineering Skill Gate directory is
+`/Users/kio.mizutani/Documents/lead-os/skills/engineering` when present. The
+start record, plan, and handoff must preserve the selected skills directory.
 
 ## Responsibilities
 
@@ -38,6 +42,7 @@ shiki init . --repo OWNER/NAME
 ## Rules
 
 - For non-trivial goals, enter through `grill-with-docs`.
+- `/shiki` should guide the user through missing repo/Goal answers one question at a time and then run `shiki start`; direct `init`, `plan`, and `run` calls are lower-level fallback commands.
 - Convert the settled `grill-with-docs` result into a machine-readable plan and run it with `shiki plan ingest` followed by `shiki run`.
 - For unattended execution, queue the plan with `shiki daemon enqueue-plan` and process it with `shiki daemon run`.
 - For headless runtime integration, use `shiki runner next` and `shiki runner execute` to pick up ready tasks and record execution evidence.
@@ -52,6 +57,7 @@ shiki init . --repo OWNER/NAME
 ## Commands
 
 - `shiki install-global`
+- `shiki start /path/to/repo --repo OWNER/REPO --goal "..." --outcome "..."`
 - `shiki init /path/to/repo --repo OWNER/REPO`
 - `shiki preflight --require-github`
 - `shiki plan guide --prompt "..."`

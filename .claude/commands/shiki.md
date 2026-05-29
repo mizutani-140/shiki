@@ -18,17 +18,43 @@ Run:
 shiki status
 ```
 
-If the current repository does not have Shiki installed and the user asked to
-set up the repository, do not run a local-only install. Ask for the GitHub repo
-slug if it is not provided, then run:
+If the current repository does not have Shiki installed, do not hand the user a
+manual checklist. Ask only for the missing values, one question at a time, then
+run `shiki start`.
+
+Required start questions:
+
+1. GitHub repo slug: `OWNER/REPO`
+2. Project name
+3. Goal title
+4. Outcome / completion result
+5. Completion conditions
+6. Non-goals
+7. First vertical-slice task and acceptance checks
+
+Ask these in the `grill-with-docs` style: one question at a time, with a
+recommended answer when enough context exists. Explore the repository instead
+of asking when the answer is discoverable locally.
+
+Once enough answers are known, create a temporary answers JSON and run one
+command:
 
 ```bash
-shiki init . --repo OWNER/NAME
+shiki start . --answers-file ANSWERS.json
 ```
+
+Use `shiki init`, `shiki plan ingest`, or `shiki run` directly only for repair,
+debugging, or explicit advanced control. The normal user-facing entrypoint is
+`shiki start`.
+
+The default engineering Skill Gate directory is
+`/Users/kio.mizutani/Documents/lead-os/skills/engineering` when present. Preserve
+the selected skills directory in the start record, plan, and handoff evidence.
 
 ## Operating Rules
 
 - Treat Codex as implementer, CCA as completion judge, and MergeGate as merge authorization.
+- Treat `/shiki` as a guided one-command entrypoint. Do not ask the user to run multiple setup commands.
 - For non-trivial goals, use `grill-with-docs`, then Context and Impact, then PRD/issues/triage.
 - After `grill-with-docs` is settled, prefer `shiki plan ingest` and `shiki run` over manually calling each lower-level command.
 - For unattended execution, queue settled plans with `shiki daemon enqueue-plan` and process them with `shiki daemon run`.

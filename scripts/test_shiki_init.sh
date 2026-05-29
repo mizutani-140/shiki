@@ -23,8 +23,8 @@ python3 scripts/validate_shiki.py
 python3 -m py_compile scripts/shiki.py
 python3 scripts/shiki.py --help | grep -E "init|preflight" >/dev/null
 
-git show HEAD:.claude/commands/shiki.md | grep "shiki init . --repo OWNER/NAME" >/dev/null
-grep "shiki init . --repo OWNER/NAME" .codex/skills/shiki/SKILL.md >/dev/null
+grep "shiki start" .claude/commands/shiki.md >/dev/null
+grep "shiki start" .codex/skills/shiki/SKILL.md >/dev/null
 
 mkdir -p "$TMP_ROOT/missing-repo" "$TMP_ROOT/invalid-repo" "$TMP_ROOT/no-local" "$TMP_ROOT/local-only"
 

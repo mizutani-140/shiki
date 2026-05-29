@@ -1,0 +1,19 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    ".shiki/tasks/T-0010.json",
+    ".claude/commands/shiki.md",
+    ".codex/skills/shiki/SKILL.md",
+    "docs/agents/bootstrap-command.md",
+    "docs/agents/control-commands.md"
+  ],
+  "goal_id": "G-0001",
+  "id": "L-0017",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/17"
+  ],
+  "summary": "Skill Gate evidence: grill-with-docs was used for T-0010 to resolve that /shiki must ask missing repository and Goal values one question at a time, then run shiki start as the single command. Decisions: use GitHub-first start by default, persist the selected engineering skills directory, keep init/plan/run as lower-level fallback commands, and make the first generated task a vertical slice with acceptance checks.",
+  "task_id": "T-0010",
+  "timestamp": "2026-05-29T07:32:31+00:00",
+  "type": "context-impact"
+}

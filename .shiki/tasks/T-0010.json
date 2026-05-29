@@ -1,0 +1,59 @@
+{
+  "id": "T-0010",
+  "goal_id": "G-0001",
+  "github_issue": null,
+  "title": "Make /shiki a one-command guided start flow",
+  "scope": "Replace the multi-command user setup path with a guided one-command start flow that asks for missing repository and Goal settings, initializes the GitHub-first repository, persists a grilled plan, runs Shiki orchestration, creates the first GitHub issue, and writes handoff evidence.",
+  "non_goals": [
+    "Do not remove lower-level init, plan, run, daemon, runner, or smoke commands.",
+    "Do not bypass branch protection.",
+    "Do not create real GitHub repositories in local tests.",
+    "Do not skip grill-with-docs as the conceptual planning gate."
+  ],
+  "dependencies": [
+    "T-0009"
+  ],
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_start.sh",
+    "path:.github/workflows/shiki-validate.yml",
+    "path:.claude/commands/shiki.md",
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:docs/agents/bootstrap-command.md",
+    "path:docs/agents/control-commands.md",
+    "path:.shiki/schemas/start.schema.json",
+    "path:.shiki/tasks/T-0009.json",
+    "path:.shiki/tasks/T-0010.json",
+    "path:.shiki/ledger/L-0014.json",
+    "path:.shiki/ledger/L-0015.json",
+    "path:.shiki/ledger/L-0016.json",
+    "path:.shiki/ledger/L-0017.json"
+  ],
+  "assigned_runtime": "codex-front",
+  "risk_level": "medium",
+  "required_skills": [
+    "shiki",
+    "grill-with-docs",
+    "tdd"
+  ],
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py",
+    "python3 -m py_compile scripts/shiki.py scripts/validate_shiki.py",
+    "bash scripts/test_shiki_init.sh",
+    "bash scripts/test_shiki_control_plane.sh",
+    "bash scripts/test_shiki_run_orchestrator.sh",
+    "bash scripts/test_shiki_daemon_runner.sh",
+    "bash scripts/test_shiki_start.sh",
+    "Validate Shiki mirror runs the one-command start contract test in CI.",
+    "PR evidence includes CCA and MergeGate success."
+  ],
+  "expected_branch": "shiki-one-command-start",
+  "expected_pr": 17,
+  "ledger_evidence": [
+    "L-0014",
+    "L-0016",
+    "L-0017"
+  ],
+  "status": "review"
+}
