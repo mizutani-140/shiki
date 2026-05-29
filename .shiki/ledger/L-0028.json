@@ -1,0 +1,20 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/21",
+    "branch:shiki/runtime-auth-and-codex-runner",
+    "head:f0efcd310e1933e71379adc12840c328903627c6"
+  ],
+  "goal_id": "G-0004",
+  "id": "L-0028",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/21"
+  ],
+  "pr": 21,
+  "branch": "shiki/runtime-auth-and-codex-runner",
+  "head_sha": "f0efcd310e1933e71379adc12840c328903627c6",
+  "summary": "PR #21 opened for T-0013 runtime auth and Codex runner completion",
+  "task_id": "T-0013",
+  "timestamp": "2026-05-29T10:37:30+00:00",
+  "type": "review"
+}

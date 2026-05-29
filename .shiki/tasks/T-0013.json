@@ -7,14 +7,15 @@
   ],
   "assigned_runtime": "codex",
   "dependencies": [],
-  "expected_branch": "shiki/t-0013-shiki-doctor-runner-codex",
-  "expected_pr": null,
+  "expected_branch": "shiki/runtime-auth-and-codex-runner",
+  "expected_pr": 21,
   "github_issue": null,
   "goal_id": "G-0004",
   "id": "T-0013",
   "ledger_evidence": [
     "L-0026",
-    "L-0027"
+    "L-0027",
+    "L-0028"
   ],
   "locks": [
     "path:scripts/shiki.py",
