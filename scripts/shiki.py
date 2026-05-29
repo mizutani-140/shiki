@@ -41,6 +41,7 @@ TEMPLATE_PATHS = [
     ".github/workflows/shiki-claude-review.yml",
     ".github/workflows/shiki-cca-completion.yml",
     ".github/workflows/shiki-mergegate.yml",
+    ".github/workflows/shiki-orchestrator.yml",
     "docs/agents",
     "docs/adr",
     "scripts/validate_shiki.py",

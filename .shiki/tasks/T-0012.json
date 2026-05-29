@@ -1,0 +1,30 @@
+{
+  "acceptance_checks": [
+    "install-target\u304cshiki-orchestrator.yml\u3092\u30b3\u30d4\u30fc",
+    "Validate Shiki mirror \u304cPR\u3067pass"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/fix-installer-orchestrator-manifest",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0003",
+  "id": "T-0012",
+  "ledger_evidence": [
+    "L-0023",
+    "L-0024"
+  ],
+  "locks": [
+    "path:scripts/shiki.py"
+  ],
+  "non_goals": [
+    "orchestrator workflow\u306e\u6319\u52d5\u5909\u66f4"
+  ],
+  "required_skills": [
+    "diagnose"
+  ],
+  "risk_level": "medium",
+  "scope": "scripts/shiki.py \u306etarget\u914d\u5099manifest\u306b .github/workflows/shiki-orchestrator.yml \u3092\u8ffd\u52a0",
+  "status": "done",
+  "title": "install manifest\u306bshiki-orchestrator.yml\u3092\u8ffd\u52a0"
+}
