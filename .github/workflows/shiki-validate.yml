@@ -35,3 +35,6 @@ jobs:
 
       - name: Run Shiki daemon and runner contract test
         run: bash scripts/test_shiki_daemon_runner.sh
+
+      - name: Run Shiki one-command start contract test
+        run: bash scripts/test_shiki_start.sh

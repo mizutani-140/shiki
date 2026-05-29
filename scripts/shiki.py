@@ -51,6 +51,7 @@ TEMPLATE_PATHS = [
     "scripts/test_shiki_control_plane.sh",
     "scripts/test_shiki_run_orchestrator.sh",
     "scripts/test_shiki_daemon_runner.sh",
+    "scripts/test_shiki_start.sh",
 ]
 
 DEFAULT_REQUIRED_CHECKS = [
@@ -62,6 +63,22 @@ DEFAULT_REQUIRED_CHECKS = [
 DEFAULT_GLOBAL_COMMAND_PATH = "~/.local/bin/shiki"
 DEFAULT_CLAUDE_COMMAND_PATH = "~/.claude/commands/shiki.md"
 DEFAULT_CODEX_SKILL_PATH = "~/.codex/skills/shiki/SKILL.md"
+DEFAULT_ENGINEERING_SKILLS_DIRS = [
+    "~/Documents/lead-os/skills/engineering",
+    "~/skills/skills/engineering",
+]
+START_QUESTIONS = [
+    "GitHub repo slug (OWNER/REPO)",
+    "Project name",
+    "Goal title",
+    "Outcome / success result",
+    "Completion conditions",
+    "Non-goals",
+    "First vertical-slice task title",
+    "First task scope",
+    "First task acceptance checks",
+    "First task locks",
+]
 TARGET_STATE_DIRECTORIES = [
     ".shiki/goals",
     ".shiki/plans",
@@ -77,6 +94,7 @@ TARGET_STATE_DIRECTORIES = [
     ".shiki/handoffs",
     ".shiki/runner",
     ".shiki/smoke",
+    ".shiki/starts",
 ]
 GITHUB_REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
@@ -325,6 +343,67 @@ def print_json(data: dict[str, Any]) -> None:
 def slugify(value: str) -> str:
     slug = re.sub(r"[^A-Za-z0-9]+", "-", value.lower()).strip("-")
     return slug[:48] or "task"
+
+
+def prompt_value(label: str, current: str | None = None, *, required: bool = True) -> str:
+    if current:
+        return current
+    if not sys.stdin.isatty():
+        if required:
+            raise ShikiError(f"missing {label}; pass it as an option or use --answers-file")
+        return ""
+    while True:
+        value = input(f"{label}: ").strip()
+        if value or not required:
+            return value
+
+
+def prompt_default(label: str, default: str) -> str:
+    if not sys.stdin.isatty():
+        return default
+    value = input(f"{label} [{default}]: ").strip()
+    return value or default
+
+
+def prompt_list(label: str, current: list[str] | None = None) -> list[str]:
+    if current:
+        return current
+    if not sys.stdin.isatty():
+        return []
+    print(f"{label}: enter one item per line, then an empty line.")
+    values: list[str] = []
+    while True:
+        value = input("> ").strip()
+        if not value:
+            break
+        values.append(value)
+    return values
+
+
+def default_engineering_skills_dir() -> str:
+    configured = os.environ.get("SHIKI_ENGINEERING_SKILLS_DIR")
+    if configured:
+        return configured
+    for candidate in DEFAULT_ENGINEERING_SKILLS_DIRS:
+        path = Path(candidate).expanduser()
+        if path.exists():
+            return str(path)
+    return DEFAULT_ENGINEERING_SKILLS_DIRS[0]
+
+
+def resolve_engineering_skills_dir(value: str | None) -> str:
+    skills_dir = value or default_engineering_skills_dir()
+    if value and not Path(value).expanduser().exists():
+        raise ShikiError(f"engineering skills directory does not exist: {value}")
+    return skills_dir
+
+
+def start_target_value(args: argparse.Namespace) -> str:
+    positional = getattr(args, "target_positional", None)
+    option = getattr(args, "target", ".")
+    if positional and option != "." and Path(positional).expanduser().resolve() != Path(option).expanduser().resolve():
+        raise ShikiError("pass the target repository either positionally or with --target, not both")
+    return positional or option
 
 
 def scan_ids(target: Path, prefix: str) -> list[int]:
@@ -828,6 +907,238 @@ def cmd_run(args: argparse.Namespace) -> int:
         plan = load_plan(target, args.plan)
 
     print_json(orchestrate_plan(target, plan))
+    return 0
+
+
+def load_start_answers(args: argparse.Namespace) -> dict[str, Any]:
+    answers: dict[str, Any] = {}
+    if args.answers_file:
+        answers = read_json(Path(args.answers_file).expanduser().resolve())
+
+    repo = args.repo or answers.get("repo")
+    goal = args.goal or answers.get("goal") or answers.get("title")
+    outcome = args.outcome or answers.get("outcome")
+    project_name = args.project_name or answers.get("project_name") or goal
+    skills_dir = resolve_engineering_skills_dir(args.skills_dir or answers.get("skills_dir"))
+
+    repo = prompt_value("GitHub repo slug (OWNER/REPO)", repo)
+    require_github_repo_slug(repo)
+    goal = prompt_value("Goal title", goal)
+    outcome = prompt_value("Outcome / success result", outcome)
+    project_name = prompt_default("Project name", project_name) if project_name else prompt_value("Project name", project_name)
+
+    completion_conditions = args.completion_condition or answers.get("completion_conditions") or []
+    if not completion_conditions:
+        completion_conditions = prompt_list("Completion conditions")
+    if not completion_conditions:
+        completion_conditions = [outcome]
+
+    non_goals = args.non_goal or answers.get("non_goals") or []
+    if not non_goals:
+        non_goals = prompt_list("Non-goals")
+
+    required_skills = args.required_skill or answers.get("required_skills") or [
+        "grill-with-docs",
+        "to-prd",
+        "to-issues",
+        "tdd",
+    ]
+    tasks = answers.get("tasks")
+    if not tasks:
+        if sys.stdin.isatty():
+            task_title = prompt_default("First vertical-slice task title", args.task_title or f"Implement first vertical slice for {goal}")
+            task_scope = prompt_default("First task scope", args.task_scope or f"Create the smallest end-to-end implementation path for {outcome}")
+            acceptance_checks = prompt_list("First task acceptance checks", args.acceptance_check) or [f"User can verify: {outcome}"]
+            locks = prompt_list("First task locks", args.lock) or ["path:**/*"]
+        else:
+            task_title = args.task_title or f"Implement first vertical slice for {goal}"
+            task_scope = args.task_scope or f"Create the smallest end-to-end implementation path for {outcome}"
+            acceptance_checks = args.acceptance_check or [f"User can verify: {outcome}"]
+            locks = args.lock or ["path:**/*"]
+        tasks = [
+            {
+                "title": task_title,
+                "scope": task_scope,
+                "acceptance_checks": acceptance_checks,
+                "locks": locks,
+                "required_skills": ["tdd"],
+            }
+        ]
+
+    return {
+        "repo": repo,
+        "project_name": project_name,
+        "goal": goal,
+        "outcome": outcome,
+        "completion_conditions": completion_conditions,
+        "non_goals": non_goals,
+        "risk_level": args.risk_level or answers.get("risk_level", "medium"),
+        "required_skills": required_skills,
+        "skills_dir": skills_dir,
+        "tasks": tasks,
+    }
+
+
+def plan_from_start_answers(answers: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "title": answers["goal"],
+        "outcome": answers["outcome"],
+        "completion_conditions": answers["completion_conditions"],
+        "non_goals": answers["non_goals"],
+        "risk_level": answers["risk_level"],
+        "required_skills": answers["required_skills"],
+        "grill_with_docs": {
+            "status": "complete",
+            "source": "shiki start interactive questions",
+            "decisions": [
+                f"Project name: {answers['project_name']}",
+                f"GitHub repository: {answers['repo']}",
+                f"Engineering skills directory: {answers['skills_dir']}",
+                "Use GitHub-first Shiki setup.",
+                "Use engineering skills as mandatory planning and implementation gates.",
+                "Use a guided one-question-at-a-time start flow before creating the Task DAG.",
+            ],
+        },
+        "skill_gate": {
+            "skills_dir": answers["skills_dir"],
+            "required_skills": answers["required_skills"],
+            "entry_policy": "Ask missing Goal and repository values one at a time, then run shiki start as the single command.",
+        },
+        "tasks": answers["tasks"],
+    }
+
+
+def initialize_target_from_start(args: argparse.Namespace, target: Path, repo: str) -> None:
+    init_args = argparse.Namespace(
+        target=str(target),
+        repo=repo,
+        branch=args.branch,
+        private=args.private,
+        public=not args.private,
+        force=args.force,
+        validate=args.validate,
+        commit=args.commit,
+        commit_message=args.commit_message,
+        push=args.push,
+        set_secret=args.set_secret,
+        secret_env=args.secret_env,
+        protect=args.protect,
+        required_check=args.required_check,
+    )
+    cmd_init(init_args)
+
+
+def create_issues_for_dispatchable_tasks(target: Path, task_ids: list[str]) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    for task_id in task_ids:
+        issues.append(create_github_issue_for_task(target, task_id))
+    return issues
+
+
+def cmd_start(args: argparse.Namespace) -> int:
+    target = target_path(start_target_value(args))
+    target.mkdir(parents=True, exist_ok=True)
+    answers = load_start_answers(args)
+
+    already_initialized = (target / ".shiki" / "repo.json").exists() and is_git_repo(target) and github_origin(target)
+    if not already_initialized:
+        initialize_target_from_start(args, target, answers["repo"])
+    else:
+        require_github_first_target(target)
+        ensure_control_dirs(target)
+
+    plan = plan_from_start_answers(answers)
+    plan_id = next_control_id(target, "P")
+    plan["id"] = plan_id
+    plan["status"] = "ingested"
+    plan["source_file"] = "shiki start"
+    plan["ingested_at"] = utc_now()
+    plan_file = shiki_path(target, "plans", f"{plan_id}.json")
+    write_json(plan_file, plan)
+
+    result = orchestrate_plan(target, plan)
+    issues: list[dict[str, Any]] = []
+    if args.create_issues and result["dispatchable_task_ids"]:
+        issues = create_issues_for_dispatchable_tasks(target, result["dispatchable_task_ids"])
+
+    handoffs: list[str] = []
+    if args.create_handoffs:
+        for task_id in result["dispatchable_task_ids"]:
+            task = load_task(target, task_id)
+            handoff_file = write_handoff(
+                target,
+                f"{task_id}-task.md",
+                "\n".join(
+                    [
+                        f"# Codex Task Handoff: {task_id}",
+                        "",
+                        f"Goal: {task['goal_id']}",
+                        f"Task: {task_id}",
+                        f"Branch: {task['expected_branch']}",
+                        "",
+                        "## Scope",
+                        task["scope"],
+                        "",
+                        "## Required Skills",
+                        *[f"- {skill}" for skill in task.get("required_skills", [])],
+                        "",
+                        "## Engineering Skills Directory",
+                        answers["skills_dir"],
+                        "",
+                        "## Acceptance Checks",
+                        *[f"- {check}" for check in task.get("acceptance_checks", [])],
+                        "",
+                    ]
+                ),
+            )
+            handoffs.append(str(handoff_file.relative_to(target)))
+
+    start_id = next_control_id(target, "START")
+    start_file = shiki_path(target, "starts", f"{start_id}.json")
+    start_record = {
+        "id": start_id,
+        "repo": answers["repo"],
+        "project_name": answers["project_name"],
+        "skills_dir": answers["skills_dir"],
+        "questions": START_QUESTIONS,
+        "plan_id": plan_id,
+        "goal_id": result["goal_id"],
+        "run_id": result["run_id"],
+        "dispatchable_task_ids": result["dispatchable_task_ids"],
+        "issues": issues,
+        "handoffs": handoffs,
+        "created_at": utc_now(),
+    }
+    write_json(start_file, start_record)
+    ledger_id = append_ledger(
+        target,
+        goal_id=result["goal_id"],
+        ledger_type="handoff",
+        summary=f"Shiki start {start_id} initialized {answers['repo']}",
+        evidence=[str(start_file.relative_to(target)), str(plan_file.relative_to(target))],
+        links=[issue["url"] for issue in issues],
+    )
+
+    if args.commit:
+        commit_all(target, "shiki: start project control plane")
+    if args.push:
+        push_branch(target, args.branch)
+
+    output = {
+        "start_id": start_id,
+        "repo": answers["repo"],
+        "project_name": answers["project_name"],
+        "skills_dir": answers["skills_dir"],
+        "plan_id": plan_id,
+        "goal_id": result["goal_id"],
+        "run_id": result["run_id"],
+        "dispatchable_task_ids": result["dispatchable_task_ids"],
+        "issues": issues,
+        "handoffs": handoffs,
+        "start_file": str(start_file),
+        "ledger_id": ledger_id,
+    }
+    print_json(output)
     return 0
 
 
@@ -1871,6 +2182,39 @@ def build_parser() -> argparse.ArgumentParser:
 
     status = subcommands.add_parser("status", help="Show local Shiki CLI configuration")
     status.set_defaults(func=cmd_status)
+
+    start = subcommands.add_parser("start", help="One-command interactive Shiki project setup and first run")
+    start.add_argument("target_positional", nargs="?", help="Target repository path")
+    start.add_argument("--target", default=".", help="Target repository path")
+    start.add_argument("--answers-file", help="JSON answers for non-interactive start")
+    start.add_argument("--repo", help="GitHub repository as OWNER/NAME")
+    start.add_argument("--project-name")
+    start.add_argument("--goal")
+    start.add_argument("--outcome")
+    start.add_argument("--skills-dir", help="Engineering skills directory used by Skill Gate")
+    start.add_argument("--completion-condition", action="append", default=[])
+    start.add_argument("--non-goal", action="append", default=[])
+    start.add_argument("--risk-level", choices=["low", "medium", "high", "critical"])
+    start.add_argument("--required-skill", action="append", default=[])
+    start.add_argument("--task-title")
+    start.add_argument("--task-scope")
+    start.add_argument("--acceptance-check", action="append", default=[])
+    start.add_argument("--lock", action="append", default=[])
+    start.add_argument("--branch", default="main")
+    start.add_argument("--private", action="store_true", help="Create a private repo")
+    start.add_argument("--public", action="store_true", help=argparse.SUPPRESS)
+    start.add_argument("--force", action="store_true", help="Overwrite existing target files during init")
+    start.add_argument("--validate", action=argparse.BooleanOptionalAction, default=True)
+    start.add_argument("--commit", action=argparse.BooleanOptionalAction, default=True)
+    start.add_argument("--commit-message", default="shiki: initialize GitHub-first control plane")
+    start.add_argument("--push", action=argparse.BooleanOptionalAction, default=True)
+    start.add_argument("--set-secret", action=argparse.BooleanOptionalAction, default=True)
+    start.add_argument("--secret-env", default="CLAUDE_CODE_OAUTH_TOKEN")
+    start.add_argument("--protect", action=argparse.BooleanOptionalAction, default=True)
+    start.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
+    start.add_argument("--create-issues", action=argparse.BooleanOptionalAction, default=True)
+    start.add_argument("--create-handoffs", action=argparse.BooleanOptionalAction, default=True)
+    start.set_defaults(func=cmd_start)
 
     plan = subcommands.add_parser("plan", help="Ingest and guide grill-with-docs plans")
     plan_subcommands = plan.add_subparsers(dest="plan_command", required=True)

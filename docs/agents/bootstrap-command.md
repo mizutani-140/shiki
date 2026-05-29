@@ -17,13 +17,13 @@ This creates or updates:
 Ensure `~/.local/bin` is on `PATH`. Restart Codex or Claude Code if the
 running client does not reload commands dynamically.
 
-## Initialize A Target Repository
+## Start A Target Repository
 
 ```bash
-shiki init /path/to/target-repo --repo OWNER/REPO --private
+shiki start /path/to/target-repo --repo OWNER/REPO --private
 ```
 
-This is the standard Shiki entrypoint. It will:
+This is the standard user-facing Shiki entrypoint. It will:
 
 - install Shiki template files;
 - initialize Git if needed;
@@ -32,7 +32,21 @@ This is the standard Shiki entrypoint. It will:
 - write `.shiki/repo.json`;
 - commit and push the initial Shiki state;
 - set `CLAUDE_CODE_OAUTH_TOKEN` from the environment when present;
-- configure branch protection with Shiki required checks when GitHub permissions allow it.
+- configure branch protection with Shiki required checks when GitHub permissions allow it;
+- collect or consume Goal answers;
+- write a machine-readable plan;
+- run Shiki orchestration;
+- create the first task issue and handoff evidence.
+
+`shiki init` is still available as a lower-level command, but `/shiki` should
+prefer `shiki start` unless the user explicitly asks for advanced control.
+
+`shiki start` may run interactively. When values are missing, it asks one
+question at a time for the GitHub repo slug, project name, Goal, outcome,
+completion conditions, non-goals, and first vertical slice. The selected
+engineering Skill Gate directory is recorded in `.shiki/starts/`, the plan, and
+handoff evidence. By default, Shiki uses
+`/Users/kio.mizutani/Documents/lead-os/skills/engineering` when present.
 
 Do not use `install-target` for normal setup. Shiki is GitHub-first.
 

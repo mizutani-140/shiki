@@ -21,6 +21,7 @@ RUN_ID = re.compile(r"^RUN-[0-9]{4,}$")
 INBOX_ID = re.compile(r"^INBOX-[0-9]{4,}$")
 EXEC_ID = re.compile(r"^EXEC-[0-9]{4,}$")
 SMOKE_ID = re.compile(r"^SMOKE-[0-9]{4,}$")
+START_ID = re.compile(r"^START-[0-9]{4,}$")
 
 TASK_REQUIRED = {
     "id",
@@ -53,6 +54,20 @@ RUN_REQUIRED = {
 }
 RUNNER_REQUIRED = {"id", "task_id", "goal_id", "command", "returncode", "stdout", "stderr", "created_at"}
 SMOKE_REQUIRED = {"id", "repo", "dry_run", "execute_github", "created_at"}
+START_REQUIRED = {
+    "id",
+    "repo",
+    "project_name",
+    "skills_dir",
+    "questions",
+    "plan_id",
+    "goal_id",
+    "run_id",
+    "dispatchable_task_ids",
+    "issues",
+    "handoffs",
+    "created_at",
+}
 
 RUNTIMES = {
     "codex",
@@ -352,6 +367,36 @@ def validate_smoke(path: Path, data: dict[str, Any]) -> None:
     require_string(path, data, "created_at")
 
 
+def validate_start(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
+    require_keys(path, data, START_REQUIRED)
+    start_id = require_string(path, data, "id")
+    if not START_ID.match(start_id):
+        raise ValidationError(f"{path}: id must match START-0001 style")
+    require_string(path, data, "repo")
+    require_string(path, data, "project_name")
+    require_string(path, data, "skills_dir")
+    questions = require_list(path, data, "questions")
+    if not questions or not all(isinstance(question, str) and question for question in questions):
+        raise ValidationError(f"{path}: questions must be a non-empty list of strings")
+    plan_id = require_string(path, data, "plan_id")
+    if not PLAN_ID.match(plan_id):
+        raise ValidationError(f"{path}: plan_id must match P-0001 style")
+    goal_id = require_string(path, data, "goal_id")
+    if not GOAL_ID.match(goal_id):
+        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+    run_id = require_string(path, data, "run_id")
+    if not RUN_ID.match(run_id):
+        raise ValidationError(f"{path}: run_id must match RUN-0001 style")
+    for task_id in require_list(path, data, "dispatchable_task_ids"):
+        if not isinstance(task_id, str) or not TASK_ID.match(task_id):
+            raise ValidationError(f"{path}: dispatchable_task_ids must contain T-0001 style ids")
+        if known_tasks and task_id not in known_tasks:
+            raise ValidationError(f"{path}: dispatchable task {task_id} has no matching task file")
+    require_list(path, data, "issues")
+    require_list(path, data, "handoffs")
+    require_string(path, data, "created_at")
+
+
 def json_files(directory: Path) -> list[Path]:
     if not directory.exists():
         return []
@@ -424,6 +469,12 @@ def main() -> int:
             if not isinstance(data, dict):
                 raise ValidationError(f"{smoke_path}: smoke record must be a JSON object")
             validate_smoke(smoke_path, data)
+
+        for start_path in json_files(SHIKI / "starts"):
+            data = load_json(start_path)
+            if not isinstance(data, dict):
+                raise ValidationError(f"{start_path}: start record must be a JSON object")
+            validate_start(start_path, data, known_tasks)
 
     except ValidationError as error:
         errors.append(str(error))

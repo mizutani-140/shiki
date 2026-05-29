@@ -1,0 +1,16 @@
+{
+  "id": "L-0014",
+  "timestamp": "2026-05-29T00:00:00+00:00",
+  "goal_id": "G-0001",
+  "task_id": "T-0010",
+  "type": "task-registered",
+  "actor": "codex-front",
+  "summary": "Registered one-command guided /shiki start implementation with TDD evidence requirements.",
+  "evidence": [
+    ".shiki/tasks/T-0010.json",
+    "scripts/test_shiki_start.sh",
+    "scripts/shiki.py",
+    ".claude/commands/shiki.md"
+  ],
+  "links": []
+}
