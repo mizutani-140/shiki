@@ -49,6 +49,10 @@ SH
 chmod +x "$FAKE_BIN/gh"
 export PATH="$FAKE_BIN:$PATH"
 export SHIKI_FAKE_GH_LOG="$TMP_ROOT/gh.log"
+export GIT_AUTHOR_NAME="Shiki Test"
+export GIT_AUTHOR_EMAIL="shiki-test@example.local"
+export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 
 cat >"$TMP_ROOT/answers.json" <<'JSON'
 {
