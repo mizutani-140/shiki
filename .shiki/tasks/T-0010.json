@@ -26,7 +26,8 @@
     "path:.shiki/tasks/T-0009.json",
     "path:.shiki/tasks/T-0010.json",
     "path:.shiki/ledger/L-0014.json",
-    "path:.shiki/ledger/L-0015.json"
+    "path:.shiki/ledger/L-0015.json",
+    "path:.shiki/ledger/L-0016.json"
   ],
   "assigned_runtime": "codex-front",
   "risk_level": "medium",
@@ -47,9 +48,10 @@
     "PR evidence includes CCA and MergeGate success."
   ],
   "expected_branch": "shiki-one-command-start",
-  "expected_pr": null,
+  "expected_pr": 17,
   "ledger_evidence": [
-    "L-0014"
+    "L-0014",
+    "L-0016"
   ],
   "status": "review"
 }
