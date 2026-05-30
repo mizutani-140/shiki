@@ -47,6 +47,7 @@
         "diagnose",
         "grill-with-docs",
         "improve-codebase-architecture",
+        "evidence-only",
         "none"
       ]
     },

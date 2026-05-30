@@ -1,0 +1,37 @@
+{
+  "acceptance_checks": [
+    "CCA verdict schema \u304c checklist/acceptance/mergegate \u3092\u5fc5\u9808\u306b\u3059\u308b",
+    "CCA verdict schema \u304c repair_packet null/object \u3092\u8a31\u53ef\u3059\u308b",
+    "repair packet schema \u3068 CLI \u304c evidence-only required_skill \u3092\u8a31\u53ef\u3059\u308b",
+    "validate_shiki.py \u304c contract regression \u3092\u691c\u51fa\u3059\u308b",
+    "CI-like scripts/test_shiki_*.sh \u304c green"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/t-0014-cca-verdict-repair-packet-contract",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0005",
+  "id": "T-0014",
+  "ledger_evidence": [
+    "L-0032"
+  ],
+  "locks": [
+    "path:.shiki/schemas/cca-verdict.schema.json",
+    "path:.shiki/schemas/repair-packet.schema.json",
+    "path:scripts/shiki.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_control_plane.sh"
+  ],
+  "non_goals": [
+    "MergeGate policy engine \u306e\u5927\u5e45\u62e1\u5f35",
+    "Repair Loop dispatcher \u306e\u65b0\u898f\u5b9f\u88c5"
+  ],
+  "required_skills": [
+    "diagnose"
+  ],
+  "risk_level": "low",
+  "scope": ".shiki/schemas/cca-verdict.schema.json, .shiki/schemas/repair-packet.schema.json, scripts/shiki.py, scripts/validate_shiki.py, scripts/test_shiki_control_plane.sh \u306e contract \u6574\u5408\u6027\u4fee\u6b63",
+  "status": "planned",
+  "title": "CCA verdict \u3068 repair packet \u306e contract \u3092\u63c3\u3048\u308b"
+}

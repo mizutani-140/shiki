@@ -403,6 +403,31 @@ def json_files(directory: Path) -> list[Path]:
     return sorted(path for path in directory.glob("*.json") if path.is_file())
 
 
+def validate_contract_schema_consistency() -> None:
+    cca_schema_path = SHIKI / "schemas" / "cca-verdict.schema.json"
+    cca_schema = load_json(cca_schema_path)
+    if not isinstance(cca_schema, dict):
+        raise ValidationError(f"{cca_schema_path}: schema must be a JSON object")
+    cca_required = set(cca_schema.get("required", []))
+    for field in ("checklist", "acceptance", "mergegate"):
+        if field not in cca_required:
+            raise ValidationError(f"{cca_schema_path}: {field} must be required by the CCA verdict contract")
+    repair_packet = cca_schema.get("properties", {}).get("repair_packet", {})
+    allowed_repair_types = repair_packet.get("type")
+    if isinstance(allowed_repair_types, str):
+        allowed_repair_types = [allowed_repair_types]
+    if not isinstance(allowed_repair_types, list) or not {"object", "null"}.issubset(set(allowed_repair_types)):
+        raise ValidationError(f"{cca_schema_path}: repair_packet must allow object and null")
+
+    repair_schema_path = SHIKI / "schemas" / "repair-packet.schema.json"
+    repair_schema = load_json(repair_schema_path)
+    if not isinstance(repair_schema, dict):
+        raise ValidationError(f"{repair_schema_path}: schema must be a JSON object")
+    skill_enum = repair_schema.get("properties", {}).get("required_skill", {}).get("enum", [])
+    if "evidence-only" not in skill_enum:
+        raise ValidationError(f"{repair_schema_path}: required_skill enum must include evidence-only")
+
+
 def main() -> int:
     errors: list[str] = []
     task_dependencies: dict[str, list[str]] = {}
@@ -410,6 +435,7 @@ def main() -> int:
     try:
         for schema in json_files(SHIKI / "schemas"):
             load_json(schema)
+        validate_contract_schema_consistency()
 
         for task_path in json_files(SHIKI / "tasks"):
             data = load_json(task_path)

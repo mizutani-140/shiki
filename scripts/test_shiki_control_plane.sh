@@ -78,8 +78,10 @@ python3 "$ROOT/scripts/shiki.py" repair packet \
   --pr 123 \
   --failing-item "missing verification evidence" \
   --minimal-change "add the requested verification evidence only" \
+  --required-skill evidence-only \
   --verification-command "python3 scripts/validate_shiki.py" \
   >/tmp/shiki-repair.json
+python3 -c 'import json; out=json.load(open("/tmp/shiki-repair.json")); packet=json.load(open(out["repair_file"])); assert packet["required_skill"] == "evidence-only"'
 
 python3 "$ROOT/scripts/shiki.py" task status --target "$TARGET" "$TASK_ID" --status done >/tmp/shiki-task-status.json
 python3 "$ROOT/scripts/shiki.py" goal complete --target "$TARGET" "$GOAL_ID" >/tmp/shiki-goal-complete.json
