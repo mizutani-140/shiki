@@ -16,7 +16,8 @@
   "ledger_evidence": [
     "L-0032",
     "L-0033",
-    "L-0034"
+    "L-0034",
+    "L-0035"
   ],
   "locks": [
     "path:.shiki/schemas/cca-verdict.schema.json",
@@ -34,6 +35,6 @@
   ],
   "risk_level": "low",
   "scope": ".shiki/schemas/cca-verdict.schema.json, .shiki/schemas/repair-packet.schema.json, scripts/shiki.py, scripts/validate_shiki.py, scripts/test_shiki_control_plane.sh \u306e contract \u6574\u5408\u6027\u4fee\u6b63",
-  "status": "review",
+  "status": "done",
   "title": "CCA verdict \u3068 repair packet \u306e contract \u3092\u63c3\u3048\u308b"
 }

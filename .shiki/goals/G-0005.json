@@ -13,10 +13,13 @@
   "created_at": "2026-05-30T10:05:41+00:00",
   "github_issue": null,
   "id": "G-0005",
+  "ledger_evidence": [
+    "L-0036"
+  ],
   "non_goals": [],
   "outcome": "CCA verdict schema \u3068 repair packet schema/CLI \u304c docs/template \u3068\u4e00\u81f4\u3057\u3001\u518d\u767a\u3092 validate \u3067\u691c\u51fa\u3067\u304d\u308b",
   "required_skills": [],
   "risk_level": "low",
-  "status": "planned",
+  "status": "complete",
   "title": "CCA/Repair contract\u6574\u5408\u6027\u3092\u4fee\u5fa9"
 }
