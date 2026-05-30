@@ -1,0 +1,19 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "env PYTHONPYCACHEPREFIX=/tmp/shiki-pycache python3 scripts/validate_shiki.py",
+    "for script in scripts/test_shiki_*.sh; do env HOME=\"$(mktemp -d)\" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash \"$script\"; done",
+    "env PYTHONPYCACHEPREFIX=/tmp/shiki-pycache python3 -m py_compile scripts/mergegate_check.py scripts/shiki.py scripts/validate_shiki.py",
+    "git diff --check",
+    "PR #23 opened for T-0015"
+  ],
+  "goal_id": "G-0006",
+  "id": "L-0041",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/23"
+  ],
+  "summary": "Implementation and PR evidence for T-0015: MergeGate policy contract checks implemented, local CI-like verification passed, PR #23 opened, and GitHub CCA/Claude review passed before final MergeGate requested this evidence update.",
+  "task_id": "T-0015",
+  "timestamp": "2026-05-30T11:05:08+00:00",
+  "type": "review"
+}
