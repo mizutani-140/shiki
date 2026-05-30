@@ -1,0 +1,44 @@
+{
+  "acceptance_checks": [
+    "PR body\u306etask_id/goal_id\u304b\u3089task/goal file\u3092\u89e3\u6c7a\u3057\u3001\u4e0d\u4e00\u81f4\u3092block\u3059\u308b",
+    "dependency\u672a\u5b8c\u4e86\u3001expected_branch/expected_pr\u4e0d\u4e00\u81f4\u3001changed files\u306elock\u9038\u8131\u3092block\u3059\u308b",
+    "task ledger_evidence\u306e\u6b20\u843d\u3068required skill evidence\u6b20\u843d\u3092block\u3059\u308b",
+    "CCA verdict\u304ccomplete\u3067head_sha\u304cPR headRefOid\u3068\u4e00\u81f4\u3057\u306a\u3044\u9650\u308ablock\u3059\u308b",
+    "mergegate-result.json \u3092\u51fa\u529b\u3057\u3001control-plane test\u3067pass/fail\u30b1\u30fc\u30b9\u3092\u691c\u8a3c\u3059\u308b",
+    "task.schema.json \u304c validate_shiki.py \u3068\u540c\u3058\u304f codex-front runtime \u3092\u8a31\u53ef\u3059\u308b"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/strengthen-mergegate-policy",
+  "expected_pr": 23,
+  "github_issue": null,
+  "goal_id": "G-0006",
+  "id": "T-0015",
+  "ledger_evidence": [
+    "L-0039",
+    "L-0040",
+    "L-0041",
+    "L-0042"
+  ],
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:.shiki/schemas/task.schema.json",
+    "path:.shiki/goals/G-0006.json",
+    "path:.shiki/dag/G-0006.json",
+    "path:.shiki/tasks/T-0015.json",
+    "path:.shiki/ledger/*.json",
+    "path:.shiki/reports/*.json"
+  ],
+  "non_goals": [
+    "GitHub API\u3067live required checks\u3092\u7167\u4f1a\u3059\u308b\u5b9f\u88c5",
+    "CODEOWNERS/review thread\u306e\u5b8c\u5168\u5224\u5b9a"
+  ],
+  "required_skills": [
+    "diagnose"
+  ],
+  "risk_level": "low",
+  "scope": "scripts/mergegate_check.py \u3068 scripts/test_shiki_control_plane.sh \u3092\u66f4\u65b0\u3057\u3001MergeGate \u304c task/goal/locks/dependencies/ledger/CCA head evidence \u3092\u691c\u67fb\u3059\u308b\u3002\u3042\u308f\u305b\u3066 task.schema.json \u306e runtime enum \u3092 validate_shiki.py \u3068\u63c3\u3048\u308b",
+  "status": "done",
+  "title": "MergeGate policy\u3092Task\u5951\u7d04\u306b\u63a5\u7d9a\u3059\u308b"
+}

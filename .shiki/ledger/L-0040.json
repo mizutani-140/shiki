@@ -1,0 +1,16 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "attachment:/Users/kio.mizutani/.codex/attachments/6ac0435b-cacb-4c9b-8860-6131a9adcfe6/pasted-text.txt",
+    "scripts/mergegate_check.py",
+    "scripts/test_shiki_control_plane.sh",
+    ".shiki/schemas/task.schema.json"
+  ],
+  "goal_id": "G-0006",
+  "id": "L-0040",
+  "links": [],
+  "summary": "Diagnose evidence: rechecked the attached architecture review against current main and accepted the still-valid findings that MergeGate policy was PR-body centric and task.schema.json did not allow codex-front even though validate_shiki.py did.",
+  "task_id": "T-0015",
+  "timestamp": "2026-05-30T10:56:04+00:00",
+  "type": "check"
+}

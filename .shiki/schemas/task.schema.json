@@ -36,7 +36,7 @@
       "items": { "type": "string" }
     },
     "assigned_runtime": {
-      "enum": ["codex", "claude-code", "github-actions", "hermes-runner", "human", "other"]
+      "enum": ["codex", "codex-front", "claude-code", "github-actions", "hermes-runner", "human", "other"]
     },
     "risk_level": { "enum": ["low", "medium", "high", "critical"] },
     "required_skills": {

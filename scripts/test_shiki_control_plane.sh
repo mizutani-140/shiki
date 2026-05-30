@@ -14,6 +14,14 @@ json_get() {
   python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$1" "$2"
 }
 
+expect_fail() {
+  if "$@" >/tmp/shiki-expected-fail.out 2>&1; then
+    echo "expected failure but command succeeded: $*" >&2
+    cat /tmp/shiki-expected-fail.out >&2
+    return 1
+  fi
+}
+
 cd "$ROOT"
 
 python3 scripts/validate_shiki.py
@@ -83,6 +91,92 @@ python3 "$ROOT/scripts/shiki.py" repair packet \
   --verification-command "python3 scripts/validate_shiki.py" \
   >/tmp/shiki-repair.json
 python3 -c 'import json; out=json.load(open("/tmp/shiki-repair.json")); packet=json.load(open(out["repair_file"])); assert packet["required_skill"] == "evidence-only"'
+
+python3 - "$TARGET" "$TASK_ID" "$GOAL_ID" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+task_id = sys.argv[2]
+goal_id = sys.argv[3]
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+task["expected_pr"] = 123
+task["status"] = "review"
+task["ledger_evidence"].append("L-9999")
+task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+
+ledger = {
+    "actor": "codex-front",
+    "evidence": ["diagnose skill used before bounded repair", "tdd verification recorded"],
+    "goal_id": goal_id,
+    "id": "L-9999",
+    "links": ["https://github.com/example/shiki-control-plane-test/pull/123"],
+    "summary": "diagnose and tdd evidence for MergeGate contract test PR #123",
+    "task_id": task_id,
+    "timestamp": "2026-01-01T00:00:00+00:00",
+    "type": "review",
+}
+(target / ".shiki" / "ledger" / "L-9999.json").write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n")
+
+gha = target / ".shiki" / "gha"
+gha.mkdir(parents=True, exist_ok=True)
+body = f"""## Task
+- Goal: {goal_id}
+- Task: {task_id}
+
+## Scope
+MergeGate contract test.
+
+## Acceptance
+Policy validates task contract.
+
+## Evidence
+Local contract fixture.
+
+## MergeGate
+Locks are declared in task metadata.
+"""
+pr = {
+    "number": 123,
+    "body": body,
+    "headRefName": task["expected_branch"],
+    "headRefOid": "abc123",
+}
+(gha / "pr.json").write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
+(gha / "changed-files.txt").write_text("src/audit/query.py\n")
+cca = {
+    "verdict": "complete",
+    "goal_id": goal_id,
+    "task_id": task_id,
+    "pr": 123,
+    "head_sha": "abc123",
+    "can_merge": True,
+    "checklist": [],
+    "acceptance": [],
+    "mergegate": {},
+    "confidence": 1,
+}
+(gha / "cca-verdict.json").write_text(json.dumps(cca, indent=2, sort_keys=True) + "\n")
+PY
+python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json" \
+  >/tmp/shiki-mergegate-pass.json
+grep '"mergegate": "ready"' /tmp/shiki-mergegate-pass.json >/dev/null
+test -f "$TARGET/.shiki/gha/mergegate-result.json"
+printf 'src/other.py\n' >"$TARGET/.shiki/gha/changed-files.txt"
+expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json"
+grep "outside declared task locks" /tmp/shiki-expected-fail.out >/dev/null
 
 python3 "$ROOT/scripts/shiki.py" task status --target "$TARGET" "$TASK_ID" --status done >/tmp/shiki-task-status.json
 python3 "$ROOT/scripts/shiki.py" goal complete --target "$TARGET" "$GOAL_ID" >/tmp/shiki-goal-complete.json
