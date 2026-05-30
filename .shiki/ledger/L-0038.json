@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-0006.json"
+  ],
+  "goal_id": "G-0006",
+  "id": "L-0038",
+  "links": [],
+  "summary": "Goal registered: MergeGate policy\u3092Task\u5951\u7d04\u306b\u63a5\u7d9a",
+  "task_id": null,
+  "timestamp": "2026-05-30T10:53:18+00:00",
+  "type": "goal-created"
+}

@@ -1,0 +1,23 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "MergeGate resolves task_id and goal_id from PR body and validates matching task/goal files",
+    "MergeGate blocks dependency, branch, expected_pr, lock, ledger, and CCA head_sha mismatches",
+    "MergeGate writes mergegate-result evidence",
+    "task.schema.json runtime enum matches validate_shiki.py for codex-front",
+    "CI-like Shiki tests pass"
+  ],
+  "created_at": "2026-05-30T10:53:18+00:00",
+  "github_issue": null,
+  "id": "G-0006",
+  "non_goals": [],
+  "outcome": "MergeGate\u304cPR\u672c\u6587\u3060\u3051\u3067\u306a\u304fShiki task/goal/locks/dependencies/ledger/CCA head evidence\u3092\u691c\u67fb\u3057\u3001\u5951\u7d04\u9055\u53cd\u3092block\u3067\u304d\u308b",
+  "required_skills": [],
+  "risk_level": "low",
+  "status": "planned",
+  "title": "MergeGate policy\u3092Task\u5951\u7d04\u306b\u63a5\u7d9a"
+}
