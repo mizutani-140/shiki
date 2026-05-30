@@ -8,13 +8,15 @@
   ],
   "assigned_runtime": "codex",
   "dependencies": [],
-  "expected_branch": "shiki/t-0014-cca-verdict-repair-packet-contract",
-  "expected_pr": null,
+  "expected_branch": "shiki/fix-cca-repair-contracts",
+  "expected_pr": 22,
   "github_issue": null,
   "goal_id": "G-0005",
   "id": "T-0014",
   "ledger_evidence": [
-    "L-0032"
+    "L-0032",
+    "L-0033",
+    "L-0034"
   ],
   "locks": [
     "path:.shiki/schemas/cca-verdict.schema.json",
@@ -32,6 +34,6 @@
   ],
   "risk_level": "low",
   "scope": ".shiki/schemas/cca-verdict.schema.json, .shiki/schemas/repair-packet.schema.json, scripts/shiki.py, scripts/validate_shiki.py, scripts/test_shiki_control_plane.sh \u306e contract \u6574\u5408\u6027\u4fee\u6b63",
-  "status": "planned",
+  "status": "review",
   "title": "CCA verdict \u3068 repair packet \u306e contract \u3092\u63c3\u3048\u308b"
 }

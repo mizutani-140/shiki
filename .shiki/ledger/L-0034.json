@@ -1,0 +1,18 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "env PYTHONPYCACHEPREFIX=/tmp/shiki-pycache python3 scripts/validate_shiki.py",
+    "for script in scripts/test_shiki_*.sh; do env HOME=\"$(mktemp -d)\" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash \"$script\"; done",
+    "env PYTHONPYCACHEPREFIX=/tmp/shiki-pycache python3 -m py_compile scripts/shiki.py scripts/validate_shiki.py scripts/mergegate_check.py scripts/enforce_cca_verdict.py",
+    "git diff --check"
+  ],
+  "goal_id": "G-0005",
+  "id": "L-0034",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/22"
+  ],
+  "summary": "Implementation and PR evidence for T-0014: contract fix committed, PR #22 opened, local CI-like verification passed, Claude review passed, and CCA requested evidence-only ledger repair.",
+  "task_id": "T-0014",
+  "timestamp": "2026-05-30T10:12:59+00:00",
+  "type": "review"
+}
