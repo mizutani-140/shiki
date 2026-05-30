@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-0002.json"
+  ],
+  "goal_id": "G-0005",
+  "id": "L-0036",
+  "links": [],
+  "summary": "Goal G-0005 complete: CCA/Repair contract\u6574\u5408\u6027\u3092\u4fee\u5fa9",
+  "task_id": null,
+  "timestamp": "2026-05-30T10:18:04+00:00",
+  "type": "completion"
+}

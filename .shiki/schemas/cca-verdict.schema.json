@@ -8,6 +8,9 @@
     "pr",
     "head_sha",
     "can_merge",
+    "checklist",
+    "acceptance",
+    "mergegate",
     "confidence"
   ],
   "properties": {
@@ -27,7 +30,36 @@
     "head_sha": { "type": "string" },
     "can_merge": { "type": "boolean" },
     "blocking_reason": { "type": "string" },
-    "repair_packet": { "type": "string" },
+    "checklist": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "blocking"],
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "type": "string" },
+          "blocking": { "type": "boolean" },
+          "evidence": { "type": "string" },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "acceptance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "mergegate": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "repair_packet": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
     "confidence": { "type": "number" }
   }
 }

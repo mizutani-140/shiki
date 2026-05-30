@@ -28,6 +28,7 @@ grep "shiki runner codex --target TARGET --task-id T-XXXX" .claude/commands/shik
 grep "manual \`codex\` command" .codex/skills/shiki/SKILL.md >/dev/null
 grep "operator's requested Target Repository" .claude/commands/shiki.md >/dev/null
 grep "not automatically the requested Target" .codex/skills/shiki/SKILL.md >/dev/null
+grep -- "--max-turns 60" .github/workflows/shiki-claude-review.yml >/dev/null
 
 mkdir -p "$TARGET"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-control-install.out
@@ -78,8 +79,10 @@ python3 "$ROOT/scripts/shiki.py" repair packet \
   --pr 123 \
   --failing-item "missing verification evidence" \
   --minimal-change "add the requested verification evidence only" \
+  --required-skill evidence-only \
   --verification-command "python3 scripts/validate_shiki.py" \
   >/tmp/shiki-repair.json
+python3 -c 'import json; out=json.load(open("/tmp/shiki-repair.json")); packet=json.load(open(out["repair_file"])); assert packet["required_skill"] == "evidence-only"'
 
 python3 "$ROOT/scripts/shiki.py" task status --target "$TARGET" "$TASK_ID" --status done >/tmp/shiki-task-status.json
 python3 "$ROOT/scripts/shiki.py" goal complete --target "$TARGET" "$GOAL_ID" >/tmp/shiki-goal-complete.json

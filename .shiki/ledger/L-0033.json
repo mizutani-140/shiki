@@ -1,0 +1,20 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "attachment:/Users/kio.mizutani/.codex/attachments/6ac0435b-cacb-4c9b-8860-6131a9adcfe6/pasted-text.txt",
+    ".shiki/schemas/cca-verdict.schema.json",
+    ".shiki/schemas/repair-packet.schema.json",
+    "scripts/shiki.py",
+    "scripts/validate_shiki.py",
+    "scripts/test_shiki_control_plane.sh"
+  ],
+  "goal_id": "G-0005",
+  "id": "L-0033",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/22"
+  ],
+  "summary": "Diagnose evidence: verified the attached architecture review against current main. Accepted the still-valid CCA verdict schema and repair packet contract mismatches; rejected stale claims that scripts/shiki.py, scripts/validate_shiki.py, and codex-front runtime support are missing.",
+  "task_id": "T-0014",
+  "timestamp": "2026-05-30T10:12:59+00:00",
+  "type": "check"
+}

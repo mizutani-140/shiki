@@ -2742,7 +2742,11 @@ def build_parser() -> argparse.ArgumentParser:
     repair_packet.add_argument("--failing-acceptance-criteria", action="append", default=[])
     repair_packet.add_argument("--minimal-change", action="append", required=True)
     repair_packet.add_argument("--prohibited-change", action="append", default=[])
-    repair_packet.add_argument("--required-skill", default="tdd", choices=["tdd", "diagnose", "grill-with-docs", "improve-codebase-architecture", "none"])
+    repair_packet.add_argument(
+        "--required-skill",
+        default="tdd",
+        choices=["tdd", "diagnose", "grill-with-docs", "improve-codebase-architecture", "evidence-only", "none"],
+    )
     repair_packet.add_argument("--verification-command", action="append", required=True)
     repair_packet.add_argument("--evidence-required", action="append", default=[])
     repair_packet.add_argument("--stop-condition", default="Stop after this packet is satisfied or after three failed attempts.")

@@ -1,0 +1,19 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-05-30T10:18:04+00:00",
+  "evidence": [
+    ".shiki/tasks/T-0014.json"
+  ],
+  "goal_id": "G-0005",
+  "id": "R-0002",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "low"
+  },
+  "status": "complete",
+  "summary": "Goal G-0005 complete: CCA/Repair contract\u6574\u5408\u6027\u3092\u4fee\u5fa9"
+}

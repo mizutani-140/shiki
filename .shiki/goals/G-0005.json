@@ -1,0 +1,26 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "CCA verdict schema requires checklist/acceptance/mergegate",
+    "CCA repair_packet allows null/object",
+    "Repair packet required_skill supports evidence-only",
+    "Claude review rerun completes without max-turns failure",
+    "CI-like Shiki self-tests pass"
+  ],
+  "created_at": "2026-05-30T10:05:41+00:00",
+  "github_issue": null,
+  "id": "G-0005",
+  "ledger_evidence": [
+    "L-0036"
+  ],
+  "non_goals": [],
+  "outcome": "CCA verdict schema \u3068 repair packet schema/CLI \u304c docs/template \u3068\u4e00\u81f4\u3057\u3001\u518d\u767a\u3092 validate \u3067\u691c\u51fa\u3067\u304d\u308b",
+  "required_skills": [],
+  "risk_level": "low",
+  "status": "complete",
+  "title": "CCA/Repair contract\u6574\u5408\u6027\u3092\u4fee\u5fa9"
+}
