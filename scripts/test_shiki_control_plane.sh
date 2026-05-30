@@ -28,6 +28,7 @@ grep "shiki runner codex --target TARGET --task-id T-XXXX" .claude/commands/shik
 grep "manual \`codex\` command" .codex/skills/shiki/SKILL.md >/dev/null
 grep "operator's requested Target Repository" .claude/commands/shiki.md >/dev/null
 grep "not automatically the requested Target" .codex/skills/shiki/SKILL.md >/dev/null
+grep -- "--max-turns 60" .github/workflows/shiki-claude-review.yml >/dev/null
 
 mkdir -p "$TARGET"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-control-install.out

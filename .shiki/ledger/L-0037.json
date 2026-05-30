@@ -1,0 +1,17 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    ".github/workflows/shiki-claude-review.yml",
+    "scripts/test_shiki_control_plane.sh",
+    "https://github.com/mizutani-140/shiki/actions/runs/26681336281"
+  ],
+  "goal_id": "G-0005",
+  "id": "L-0037",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/22"
+  ],
+  "summary": "Evidence-only review repair plus workflow reliability fix: Claude review failed twice with error_max_turns after CCA/MergeGate passed, so the review workflow max-turn budget was raised and covered by the control-plane test.",
+  "task_id": "T-0014",
+  "timestamp": "2026-05-30T10:21:30+00:00",
+  "type": "repair"
+}
