@@ -26,9 +26,8 @@
     "path:.shiki/goals/G-0006.json",
     "path:.shiki/dag/G-0006.json",
     "path:.shiki/tasks/T-0015.json",
-    "path:.shiki/ledger/L-0038.json",
-    "path:.shiki/ledger/L-0039.json",
-    "path:.shiki/ledger/L-0040.json"
+    "path:.shiki/ledger/*.json",
+    "path:.shiki/reports/*.json"
   ],
   "non_goals": [
     "GitHub API\u3067live required checks\u3092\u7167\u4f1a\u3059\u308b\u5b9f\u88c5",
