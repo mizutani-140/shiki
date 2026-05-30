@@ -17,7 +17,8 @@
   "ledger_evidence": [
     "L-0039",
     "L-0040",
-    "L-0041"
+    "L-0041",
+    "L-0042"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
@@ -38,6 +39,6 @@
   ],
   "risk_level": "low",
   "scope": "scripts/mergegate_check.py \u3068 scripts/test_shiki_control_plane.sh \u3092\u66f4\u65b0\u3057\u3001MergeGate \u304c task/goal/locks/dependencies/ledger/CCA head evidence \u3092\u691c\u67fb\u3059\u308b\u3002\u3042\u308f\u305b\u3066 task.schema.json \u306e runtime enum \u3092 validate_shiki.py \u3068\u63c3\u3048\u308b",
-  "status": "review",
+  "status": "done",
   "title": "MergeGate policy\u3092Task\u5951\u7d04\u306b\u63a5\u7d9a\u3059\u308b"
 }
