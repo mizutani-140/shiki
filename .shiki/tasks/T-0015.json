@@ -9,8 +9,8 @@
   ],
   "assigned_runtime": "codex",
   "dependencies": [],
-  "expected_branch": "shiki/t-0015-mergegate-policy-task",
-  "expected_pr": null,
+  "expected_branch": "shiki/strengthen-mergegate-policy",
+  "expected_pr": 23,
   "github_issue": null,
   "goal_id": "G-0006",
   "id": "T-0015",
@@ -21,7 +21,13 @@
   "locks": [
     "path:scripts/mergegate_check.py",
     "path:scripts/test_shiki_control_plane.sh",
-    "path:.shiki/schemas/task.schema.json"
+    "path:.shiki/schemas/task.schema.json",
+    "path:.shiki/goals/G-0006.json",
+    "path:.shiki/dag/G-0006.json",
+    "path:.shiki/tasks/T-0015.json",
+    "path:.shiki/ledger/L-0038.json",
+    "path:.shiki/ledger/L-0039.json",
+    "path:.shiki/ledger/L-0040.json"
   ],
   "non_goals": [
     "GitHub API\u3067live required checks\u3092\u7167\u4f1a\u3059\u308b\u5b9f\u88c5",
