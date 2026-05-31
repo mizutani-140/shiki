@@ -43,7 +43,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
           mkdir -p .shiki/gha
-          gh pr view "$PR_NUMBER" --json number,title,body,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
+          gh pr view "$PR_NUMBER" --json number,title,body,headRefName,baseRefName,headRefOid,labels,files,reviews,statusCheckRollup > .shiki/gha/pr.json
           base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
           git fetch origin "$base_ref" --depth=1
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
@@ -109,8 +109,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Download CCA evidence
         uses: actions/download-artifact@v4
@@ -120,18 +118,6 @@ jobs:
 
       - name: Validate Shiki artifacts
         run: python3 scripts/validate_shiki.py
-
-      - name: Refresh PR context for MergeGate
-        if: github.event_name == 'pull_request'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          gh pr view "$PR_NUMBER" --json number,title,body,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
-          base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
-          git fetch origin "$base_ref" --depth=1
-          git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
 
       - name: Enforce MergeGate
         run: python3 scripts/mergegate_check.py

@@ -216,7 +216,7 @@ import sys
 target = pathlib.Path(sys.argv[1])
 path = target / ".shiki" / "gha" / "pr.json"
 pr = json.loads(path.read_text())
-pr["statusCheckRollup"][1]["conclusion"] = "FAILURE"
+pr["statusCheckRollup"][0]["conclusion"] = "FAILURE"
 path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
 PY
 expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
@@ -225,7 +225,7 @@ expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
   --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
   --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
   --result-file "$TARGET/.shiki/gha/mergegate-result.json"
-grep "Required check CCA verdict is not successful" /tmp/shiki-expected-fail.out >/dev/null
+grep "Required check Validate Shiki mirror is not successful" /tmp/shiki-expected-fail.out >/dev/null
 
 python3 - "$TARGET" <<'PY'
 import json
@@ -235,8 +235,8 @@ import sys
 target = pathlib.Path(sys.argv[1])
 path = target / ".shiki" / "gha" / "pr.json"
 pr = json.loads(path.read_text())
-pr["statusCheckRollup"][1]["conclusion"] = "SUCCESS"
-pr["statusCheckRollup"][1]["headSha"] = "old-sha"
+pr["statusCheckRollup"][0]["conclusion"] = "SUCCESS"
+pr["statusCheckRollup"][0]["headSha"] = "old-sha"
 path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
 PY
 expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
@@ -255,7 +255,7 @@ import sys
 target = pathlib.Path(sys.argv[1])
 path = target / ".shiki" / "gha" / "pr.json"
 pr = json.loads(path.read_text())
-pr["statusCheckRollup"][1]["headSha"] = "abc123"
+pr["statusCheckRollup"][0]["headSha"] = "abc123"
 pr["labels"] = [{"name": "review:required"}]
 path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
 PY

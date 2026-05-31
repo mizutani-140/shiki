@@ -20,6 +20,7 @@ DEFAULT_REQUIRED_CHECKS = [
     "MergeGate metadata check",
 ]
 SELF_CHECKS = {"MergeGate policy check"}
+VERDICT_CHECKS = {"CCA verdict"}
 PLACEHOLDER_CHECKS = {"shiki-required-checks"}
 
 
@@ -162,7 +163,7 @@ def enforce_required_checks(pr: dict[str, Any], target: Path, blocking: list[str
     required = [
         check
         for check in configured_required_checks(target)
-        if check not in SELF_CHECKS and check not in PLACEHOLDER_CHECKS
+        if check not in SELF_CHECKS and check not in VERDICT_CHECKS and check not in PLACEHOLDER_CHECKS
     ]
     for name in required:
         check = checks.get(name)
