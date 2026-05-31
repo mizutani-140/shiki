@@ -15,7 +15,8 @@
   "ledger_evidence": [
     "L-0045",
     "L-0046",
-    "L-0047"
+    "L-0047",
+    "L-0048"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",

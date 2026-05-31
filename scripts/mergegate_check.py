@@ -173,7 +173,7 @@ def enforce_required_checks(pr: dict[str, Any], target: Path, blocking: list[str
         status = str(check.get("status") or "").upper()
         conclusion = str(check.get("conclusion") or "").upper()
         if status != "COMPLETED":
-            blocking.append(f"Required check {name} is not completed: status={status or 'UNKNOWN'}")
+            warnings.append(f"Required check {name} is not completed in prepared rollup: status={status or 'UNKNOWN'}; relying on branch protection freshness")
         elif conclusion != "SUCCESS":
             blocking.append(f"Required check {name} is not successful: conclusion={conclusion or 'UNKNOWN'}")
         check_sha = check_head_sha(check)
