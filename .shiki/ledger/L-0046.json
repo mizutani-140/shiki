@@ -1,0 +1,16 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "diagnose: compared attached review against current main and isolated remaining valid MergeGate gaps",
+    "tdd: added failing control-plane fixtures for required checks, stale check SHA, review findings, Guardian approval, and lock conflict",
+    "verification: env HOME=\"$(mktemp -d)\" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash scripts/test_shiki_control_plane.sh",
+    "verification: env PYTHONPYCACHEPREFIX=/tmp/shiki-pycache python3 scripts/validate_shiki.py",
+    "verification: git diff --check"
+  ],
+  "goal_id": "G-0007",
+  "id": "L-0046",
+  "summary": "diagnose and tdd evidence for MergeGate GitHub evidence policy implementation",
+  "task_id": "T-0016",
+  "timestamp": "2026-05-31T08:17:03+00:00",
+  "type": "review"
+}

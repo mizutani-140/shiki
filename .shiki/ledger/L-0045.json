@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0016.json"
+  ],
+  "goal_id": "G-0007",
+  "id": "L-0045",
+  "links": [],
+  "summary": "Task registered: MergeGate\u3067GitHub checks/review/risk/lock conflict\u3092\u691c\u67fb",
+  "task_id": "T-0016",
+  "timestamp": "2026-05-31T08:13:05+00:00",
+  "type": "task-registered"
+}

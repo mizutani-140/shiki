@@ -1,0 +1,18 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "PR opened: https://github.com/mizutani-140/shiki/pull/24",
+    "branch: shiki/mergegate-github-evidence-policy",
+    "commit: 78b73ad fix(mergegate): enforce GitHub evidence policy",
+    "checks pending: GitHub CCA and MergeGate will evaluate this PR"
+  ],
+  "goal_id": "G-0007",
+  "id": "L-0047",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/24"
+  ],
+  "summary": "PR #24 opened for T-0016 MergeGate GitHub evidence policy",
+  "task_id": "T-0016",
+  "timestamp": "2026-05-31T08:17:03+00:00",
+  "type": "review"
+}

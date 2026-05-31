@@ -1,0 +1,19 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-05-31T08:33:13+00:00",
+  "evidence": [
+    ".shiki/tasks/T-0016.json"
+  ],
+  "goal_id": "G-0007",
+  "id": "R-0004",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "low"
+  },
+  "status": "complete",
+  "summary": "Goal G-0007 complete: MergeGate policy\u306bGitHub evidence\u691c\u67fb\u3092\u8ffd\u52a0"
+}

@@ -14,6 +14,14 @@ from typing import Any
 
 TASK_ID = re.compile(r"\bT-[0-9]{4,}\b")
 GOAL_ID = re.compile(r"\bG-[0-9]{4,}\b")
+DEFAULT_REQUIRED_CHECKS = [
+    "Validate Shiki mirror",
+    "CCA verdict",
+    "MergeGate metadata check",
+]
+SELF_CHECKS = {"MergeGate policy check"}
+VERDICT_CHECKS = {"CCA verdict"}
+PLACEHOLDER_CHECKS = {"shiki-required-checks"}
 
 
 def load_json(path: Path) -> dict[str, Any] | None:
@@ -80,6 +88,163 @@ def load_task(target: Path, task_id: str) -> dict[str, Any] | None:
 
 def load_goal(target: Path, goal_id: str) -> dict[str, Any] | None:
     return load_json(target / ".shiki" / "goals" / f"{goal_id}.json")
+
+
+def configured_required_checks(target: Path) -> list[str]:
+    """Read mergegate.required_checks from .shiki/config.yaml without a YAML dependency."""
+    config_path = target / ".shiki" / "config.yaml"
+    if not config_path.exists():
+        return DEFAULT_REQUIRED_CHECKS
+
+    checks: list[str] = []
+    in_mergegate = False
+    in_required_checks = False
+    for raw_line in config_path.read_text(encoding="utf-8").splitlines():
+        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
+            continue
+        indent = len(raw_line) - len(raw_line.lstrip(" "))
+        stripped = raw_line.strip()
+        if indent == 0:
+            in_mergegate = stripped == "mergegate:"
+            in_required_checks = False
+            continue
+        if in_mergegate and indent == 2:
+            in_required_checks = stripped == "required_checks:"
+            continue
+        if in_mergegate and in_required_checks:
+            if indent <= 2:
+                in_required_checks = False
+                continue
+            if stripped.startswith("- "):
+                check = stripped[2:].strip().strip("\"'")
+                if check:
+                    checks.append(check)
+    return checks or DEFAULT_REQUIRED_CHECKS
+
+
+def pr_label_names(pr: dict[str, Any]) -> set[str]:
+    names: set[str] = set()
+    for label in pr.get("labels") or []:
+        if isinstance(label, dict):
+            name = label.get("name")
+        else:
+            name = label
+        if name:
+            names.add(str(name).strip().lower())
+    return names
+
+
+def status_checks(pr: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    checks: dict[str, dict[str, Any]] = {}
+    for check in pr.get("statusCheckRollup") or []:
+        if not isinstance(check, dict):
+            continue
+        name = check.get("name") or check.get("workflowName") or check.get("context")
+        if name:
+            checks[str(name)] = check
+    return checks
+
+
+def check_head_sha(check: dict[str, Any]) -> str | None:
+    value = check.get("headSha") or check.get("head_sha") or check.get("sha")
+    if value:
+        return str(value)
+    commit = check.get("commit")
+    if isinstance(commit, dict):
+        oid = commit.get("oid") or commit.get("sha")
+        if oid:
+            return str(oid)
+    return None
+
+
+def enforce_required_checks(pr: dict[str, Any], target: Path, blocking: list[str], warnings: list[str]) -> None:
+    checks = status_checks(pr)
+    head_sha = pr.get("headRefOid")
+    required = [
+        check
+        for check in configured_required_checks(target)
+        if check not in SELF_CHECKS and check not in VERDICT_CHECKS and check not in PLACEHOLDER_CHECKS
+    ]
+    for name in required:
+        check = checks.get(name)
+        if check is None:
+            blocking.append(f"Required check {name} is missing from PR statusCheckRollup")
+            continue
+        status = str(check.get("status") or "").upper()
+        conclusion = str(check.get("conclusion") or "").upper()
+        if status != "COMPLETED":
+            warnings.append(f"Required check {name} is not completed in prepared rollup: status={status or 'UNKNOWN'}; relying on branch protection freshness")
+        elif conclusion != "SUCCESS":
+            blocking.append(f"Required check {name} is not successful: conclusion={conclusion or 'UNKNOWN'}")
+        check_sha = check_head_sha(check)
+        if head_sha and check_sha and check_sha != head_sha:
+            blocking.append(f"Required check {name} head SHA {check_sha} does not match PR headRefOid {head_sha}")
+        elif head_sha and not check_sha:
+            warnings.append(f"Required check {name} did not expose a head SHA; relying on GitHub rollup freshness")
+
+
+def review_approved(pr: dict[str, Any]) -> bool:
+    if str(pr.get("reviewDecision") or "").upper() == "APPROVED":
+        return True
+    for review in pr.get("reviews") or []:
+        if isinstance(review, dict) and str(review.get("state") or "").upper() == "APPROVED":
+            return True
+    checks = status_checks(pr)
+    claude_review = checks.get("Claude review")
+    if claude_review:
+        status = str(claude_review.get("status") or "").upper()
+        conclusion = str(claude_review.get("conclusion") or "").upper()
+        return status == "COMPLETED" and conclusion == "SUCCESS"
+    return False
+
+
+def enforce_review_policy(pr: dict[str, Any], blocking: list[str]) -> None:
+    review_decision = str(pr.get("reviewDecision") or "").upper()
+    if review_decision == "CHANGES_REQUESTED":
+        blocking.append("PR review requested changes")
+    for review in pr.get("reviews") or []:
+        if isinstance(review, dict) and str(review.get("state") or "").upper() == "CHANGES_REQUESTED":
+            author = review.get("author") or {}
+            login = author.get("login") if isinstance(author, dict) else author
+            suffix = f" by {login}" if login else ""
+            blocking.append(f"PR review requested changes{suffix}")
+    for thread in pr.get("reviewThreads") or []:
+        if isinstance(thread, dict) and thread.get("isResolved") is False:
+            blocking.append("PR has unresolved review findings")
+
+    labels = pr_label_names(pr)
+    explicit_review_required = bool(labels.intersection({"review:required", "requires-review", "needs-review"}))
+    if (explicit_review_required or review_decision == "REVIEW_REQUIRED") and not review_approved(pr):
+        blocking.append("Required review is missing")
+
+
+def guardian_approved(pr: dict[str, Any], ledger_entries: list[dict[str, Any]]) -> bool:
+    labels = pr_label_names(pr)
+    if labels.intersection({"guardian:approved", "approval:guardian", "risk:approved"}):
+        return True
+    ledger_text = "\n".join(ledger_entry_text(entry) for entry in ledger_entries)
+    return "guardian approved" in ledger_text or "guardian approval" in ledger_text
+
+
+def active_lock_conflicts(target: Path, task_id: str, locks: list[str], files: list[str]) -> list[str]:
+    conflicts: list[str] = []
+    directory = target / ".shiki" / "locks"
+    if not directory.exists():
+        return conflicts
+    for path in sorted(directory.glob("*.json")):
+        record = load_json(path)
+        if not record or record.get("state") != "active" or record.get("task_id") == task_id:
+            continue
+        owner_task = record.get("task_id") or path.stem
+        for other_lock in [str(lock) for lock in record.get("locks") or []]:
+            if other_lock in locks:
+                conflicts.append(f"Lock conflict: {other_lock} held by {owner_task}")
+                continue
+            for changed_file in files:
+                if path_matches_lock(changed_file, other_lock) and any(path_matches_lock(changed_file, lock) for lock in locks):
+                    conflicts.append(f"Lock conflict: {other_lock} held by {owner_task} overlaps {changed_file}")
+                    break
+    return conflicts
 
 
 def load_ledger_entries(target: Path, task: dict[str, Any], warnings: list[str], blocking: list[str]) -> list[dict[str, Any]]:
@@ -171,6 +336,7 @@ def main() -> int:
             for path in files:
                 if not any(path_matches_lock(path, lock) for lock in locks):
                     blocking.append(f"Changed file {path} is outside declared task locks")
+            blocking.extend(active_lock_conflicts(target, resolved_task_id, locks, files))
 
             ledger_entries = load_ledger_entries(target, task, warnings, blocking)
             ledger_text = "\n".join(ledger_entry_text(entry) for entry in ledger_entries)
@@ -195,6 +361,11 @@ def main() -> int:
             pr_text = "\n".join(ledger_entry_text(entry) for entry in ledger_entries)
             if pr_number is not None and pr_token not in pr_text and f"pr #{pr_number}" not in pr_text:
                 blocking.append(f"Task ledger evidence does not reference PR #{pr_number}")
+        if pr:
+            enforce_required_checks(pr, target, blocking, warnings)
+            enforce_review_policy(pr, blocking)
+            if task and task.get("risk_level") in {"high", "critical"} and not guardian_approved(pr, ledger_entries):
+                blocking.append(f"Guardian approval is required for {task.get('risk_level')} risk task {task.get('id')}")
     elif not args.allow_missing_cca:
         blocking.append(f"CCA verdict file not found at {args.cca_verdict}")
 
