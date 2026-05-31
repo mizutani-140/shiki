@@ -16,7 +16,8 @@
     "L-0045",
     "L-0046",
     "L-0047",
-    "L-0048"
+    "L-0048",
+    "L-0049"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
@@ -41,6 +42,6 @@
   ],
   "risk_level": "low",
   "scope": "scripts/mergegate_check.py \u3068 scripts/test_shiki_control_plane.sh \u3092\u66f4\u65b0\u3057\u3001PR context \u306e statusCheckRollup/reviews/labels \u3068 task risk/locks \u304b\u3089 merge readiness \u3092\u5224\u5b9a\u3059\u308b",
-  "status": "review",
+  "status": "done",
   "title": "MergeGate\u3067GitHub checks/review/risk/lock conflict\u3092\u691c\u67fb"
 }

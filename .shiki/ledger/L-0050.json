@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-0004.json"
+  ],
+  "goal_id": "G-0007",
+  "id": "L-0050",
+  "links": [],
+  "summary": "Goal G-0007 complete: MergeGate policy\u306bGitHub evidence\u691c\u67fb\u3092\u8ffd\u52a0",
+  "task_id": null,
+  "timestamp": "2026-05-31T08:33:13+00:00",
+  "type": "completion"
+}

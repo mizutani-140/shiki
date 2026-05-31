@@ -13,6 +13,9 @@
   "created_at": "2026-05-31T08:12:51+00:00",
   "github_issue": null,
   "id": "G-0007",
+  "ledger_evidence": [
+    "L-0050"
+  ],
   "non_goals": [],
   "outcome": "MergeGate\u304cPR\u306erequired checks/review/risk approval/lock conflict\u3092\u691c\u67fb\u3057\u3001\u6dfb\u4ed8\u30ec\u30d3\u30e5\u30fc\u306emerge\u524dgate\u8cac\u52d9\u306b\u8fd1\u3065\u304f",
   "required_skills": [
@@ -20,6 +23,6 @@
     "tdd"
   ],
   "risk_level": "low",
-  "status": "planned",
+  "status": "complete",
   "title": "MergeGate policy\u306bGitHub evidence\u691c\u67fb\u3092\u8ffd\u52a0"
 }
