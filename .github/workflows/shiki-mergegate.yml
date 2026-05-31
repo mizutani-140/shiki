@@ -38,7 +38,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           mkdir -p .shiki/gha
-          gh pr view "$PR_NUMBER" --json number,title,body,headRefName,baseRefName,headRefOid,labels,files,reviews,statusCheckRollup > .shiki/gha/pr.json
+          gh pr view "$PR_NUMBER" --json number,title,body,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
           base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
           git fetch origin "$base_ref"
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt

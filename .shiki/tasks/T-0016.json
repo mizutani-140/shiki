@@ -1,0 +1,44 @@
+{
+  "acceptance_checks": [
+    "statusCheckRollup \u306b\u672a\u6210\u529f\u30fbPR head\u3068\u7570\u306a\u308b required check \u304c\u3042\u308b\u3068 MergeGate \u304cblock\u3059\u308b",
+    "required review \u307e\u305f\u306f unresolved review finding \u304c\u3042\u308b\u3068 MergeGate \u304cblock\u3059\u308b",
+    "high/critical risk task \u306bGuardian approval evidence\u304c\u306a\u3044\u3068 MergeGate \u304cblock\u3059\u308b",
+    "lock conflict fixture\u3067 MergeGate \u304cblock\u3059\u308b"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/mergegate-github-evidence-policy",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0007",
+  "id": "T-0016",
+  "ledger_evidence": [
+    "L-0045",
+    "L-0046"
+  ],
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:.github/workflows/shiki-mergegate.yml",
+    "path:.shiki/config.yaml",
+    "path:.shiki/goals/G-0007.json",
+    "path:.shiki/dag/G-0007.json",
+    "path:.shiki/tasks/T-0016.json",
+    "path:.shiki/ledger/*.json",
+    "path:.shiki/reports/*.json"
+  ],
+  "non_goals": [
+    "GitHub API\u3092mergegate_check.py\u304b\u3089\u76f4\u63a5\u547c\u3073\u51fa\u3059\u5b9f\u88c5",
+    "GoalGate\u306e\u5168\u9762\u518d\u8a2d\u8a08",
+    "\u81ea\u52d5repair dispatch\u306e\u5b9f\u88c5"
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd"
+  ],
+  "risk_level": "low",
+  "scope": "scripts/mergegate_check.py \u3068 scripts/test_shiki_control_plane.sh \u3092\u66f4\u65b0\u3057\u3001PR context \u306e statusCheckRollup/reviews/labels \u3068 task risk/locks \u304b\u3089 merge readiness \u3092\u5224\u5b9a\u3059\u308b",
+  "status": "planned",
+  "title": "MergeGate\u3067GitHub checks/review/risk/lock conflict\u3092\u691c\u67fb"
+}
