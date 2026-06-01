@@ -9,7 +9,7 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/t-0021-normalize-shiki-contracts-and-source-of-truth",
-  "expected_pr": null,
+  "expected_pr": 32,
   "github_issue": 31,
   "goal_id": "G-0012",
   "id": "T-0021",
@@ -18,7 +18,8 @@
     "L-0087",
     "L-0088",
     "L-0090",
-    "L-0091"
+    "L-0091",
+    "L-0092"
   ],
   "locks": [
     "path:AGENTS.md",
