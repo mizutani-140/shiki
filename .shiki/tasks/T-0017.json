@@ -16,7 +16,8 @@
   "ledger_evidence": [
     "L-0052",
     "L-0053",
-    "L-0054"
+    "L-0054",
+    "L-0055"
   ],
   "locks": [
     "path:scripts/enforce_cca_verdict.py",
@@ -39,6 +40,6 @@
   ],
   "risk_level": "low",
   "scope": "scripts/enforce_cca_verdict.py, scripts/mergegate_check.py, scripts/validate_shiki.py, scripts/test_shiki_control_plane.sh, .shiki canonical bootstrap artifacts, CCA prompt/docs, shiki-orchestrator workflow, Issue Forms/label vocabulary \u306e bounded repair",
-  "status": "review",
+  "status": "done",
   "title": "CCA/MergeGate/mirror strictness \u3068\u516c\u958breview\u6307\u6458\u306e\u6b8bblocker\u3092\u4fee\u6b63"
 }

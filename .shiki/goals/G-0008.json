@@ -16,6 +16,9 @@
   "created_at": "2026-06-01T02:10:12+00:00",
   "github_issue": null,
   "id": "G-0008",
+  "ledger_evidence": [
+    "L-0056"
+  ],
   "non_goals": [],
   "outcome": "\u516c\u958bmain\u306eCCA/MergeGate/mirror strictness/workflow security/Issue Form/CCA docs\u304c\u518d\u30ec\u30d3\u30e5\u30fc\u6307\u6458\u3092\u6e80\u305f\u3057\u3001GitHub\u4e0a\u306e\u518d\u30ec\u30d3\u30e5\u30fc\u3067merge-ready\u5224\u5b9a\u3092\u5f97\u3089\u308c\u308b",
   "required_skills": [
@@ -23,6 +26,6 @@
     "tdd"
   ],
   "risk_level": "low",
-  "status": "planned",
+  "status": "complete",
   "title": "\u6700\u7d42\u5224\u5b9a\u30ec\u30d3\u30e5\u30fc\u8868\u306eP0/P1 gate\u6307\u6458\u3092\u89e3\u6d88"
 }
