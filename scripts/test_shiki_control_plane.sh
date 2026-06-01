@@ -38,6 +38,14 @@ grep "manual \`codex\` command" .codex/skills/shiki/SKILL.md >/dev/null
 grep "operator's requested Target Repository" .claude/commands/shiki.md >/dev/null
 grep "not automatically the requested Target" .codex/skills/shiki/SKILL.md >/dev/null
 grep -- "--max-turns 60" .github/workflows/shiki-claude-review.yml >/dev/null
+grep "python3 -m py_compile scripts/\\*.py" .github/workflows/shiki-validate.yml >/dev/null
+grep "for script in scripts/test_shiki_\\*.sh" .github/workflows/shiki-validate.yml >/dev/null
+grep '"head_sha"' docs/agents/completion-check-agent.md >/dev/null
+grep '"can_merge"' docs/agents/completion-check-agent.md >/dev/null
+grep "contents: read" .github/workflows/shiki-orchestrator.yml >/dev/null
+grep "commit-evidence:" .github/workflows/shiki-orchestrator.yml >/dev/null
+grep 'git push -u origin "$evidence_branch"' .github/workflows/shiki-orchestrator.yml >/dev/null
+grep "gh pr create" .github/workflows/shiki-orchestrator.yml >/dev/null
 
 expect_fail env \
   CCA_VERDICT_FILE=/tmp/shiki-cca-invalid-complete.json \

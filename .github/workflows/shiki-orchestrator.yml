@@ -19,20 +19,25 @@ on:
     types: [created]
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
+  issues: read
+  pull-requests: read
 
 jobs:
   shiki-run:
     name: Shiki orchestrator run
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || (startsWith(github.event.comment.body, '/shiki') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      plan_path: ${{ steps.command.outputs.plan_path }}
+      mode: ${{ steps.command.outputs.mode }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Resolve command
         id: command
@@ -54,20 +59,39 @@ jobs:
 
       - name: Run Shiki plan
         shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.command.outputs.mode }}" == "execute-github" ]]; then
+            echo "execute-github requested; this read-only job performs the dry-run gate first."
+          fi
+          python3 scripts/shiki.py smoke live --target . --plan-file "${{ steps.command.outputs.plan_path }}" --dry-run
+
+  commit-evidence:
+    name: Commit Shiki evidence PR
+    needs: shiki-run
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'execute-github'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Execute Shiki plan and open evidence PR
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if [[ "${{ steps.command.outputs.mode }}" == "execute-github" ]]; then
-            python3 scripts/shiki.py smoke live --target . --plan-file "${{ steps.command.outputs.plan_path }}" --execute-github
-          else
-            python3 scripts/shiki.py smoke live --target . --plan-file "${{ steps.command.outputs.plan_path }}" --dry-run
-          fi
+          evidence_branch="shiki/orchestrator-evidence-${{ github.run_id }}"
+          git switch -c "$evidence_branch"
 
-      - name: Commit Shiki evidence
-        shell: bash
-        run: |
-          set -euo pipefail
+          python3 scripts/shiki.py smoke live --target . --plan-file "${{ needs.shiki-run.outputs.plan_path }}" --execute-github
+
           if git diff --quiet; then
             echo "No Shiki evidence changes to commit."
             exit 0
@@ -76,4 +100,9 @@ jobs:
           git config user.email "shiki-orchestrator@users.noreply.github.com"
           git add .shiki
           git commit -m "shiki: record orchestrator evidence"
-          git push
+          git push -u origin "$evidence_branch"
+          gh pr create \
+            --base main \
+            --head "$evidence_branch" \
+            --title "shiki: record orchestrator evidence (${{ github.run_id }})" \
+            --body "Automated Shiki orchestrator evidence from workflow run ${{ github.run_id }}. Validate, CCA, and MergeGate must pass before this evidence lands."

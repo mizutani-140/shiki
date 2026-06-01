@@ -21,20 +21,15 @@ jobs:
       - name: Validate Shiki artifacts
         run: python3 scripts/validate_shiki.py
 
-      - name: Compile Shiki CLI
-        run: python3 -m py_compile scripts/shiki.py
+      - name: Compile Shiki Python files
+        run: python3 -m py_compile scripts/*.py
 
-      - name: Run Shiki init contract test
-        run: bash scripts/test_shiki_init.sh
-
-      - name: Run Shiki control-plane contract test
-        run: bash scripts/test_shiki_control_plane.sh
-
-      - name: Run Shiki run orchestrator contract test
-        run: bash scripts/test_shiki_run_orchestrator.sh
-
-      - name: Run Shiki daemon and runner contract test
-        run: bash scripts/test_shiki_daemon_runner.sh
-
-      - name: Run Shiki one-command start contract test
-        run: bash scripts/test_shiki_start.sh
+      - name: Run all Shiki contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          for script in scripts/test_shiki_*.sh; do
+            echo "::group::$script"
+            bash "$script"
+            echo "::endgroup::"
+          done

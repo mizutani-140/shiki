@@ -15,7 +15,8 @@
   "github_issue": null,
   "id": "G-0001",
   "ledger_evidence": [
-    "L-0001"
+    "L-0001",
+    "L-0061"
   ],
   "non_goals": [
     "Do not rewrite historical PR or task evidence.",
@@ -26,6 +27,6 @@
     "shiki"
   ],
   "risk_level": "low",
-  "status": "planned",
+  "status": "historical",
   "title": "Shiki platform bootstrap and initial gate hardening"
 }

@@ -132,6 +132,8 @@ Minimum fields:
   "goal_id": "...",
   "task_id": "...",
   "pr": 123,
+  "head_sha": "abc123",
+  "can_merge": false,
   "checklist": [],
   "acceptance": [],
   "mergegate": {},

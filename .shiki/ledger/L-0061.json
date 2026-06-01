@@ -1,0 +1,15 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "path:.shiki/goals/G-0001.json",
+    "G-0001 is a recovered bootstrap umbrella containing historical mixed-status early tasks",
+    "validator skips archived/historical goals when enforcing active-goal completion"
+  ],
+  "goal_id": "G-0001",
+  "id": "L-0061",
+  "links": [],
+  "summary": "Marked G-0001 as historical to distinguish recovered bootstrap mirror state from active Goal lifecycle enforcement.",
+  "task_id": "T-0001",
+  "timestamp": "2026-06-01T02:50:00+00:00",
+  "type": "check"
+}

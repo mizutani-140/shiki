@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0018.json"
+  ],
+  "goal_id": "G-0009",
+  "id": "L-0058",
+  "links": [],
+  "summary": "Task registered: P1 follow-up gate coverage/docs/orchestrator/lifecycle\u3092\u4fee\u6b63",
+  "task_id": "T-0018",
+  "timestamp": "2026-06-01T02:48:38+00:00",
+  "type": "task-registered"
+}
