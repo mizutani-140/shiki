@@ -1,0 +1,23 @@
+{
+  "acceptance_evidence": [
+    "Validate Shiki mirror passes",
+    "Guardian bootstrap exception recorded",
+    "PR #27 reruns through normal CCA/MergeGate after merge"
+  ],
+  "completion_conditions": [
+    "CCA workflow no longer passes the mutable strict verdict schema directly as Claude Action transport schema",
+    "Strict verdict validation remains in scripts/enforce_cca_verdict.py",
+    "PR #27 can be rerun through normal CCA/MergeGate after this lands"
+  ],
+  "created_at": "2026-06-01T04:28:35+00:00",
+  "github_issue": null,
+  "id": "G-0010",
+  "non_goals": [],
+  "outcome": "Default-branch CCA workflow uses a shallow transport schema while enforce_cca_verdict.py remains responsible for strict verdict validation.",
+  "required_skills": [
+    "shiki"
+  ],
+  "risk_level": "low",
+  "status": "planned",
+  "title": "CCA bootstrap: decouple Claude transport schema from strict verdict validation"
+}

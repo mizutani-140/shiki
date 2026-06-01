@@ -1,0 +1,18 @@
+{
+  "actor": "guardian",
+  "evidence": [
+    "Guardian bootstrap exception approved by attached operator instruction.",
+    "Scope is limited to decoupling Claude Action transport schema from Shiki strict verdict enforcement.",
+    "CCA failure on this PR is expected because Claude Code Action refuses PR-modified workflow files.",
+    "PR #27 must be rerun and merged through normal CCA/MergeGate after this workflow lands."
+  ],
+  "goal_id": "G-0010",
+  "id": "L-0068",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/27"
+  ],
+  "summary": "Approved one-time bootstrap exception for CCA workflow transport-schema split.",
+  "task_id": "T-0019",
+  "timestamp": "2026-06-01T04:29:37Z",
+  "type": "mergegate"
+}

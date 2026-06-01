@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-0010.json"
+  ],
+  "goal_id": "G-0010",
+  "id": "L-0066",
+  "links": [],
+  "summary": "Goal registered: CCA bootstrap: decouple Claude transport schema from strict verdict validation",
+  "task_id": null,
+  "timestamp": "2026-06-01T04:28:35+00:00",
+  "type": "goal-created"
+}

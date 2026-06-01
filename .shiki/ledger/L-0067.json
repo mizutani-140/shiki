@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0019.json"
+  ],
+  "goal_id": "G-0010",
+  "id": "L-0067",
+  "links": [],
+  "summary": "Task registered: decouple CCA transport schema from strict verdict schema",
+  "task_id": "T-0019",
+  "timestamp": "2026-06-01T04:28:50+00:00",
+  "type": "task-registered"
+}
