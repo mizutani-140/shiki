@@ -39,6 +39,8 @@ Read:
 ## Output
 
 Return JSON matching `.shiki/schemas/cca-verdict.schema.json`.
+When `--json-schema` is provided, return the structured output object itself.
+Do not explain the verdict before or after the object.
 
 Allowed verdicts:
 
@@ -49,3 +51,28 @@ Allowed verdicts:
 - `insufficient_evidence`
 
 Do not include prose outside the JSON when structured output is requested.
+
+Each `checklist[]` item must include:
+
+- `id`
+- `status`: `pass`, `fail`, `insufficient_evidence`, or `not_applicable`
+- `blocking`
+- optional `evidence`
+- optional `reason`
+
+Each `acceptance[]` item must include:
+
+- `criterion`
+- `status`: `pass`, `fail`, `insufficient_evidence`, or `not_applicable`
+- `evidence`: an array of non-empty evidence strings
+- optional `reason`
+
+Example acceptance item:
+
+```json
+{
+  "criterion": "Validator rejects required skills without skills/engineering/<skill>/SKILL.md",
+  "status": "pass",
+  "evidence": ["Validate Shiki mirror passed for PR head."]
+}
+```

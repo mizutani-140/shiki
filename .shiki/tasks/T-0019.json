@@ -24,6 +24,8 @@
     "path:.shiki/schemas/ledger.schema.json",
     "path:.shiki/schemas/cca-verdict.schema.json",
     "path:docs/agents/ledger-schema.md",
+    "path:docs/agents/completion-check-agent.md",
+    "path:.github/prompts/cca-completion-check.md",
     "path:scripts/test_shiki_control_plane.sh",
     "path:scripts/shiki.py",
     "path:skills/engineering/**",
@@ -37,7 +39,7 @@
     "shiki"
   ],
   "risk_level": "low",
-  "scope": "skills/engineering/shiki/SKILL.md, skills/engineering registry deployment, scripts/validate_shiki.py, scripts/shiki.py, .shiki/schemas/{goal,ledger,cca-verdict}.schema.json, docs/agents/ledger-schema.md, scripts/test_shiki_control_plane.sh",
+  "scope": "skills/engineering/shiki/SKILL.md, skills/engineering registry deployment, scripts/validate_shiki.py, scripts/shiki.py, .shiki/schemas/{goal,ledger,cca-verdict}.schema.json, docs/agents/{ledger-schema,completion-check-agent}.md, .github/prompts/cca-completion-check.md, scripts/test_shiki_control_plane.sh",
   "status": "review",
   "title": "align skill registry and schema vocabularies"
 }
