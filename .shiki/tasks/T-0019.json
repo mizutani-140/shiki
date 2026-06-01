@@ -1,0 +1,35 @@
+{
+  "acceptance_checks": [
+    "Prepare CCA schema emits a fixed shallow transport schema independent of PR-branch strict verdict schema",
+    "scripts/enforce_cca_verdict.py still validates STRUCTURED_OUTPUT against .shiki/schemas/cca-verdict.schema.json",
+    "Validate Shiki mirror passes"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/bootstrap-cca-transport-schema",
+  "expected_pr": 28,
+  "github_issue": null,
+  "goal_id": "G-0010",
+  "id": "T-0019",
+  "ledger_evidence": [
+    "L-0067",
+    "L-0068",
+    "L-0069"
+  ],
+  "locks": [
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:.shiki/**"
+  ],
+  "non_goals": [
+    "Changing strict CCA verdict domain schema",
+    "Changing MergeGate policy semantics",
+    "Changing permissions or tool allowlists"
+  ],
+  "required_skills": [
+    "shiki"
+  ],
+  "risk_level": "low",
+  "scope": ".github/workflows/shiki-cca-completion.yml only: replace PR-branch strict schema transport with a fixed shallow transport schema; keep strict validation in enforce_cca_verdict.py",
+  "status": "review",
+  "title": "decouple CCA transport schema from strict verdict schema"
+}

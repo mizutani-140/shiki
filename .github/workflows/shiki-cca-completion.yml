@@ -48,13 +48,74 @@ jobs:
           git fetch origin "$base_ref" --depth=1
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
 
-      - name: Prepare CCA schema
+      - name: Prepare CCA transport schema
         id: schema
         shell: bash
         run: |
+          cat > "$RUNNER_TEMP/cca-transport.schema.json" <<'JSON'
+          {
+            "type": "object",
+            "required": [
+              "verdict",
+              "summary",
+              "goal_id",
+              "task_id",
+              "pr",
+              "head_sha",
+              "can_merge",
+              "checklist",
+              "acceptance",
+              "mergegate",
+              "confidence"
+            ],
+            "properties": {
+              "verdict": {
+                "enum": [
+                  "complete",
+                  "repair_required",
+                  "blocked",
+                  "needs_guardian",
+                  "insufficient_evidence"
+                ]
+              },
+              "summary": { "type": "string" },
+              "goal_id": { "type": "string" },
+              "task_id": { "type": "string" },
+              "pr": { "type": "integer" },
+              "head_sha": { "type": "string" },
+              "can_merge": { "type": "boolean" },
+              "blocking_reason": { "type": "string" },
+              "checklist": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "acceptance": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "mergegate": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "repair_packet": {
+                "type": ["object", "null"],
+                "additionalProperties": true
+              },
+              "confidence": { "type": "number" }
+            },
+            "additionalProperties": true
+          }
+          JSON
+
           {
             echo "json<<EOF"
-            jq -c . .shiki/schemas/cca-verdict.schema.json
+            jq -c . "$RUNNER_TEMP/cca-transport.schema.json"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
