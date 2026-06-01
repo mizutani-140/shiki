@@ -1,0 +1,28 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "CCA verdict \u304c\u5b9f\u884c\u6642\u306b schema validation \u3055\u308c\u308b",
+    "MergeGate \u304c CCA verdict schema/head/task/goal/pr/acceptance/blocking checklist \u3092 block \u6761\u4ef6\u3068\u3057\u3066\u691c\u67fb\u3059\u308b",
+    ".shiki mirror \u304c G-0001/T-0001/L-0001 \u3092\u542b\u307f\u3001ID\u9023\u756a\u3068\u53c2\u7167\u6574\u5408\u6027\u3092 validate \u3059\u308b",
+    "Orchestrator issue_comment \u5b9f\u884c\u304c\u4fe1\u983c\u3067\u304d\u308bauthor association\u306b\u9650\u5b9a\u3055\u308c\u308b",
+    "Issue Forms \u3068 skill/label vocabulary \u304c\u6574\u5408\u3059\u308b",
+    "prompt/docs \u304c canonical schema path \u3092\u53c2\u7167\u3059\u308b",
+    "\u5168 scripts/test_shiki_*.sh \u3068 validate_shiki.py \u3068 git diff --check \u304cgreen"
+  ],
+  "created_at": "2026-06-01T02:10:12+00:00",
+  "github_issue": null,
+  "id": "G-0008",
+  "non_goals": [],
+  "outcome": "\u516c\u958bmain\u306eCCA/MergeGate/mirror strictness/workflow security/Issue Form/CCA docs\u304c\u518d\u30ec\u30d3\u30e5\u30fc\u6307\u6458\u3092\u6e80\u305f\u3057\u3001GitHub\u4e0a\u306e\u518d\u30ec\u30d3\u30e5\u30fc\u3067merge-ready\u5224\u5b9a\u3092\u5f97\u3089\u308c\u308b",
+  "required_skills": [
+    "diagnose",
+    "tdd"
+  ],
+  "risk_level": "low",
+  "status": "planned",
+  "title": "\u6700\u7d42\u5224\u5b9a\u30ec\u30d3\u30e5\u30fc\u8868\u306eP0/P1 gate\u6307\u6458\u3092\u89e3\u6d88"
+}

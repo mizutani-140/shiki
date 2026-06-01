@@ -1,0 +1,43 @@
+{
+  "acceptance_checks": [
+    "\u4e0d\u5b8c\u5168\u306a CCA complete verdict \u3068 repair_required null packet \u304c enforcement \u3067\u5931\u6557\u3059\u308b",
+    "schema complete \u306a CCA verdict \u306f enforcement \u3068 MergeGate \u3067\u901a\u308b",
+    "MergeGate \u304c CCA schema/head_sha/task_id/goal_id/pr/acceptance/blocking checklist \u3092 block \u6761\u4ef6\u3068\u3057\u3066\u691c\u67fb\u3059\u308b",
+    "validate_shiki.py \u304c G/T/L \u306e\u9023\u756a\u6b20\u843d\u3001prompt schema path\u3001Issue Form label vocabulary\u3001orchestrator author gate \u3092\u691c\u67fb\u3059\u308b",
+    "\u5168 scripts/test_shiki_*.sh\u3001validate_shiki.py\u3001git diff --check \u304cgreen"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/t-0017-cca-mergegate-mirror-strictness-review-blocker",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0008",
+  "id": "T-0017",
+  "ledger_evidence": [
+    "L-0052",
+    "L-0053"
+  ],
+  "locks": [
+    "path:scripts/enforce_cca_verdict.py",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/shiki_schema.py",
+    "path:scripts/shiki.py",
+    "path:.shiki/**",
+    "path:.github/prompts/cca-completion-check.md",
+    "path:docs/agents/completion-check-agent.md",
+    "path:.github/workflows/shiki-orchestrator.yml",
+    "path:.github/ISSUE_TEMPLATE/**",
+    "path:docs/agents/triage-labels.md"
+  ],
+  "non_goals": [],
+  "required_skills": [
+    "diagnose",
+    "tdd"
+  ],
+  "risk_level": "low",
+  "scope": "scripts/enforce_cca_verdict.py, scripts/mergegate_check.py, scripts/validate_shiki.py, scripts/test_shiki_control_plane.sh, .shiki canonical bootstrap artifacts, CCA prompt/docs, shiki-orchestrator workflow, Issue Forms/label vocabulary \u306e bounded repair",
+  "status": "review",
+  "title": "CCA/MergeGate/mirror strictness \u3068\u516c\u958breview\u6307\u6458\u306e\u6b8bblocker\u3092\u4fee\u6b63"
+}

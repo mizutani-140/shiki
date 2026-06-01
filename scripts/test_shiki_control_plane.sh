@@ -26,6 +26,7 @@ cd "$ROOT"
 
 python3 scripts/validate_shiki.py
 python3 -m py_compile scripts/shiki.py
+python3 -m py_compile scripts/shiki_schema.py
 python3 scripts/shiki.py --help | grep -E "goal|issue|dispatch|repair" >/dev/null
 python3 scripts/shiki.py runner --help | grep "codex" >/dev/null
 python3 scripts/shiki.py goal --help | grep "complete" >/dev/null
@@ -37,6 +38,24 @@ grep "manual \`codex\` command" .codex/skills/shiki/SKILL.md >/dev/null
 grep "operator's requested Target Repository" .claude/commands/shiki.md >/dev/null
 grep "not automatically the requested Target" .codex/skills/shiki/SKILL.md >/dev/null
 grep -- "--max-turns 60" .github/workflows/shiki-claude-review.yml >/dev/null
+
+expect_fail env \
+  CCA_VERDICT_FILE=/tmp/shiki-cca-invalid-complete.json \
+  STRUCTURED_OUTPUT='{"verdict":"complete"}' \
+  python3 scripts/enforce_cca_verdict.py
+grep "missing required property" /tmp/shiki-expected-fail.out >/dev/null
+
+expect_fail env \
+  CCA_VERDICT_FILE=/tmp/shiki-cca-invalid-repair.json \
+  STRUCTURED_OUTPUT='{"verdict":"repair_required","summary":"needs repair","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[],"acceptance":[{"id":"A1","status":"fail"}],"mergegate":{},"confidence":0.5,"repair_packet":null}' \
+  python3 scripts/enforce_cca_verdict.py
+grep "repair_required verdict must include a non-null object" /tmp/shiki-expected-fail.out >/dev/null
+
+env \
+  CCA_VERDICT_FILE=/tmp/shiki-cca-valid-complete.json \
+  STRUCTURED_OUTPUT='{"verdict":"complete","summary":"complete","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":true,"checklist":[{"id":"CCA-01","status":"pass","blocking":true,"evidence":"fixture"}],"acceptance":[{"id":"A1","status":"pass","evidence":"fixture"}],"mergegate":{"required_checks":"pass"},"confidence":1.0,"repair_packet":null}' \
+  python3 scripts/enforce_cca_verdict.py >/tmp/shiki-cca-valid-complete.out
+grep "CCA verdict complete" /tmp/shiki-cca-valid-complete.out >/dev/null
 
 mkdir -p "$TARGET"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-control-install.out
@@ -104,21 +123,23 @@ task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
 task = json.loads(task_path.read_text())
 task["expected_pr"] = 123
 task["status"] = "review"
-task["ledger_evidence"].append("L-9999")
+ledger_numbers = [int(path.stem.split("-")[1]) for path in (target / ".shiki" / "ledger").glob("L-*.json")]
+ledger_id = f"L-{max(ledger_numbers, default=0) + 1:04d}"
+task["ledger_evidence"].append(ledger_id)
 task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
 
 ledger = {
     "actor": "codex-front",
     "evidence": ["diagnose skill used before bounded repair", "tdd verification recorded"],
     "goal_id": goal_id,
-    "id": "L-9999",
+    "id": ledger_id,
     "links": ["https://github.com/example/shiki-control-plane-test/pull/123"],
     "summary": "diagnose and tdd evidence for MergeGate contract test PR #123",
     "task_id": task_id,
     "timestamp": "2026-01-01T00:00:00+00:00",
     "type": "review",
 }
-(target / ".shiki" / "ledger" / "L-9999.json").write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n")
+(target / ".shiki" / "ledger" / f"{ledger_id}.json").write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n")
 
 gha = target / ".shiki" / "gha"
 gha.mkdir(parents=True, exist_ok=True)
@@ -177,14 +198,15 @@ pr = {
 (gha / "changed-files.txt").write_text("src/audit/query.py\n")
 cca = {
     "verdict": "complete",
+    "summary": "fixture complete",
     "goal_id": goal_id,
     "task_id": task_id,
     "pr": 123,
     "head_sha": "abc123",
     "can_merge": True,
     "checklist": [],
-    "acceptance": [],
-    "mergegate": {},
+    "acceptance": [{"id": "A1", "status": "pass", "evidence": "fixture"}],
+    "mergegate": {"required_checks": "pass"},
     "confidence": 1,
 }
 (gha / "cca-verdict.json").write_text(json.dumps(cca, indent=2, sort_keys=True) + "\n")
@@ -207,6 +229,98 @@ expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
   --result-file "$TARGET/.shiki/gha/mergegate-result.json"
 grep "outside declared task locks" /tmp/shiki-expected-fail.out >/dev/null
 printf 'src/audit/query.py\n' >"$TARGET/.shiki/gha/changed-files.txt"
+
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+path = target / ".shiki" / "gha" / "cca-verdict.json"
+cca = json.loads(path.read_text())
+del cca["head_sha"]
+path.write_text(json.dumps(cca, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json"
+grep "CCA verdict schema violation" /tmp/shiki-expected-fail.out >/dev/null
+
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+path = target / ".shiki" / "gha" / "cca-verdict.json"
+cca = json.loads(path.read_text())
+cca["head_sha"] = "abc123"
+cca["acceptance"] = []
+path.write_text(json.dumps(cca, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json"
+grep "CCA verdict acceptance evidence is empty" /tmp/shiki-expected-fail.out >/dev/null
+
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+path = target / ".shiki" / "gha" / "cca-verdict.json"
+cca = json.loads(path.read_text())
+cca["acceptance"] = [{"id": "A1", "status": "pass", "evidence": "fixture"}]
+cca["checklist"] = [{"id": "CCA-99", "status": "fail", "blocking": True}]
+path.write_text(json.dumps(cca, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json"
+grep "blocking failed checklist items" /tmp/shiki-expected-fail.out >/dev/null
+
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+path = target / ".shiki" / "gha" / "cca-verdict.json"
+cca = json.loads(path.read_text())
+cca["checklist"] = []
+cca["task_id"] = "T-9999"
+path.write_text(json.dumps(cca, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json"
+grep "CCA task_id" /tmp/shiki-expected-fail.out >/dev/null
+
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+task_id = sys.argv[2]
+path = target / ".shiki" / "gha" / "cca-verdict.json"
+cca = json.loads(path.read_text())
+cca["task_id"] = task_id
+path.write_text(json.dumps(cca, indent=2, sort_keys=True) + "\n")
+PY
 
 python3 - "$TARGET" <<'PY'
 import json

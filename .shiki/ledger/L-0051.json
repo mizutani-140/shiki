@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-0008.json"
+  ],
+  "goal_id": "G-0008",
+  "id": "L-0051",
+  "links": [],
+  "summary": "Goal registered: \u6700\u7d42\u5224\u5b9a\u30ec\u30d3\u30e5\u30fc\u8868\u306eP0/P1 gate\u6307\u6458\u3092\u89e3\u6d88",
+  "task_id": null,
+  "timestamp": "2026-06-01T02:10:13+00:00",
+  "type": "goal-created"
+}
