@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0019.json"
+  ],
+  "goal_id": "G-0010",
+  "id": "L-0069",
+  "links": [],
+  "summary": "Task T-0019 status changed to review",
+  "task_id": "T-0019",
+  "timestamp": "2026-06-01T04:31:52+00:00",
+  "type": "check"
+}

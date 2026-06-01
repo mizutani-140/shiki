@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0020.json"
+  ],
+  "goal_id": "G-0011",
+  "id": "L-0071",
+  "links": [],
+  "summary": "Task registered: align skill registry and schema vocabularies",
+  "task_id": "T-0020",
+  "timestamp": "2026-06-01T03:22:51+00:00",
+  "type": "task-registered"
+}

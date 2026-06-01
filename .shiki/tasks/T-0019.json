@@ -1,45 +1,35 @@
 {
   "acceptance_checks": [
-    "Validator rejects required skills without skills/engineering/<skill>/SKILL.md",
-    "Goal, ledger, and CCA verdict schemas encode the current Shiki vocabulary",
-    "Ledger docs use id/type and hyphenated event types matching schema",
-    "install-target copies skills/engineering so target validators can enforce filesystem-backed skills",
-    "validate_shiki.py and all scripts/test_shiki_*.sh pass"
+    "Prepare CCA schema emits a fixed shallow transport schema independent of PR-branch strict verdict schema",
+    "scripts/enforce_cca_verdict.py still validates STRUCTURED_OUTPUT against .shiki/schemas/cca-verdict.schema.json",
+    "Validate Shiki mirror passes"
   ],
   "assigned_runtime": "codex",
   "dependencies": [],
-  "expected_branch": "shiki/t-0019-align-skill-registry-and-schema-vocabularies",
-  "expected_pr": 27,
+  "expected_branch": "shiki/bootstrap-cca-transport-schema",
+  "expected_pr": 28,
   "github_issue": null,
   "goal_id": "G-0010",
   "id": "T-0019",
   "ledger_evidence": [
     "L-0067",
-    "L-0068"
+    "L-0068",
+    "L-0069"
   ],
   "locks": [
-    "path:skills/engineering/shiki/SKILL.md",
-    "path:scripts/validate_shiki.py",
-    "path:.shiki/schemas/goal.schema.json",
-    "path:.shiki/schemas/ledger.schema.json",
-    "path:.shiki/schemas/cca-verdict.schema.json",
-    "path:docs/agents/ledger-schema.md",
-    "path:docs/agents/completion-check-agent.md",
-    "path:.github/prompts/cca-completion-check.md",
-    "path:scripts/test_shiki_control_plane.sh",
-    "path:scripts/shiki.py",
-    "path:skills/engineering/**",
+    "path:.github/workflows/shiki-cca-completion.yml",
     "path:.shiki/**"
   ],
   "non_goals": [
-    "Changing CCA workflow behavior",
-    "Changing MergeGate policy semantics beyond schema/docs consistency"
+    "Changing strict CCA verdict domain schema",
+    "Changing MergeGate policy semantics",
+    "Changing permissions or tool allowlists"
   ],
   "required_skills": [
     "shiki"
   ],
   "risk_level": "low",
-  "scope": "skills/engineering/shiki/SKILL.md, skills/engineering registry deployment, scripts/validate_shiki.py, scripts/shiki.py, .shiki/schemas/{goal,ledger,cca-verdict}.schema.json, docs/agents/{ledger-schema,completion-check-agent}.md, .github/prompts/cca-completion-check.md, scripts/test_shiki_control_plane.sh",
+  "scope": ".github/workflows/shiki-cca-completion.yml only: replace PR-branch strict schema transport with a fixed shallow transport schema; keep strict validation in enforce_cca_verdict.py",
   "status": "review",
-  "title": "align skill registry and schema vocabularies"
+  "title": "decouple CCA transport schema from strict verdict schema"
 }

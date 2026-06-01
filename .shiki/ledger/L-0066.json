@@ -6,8 +6,8 @@
   "goal_id": "G-0010",
   "id": "L-0066",
   "links": [],
-  "summary": "Goal registered: schema hardening: skill registry and vocabulary alignment",
+  "summary": "Goal registered: CCA bootstrap: decouple Claude transport schema from strict verdict validation",
   "task_id": null,
-  "timestamp": "2026-06-01T03:22:39+00:00",
+  "timestamp": "2026-06-01T04:28:35+00:00",
   "type": "goal-created"
 }
