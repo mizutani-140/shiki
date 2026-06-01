@@ -13,12 +13,15 @@
   "created_at": "2026-06-01T03:22:39+00:00",
   "github_issue": null,
   "id": "G-0011",
+  "ledger_evidence": [
+    "L-0075"
+  ],
   "non_goals": [],
   "outcome": "Shiki skill registry, JSON schemas, validator checks, and ledger docs share one filesystem-backed vocabulary.",
   "required_skills": [
     "shiki"
   ],
   "risk_level": "low",
-  "status": "planned",
+  "status": "complete",
   "title": "schema hardening: skill registry and vocabulary alignment"
 }

@@ -1,0 +1,20 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0020.json",
+    "https://github.com/mizutani-140/shiki/pull/29",
+    "https://github.com/mizutani-140/shiki/pull/27",
+    "merge commit 3c45bbe"
+  ],
+  "goal_id": "G-0011",
+  "id": "L-0074",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/29",
+    "https://github.com/mizutani-140/shiki/pull/27",
+    "https://github.com/mizutani-140/shiki/commit/3c45bbe"
+  ],
+  "summary": "Task T-0020 completed after PR #27 merged through normal CCA, Claude review, Validate, MergeGate metadata, and MergeGate policy checks.",
+  "task_id": "T-0020",
+  "timestamp": "2026-06-01T05:06:33+00:00",
+  "type": "check"
+}

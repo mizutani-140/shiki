@@ -1,0 +1,27 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-01T05:06:33+00:00",
+  "evidence": [
+    ".shiki/tasks/T-0020.json",
+    "skills/engineering/shiki/SKILL.md",
+    ".shiki/schemas/goal.schema.json",
+    ".shiki/schemas/ledger.schema.json",
+    ".shiki/schemas/cca-verdict.schema.json",
+    "docs/agents/ledger-schema.md",
+    "https://github.com/mizutani-140/shiki/pull/29",
+    "https://github.com/mizutani-140/shiki/pull/27",
+    "merge commit 3c45bbe"
+  ],
+  "goal_id": "G-0011",
+  "id": "R-0009",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "low"
+  },
+  "status": "complete",
+  "summary": "Goal G-0011 complete: Shiki skill registry, schema vocabularies, ledger docs, CCA strict verdict schema, and target install skill deployment are aligned."
+}
