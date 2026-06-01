@@ -1,0 +1,19 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-01T02:52:37+00:00",
+  "evidence": [
+    ".shiki/tasks/T-0011.json"
+  ],
+  "goal_id": "G-0002",
+  "id": "R-0006",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "low"
+  },
+  "status": "complete",
+  "summary": "Goal G-0002 complete: CI\u4fee\u5fa9: hermetic\u81ea\u5df1\u30c6\u30b9\u30c8\u306bgit identity\u3092\u8a2d\u5b9a"
+}

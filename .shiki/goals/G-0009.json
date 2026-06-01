@@ -1,0 +1,29 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "Shiki Validate workflow \u304c scripts/*.py \u3068 scripts/test_shiki_*.sh \u5168\u4ef6\u3092\u5b9f\u884c\u3059\u308b",
+    "completion-check-agent docs \u306e minimum example \u304c CCA schema required fields \u3068\u4e00\u81f4\u3059\u308b",
+    "orchestrator workflow \u304ctop-level read-only permissions\u3067\u3001write\u306fworkflow_dispatch execute-github\u5c02\u7528job\u306b\u9650\u5b9a\u3055\u308c\u3001evidence PR\u3092\u958b\u304f",
+    "Goal lifecycle debt \u304c\u89e3\u6d88\u3055\u308c\u3001active goal\u306e\u5168\u5b50task done\u306a\u3089complete\u3092validator\u304c\u8981\u6c42\u3059\u308b",
+    "\u5168 scripts/test_shiki_*.sh\u3001validate_shiki.py\u3001py_compile\u3001git diff --check \u304cgreen"
+  ],
+  "created_at": "2026-06-01T02:48:19+00:00",
+  "github_issue": null,
+  "id": "G-0009",
+  "ledger_evidence": [
+    "L-0065"
+  ],
+  "non_goals": [],
+  "outcome": "\u6dfb\u4ed8\u30c6\u30ad\u30b9\u30c8\u306eP1-1\u301cP1-4\u304c\u516c\u958bmain\u4e0a\u3067\u89e3\u6d88\u3055\u308c\u3001CI\u3068validator\u304c\u518d\u767a\u3092\u9632\u3050",
+  "required_skills": [
+    "diagnose",
+    "tdd"
+  ],
+  "risk_level": "low",
+  "status": "complete",
+  "title": "\u518d\u30ec\u30d3\u30e5\u30fcP1\u8ffd\u88dc: CI coverage/docs/orchestrator/Goal lifecycle\u4fee\u6b63"
+}

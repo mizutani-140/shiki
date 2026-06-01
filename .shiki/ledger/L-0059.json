@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-0006.json"
+  ],
+  "goal_id": "G-0002",
+  "id": "L-0059",
+  "links": [],
+  "summary": "Goal G-0002 complete: CI\u4fee\u5fa9: hermetic\u81ea\u5df1\u30c6\u30b9\u30c8\u306bgit identity\u3092\u8a2d\u5b9a",
+  "task_id": null,
+  "timestamp": "2026-06-01T02:52:37+00:00",
+  "type": "completion"
+}

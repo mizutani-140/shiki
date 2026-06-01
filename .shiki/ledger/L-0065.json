@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-0008.json"
+  ],
+  "goal_id": "G-0009",
+  "id": "L-0065",
+  "links": [],
+  "summary": "Goal G-0009 complete: \u518d\u30ec\u30d3\u30e5\u30fcP1\u8ffd\u88dc: CI coverage/docs/orchestrator/Goal lifecycle\u4fee\u6b63",
+  "task_id": null,
+  "timestamp": "2026-06-01T03:01:35+00:00",
+  "type": "completion"
+}

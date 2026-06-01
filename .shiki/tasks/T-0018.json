@@ -1,0 +1,41 @@
+{
+  "acceptance_checks": [
+    "shiki-validate.yml \u304c python3 -m py_compile scripts/*.py \u3068 for script in scripts/test_shiki_*.sh loop \u3092\u5b9f\u884c\u3059\u308b",
+    "completion-check-agent.md \u306eminimum JSON example\u306b head_sha \u3068 can_merge \u304c\u542b\u307e\u308c\u308b",
+    "shiki-orchestrator.yml \u306etop-level permissions\u306fread-only\u3067\u3001write permissions\u306fcommit-evidence job\u3060\u3051\u306b\u3042\u308b",
+    "orchestrator evidence \u306fmain\u76f4push\u3067\u306f\u306a\u304f evidence branch push + PR\u4f5c\u6210\u306b\u306a\u308b",
+    "validate_shiki.py \u304cCI coverage/docs/orchestrator permissions/active goal lifecycle\u3092\u691c\u67fb\u3059\u308b",
+    "G-0002/G-0003 \u306fcomplete\u3001G-0001\u306fhistorical\u3068\u3057\u3066\u660e\u793a\u3055\u308c\u308b",
+    "\u5168 scripts/test_shiki_*.sh\u3001validate_shiki.py\u3001py_compile\u3001git diff --check \u304cgreen"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/fix-p1-review-followups",
+  "expected_pr": 26,
+  "github_issue": null,
+  "goal_id": "G-0009",
+  "id": "T-0018",
+  "ledger_evidence": [
+    "L-0058",
+    "L-0062",
+    "L-0063",
+    "L-0064"
+  ],
+  "locks": [
+    "path:.github/workflows/shiki-validate.yml",
+    "path:.github/workflows/shiki-orchestrator.yml",
+    "path:docs/agents/completion-check-agent.md",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:.shiki/**"
+  ],
+  "non_goals": [],
+  "required_skills": [
+    "diagnose",
+    "tdd"
+  ],
+  "risk_level": "low",
+  "scope": ".github/workflows/shiki-validate.yml, .github/workflows/shiki-orchestrator.yml, docs/agents/completion-check-agent.md, scripts/validate_shiki.py, .shiki goal lifecycle artifacts \u3092\u4fee\u6b63\u3057\u3001\u6dfb\u4ed8P1\u6307\u6458\u3092validator\u3068CI\u3067\u518d\u767a\u9632\u6b62\u3059\u308b",
+  "status": "done",
+  "title": "P1 follow-up gate coverage/docs/orchestrator/lifecycle\u3092\u4fee\u6b63"
+}

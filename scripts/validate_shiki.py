@@ -91,7 +91,7 @@ RUNTIMES = {
     "other",
 }
 RISK_LEVELS = {"low", "medium", "high", "critical"}
-GOAL_STATUSES = {"planned", "ready", "blocked", "complete"}
+GOAL_STATUSES = {"planned", "ready", "blocked", "complete", "archived", "historical"}
 TASK_STATUSES = {"planned", "ready", "running", "blocked", "review", "repair-needed", "done"}
 LEDGER_TYPES = {
     "goal-created",
@@ -537,6 +537,36 @@ def validate_prompt_contract_paths() -> None:
                     raise ValidationError(f"{path}: references obsolete CCA schema path {wrong_path}")
 
 
+def validate_completion_check_docs() -> None:
+    docs_path = ROOT / "docs" / "agents" / "completion-check-agent.md"
+    text = docs_path.read_text(encoding="utf-8")
+    for field in ('"head_sha"', '"can_merge"'):
+        if field not in text:
+            raise ValidationError(f"{docs_path}: CCA minimum JSON example must include {field}")
+
+
+def validate_validate_workflow_coverage() -> None:
+    workflow_path = ROOT / ".github" / "workflows" / "shiki-validate.yml"
+    text = workflow_path.read_text(encoding="utf-8")
+    if "python3 -m py_compile scripts/*.py" not in text:
+        raise ValidationError(f"{workflow_path}: must compile all scripts/*.py files")
+    if "for script in scripts/test_shiki_*.sh" not in text or 'bash "$script"' not in text:
+        raise ValidationError(f"{workflow_path}: must run all scripts/test_shiki_*.sh contract tests")
+
+
+def top_level_permissions_block(text: str) -> str:
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line == "permissions:":
+            collected: list[str] = []
+            for follow in lines[index + 1 :]:
+                if follow and not follow.startswith(" "):
+                    break
+                collected.append(follow)
+            return "\n".join(collected)
+    return ""
+
+
 def validate_orchestrator_security() -> None:
     workflow_path = ROOT / ".github" / "workflows" / "shiki-orchestrator.yml"
     text = workflow_path.read_text(encoding="utf-8")
@@ -547,6 +577,22 @@ def validate_orchestrator_security() -> None:
     for association in ("OWNER", "MEMBER", "COLLABORATOR"):
         if association not in text:
             raise ValidationError(f"{workflow_path}: missing trusted author_association {association}")
+    top_permissions = top_level_permissions_block(text)
+    if "write" in top_permissions:
+        raise ValidationError(f"{workflow_path}: issue_comment workflow must not grant top-level write permissions")
+    for permission in ("contents: read", "issues: read", "pull-requests: read"):
+        if permission not in top_permissions:
+            raise ValidationError(f"{workflow_path}: top-level permissions must include {permission}")
+    if "commit-evidence:" not in text:
+        raise ValidationError(f"{workflow_path}: write permissions must be isolated in a commit-evidence job")
+    if "github.event_name == 'workflow_dispatch' && inputs.mode == 'execute-github'" not in text:
+        raise ValidationError(f"{workflow_path}: commit-evidence job must only run for workflow_dispatch execute-github")
+    if "contents: write" not in text or "issues: write" not in text or "pull-requests: write" not in text:
+        raise ValidationError(f"{workflow_path}: commit-evidence job must declare required write permissions explicitly")
+    if re.search(r"(?m)^\s*git push\s*$", text):
+        raise ValidationError(f"{workflow_path}: must not push directly to the current branch")
+    if "git push -u origin \"$evidence_branch\"" not in text or "gh pr create" not in text:
+        raise ValidationError(f"{workflow_path}: orchestrator evidence must land through an evidence branch PR")
 
 
 def validate_contract_schema_consistency() -> None:
@@ -578,12 +624,16 @@ def main() -> int:
     errors: list[str] = []
     task_dependencies: dict[str, list[str]] = {}
     known_goals: set[str] = set()
+    goal_payloads: dict[str, dict[str, Any]] = {}
+    task_payloads_by_goal: dict[str, list[dict[str, Any]]] = {}
 
     try:
         for schema in json_files(SHIKI / "schemas"):
             load_json(schema)
         validate_contract_schema_consistency()
         validate_prompt_contract_paths()
+        validate_completion_check_docs()
+        validate_validate_workflow_coverage()
         validate_issue_forms()
         validate_orchestrator_security()
 
@@ -609,6 +659,7 @@ def main() -> int:
             if goal_path.name != f"{goal_id}.json":
                 raise ValidationError(f"{goal_path}: file name must match goal id {goal_id}")
             known_goals.add(goal_id)
+            goal_payloads[goal_id] = data
 
         for task_path in task_paths:
             data = load_json(task_path)
@@ -623,6 +674,7 @@ def main() -> int:
             if goal_id not in known_goals:
                 raise ValidationError(f"{task_path}: goal_id {goal_id} has no matching goal file")
             task_dependencies[task_id] = dependencies
+            task_payloads_by_goal.setdefault(goal_id, []).append(data)
 
         known_tasks = set(task_dependencies)
         for task_id, dependencies in task_dependencies.items():
@@ -631,6 +683,14 @@ def main() -> int:
                     raise ValidationError(f".shiki/tasks: {task_id} depends on unknown {dependency}")
 
         detect_cycles(Path(".shiki/tasks"), {task_id: deps for task_id, deps in task_dependencies.items()})
+
+        for goal_id, tasks in task_payloads_by_goal.items():
+            goal = goal_payloads[goal_id]
+            status = goal.get("status")
+            if status in {"archived", "historical"}:
+                continue
+            if tasks and all(task.get("status") == "done" for task in tasks) and status != "complete":
+                raise ValidationError(f".shiki/goals/{goal_id}.json: active goal has all child tasks done but status is {status!r}, expected 'complete'")
 
         for dag_path in dag_paths:
             data = load_json(dag_path)

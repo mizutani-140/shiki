@@ -9,6 +9,9 @@
   "created_at": "2026-05-29T09:49:00+00:00",
   "github_issue": null,
   "id": "G-0002",
+  "ledger_evidence": [
+    "L-0059"
+  ],
   "non_goals": [
     "\u30d7\u30ed\u30c0\u30af\u30c8/\u30e9\u30f3\u30bf\u30a4\u30e0\u6319\u52d5\u306e\u5909\u66f4"
   ],
@@ -17,6 +20,6 @@
     "diagnose"
   ],
   "risk_level": "low",
-  "status": "planned",
+  "status": "complete",
   "title": "CI\u4fee\u5fa9: hermetic\u81ea\u5df1\u30c6\u30b9\u30c8\u306bgit identity\u3092\u8a2d\u5b9a"
 }
