@@ -9,6 +9,15 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from shiki_contracts import (
+    CANONICAL_CCA_VERDICT_SCHEMA_PATH,
+    CONTRACT_SCHEMA_SCAN_PATHS,
+    CONTRACT_SOURCE_OF_TRUTH_FILES,
+    OBSOLETE_CCA_VERDICT_SCHEMA_PATH,
+    RUNTIME_NAMES,
+    canonical_source_of_truth_markdown,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SHIKI = ROOT / ".shiki"
@@ -80,17 +89,7 @@ START_REQUIRED = {
     "created_at",
 }
 
-RUNTIMES = {
-    "codex",
-    "codex-front",
-    "claude-code",
-    "claude-code-action",
-    "github-cca",
-    "github-actions",
-    "hermes-runner",
-    "human",
-    "other",
-}
+RUNTIMES = set(RUNTIME_NAMES)
 RISK_LEVELS = {"low", "medium", "high", "critical"}
 GOAL_STATUSES = {"planned", "ready", "blocked", "complete", "archived", "historical"}
 TASK_STATUSES = {"planned", "ready", "running", "blocked", "review", "repair-needed", "done"}
@@ -542,12 +541,29 @@ def validate_issue_forms() -> None:
 
 
 def validate_prompt_contract_paths() -> None:
-    wrong_path = ".shiki/templates/cca-verdict.schema.json"
-    for base in (ROOT / ".github", ROOT / "docs"):
-        for path in base.rglob("*"):
-            if path.is_file() and path.suffix in {".md", ".yml", ".yaml"}:
-                if wrong_path in path.read_text(encoding="utf-8"):
-                    raise ValidationError(f"{path}: references obsolete CCA schema path {wrong_path}")
+    suffixes = {".md", ".yml", ".yaml", ".json", ".toml"}
+    for relative in CONTRACT_SCHEMA_SCAN_PATHS:
+        base = ROOT / relative
+        if not base.exists():
+            continue
+        paths = [base] if base.is_file() else list(base.rglob("*"))
+        for path in paths:
+            if path.is_file() and path.suffix in suffixes:
+                if OBSOLETE_CCA_VERDICT_SCHEMA_PATH in path.read_text(encoding="utf-8"):
+                    raise ValidationError(
+                        f"{path}: references obsolete CCA schema path "
+                        f"{OBSOLETE_CCA_VERDICT_SCHEMA_PATH}; use {CANONICAL_CCA_VERDICT_SCHEMA_PATH}"
+                    )
+
+
+def validate_source_of_truth_contracts() -> None:
+    expected = canonical_source_of_truth_markdown()
+    for relative in CONTRACT_SOURCE_OF_TRUTH_FILES:
+        path = ROOT / relative
+        if not path.exists():
+            raise ValidationError(f"{path}: contract source-of-truth file is missing")
+        if expected not in path.read_text(encoding="utf-8"):
+            raise ValidationError(f"{path}: missing canonical source-of-truth block")
 
 
 def validate_completion_check_docs() -> None:
@@ -691,6 +707,7 @@ def main() -> int:
             load_json(schema)
         validate_contract_schema_consistency()
         validate_prompt_contract_paths()
+        validate_source_of_truth_contracts()
         validate_completion_check_docs()
         validate_validate_workflow_coverage()
         validate_issue_forms()

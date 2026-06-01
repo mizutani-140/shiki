@@ -27,6 +27,7 @@ cd "$ROOT"
 python3 scripts/validate_shiki.py
 python3 -m py_compile scripts/shiki.py
 python3 -m py_compile scripts/shiki_schema.py
+python3 -m py_compile scripts/shiki_contracts.py
 python3 scripts/shiki.py --help | grep -E "goal|issue|dispatch|repair" >/dev/null
 python3 scripts/shiki.py runner --help | grep "codex" >/dev/null
 python3 scripts/shiki.py goal --help | grep "complete" >/dev/null
@@ -46,6 +47,13 @@ grep "contents: read" .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "commit-evidence:" .github/workflows/shiki-orchestrator.yml >/dev/null
 grep 'git push -u origin "$evidence_branch"' .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "gh pr create" .github/workflows/shiki-orchestrator.yml >/dev/null
+grep "CANONICAL_CCA_VERDICT_SCHEMA_PATH" scripts/shiki_contracts.py >/dev/null
+grep "CANONICAL_SOURCE_OF_TRUTH_ORDER" scripts/shiki_contracts.py >/dev/null
+grep ".shiki/schemas/cca-verdict.schema.json" AGENTS.md SYSTEM_PROMPT.md CLAUDE.md >/dev/null
+if grep -R ".shiki/templates/cca-verdict.schema.json" AGENTS.md SYSTEM_PROMPT.md CLAUDE.md .codex .claude .github/prompts docs/agents skills/engineering >/tmp/shiki-obsolete-schema-paths.out; then
+  cat /tmp/shiki-obsolete-schema-paths.out >&2
+  exit 1
+fi
 test -f skills/engineering/shiki/SKILL.md
 grep '"status"' .shiki/schemas/goal.schema.json >/dev/null
 grep '"historical"' .shiki/schemas/goal.schema.json >/dev/null
@@ -75,6 +83,33 @@ mkdir -p "$TARGET"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-control-install.out
 test -f "$TARGET/skills/engineering/shiki/SKILL.md"
 test -f "$TARGET/skills/engineering/grill-with-docs/SKILL.md"
+
+printf '\nObsolete schema path: .shiki/templates/cca-verdict.schema.json\n' >>"$TARGET/AGENTS.md"
+expect_fail python3 "$TARGET/scripts/validate_shiki.py"
+grep "obsolete CCA schema path" /tmp/shiki-expected-fail.out >/dev/null
+python3 - "$TARGET/AGENTS.md" <<'PY'
+import pathlib
+path = pathlib.Path(__import__("sys").argv[1])
+text = path.read_text()
+path.write_text(text.replace("\nObsolete schema path: .shiki/templates/cca-verdict.schema.json\n", ""))
+PY
+
+python3 - "$TARGET/SYSTEM_PROMPT.md" <<'PY'
+import pathlib
+import sys
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+path.write_text(text.replace("GitHub Issues, Pull Requests, Checks, Reviews, comments, and merge evidence", "Current conversation"))
+PY
+expect_fail python3 "$TARGET/scripts/validate_shiki.py"
+grep "canonical source-of-truth block" /tmp/shiki-expected-fail.out >/dev/null
+python3 - "$TARGET/SYSTEM_PROMPT.md" <<'PY'
+import pathlib
+import sys
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+path.write_text(text.replace("Current conversation", "GitHub Issues, Pull Requests, Checks, Reviews, comments, and merge evidence"))
+PY
 
 cd "$TARGET"
 git init -b main >/tmp/shiki-control-git-init.out

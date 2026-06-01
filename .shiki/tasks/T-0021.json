@@ -1,0 +1,46 @@
+{
+  "acceptance_checks": [
+    "Authority order is canonical and consistent across all contract surfaces.",
+    "All obsolete CCA schema references are replaced or rejected by validation.",
+    "Canonical contract constants are centralized for schema paths, required checks, runtime names, source-of-truth order, and state directories.",
+    "Validator detects authority-order and CCA-schema-path drift.",
+    "Regression tests cover authority-order drift and obsolete CCA schema path cases."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/t-0021-normalize-shiki-contracts-and-source-of-truth",
+  "expected_pr": null,
+  "github_issue": 31,
+  "goal_id": "G-0012",
+  "id": "T-0021",
+  "ledger_evidence": [
+    "L-0077",
+    "L-0087",
+    "L-0088",
+    "L-0090",
+    "L-0091"
+  ],
+  "locks": [
+    "path:AGENTS.md",
+    "path:SYSTEM_PROMPT.md",
+    "path:CLAUDE.md",
+    "path:.codex/**",
+    "path:.claude/**",
+    "path:.github/prompts/**",
+    "path:docs/agents/**",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_*.sh"
+  ],
+  "non_goals": [
+    "Do not alter runtime behavior except to enforce corrected contracts."
+  ],
+  "required_skills": [
+    "grill-with-docs",
+    "improve-codebase-architecture",
+    "tdd"
+  ],
+  "risk_level": "high",
+  "scope": "Align authority order, CCA schema paths, canonical constants, and validator coverage across contracts, runtime wrappers, workflows, docs, and skills.",
+  "status": "review",
+  "title": "Normalize Shiki contracts and source-of-truth"
+}

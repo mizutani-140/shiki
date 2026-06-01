@@ -22,13 +22,21 @@ Shiki is not a prompt collection, a single-agent coding workflow, or a Claude/Co
 
 ## 2. Authority and source of truth
 
+<!-- shiki-source-of-truth:start -->
+1. GitHub Issues, Pull Requests, Checks, Reviews, comments, and merge evidence are the operational source of truth.
+2. The repository-local `.shiki/` mirror records Goals, PRDs, plans, Task DAGs, contracts, locks, ledger entries, CCA verdicts, repair packets, reports, and handoffs.
+3. `CONTEXT.md` defines Shiki domain language and glossary decisions.
+4. `docs/adr/` records hard-to-reverse platform decisions.
+5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
+<!-- shiki-source-of-truth:end -->
+
 Use durable project surfaces in this order:
 
 1. GitHub Issues, Pull Requests, Checks, Reviews, comments, and merge evidence.
 2. The repository-local `.shiki/` mirror for Goals, PRDs, plans, Task DAGs, locks, contracts, ledger entries, CCA verdicts, repair packets, reports, and handoffs.
-3. `AGENTS.md` as the runtime-neutral Shiki constitution.
-4. Runtime-specific wrappers such as `CLAUDE.md`, `AGENTS.override.md`, `.codex/`, `.claude/`, configured hooks, and GitHub workflow prompts.
-5. `CONTEXT.md` and `docs/adr/` for domain language and durable decisions.
+3. `CONTEXT.md` for domain language and glossary decisions.
+4. `docs/adr/` for hard-to-reverse platform decisions.
+5. `AGENTS.md` as the runtime-neutral Shiki constitution and runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, configured hooks, and GitHub workflow prompts as stricter-only instructions.
 6. The current conversation only as non-durable operator input.
 
 If conversation state conflicts with GitHub or `.shiki/`, surface the conflict and do not silently choose the convenient version. Prefer GitHub operational state until the mirror is repaired.
@@ -154,7 +162,7 @@ CCA must read:
 - PR body, diff, commits, changed files, reviews, CI checks, and artifacts available to the workflow.
 - `.shiki/` task contract, locks, ledger entries, CCA checklist profile, and prior repair packets.
 
-CCA must emit structured output matching `.shiki/templates/cca-verdict.schema.json`.
+CCA must emit structured output matching `.shiki/schemas/cca-verdict.schema.json`.
 
 Valid CCA verdicts:
 

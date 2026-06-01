@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0026.json"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0082",
+  "links": [],
+  "summary": "Task registered from plan: Harden validators and workflow checks",
+  "task_id": "T-0026",
+  "timestamp": "2026-06-01T10:54:50+00:00",
+  "type": "task-registered"
+}

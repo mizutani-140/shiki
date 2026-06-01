@@ -1,0 +1,49 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue #30 records the Goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "Each task has a PR using the Shiki PR template.",
+    "Each task PR has passing validation and test output.",
+    "Each task PR has CCA complete verdict and MergeGate pass evidence.",
+    "Ledger entries record work, checks, review, CCA, MergeGate, repairs, and completion judgment."
+  ],
+  "completion_conditions": [
+    "All P0, P1, and P2 remediation checklist items from GitHub Issue #30 are complete or Guardian-approved as non-goals.",
+    "Each checked item links to durable evidence: PR, commit, test output, CI run, CCA verdict, MergeGate result, review, ledger entry, or documented Guardian decision.",
+    "Validation, Python compile, all Shiki contract tests, CCA, MergeGate, review, and ledger evidence pass for each task PR.",
+    "Final Goal completion judgment records why Shiki is safe enough for self-hosted, team, and production repository use."
+  ],
+  "created_at": "2026-06-01T10:54:50+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "source": "GitHub Issue #30 and attached external review",
+    "status": "complete",
+    "summary": "External review identified contract drift, bootstrap safety risks, MergeGate/review enforcement gaps, race-prone state handling, mutable evidence concerns, maintainability debt, packaging gaps, and missing adversarial tests. This plan decomposes remediation into bounded Shiki task PRs."
+  },
+  "id": "G-0012",
+  "ledger_evidence": [
+    "L-0076"
+  ],
+  "non_goals": [
+    "Do not add unrelated product features.",
+    "Do not rewrite the whole repository unless a bounded task proves that a smaller change cannot satisfy acceptance.",
+    "Do not replace GitHub-first operation.",
+    "Do not make API-key Codex automation the default path.",
+    "Do not weaken CCA, MergeGate, review, ledger, or Guardian concepts."
+  ],
+  "outcome": "Shiki can be safely used as a GitHub-first control plane and repository template without known contract contradictions, unsafe bootstrap behavior, weak MergeGate enforcement, race-prone state handling, or undocumented operational gaps.",
+  "required_skills": [
+    "grill-with-docs",
+    "zoom-out",
+    "to-prd",
+    "to-issues",
+    "triage",
+    "tdd",
+    "diagnose",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "source_plan": "P-0001",
+  "status": "planned",
+  "title": "Harden Shiki for safe self-hosted / team / production repository use"
+}

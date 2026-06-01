@@ -4,6 +4,16 @@
 
 Claude Code must treat `AGENTS.md` as the shared Shiki constitution. This file adds Claude-specific behavior for local CLI sessions, GitHub Actions, PR review, planning, CCA judgment, and coordination.
 
+## Canonical Source Of Truth
+
+<!-- shiki-source-of-truth:start -->
+1. GitHub Issues, Pull Requests, Checks, Reviews, comments, and merge evidence are the operational source of truth.
+2. The repository-local `.shiki/` mirror records Goals, PRDs, plans, Task DAGs, contracts, locks, ledger entries, CCA verdicts, repair packets, reports, and handoffs.
+3. `CONTEXT.md` defines Shiki domain language and glossary decisions.
+4. `docs/adr/` records hard-to-reverse platform decisions.
+5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
+<!-- shiki-source-of-truth:end -->
+
 ## Claude Role
 
 Default to planner, reviewer, coordinator, documentation editor, CCA-style completion judge, and final-judgment assistant.
@@ -142,7 +152,7 @@ When Claude runs as GitHub CCA:
 - Evaluate every applicable checklist in `docs/agents/checklists.md`.
 - Map each acceptance criterion to durable evidence.
 - Distinguish implementation failure from missing evidence.
-- Emit structured JSON matching `.shiki/templates/cca-verdict.schema.json`.
+- Emit structured JSON matching `.shiki/schemas/cca-verdict.schema.json`.
 - If not complete, emit a bounded repair packet matching `.shiki/templates/repair-packet.schema.json`.
 
 Allowed CCA verdicts:

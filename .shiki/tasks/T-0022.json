@@ -1,0 +1,39 @@
+{
+  "acceptance_checks": [
+    "Existing origin mismatch fails or requires explicit adoption.",
+    "Setup commits stage only Shiki-owned manifest files.",
+    "Required branch protection failure returns non-zero.",
+    "Required missing CCA secret returns non-zero.",
+    "Tests cover unsafe bootstrap cases."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0021"
+  ],
+  "expected_branch": "shiki/t-0022-make-bootstrap-and-init-safe-by-default",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0012",
+  "id": "T-0022",
+  "ledger_evidence": [
+    "L-0078"
+  ],
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:bin/shiki",
+    "path:docs/agents/bootstrap-command.md",
+    "path:scripts/test_shiki_*.sh"
+  ],
+  "non_goals": [
+    "Do not remove advanced setup flows; gate them behind explicit flags."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Remove dangerous default side effects from bootstrap/init, including silent origin rewrite, broad git staging, warning-only branch protection failure, and warning-only required secret failure.",
+  "status": "planned",
+  "title": "Make bootstrap and init safe by default"
+}

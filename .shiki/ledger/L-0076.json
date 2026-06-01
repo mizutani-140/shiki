@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-0012.json",
+    ".shiki/plans/P-0001.json"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0076",
+  "links": [],
+  "summary": "Goal registered from plan: Harden Shiki for safe self-hosted / team / production repository use",
+  "task_id": null,
+  "timestamp": "2026-06-01T10:54:50+00:00",
+  "type": "goal-created"
+}

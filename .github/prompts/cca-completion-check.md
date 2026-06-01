@@ -9,6 +9,16 @@ the directly referenced `.shiki` task/Goal/ledger files unless those reveal a
 blocker. Do not audit unrelated repository areas. Your final response must be
 only the structured verdict object required by `--json-schema`.
 
+## Canonical Source Of Truth
+
+<!-- shiki-source-of-truth:start -->
+1. GitHub Issues, Pull Requests, Checks, Reviews, comments, and merge evidence are the operational source of truth.
+2. The repository-local `.shiki/` mirror records Goals, PRDs, plans, Task DAGs, contracts, locks, ledger entries, CCA verdicts, repair packets, reports, and handoffs.
+3. `CONTEXT.md` defines Shiki domain language and glossary decisions.
+4. `docs/adr/` records hard-to-reverse platform decisions.
+5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
+<!-- shiki-source-of-truth:end -->
+
 ## Required Reading
 
 Read only the files needed to judge the PR contract. Prefer this order:

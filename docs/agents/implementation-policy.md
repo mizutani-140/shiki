@@ -21,6 +21,16 @@ Goal Seek
   -> Goal completion judgment
 ```
 
+## Canonical Source Of Truth
+
+<!-- shiki-source-of-truth:start -->
+1. GitHub Issues, Pull Requests, Checks, Reviews, comments, and merge evidence are the operational source of truth.
+2. The repository-local `.shiki/` mirror records Goals, PRDs, plans, Task DAGs, contracts, locks, ledger entries, CCA verdicts, repair packets, reports, and handoffs.
+3. `CONTEXT.md` defines Shiki domain language and glossary decisions.
+4. `docs/adr/` records hard-to-reverse platform decisions.
+5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
+<!-- shiki-source-of-truth:end -->
+
 ## Non-Negotiables
 
 1. **Planning precedes implementation.** Non-trivial Goals start with `grill-with-docs` and Context & Impact.

@@ -1,0 +1,357 @@
+{
+  "title": "Harden Shiki for safe self-hosted / team / production repository use",
+  "outcome": "Shiki can be safely used as a GitHub-first control plane and repository template without known contract contradictions, unsafe bootstrap behavior, weak MergeGate enforcement, race-prone state handling, or undocumented operational gaps.",
+  "completion_conditions": [
+    "All P0, P1, and P2 remediation checklist items from GitHub Issue #30 are complete or Guardian-approved as non-goals.",
+    "Each checked item links to durable evidence: PR, commit, test output, CI run, CCA verdict, MergeGate result, review, ledger entry, or documented Guardian decision.",
+    "Validation, Python compile, all Shiki contract tests, CCA, MergeGate, review, and ledger evidence pass for each task PR.",
+    "Final Goal completion judgment records why Shiki is safe enough for self-hosted, team, and production repository use."
+  ],
+  "non_goals": [
+    "Do not add unrelated product features.",
+    "Do not rewrite the whole repository unless a bounded task proves that a smaller change cannot satisfy acceptance.",
+    "Do not replace GitHub-first operation.",
+    "Do not make API-key Codex automation the default path.",
+    "Do not weaken CCA, MergeGate, review, ledger, or Guardian concepts."
+  ],
+  "risk_level": "critical",
+  "github_issue": 30,
+  "required_skills": [
+    "grill-with-docs",
+    "zoom-out",
+    "to-prd",
+    "to-issues",
+    "triage",
+    "tdd",
+    "diagnose",
+    "improve-codebase-architecture"
+  ],
+  "acceptance_evidence": [
+    "GitHub Issue #30 records the Goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "Each task has a PR using the Shiki PR template.",
+    "Each task PR has passing validation and test output.",
+    "Each task PR has CCA complete verdict and MergeGate pass evidence.",
+    "Ledger entries record work, checks, review, CCA, MergeGate, repairs, and completion judgment."
+  ],
+  "grill_with_docs": {
+    "status": "complete",
+    "source": "GitHub Issue #30 and attached external review",
+    "summary": "External review identified contract drift, bootstrap safety risks, MergeGate/review enforcement gaps, race-prone state handling, mutable evidence concerns, maintainability debt, packaging gaps, and missing adversarial tests. This plan decomposes remediation into bounded Shiki task PRs."
+  },
+  "tasks": [
+    {
+      "title": "Normalize Shiki contracts and source-of-truth",
+      "scope": "Align authority order, CCA schema paths, canonical constants, and validator coverage across contracts, runtime wrappers, workflows, docs, and skills.",
+      "non_goals": [
+        "Do not alter runtime behavior except to enforce corrected contracts."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:AGENTS.md",
+        "path:SYSTEM_PROMPT.md",
+        "path:CLAUDE.md",
+        "path:.codex/**",
+        "path:.claude/**",
+        "path:.github/prompts/**",
+        "path:docs/agents/**",
+        "path:scripts/validate_shiki.py",
+        "path:scripts/test_shiki_*.sh"
+      ],
+      "runtime": "codex",
+      "risk_level": "high",
+      "required_skills": [
+        "grill-with-docs",
+        "improve-codebase-architecture",
+        "tdd"
+      ],
+      "acceptance_checks": [
+        "Authority order is canonical and consistent across all contract surfaces.",
+        "All obsolete CCA schema references are replaced or rejected by validation.",
+        "Canonical contract constants are centralized for schema paths, required checks, runtime names, source-of-truth order, and state directories.",
+        "Validator detects authority-order and CCA-schema-path drift.",
+        "Regression tests cover authority-order drift and obsolete CCA schema path cases."
+      ]
+    },
+    {
+      "title": "Make bootstrap and init safe by default",
+      "scope": "Remove dangerous default side effects from bootstrap/init, including silent origin rewrite, broad git staging, warning-only branch protection failure, and warning-only required secret failure.",
+      "non_goals": [
+        "Do not remove advanced setup flows; gate them behind explicit flags."
+      ],
+      "dependencies": [
+        "Normalize Shiki contracts and source-of-truth"
+      ],
+      "locks": [
+        "path:scripts/shiki.py",
+        "path:bin/shiki",
+        "path:docs/agents/bootstrap-command.md",
+        "path:scripts/test_shiki_*.sh"
+      ],
+      "runtime": "codex",
+      "risk_level": "critical",
+      "required_skills": [
+        "diagnose",
+        "tdd",
+        "improve-codebase-architecture"
+      ],
+      "acceptance_checks": [
+        "Existing origin mismatch fails or requires explicit adoption.",
+        "Setup commits stage only Shiki-owned manifest files.",
+        "Required branch protection failure returns non-zero.",
+        "Required missing CCA secret returns non-zero.",
+        "Tests cover unsafe bootstrap cases."
+      ]
+    },
+    {
+      "title": "Enforce MergeGate, review, branch protection, and Guardian rules",
+      "scope": "Make required checks single-source, ensure required_review is enforced by GitHub branch protection, separate advisory AI review from blocking review, and make Guardian approval machine-readable.",
+      "non_goals": [
+        "Do not weaken CCA or MergeGate to make PRs easier to merge."
+      ],
+      "dependencies": [
+        "Normalize Shiki contracts and source-of-truth"
+      ],
+      "locks": [
+        "path:.shiki/config.yaml",
+        "path:.github/workflows/**",
+        "path:scripts/shiki.py",
+        "path:scripts/mergegate_check.py",
+        "path:.github/pull_request_template.md",
+        "path:CODEOWNERS",
+        "path:docs/agents/**"
+      ],
+      "runtime": "codex",
+      "risk_level": "critical",
+      "required_skills": [
+        "grill-with-docs",
+        "tdd",
+        "improve-codebase-architecture"
+      ],
+      "acceptance_checks": [
+        "Required checks are defined once and validated against workflow job names.",
+        "required_review true maps to at least one enforced approval.",
+        "Advisory AI review cannot satisfy blocking review.",
+        "Guardian approvals are checked through configured users or teams.",
+        "MergeGate blocks missing CCA, review, ledger, required checks, and Guardian evidence."
+      ]
+    },
+    {
+      "title": "Fix state concurrency, IDs, locks, and evidence integrity",
+      "scope": "Replace race-prone ID allocation, add safe state write semantics, unify lock matching, and prevent forged PR-local evidence from satisfying MergeGate.",
+      "non_goals": [
+        "Do not introduce an external database unless justified by ADR."
+      ],
+      "dependencies": [
+        "Normalize Shiki contracts and source-of-truth"
+      ],
+      "locks": [
+        "path:scripts/shiki.py",
+        "path:scripts/mergegate_check.py",
+        "path:.shiki/schemas/**",
+        "path:.shiki/README.md",
+        "path:docs/agents/**",
+        "path:scripts/test_shiki_*.sh"
+      ],
+      "runtime": "codex",
+      "risk_level": "critical",
+      "required_skills": [
+        "diagnose",
+        "tdd",
+        "improve-codebase-architecture"
+      ],
+      "acceptance_checks": [
+        "ID allocation is collision-resistant or based on GitHub identifiers.",
+        "State writes are atomic or safely retried.",
+        "Dispatch and MergeGate use the same lock matcher.",
+        "Lock matcher handles exact, glob, prefix, and documented semantic overlap.",
+        "Tests cover collisions, lock conflicts, and forged evidence."
+      ]
+    },
+    {
+      "title": "Add manifest and align .shiki layout",
+      "scope": "Define Shiki-owned files, generated files, state directories, commit behavior, and local-only runtime files through a manifest and align README, code, and validators.",
+      "non_goals": [
+        "Do not redesign the entire state model in this task."
+      ],
+      "dependencies": [
+        "Normalize Shiki contracts and source-of-truth"
+      ],
+      "locks": [
+        "path:.shiki/**",
+        "path:scripts/shiki.py",
+        "path:scripts/validate_shiki.py",
+        "path:docs/agents/**"
+      ],
+      "runtime": "codex",
+      "risk_level": "high",
+      "required_skills": [
+        "tdd",
+        "improve-codebase-architecture"
+      ],
+      "acceptance_checks": [
+        ".shiki manifest or equivalent exists.",
+        ".shiki README, actual tree, code constants, and validators agree.",
+        "Required empty directories are preserved or generated intentionally.",
+        "CI fails on layout drift."
+      ]
+    },
+    {
+      "title": "Harden validators and workflow checks",
+      "scope": "Move brittle string checks toward structured validation, add schema/workflow validation tests, and add actionlint/shellcheck or document why not.",
+      "non_goals": [
+        "Do not add heavyweight dependencies to the bootstrap shim unless isolated."
+      ],
+      "dependencies": [
+        "Normalize Shiki contracts and source-of-truth"
+      ],
+      "locks": [
+        "path:scripts/validate_shiki.py",
+        "path:.github/workflows/**",
+        "path:scripts/test_shiki_*.sh",
+        "path:docs/agents/**"
+      ],
+      "runtime": "codex",
+      "risk_level": "high",
+      "required_skills": [
+        "diagnose",
+        "tdd",
+        "improve-codebase-architecture"
+      ],
+      "acceptance_checks": [
+        "Workflow validation is structured where practical.",
+        "Schema validation strategy is explicit and tested.",
+        "Validator false-positive and false-negative cases are covered.",
+        "actionlint/shellcheck are integrated or rejected with durable rationale."
+      ]
+    },
+    {
+      "title": "Split architecture and define runtime/provider adapters",
+      "scope": "Refactor the monolithic CLI/control-plane script into maintainable modules while preserving bootstrap behavior and defining runtime/provider extension points.",
+      "non_goals": [
+        "Do not change user-facing commands unless compatibility is preserved or migration is documented."
+      ],
+      "dependencies": [
+        "Normalize Shiki contracts and source-of-truth",
+        "Make bootstrap and init safe by default"
+      ],
+      "locks": [
+        "path:scripts/shiki.py",
+        "path:bin/shiki",
+        "path:docs/**",
+        "path:tests/**"
+      ],
+      "runtime": "codex",
+      "risk_level": "high",
+      "required_skills": [
+        "zoom-out",
+        "tdd",
+        "improve-codebase-architecture"
+      ],
+      "acceptance_checks": [
+        "Bootstrap shim remains usable.",
+        "Config, GitHub, contracts, state, MergeGate, and runtime logic are separated.",
+        "Runtime registry or adapter contract exists.",
+        "GitHub host/protocol/provider assumptions are configurable.",
+        "doctor verifies operational readiness."
+      ]
+    },
+    {
+      "title": "Strengthen governance and evidence model",
+      "scope": "Make Guardian approval, CCA verdict evidence, ledger integrity, and mirror/generated/cache distinctions machine-checkable.",
+      "non_goals": [
+        "Do not require a paid external service."
+      ],
+      "dependencies": [
+        "Enforce MergeGate, review, branch protection, and Guardian rules",
+        "Fix state concurrency, IDs, locks, and evidence integrity"
+      ],
+      "locks": [
+        "path:.shiki/config.yaml",
+        "path:.shiki/schemas/**",
+        "path:scripts/mergegate_check.py",
+        "path:scripts/validate_shiki.py",
+        "path:docs/agents/**"
+      ],
+      "runtime": "codex",
+      "risk_level": "critical",
+      "required_skills": [
+        "grill-with-docs",
+        "tdd",
+        "improve-codebase-architecture"
+      ],
+      "acceptance_checks": [
+        "Guardian approvers are configured as users or teams.",
+        "CCA verdict evidence cannot be forged by PR file edits alone.",
+        "Ledger evidence has hash/check/artifact/signature cross-reference or documented equivalent.",
+        "Mirror, generated, cache, and local-only state are documented and validated.",
+        "Tests cover forged, stale, and missing governance evidence."
+      ]
+    },
+    {
+      "title": "Add distribution and onboarding documentation",
+      "scope": "Add root README, license/security/contribution docs, install/upgrade/rollback docs, release/versioning strategy, and clarify platform-vs-template boundaries.",
+      "non_goals": [
+        "Do not publish a release until P0 and P1 gates pass."
+      ],
+      "dependencies": [
+        "Normalize Shiki contracts and source-of-truth",
+        "Make bootstrap and init safe by default",
+        "Split architecture and define runtime/provider adapters"
+      ],
+      "locks": [
+        "path:README.md",
+        "path:LICENSE",
+        "path:SECURITY.md",
+        "path:CONTRIBUTING.md",
+        "path:docs/**",
+        "path:.github/workflows/**"
+      ],
+      "runtime": "codex",
+      "risk_level": "medium",
+      "required_skills": [
+        "grill-with-docs",
+        "to-prd"
+      ],
+      "acceptance_checks": [
+        "Root onboarding docs exist.",
+        "Security and contribution policy exist.",
+        "Install, upgrade, rollback, and migration are documented.",
+        "Versioning and release strategy are documented or implemented.",
+        "Platform runtime and target template responsibilities are clear."
+      ]
+    },
+    {
+      "title": "Add adversarial and regression test suite",
+      "scope": "Add tests for malicious PR mutation, fork PR limitations, duplicate IDs, lock conflicts, missing CCA, branch protection failure, schema drift, required check drift, and repair loop limits.",
+      "non_goals": [
+        "Do not fake passing tests by weakening validation."
+      ],
+      "dependencies": [
+        "Make bootstrap and init safe by default",
+        "Enforce MergeGate, review, branch protection, and Guardian rules",
+        "Fix state concurrency, IDs, locks, and evidence integrity",
+        "Harden validators and workflow checks"
+      ],
+      "locks": [
+        "path:scripts/test_shiki_*.sh",
+        "path:tests/**",
+        "path:fixtures/**",
+        "path:scripts/validate_shiki.py",
+        "path:scripts/mergegate_check.py"
+      ],
+      "runtime": "codex",
+      "risk_level": "high",
+      "required_skills": [
+        "diagnose",
+        "tdd"
+      ],
+      "acceptance_checks": [
+        "All P2.3 adversarial tests exist.",
+        "Tests run in CI.",
+        "Tests fail against representative broken fixtures.",
+        "Repair loop limit and repair packet content are tested."
+      ]
+    }
+  ]
+}

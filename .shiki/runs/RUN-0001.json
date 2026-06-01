@@ -1,0 +1,54 @@
+{
+  "blocked_task_ids": {
+    "T-0022": [
+      "dependencies are not complete"
+    ],
+    "T-0023": [
+      "dependencies are not complete"
+    ],
+    "T-0024": [
+      "dependencies are not complete"
+    ],
+    "T-0025": [
+      "dependencies are not complete"
+    ],
+    "T-0026": [
+      "dependencies are not complete"
+    ],
+    "T-0027": [
+      "dependencies are not complete"
+    ],
+    "T-0028": [
+      "dependencies are not complete"
+    ],
+    "T-0029": [
+      "dependencies are not complete"
+    ],
+    "T-0030": [
+      "dependencies are not complete"
+    ]
+  },
+  "created_at": "2026-06-01T10:54:50+00:00",
+  "dag": ".shiki/dag/G-0012.json",
+  "dispatchable_task_ids": [
+    "T-0021"
+  ],
+  "goal_id": "G-0012",
+  "id": "RUN-0001",
+  "plan_id": "P-0001",
+  "task_ids": [
+    "T-0021",
+    "T-0022",
+    "T-0023",
+    "T-0024",
+    "T-0025",
+    "T-0026",
+    "T-0027",
+    "T-0028",
+    "T-0029",
+    "T-0030"
+  ],
+  "worktrees": [
+    ".shiki/worktrees/T-0021.json"
+  ]
+}

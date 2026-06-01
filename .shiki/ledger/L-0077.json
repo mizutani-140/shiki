@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0021.json"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0077",
+  "links": [],
+  "summary": "Task registered from plan: Normalize Shiki contracts and source-of-truth",
+  "task_id": "T-0021",
+  "timestamp": "2026-06-01T10:54:50+00:00",
+  "type": "task-registered"
+}
