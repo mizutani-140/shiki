@@ -15,7 +15,8 @@
   "id": "T-0020",
   "ledger_evidence": [
     "L-0071",
-    "L-0072"
+    "L-0072",
+    "L-0073"
   ],
   "locks": [
     "path:skills/engineering/shiki/SKILL.md",

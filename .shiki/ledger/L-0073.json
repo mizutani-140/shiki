@@ -1,0 +1,16 @@
+{
+  "actor": "codex",
+  "evidence": [
+    ".shiki/tasks/T-0020.json",
+    "https://github.com/mizutani-140/shiki/pull/27"
+  ],
+  "goal_id": "G-0011",
+  "id": "L-0073",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/27"
+  ],
+  "summary": "Recorded PR #27 evidence for T-0020 MergeGate policy",
+  "task_id": "T-0020",
+  "timestamp": "2026-06-01T04:48:45Z",
+  "type": "check"
+}
