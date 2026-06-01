@@ -14,7 +14,7 @@
     "Final Goal completion judgment records why Shiki is safe enough for self-hosted, team, and production repository use."
   ],
   "created_at": "2026-06-01T10:54:50+00:00",
-  "github_issue": null,
+  "github_issue": 30,
   "grill_with_docs": {
     "source": "GitHub Issue #30 and attached external review",
     "status": "complete",
@@ -22,7 +22,8 @@
   },
   "id": "G-0012",
   "ledger_evidence": [
-    "L-0076"
+    "L-0076",
+    "L-0094"
   ],
   "non_goals": [
     "Do not add unrelated product features.",

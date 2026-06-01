@@ -48,10 +48,15 @@ grep "commit-evidence:" .github/workflows/shiki-orchestrator.yml >/dev/null
 grep 'git push -u origin "$evidence_branch"' .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "gh pr create" .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "CANONICAL_CCA_VERDICT_SCHEMA_PATH" scripts/shiki_contracts.py >/dev/null
+grep "CANONICAL_REPAIR_PACKET_SCHEMA_PATH" scripts/shiki_contracts.py >/dev/null
 grep "CANONICAL_SOURCE_OF_TRUTH_ORDER" scripts/shiki_contracts.py >/dev/null
 grep ".shiki/schemas/cca-verdict.schema.json" AGENTS.md SYSTEM_PROMPT.md CLAUDE.md >/dev/null
 if grep -R ".shiki/templates/cca-verdict.schema.json" AGENTS.md SYSTEM_PROMPT.md CLAUDE.md .codex .claude .github/prompts docs/agents skills/engineering >/tmp/shiki-obsolete-schema-paths.out; then
   cat /tmp/shiki-obsolete-schema-paths.out >&2
+  exit 1
+fi
+if grep -R ".shiki/templates/repair-packet.schema.json" AGENTS.md SYSTEM_PROMPT.md CLAUDE.md .codex .claude .github/prompts docs/agents skills/engineering >/tmp/shiki-obsolete-repair-schema-paths.out; then
+  cat /tmp/shiki-obsolete-repair-schema-paths.out >&2
   exit 1
 fi
 test -f skills/engineering/shiki/SKILL.md
@@ -92,6 +97,17 @@ import pathlib
 path = pathlib.Path(__import__("sys").argv[1])
 text = path.read_text()
 path.write_text(text.replace("\nObsolete schema path: .shiki/templates/cca-verdict.schema.json\n", ""))
+PY
+
+printf '\nObsolete repair path: .shiki/templates/repair-packet.schema.json\n' >>"$TARGET/CLAUDE.md"
+expect_fail python3 "$TARGET/scripts/validate_shiki.py"
+grep "obsolete repair packet schema path" /tmp/shiki-expected-fail.out >/dev/null
+python3 - "$TARGET/CLAUDE.md" <<'PY'
+import pathlib
+import sys
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+path.write_text(text.replace("\nObsolete repair path: .shiki/templates/repair-packet.schema.json\n", ""))
 PY
 
 python3 - "$TARGET/SYSTEM_PROMPT.md" <<'PY'

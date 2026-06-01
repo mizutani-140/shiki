@@ -11,9 +11,11 @@ from typing import Any
 
 from shiki_contracts import (
     CANONICAL_CCA_VERDICT_SCHEMA_PATH,
+    CANONICAL_REPAIR_PACKET_SCHEMA_PATH,
     CONTRACT_SCHEMA_SCAN_PATHS,
     CONTRACT_SOURCE_OF_TRUTH_FILES,
     OBSOLETE_CCA_VERDICT_SCHEMA_PATH,
+    OBSOLETE_REPAIR_PACKET_SCHEMA_PATH,
     RUNTIME_NAMES,
     canonical_source_of_truth_markdown,
 )
@@ -549,10 +551,16 @@ def validate_prompt_contract_paths() -> None:
         paths = [base] if base.is_file() else list(base.rglob("*"))
         for path in paths:
             if path.is_file() and path.suffix in suffixes:
-                if OBSOLETE_CCA_VERDICT_SCHEMA_PATH in path.read_text(encoding="utf-8"):
+                text = path.read_text(encoding="utf-8")
+                if OBSOLETE_CCA_VERDICT_SCHEMA_PATH in text:
                     raise ValidationError(
                         f"{path}: references obsolete CCA schema path "
                         f"{OBSOLETE_CCA_VERDICT_SCHEMA_PATH}; use {CANONICAL_CCA_VERDICT_SCHEMA_PATH}"
+                    )
+                if OBSOLETE_REPAIR_PACKET_SCHEMA_PATH in text:
+                    raise ValidationError(
+                        f"{path}: references obsolete repair packet schema path "
+                        f"{OBSOLETE_REPAIR_PACKET_SCHEMA_PATH}; use {CANONICAL_REPAIR_PACKET_SCHEMA_PATH}"
                     )
 
 

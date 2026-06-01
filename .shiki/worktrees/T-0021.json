@@ -19,7 +19,7 @@
     "path:scripts/test_shiki_*.sh"
   ],
   "path": "/Users/kio.mizutani/.worktrees/shiki-t-0021-normalize-shiki-contracts-and-sourc",
-  "pr": null,
+  "pr": 32,
   "runtime": "codex",
   "state": "registered",
   "task_id": "T-0021"

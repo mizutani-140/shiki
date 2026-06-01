@@ -153,7 +153,7 @@ When Claude runs as GitHub CCA:
 - Map each acceptance criterion to durable evidence.
 - Distinguish implementation failure from missing evidence.
 - Emit structured JSON matching `.shiki/schemas/cca-verdict.schema.json`.
-- If not complete, emit a bounded repair packet matching `.shiki/templates/repair-packet.schema.json`.
+- If not complete, emit a bounded repair packet matching `.shiki/schemas/repair-packet.schema.json`.
 
 Allowed CCA verdicts:
 

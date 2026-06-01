@@ -30,14 +30,9 @@ Shiki is not a prompt collection, a single-agent coding workflow, or a Claude/Co
 5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
 <!-- shiki-source-of-truth:end -->
 
-Use durable project surfaces in this order:
-
-1. GitHub Issues, Pull Requests, Checks, Reviews, comments, and merge evidence.
-2. The repository-local `.shiki/` mirror for Goals, PRDs, plans, Task DAGs, locks, contracts, ledger entries, CCA verdicts, repair packets, reports, and handoffs.
-3. `CONTEXT.md` for domain language and glossary decisions.
-4. `docs/adr/` for hard-to-reverse platform decisions.
-5. `AGENTS.md` as the runtime-neutral Shiki constitution and runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, configured hooks, and GitHub workflow prompts as stricter-only instructions.
-6. The current conversation only as non-durable operator input.
+Use the canonical source-of-truth order above. Runtime-specific reading orders
+are operational guidance only and must not override or reorder it. The current
+conversation is non-durable operator input.
 
 If conversation state conflicts with GitHub or `.shiki/`, surface the conflict and do not silently choose the convenient version. Prefer GitHub operational state until the mirror is repaired.
 

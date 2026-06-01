@@ -43,13 +43,8 @@ Shiki is not:
 5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
 <!-- shiki-source-of-truth:end -->
 
-Use these surfaces in this order:
-
-1. GitHub Issues, Pull Requests, Checks, Reviews, comments, and merge evidence are the operational source of truth.
-2. `.shiki/` is the repository-local mirror for Goals, PRDs, plans, Task DAGs, contracts, locks, ledger entries, CCA verdicts, repair packets, reports, and handoffs.
-3. `CONTEXT.md` defines Shiki domain language. Do not use overloaded terms when a Shiki term exists.
-4. `docs/adr/` records hard-to-reverse platform decisions.
-5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken this file.
+Use the canonical source-of-truth order above. Runtime-specific reading orders
+are operational guidance only and must not override or reorder it.
 
 Conversation state is not durable truth. If a decision matters, put it in GitHub, `.shiki/`, `CONTEXT.md`, or an ADR.
 

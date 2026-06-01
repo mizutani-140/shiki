@@ -9,6 +9,8 @@ from __future__ import annotations
 
 CANONICAL_CCA_VERDICT_SCHEMA_PATH = ".shiki/schemas/cca-verdict.schema.json"
 OBSOLETE_CCA_VERDICT_SCHEMA_PATH = ".shiki/templates/cca-verdict.schema.json"
+CANONICAL_REPAIR_PACKET_SCHEMA_PATH = ".shiki/schemas/repair-packet.schema.json"
+OBSOLETE_REPAIR_PACKET_SCHEMA_PATH = ".shiki/templates/repair-packet.schema.json"
 
 DEFAULT_REQUIRED_CHECKS = (
     "Validate Shiki mirror",
