@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0017.json"
+  ],
+  "goal_id": "G-0008",
+  "id": "L-0052",
+  "links": [],
+  "summary": "Task registered: CCA/MergeGate/mirror strictness \u3068\u516c\u958breview\u6307\u6458\u306e\u6b8bblocker\u3092\u4fee\u6b63",
+  "task_id": "T-0017",
+  "timestamp": "2026-06-01T02:10:29+00:00",
+  "type": "task-registered"
+}

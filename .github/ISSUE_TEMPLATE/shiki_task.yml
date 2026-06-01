@@ -1,7 +1,7 @@
 name: Shiki Task
-about: Create a vertical-slice Shiki task.
+description: Create a vertical-slice Shiki task.
 title: "[Task] "
-labels: ["task:blocked", "runtime:codex", "runtime:cca"]
+labels: ["shiki:planning", "runtime:codex", "mergegate:waiting"]
 body:
   - type: input
     id: parent

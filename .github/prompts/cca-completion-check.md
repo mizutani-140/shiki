@@ -38,7 +38,7 @@ Read:
 
 ## Output
 
-Return JSON matching `.shiki/templates/cca-verdict.schema.json`.
+Return JSON matching `.shiki/schemas/cca-verdict.schema.json`.
 
 Allowed verdicts:
 

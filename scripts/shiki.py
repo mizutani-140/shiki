@@ -44,6 +44,7 @@ TEMPLATE_PATHS = [
     ".github/workflows/shiki-orchestrator.yml",
     "docs/agents",
     "docs/adr",
+    "scripts/shiki_schema.py",
     "scripts/validate_shiki.py",
     "scripts/enforce_cca_verdict.py",
     "scripts/mergegate_check.py",
@@ -463,17 +464,30 @@ def start_target_value(args: argparse.Namespace) -> str:
 def scan_ids(target: Path, prefix: str) -> list[int]:
     pattern = re.compile(rf"\b{re.escape(prefix)}-([0-9]{{4,}})\b")
     numbers: list[int] = []
+    directories = {
+        "G": ["goals", "dag"],
+        "T": ["tasks"],
+        "L": ["ledger"],
+        "P": ["plans"],
+        "RUN": ["runs"],
+        "EXEC": ["runner"],
+        "SMOKE": ["smoke"],
+        "START": ["starts"],
+        "INBOX": ["inbox"],
+        "RP": ["repairs"],
+        "R": ["reports"],
+    }.get(prefix, [])
     base = target / ".shiki"
     if not base.exists():
         return numbers
+    for directory in directories:
+        for path in (base / directory).glob("*.json"):
+            for match in pattern.finditer(path.name):
+                numbers.append(int(match.group(1)))
+    if numbers or directories:
+        return numbers
     for path in base.rglob("*.json"):
         for match in pattern.finditer(path.name):
-            numbers.append(int(match.group(1)))
-        try:
-            text = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            continue
-        for match in pattern.finditer(text):
             numbers.append(int(match.group(1)))
     return numbers
 

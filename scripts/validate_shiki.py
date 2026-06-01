@@ -38,6 +38,16 @@ TASK_REQUIRED = {
     "ledger_evidence",
 }
 
+GOAL_REQUIRED = {
+    "id",
+    "title",
+    "outcome",
+    "completion_conditions",
+    "non_goals",
+    "risk_level",
+    "required_skills",
+    "acceptance_evidence",
+}
 DAG_REQUIRED = {"goal_id", "nodes", "edges"}
 LEDGER_REQUIRED = {"id", "timestamp", "goal_id", "type", "actor", "summary", "evidence"}
 PLAN_REQUIRED = {"id", "title", "outcome", "grill_with_docs", "tasks"}
@@ -81,6 +91,7 @@ RUNTIMES = {
     "other",
 }
 RISK_LEVELS = {"low", "medium", "high", "critical"}
+GOAL_STATUSES = {"planned", "ready", "blocked", "complete"}
 TASK_STATUSES = {"planned", "ready", "running", "blocked", "review", "repair-needed", "done"}
 LEDGER_TYPES = {
     "goal-created",
@@ -94,6 +105,21 @@ LEDGER_TYPES = {
     "mergegate",
     "completion",
     "handoff",
+}
+KNOWN_SKILLS = {
+    "setup-matt-pocock-skills",
+    "grill-with-docs",
+    "zoom-out",
+    "to-prd",
+    "to-issues",
+    "triage",
+    "tdd",
+    "diagnose",
+    "improve-codebase-architecture",
+    "prototype",
+    "evidence-only",
+    "none",
+    "shiki",
 }
 
 
@@ -132,6 +158,40 @@ def require_string(path: Path, data: dict[str, Any], key: str, *, non_empty: boo
     return value
 
 
+def validate_skill_names(path: Path, skills: list[Any], *, key: str) -> None:
+    for skill in skills:
+        if not isinstance(skill, str) or not skill.strip():
+            raise ValidationError(f"{path}: {key} must contain non-empty strings")
+        if skill not in KNOWN_SKILLS:
+            raise ValidationError(f"{path}: unknown required skill {skill!r}")
+
+
+def validate_goal(path: Path, data: dict[str, Any]) -> str:
+    require_keys(path, data, GOAL_REQUIRED)
+
+    goal_id = require_string(path, data, "id")
+    if not GOAL_ID.match(goal_id):
+        raise ValidationError(f"{path}: id must match G-0001 style")
+
+    require_string(path, data, "title")
+    require_string(path, data, "outcome")
+    require_list(path, data, "completion_conditions", non_empty=True)
+    require_list(path, data, "non_goals")
+    skills = require_list(path, data, "required_skills")
+    validate_skill_names(path, skills, key="required_skills")
+    require_list(path, data, "acceptance_evidence", non_empty=True)
+
+    risk_level = require_string(path, data, "risk_level")
+    if risk_level not in RISK_LEVELS:
+        raise ValidationError(f"{path}: risk_level must be one of {sorted(RISK_LEVELS)}")
+
+    status = data.get("status")
+    if status is not None and status not in GOAL_STATUSES:
+        raise ValidationError(f"{path}: status must be one of {sorted(GOAL_STATUSES)}")
+
+    return goal_id
+
+
 def validate_task(path: Path, data: dict[str, Any]) -> tuple[str, list[str]]:
     require_keys(path, data, TASK_REQUIRED)
 
@@ -168,6 +228,8 @@ def validate_task(path: Path, data: dict[str, Any]) -> tuple[str, list[str]]:
     for dependency in dependencies:
         if not isinstance(dependency, str) or not TASK_ID.match(dependency):
             raise ValidationError(f"{path}: dependencies must contain T-0001 style ids")
+
+    validate_skill_names(path, require_list(path, data, "required_skills"), key="required_skills")
 
     return task_id, dependencies
 
@@ -222,7 +284,7 @@ def detect_cycles(path: Path, adjacency: dict[str, list[str]]) -> None:
         visit(node, [])
 
 
-def validate_ledger(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
+def validate_ledger(path: Path, data: dict[str, Any], known_tasks: set[str], known_goals: set[str]) -> None:
     require_keys(path, data, LEDGER_REQUIRED)
 
     ledger_id = require_string(path, data, "id")
@@ -232,6 +294,8 @@ def validate_ledger(path: Path, data: dict[str, Any], known_tasks: set[str]) -> 
     goal_id = require_string(path, data, "goal_id")
     if not GOAL_ID.match(goal_id):
         raise ValidationError(f"{path}: goal_id must match G-0001 style")
+    if known_goals and goal_id not in known_goals:
+        raise ValidationError(f"{path}: goal_id {goal_id} has no matching goal file")
 
     task_id = data.get("task_id")
     if task_id is not None:
@@ -403,6 +467,88 @@ def json_files(directory: Path) -> list[Path]:
     return sorted(path for path in directory.glob("*.json") if path.is_file())
 
 
+def require_contiguous_ids(paths: list[Path], prefix: str) -> None:
+    if not paths:
+        return
+    numbers: list[int] = []
+    for path in paths:
+        match = re.match(rf"^{re.escape(prefix)}-([0-9]{{4,}})\.json$", path.name)
+        if match:
+            numbers.append(int(match.group(1)))
+    if not numbers:
+        return
+    expected = list(range(1, max(numbers) + 1))
+    if sorted(numbers) != expected:
+        missing = sorted(set(expected) - set(numbers))
+        raise ValidationError(f"{paths[0].parent}: missing contiguous {prefix} ids: {missing}")
+
+
+def allowed_labels_from_docs() -> set[str]:
+    labels_path = ROOT / "docs" / "agents" / "triage-labels.md"
+    labels: set[str] = set()
+    if not labels_path.exists():
+        raise ValidationError(f"{labels_path}: label vocabulary file is missing")
+    for match in re.finditer(r"`([^`]+)`", labels_path.read_text(encoding="utf-8")):
+        label = match.group(1).strip()
+        if ":" in label:
+            labels.add(label)
+    return labels
+
+
+def issue_form_labels(path: Path, text: str) -> list[str]:
+    labels: list[str] = []
+    lines = text.splitlines()
+    for index, raw_line in enumerate(lines):
+        if not raw_line.startswith("labels:"):
+            continue
+        value = raw_line.split(":", 1)[1].strip()
+        if value.startswith("[") and value.endswith("]"):
+            return [item.strip().strip("\"'") for item in value[1:-1].split(",") if item.strip()]
+        for follow in lines[index + 1 :]:
+            if follow.startswith("  - "):
+                labels.append(follow.strip()[2:].strip().strip("\"'"))
+                continue
+            if follow and not follow.startswith(" "):
+                break
+        return labels
+    raise ValidationError(f"{path}: labels field is missing")
+
+
+def validate_issue_forms() -> None:
+    allowed_labels = allowed_labels_from_docs()
+    for path in sorted((ROOT / ".github" / "ISSUE_TEMPLATE").glob("*.yml")):
+        text = path.read_text(encoding="utf-8")
+        if re.search(r"^about:", text, re.MULTILINE):
+            raise ValidationError(f"{path}: GitHub Issue Forms use description:, not about:")
+        for key in ("name:", "description:", "title:", "labels:", "body:"):
+            if not re.search(rf"^{re.escape(key)}", text, re.MULTILINE):
+                raise ValidationError(f"{path}: missing top-level {key}")
+        for label in issue_form_labels(path, text):
+            if label not in allowed_labels:
+                raise ValidationError(f"{path}: label {label!r} is not declared in docs/agents/triage-labels.md")
+
+
+def validate_prompt_contract_paths() -> None:
+    wrong_path = ".shiki/templates/cca-verdict.schema.json"
+    for base in (ROOT / ".github", ROOT / "docs"):
+        for path in base.rglob("*"):
+            if path.is_file() and path.suffix in {".md", ".yml", ".yaml"}:
+                if wrong_path in path.read_text(encoding="utf-8"):
+                    raise ValidationError(f"{path}: references obsolete CCA schema path {wrong_path}")
+
+
+def validate_orchestrator_security() -> None:
+    workflow_path = ROOT / ".github" / "workflows" / "shiki-orchestrator.yml"
+    text = workflow_path.read_text(encoding="utf-8")
+    if "issue_comment:" not in text:
+        return
+    if "author_association" not in text:
+        raise ValidationError(f"{workflow_path}: issue_comment trigger must gate /shiki by commenter author_association")
+    for association in ("OWNER", "MEMBER", "COLLABORATOR"):
+        if association not in text:
+            raise ValidationError(f"{workflow_path}: missing trusted author_association {association}")
+
+
 def validate_contract_schema_consistency() -> None:
     cca_schema_path = SHIKI / "schemas" / "cca-verdict.schema.json"
     cca_schema = load_json(cca_schema_path)
@@ -431,19 +577,51 @@ def validate_contract_schema_consistency() -> None:
 def main() -> int:
     errors: list[str] = []
     task_dependencies: dict[str, list[str]] = {}
+    known_goals: set[str] = set()
 
     try:
         for schema in json_files(SHIKI / "schemas"):
             load_json(schema)
         validate_contract_schema_consistency()
+        validate_prompt_contract_paths()
+        validate_issue_forms()
+        validate_orchestrator_security()
 
-        for task_path in json_files(SHIKI / "tasks"):
+        goal_paths = json_files(SHIKI / "goals")
+        task_paths = json_files(SHIKI / "tasks")
+        ledger_paths = json_files(SHIKI / "ledger")
+        dag_paths = json_files(SHIKI / "dag")
+        report_paths = json_files(SHIKI / "reports")
+
+        require_contiguous_ids(goal_paths, "G")
+        require_contiguous_ids(task_paths, "T")
+        require_contiguous_ids(ledger_paths, "L")
+        require_contiguous_ids(dag_paths, "G")
+        require_contiguous_ids(report_paths, "R")
+
+        for goal_path in goal_paths:
+            data = load_json(goal_path)
+            if not isinstance(data, dict):
+                raise ValidationError(f"{goal_path}: goal must be a JSON object")
+            goal_id = validate_goal(goal_path, data)
+            if goal_id in known_goals:
+                raise ValidationError(f"{goal_path}: duplicate goal id {goal_id}")
+            if goal_path.name != f"{goal_id}.json":
+                raise ValidationError(f"{goal_path}: file name must match goal id {goal_id}")
+            known_goals.add(goal_id)
+
+        for task_path in task_paths:
             data = load_json(task_path)
             if not isinstance(data, dict):
                 raise ValidationError(f"{task_path}: task must be a JSON object")
             task_id, dependencies = validate_task(task_path, data)
             if task_id in task_dependencies:
                 raise ValidationError(f"{task_path}: duplicate task id {task_id}")
+            if task_path.name != f"{task_id}.json":
+                raise ValidationError(f"{task_path}: file name must match task id {task_id}")
+            goal_id = str(data.get("goal_id") or "")
+            if goal_id not in known_goals:
+                raise ValidationError(f"{task_path}: goal_id {goal_id} has no matching goal file")
             task_dependencies[task_id] = dependencies
 
         known_tasks = set(task_dependencies)
@@ -454,11 +632,16 @@ def main() -> int:
 
         detect_cycles(Path(".shiki/tasks"), {task_id: deps for task_id, deps in task_dependencies.items()})
 
-        for dag_path in json_files(SHIKI / "dag"):
+        for dag_path in dag_paths:
             data = load_json(dag_path)
             if not isinstance(data, dict):
                 raise ValidationError(f"{dag_path}: DAG must be a JSON object")
             validate_dag(dag_path, data, known_tasks)
+            goal_id = str(data.get("goal_id") or "")
+            if goal_id not in known_goals:
+                raise ValidationError(f"{dag_path}: goal_id {goal_id} has no matching goal file")
+            if dag_path.name != f"{goal_id}.json":
+                raise ValidationError(f"{dag_path}: file name must match DAG goal_id {goal_id}")
 
         for plan_path in json_files(SHIKI / "plans"):
             data = load_json(plan_path)
@@ -466,11 +649,11 @@ def main() -> int:
                 raise ValidationError(f"{plan_path}: plan must be a JSON object")
             validate_plan(plan_path, data)
 
-        for ledger_path in json_files(SHIKI / "ledger"):
+        for ledger_path in ledger_paths:
             data = load_json(ledger_path)
             if not isinstance(data, dict):
                 raise ValidationError(f"{ledger_path}: ledger entry must be a JSON object")
-            validate_ledger(ledger_path, data, known_tasks)
+            validate_ledger(ledger_path, data, known_tasks, known_goals)
 
         for worktree_path in json_files(SHIKI / "worktrees"):
             data = load_json(worktree_path)

@@ -121,7 +121,7 @@ When verdict is `insufficient_evidence`, request evidence first. Do not ask Code
 
 ## CCA Output Schema
 
-Structured output must match `.shiki/templates/cca-verdict.schema.json`.
+Structured output must match `.shiki/schemas/cca-verdict.schema.json`.
 
 Minimum fields:
 

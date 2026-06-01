@@ -1,0 +1,17 @@
+{
+  "actor": "shiki",
+  "evidence": [
+    "path:.shiki/goals/G-0001.json",
+    "path:.shiki/dag/G-0001.json",
+    "path:.shiki/tasks/T-0001.json",
+    "path:.shiki/ledger/L-0001.json",
+    "shiki skill evidence: canonical bootstrap mirror restored without renumbering historical artifacts"
+  ],
+  "goal_id": "G-0001",
+  "id": "L-0001",
+  "links": [],
+  "summary": "Registered the canonical bootstrap mirror artifacts for the original Shiki platform control-plane Goal.",
+  "task_id": "T-0001",
+  "timestamp": "2026-05-28T04:00:00Z",
+  "type": "goal-created"
+}

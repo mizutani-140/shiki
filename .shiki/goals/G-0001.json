@@ -1,0 +1,31 @@
+{
+  "acceptance_evidence": [
+    "path:.shiki/goals/G-0001.json",
+    "path:.shiki/dag/G-0001.json",
+    "path:.shiki/tasks/T-0001.json",
+    "path:.shiki/ledger/L-0001.json",
+    "Initial branch-protection, CCA, MergeGate, runtime-auth, bootstrap, and runner repair tasks are recoverable from the mirror."
+  ],
+  "completion_conditions": [
+    "The initial Shiki control-plane mirror has a canonical Goal record.",
+    "Early bootstrap and repair tasks reference an existing parent Goal.",
+    "The mirror can be validated without missing G-0001/T-0001/L-0001 artifacts."
+  ],
+  "created_at": "2026-05-28T04:00:00Z",
+  "github_issue": null,
+  "id": "G-0001",
+  "ledger_evidence": [
+    "L-0001"
+  ],
+  "non_goals": [
+    "Do not rewrite historical PR or task evidence.",
+    "Do not renumber existing Shiki artifacts."
+  ],
+  "outcome": "The original Shiki platform bootstrap and early gate-hardening work is represented by a canonical recoverable Goal in .shiki.",
+  "required_skills": [
+    "shiki"
+  ],
+  "risk_level": "low",
+  "status": "planned",
+  "title": "Shiki platform bootstrap and initial gate hardening"
+}

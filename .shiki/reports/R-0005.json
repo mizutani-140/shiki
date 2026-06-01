@@ -1,0 +1,19 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-01T02:28:27+00:00",
+  "evidence": [
+    ".shiki/tasks/T-0017.json"
+  ],
+  "goal_id": "G-0008",
+  "id": "R-0005",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "low"
+  },
+  "status": "complete",
+  "summary": "Goal G-0008 complete: \u6700\u7d42\u5224\u5b9a\u30ec\u30d3\u30e5\u30fc\u8868\u306eP0/P1 gate\u6307\u6458\u3092\u89e3\u6d88"
+}

@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from shiki_schema import SchemaValidationError, validate_instance
+
 
 TASK_ID = re.compile(r"\bT-[0-9]{4,}\b")
 GOAL_ID = re.compile(r"\bG-[0-9]{4,}\b")
@@ -28,6 +30,13 @@ def load_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_schema(path: Path) -> dict[str, Any]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} must contain a JSON object schema")
+    return data
 
 
 def write_json(path: Path, data: dict[str, Any]) -> None:
@@ -88,6 +97,36 @@ def load_task(target: Path, task_id: str) -> dict[str, Any] | None:
 
 def load_goal(target: Path, goal_id: str) -> dict[str, Any] | None:
     return load_json(target / ".shiki" / "goals" / f"{goal_id}.json")
+
+
+def blocking_checklist_failures(verdict: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+    for item in verdict.get("checklist") or []:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "").strip().lower()
+        if item.get("blocking") is True and status in {"fail", "insufficient_evidence"}:
+            failures.append(str(item.get("id") or "<unknown>"))
+    return failures
+
+
+def validate_cca_contract(target: Path, cca: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    try:
+        schema = load_schema(target / ".shiki" / "schemas" / "cca-verdict.schema.json")
+        validate_instance(cca, schema)
+    except (OSError, ValueError, SchemaValidationError) as error:
+        errors.append(str(error))
+
+    repair_packet = cca.get("repair_packet")
+    if repair_packet is not None:
+        try:
+            repair_schema = load_schema(target / ".shiki" / "schemas" / "repair-packet.schema.json")
+            validate_instance(repair_packet, repair_schema, path="$.repair_packet")
+        except (OSError, ValueError, SchemaValidationError) as error:
+            errors.append(str(error))
+
+    return errors
 
 
 def configured_required_checks(target: Path) -> list[str]:
@@ -347,12 +386,31 @@ def main() -> int:
 
     cca = load_json(Path(args.cca_verdict))
     if cca:
+        for error in validate_cca_contract(target, cca):
+            blocking.append(f"CCA verdict schema violation: {error}")
         if cca.get("verdict") != "complete":
             blocking.append(f"CCA verdict is not complete: {cca.get('verdict')!r}")
-        if pr and cca.get("head_sha") and pr.get("headRefOid") and cca.get("head_sha") != pr.get("headRefOid"):
-            blocking.append("CCA head_sha does not match the current PR headRefOid")
+        if resolved_task_id and cca.get("task_id") != resolved_task_id:
+            blocking.append(f"CCA task_id {cca.get('task_id')!r} does not match PR task id {resolved_task_id}")
+        if resolved_goal_id and cca.get("goal_id") != resolved_goal_id:
+            blocking.append(f"CCA goal_id {cca.get('goal_id')!r} does not match PR goal id {resolved_goal_id}")
+        if task and cca.get("goal_id") != task.get("goal_id"):
+            blocking.append(f"CCA goal_id {cca.get('goal_id')!r} does not match task goal_id {task.get('goal_id')!r}")
+        if pr:
+            if cca.get("pr") != pr.get("number"):
+                blocking.append(f"CCA pr {cca.get('pr')!r} does not match PR #{pr.get('number')}")
+            if not cca.get("head_sha"):
+                blocking.append("CCA head_sha is missing")
+            elif pr.get("headRefOid") and cca.get("head_sha") != pr.get("headRefOid"):
+                blocking.append("CCA head_sha does not match the current PR headRefOid")
         if cca.get("can_merge") is not True:
             warnings.append("CCA verdict did not set can_merge=true; MergeGate will rely on required checks and policy inputs")
+        failures = blocking_checklist_failures(cca)
+        if failures:
+            blocking.append("CCA verdict contains blocking failed checklist items: " + ", ".join(failures))
+        acceptance = cca.get("acceptance")
+        if not isinstance(acceptance, list) or not acceptance:
+            blocking.append("CCA verdict acceptance evidence is empty")
         if task and task.get("status") not in {"review", "done"}:
             blocking.append(f"Task status must be review or done after CCA verdict; got {task.get('status')!r}")
         if pr and ledger_entries:

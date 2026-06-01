@@ -1,0 +1,18 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "diagnose skill used to verify the attached final-review claims against current main",
+    "tdd verification added for CCA enforcement and MergeGate CCA contract blockers",
+    "pr:https://github.com/mizutani-140/shiki/pull/25",
+    "branch:shiki/fix-final-review-gates"
+  ],
+  "goal_id": "G-0008",
+  "id": "L-0054",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/25"
+  ],
+  "summary": "Opened PR #25 for T-0017 final-review gate repair and recorded verification evidence.",
+  "task_id": "T-0017",
+  "timestamp": "2026-06-01T02:22:00+00:00",
+  "type": "review"
+}
