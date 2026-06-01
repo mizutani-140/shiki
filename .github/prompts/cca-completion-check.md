@@ -6,7 +6,7 @@ Your role is to judge whether this PR actually satisfies its task contract. Do n
 
 ## Required Reading
 
-Read:
+Read only the files needed to judge the PR contract. Prefer this order:
 
 1. `AGENTS.md`
 2. `CLAUDE.md`
@@ -18,6 +18,9 @@ Read:
 8. PR body, diff, commits, labels, checks, and reviews
 9. linked Goal, PRD, and task issue
 10. `.shiki/` task, lock, ledger, prior CCA, and repair evidence when present
+
+Stop reading as soon as you have enough durable evidence for a verdict. Do not
+perform a broad repository audit in this job.
 
 ## Judgment Rules
 
@@ -41,6 +44,8 @@ Read:
 Return JSON matching `.shiki/schemas/cca-verdict.schema.json`.
 When `--json-schema` is provided, return the structured output object itself.
 Do not explain the verdict before or after the object.
+Do not spend turns drafting prose. Produce the verdict object directly after
+you have checked the PR body, changed files, task record, and current checks.
 
 Allowed verdicts:
 
