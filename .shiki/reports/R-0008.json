@@ -1,0 +1,19 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-01T03:01:35+00:00",
+  "evidence": [
+    ".shiki/tasks/T-0018.json"
+  ],
+  "goal_id": "G-0009",
+  "id": "R-0008",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "low"
+  },
+  "status": "complete",
+  "summary": "Goal G-0009 complete: \u518d\u30ec\u30d3\u30e5\u30fcP1\u8ffd\u88dc: CI coverage/docs/orchestrator/Goal lifecycle\u4fee\u6b63"
+}

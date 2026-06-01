@@ -14,6 +14,9 @@
   "created_at": "2026-06-01T02:48:19+00:00",
   "github_issue": null,
   "id": "G-0009",
+  "ledger_evidence": [
+    "L-0065"
+  ],
   "non_goals": [],
   "outcome": "\u6dfb\u4ed8\u30c6\u30ad\u30b9\u30c8\u306eP1-1\u301cP1-4\u304c\u516c\u958bmain\u4e0a\u3067\u89e3\u6d88\u3055\u308c\u3001CI\u3068validator\u304c\u518d\u767a\u3092\u9632\u3050",
   "required_skills": [
@@ -21,6 +24,6 @@
     "tdd"
   ],
   "risk_level": "low",
-  "status": "planned",
+  "status": "complete",
   "title": "\u518d\u30ec\u30d3\u30e5\u30fcP1\u8ffd\u88dc: CI coverage/docs/orchestrator/Goal lifecycle\u4fee\u6b63"
 }
