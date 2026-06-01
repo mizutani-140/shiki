@@ -16,7 +16,8 @@
   "ledger_evidence": [
     "L-0071",
     "L-0072",
-    "L-0073"
+    "L-0073",
+    "L-0074"
   ],
   "locks": [
     "path:skills/engineering/shiki/SKILL.md",
@@ -41,6 +42,6 @@
   ],
   "risk_level": "low",
   "scope": "skills/engineering/shiki/SKILL.md, skills/engineering registry deployment, scripts/validate_shiki.py, scripts/shiki.py, .shiki/schemas/{goal,ledger,cca-verdict}.schema.json, docs/agents/{ledger-schema,completion-check-agent}.md, .github/prompts/cca-completion-check.md, scripts/test_shiki_control_plane.sh",
-  "status": "review",
+  "status": "done",
   "title": "align skill registry and schema vocabularies"
 }

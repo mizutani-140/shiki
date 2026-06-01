@@ -1,0 +1,19 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-0009.json",
+    ".shiki/goals/G-0011.json",
+    "https://github.com/mizutani-140/shiki/pull/27",
+    "merge commit 3c45bbe"
+  ],
+  "goal_id": "G-0011",
+  "id": "L-0075",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/27",
+    "https://github.com/mizutani-140/shiki/commit/3c45bbe"
+  ],
+  "summary": "Goal G-0011 complete: Shiki skill registry, schema vocabularies, ledger docs, CCA strict verdict schema, and target install skill deployment are aligned.",
+  "task_id": null,
+  "timestamp": "2026-06-01T05:06:33+00:00",
+  "type": "completion"
+}
