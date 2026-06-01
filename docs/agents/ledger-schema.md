@@ -6,47 +6,38 @@ This document defines the minimum logical shape. Target Repositories may impleme
 
 ## Event Types
 
-- `goal.created`
-- `goal.grilled`
-- `context_impact.recorded`
-- `prd.created`
-- `issues.created`
-- `task.registered`
-- `task.dispatched`
-- `lock.acquired`
-- `lock.released`
-- `implementation.started`
-- `test.red`
-- `test.green`
-- `refactor.completed`
-- `pr.opened`
-- `check.completed`
-- `review.completed`
-- `cca.completed`
-- `repair.created`
-- `repair.completed`
-- `mergegate.completed`
-- `pr.merged`
-- `goal.completed`
+The canonical ledger `type` vocabulary is:
+
+- `goal-created`
+- `context-impact`
+- `task-registered`
+- `lock`
+- `check`
+- `review`
+- `cca-verdict`
+- `repair`
+- `mergegate`
+- `completion`
+- `handoff`
 
 ## Minimum Ledger Entry
 
 ```json
 {
-  "event_id": "evt_...",
-  "event_type": "cca.completed",
+  "id": "L-0001",
+  "type": "cca-verdict",
   "timestamp": "2026-01-01T00:00:00Z",
-  "actor": "github-cca",
-  "runtime": "claude-code-action",
   "goal_id": "G-0001",
   "task_id": "T-0001",
+  "actor": "github-cca",
+  "runtime": "claude-code-action",
   "pr": 123,
   "branch": "shiki/T-0001-example",
   "head_sha": "abc123",
   "summary": "CCA returned repair_required because acceptance criterion AC-02 lacked evidence.",
   "evidence": [
-    {"type": "check", "ref": "ci/test", "status": "pass"},
-    {"type": "comment", "ref": "PR#123 comment"}
+    "ci/test passed",
+    "PR#123 CCA comment recorded repair_required"
   ],
   "links": ["https://github.com/org/repo/pull/123"],
   "data": {}

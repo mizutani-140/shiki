@@ -47,6 +47,7 @@ GOAL_REQUIRED = {
     "risk_level",
     "required_skills",
     "acceptance_evidence",
+    "status",
 }
 DAG_REQUIRED = {"goal_id", "nodes", "edges"}
 LEDGER_REQUIRED = {"id", "timestamp", "goal_id", "type", "actor", "summary", "evidence"}
@@ -121,6 +122,7 @@ KNOWN_SKILLS = {
     "none",
     "shiki",
 }
+CCA_ITEM_STATUSES = {"pass", "fail", "insufficient_evidence", "not_applicable"}
 
 
 class ValidationError(Exception):
@@ -164,6 +166,17 @@ def validate_skill_names(path: Path, skills: list[Any], *, key: str) -> None:
             raise ValidationError(f"{path}: {key} must contain non-empty strings")
         if skill not in KNOWN_SKILLS:
             raise ValidationError(f"{path}: unknown required skill {skill!r}")
+        if not skill_exists(skill):
+            raise ValidationError(
+                f"{path}: required skill {skill!r} is not backed by "
+                f"skills/engineering/{skill}/SKILL.md"
+            )
+
+
+def skill_exists(skill: str) -> bool:
+    if skill in {"none", "evidence-only"}:
+        return True
+    return (ROOT / "skills" / "engineering" / skill / "SKILL.md").exists()
 
 
 def validate_goal(path: Path, data: dict[str, Any]) -> str:
@@ -596,14 +609,60 @@ def validate_orchestrator_security() -> None:
 
 
 def validate_contract_schema_consistency() -> None:
+    goal_schema_path = SHIKI / "schemas" / "goal.schema.json"
+    goal_schema = load_json(goal_schema_path)
+    if not isinstance(goal_schema, dict):
+        raise ValidationError(f"{goal_schema_path}: schema must be a JSON object")
+    goal_required = set(goal_schema.get("required", []))
+    if "status" not in goal_required:
+        raise ValidationError(f"{goal_schema_path}: status must be required by the Goal contract")
+    goal_status_enum = goal_schema.get("properties", {}).get("status", {}).get("enum", [])
+    if set(goal_status_enum) != GOAL_STATUSES:
+        raise ValidationError(f"{goal_schema_path}: status enum must match {sorted(GOAL_STATUSES)}")
+
+    ledger_schema_path = SHIKI / "schemas" / "ledger.schema.json"
+    ledger_schema = load_json(ledger_schema_path)
+    if not isinstance(ledger_schema, dict):
+        raise ValidationError(f"{ledger_schema_path}: schema must be a JSON object")
+    ledger_type_enum = ledger_schema.get("properties", {}).get("type", {}).get("enum", [])
+    if set(ledger_type_enum) != LEDGER_TYPES:
+        raise ValidationError(f"{ledger_schema_path}: type enum must match {sorted(LEDGER_TYPES)}")
+
     cca_schema_path = SHIKI / "schemas" / "cca-verdict.schema.json"
     cca_schema = load_json(cca_schema_path)
     if not isinstance(cca_schema, dict):
         raise ValidationError(f"{cca_schema_path}: schema must be a JSON object")
+    for field in ("$schema", "$id"):
+        if field not in cca_schema:
+            raise ValidationError(f"{cca_schema_path}: {field} is required")
     cca_required = set(cca_schema.get("required", []))
     for field in ("checklist", "acceptance", "mergegate"):
         if field not in cca_required:
             raise ValidationError(f"{cca_schema_path}: {field} must be required by the CCA verdict contract")
+    properties = cca_schema.get("properties", {})
+    checklist_status_enum = (
+        properties.get("checklist", {})
+        .get("items", {})
+        .get("properties", {})
+        .get("status", {})
+        .get("enum", [])
+    )
+    if set(checklist_status_enum) != CCA_ITEM_STATUSES:
+        raise ValidationError(f"{cca_schema_path}: checklist[].status enum must match {sorted(CCA_ITEM_STATUSES)}")
+    acceptance_items = properties.get("acceptance", {}).get("items", {})
+    acceptance_required = set(acceptance_items.get("required", []))
+    if acceptance_required != {"criterion", "status", "evidence"}:
+        raise ValidationError(f"{cca_schema_path}: acceptance[] must require criterion, status, and evidence")
+    acceptance_properties = acceptance_items.get("properties", {})
+    acceptance_status_enum = acceptance_properties.get("status", {}).get("enum", [])
+    if set(acceptance_status_enum) != CCA_ITEM_STATUSES:
+        raise ValidationError(f"{cca_schema_path}: acceptance[].status enum must match {sorted(CCA_ITEM_STATUSES)}")
+    acceptance_evidence = acceptance_properties.get("evidence", {})
+    if acceptance_evidence.get("type") != "array":
+        raise ValidationError(f"{cca_schema_path}: acceptance[].evidence must be an array")
+    evidence_items = acceptance_evidence.get("items", {})
+    if evidence_items.get("type") != "string" or evidence_items.get("minLength") != 1:
+        raise ValidationError(f"{cca_schema_path}: acceptance[].evidence items must be non-empty strings")
     repair_packet = cca_schema.get("properties", {}).get("repair_packet", {})
     allowed_repair_types = repair_packet.get("type")
     if isinstance(allowed_repair_types, str):

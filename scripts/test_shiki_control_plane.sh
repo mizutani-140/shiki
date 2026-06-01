@@ -46,6 +46,12 @@ grep "contents: read" .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "commit-evidence:" .github/workflows/shiki-orchestrator.yml >/dev/null
 grep 'git push -u origin "$evidence_branch"' .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "gh pr create" .github/workflows/shiki-orchestrator.yml >/dev/null
+test -f skills/engineering/shiki/SKILL.md
+grep '"status"' .shiki/schemas/goal.schema.json >/dev/null
+grep '"historical"' .shiki/schemas/goal.schema.json >/dev/null
+grep '"cca-verdict"' .shiki/schemas/ledger.schema.json >/dev/null
+grep '"criterion"' .shiki/schemas/cca-verdict.schema.json >/dev/null
+grep '"insufficient_evidence"' .shiki/schemas/cca-verdict.schema.json >/dev/null
 
 expect_fail env \
   CCA_VERDICT_FILE=/tmp/shiki-cca-invalid-complete.json \
@@ -55,18 +61,20 @@ grep "missing required property" /tmp/shiki-expected-fail.out >/dev/null
 
 expect_fail env \
   CCA_VERDICT_FILE=/tmp/shiki-cca-invalid-repair.json \
-  STRUCTURED_OUTPUT='{"verdict":"repair_required","summary":"needs repair","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[],"acceptance":[{"id":"A1","status":"fail"}],"mergegate":{},"confidence":0.5,"repair_packet":null}' \
+  STRUCTURED_OUTPUT='{"verdict":"repair_required","summary":"needs repair","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[],"acceptance":[{"criterion":"A1","status":"fail","evidence":["fixture"]}],"mergegate":{},"confidence":0.5,"repair_packet":null}' \
   python3 scripts/enforce_cca_verdict.py
 grep "repair_required verdict must include a non-null object" /tmp/shiki-expected-fail.out >/dev/null
 
 env \
   CCA_VERDICT_FILE=/tmp/shiki-cca-valid-complete.json \
-  STRUCTURED_OUTPUT='{"verdict":"complete","summary":"complete","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":true,"checklist":[{"id":"CCA-01","status":"pass","blocking":true,"evidence":"fixture"}],"acceptance":[{"id":"A1","status":"pass","evidence":"fixture"}],"mergegate":{"required_checks":"pass"},"confidence":1.0,"repair_packet":null}' \
+  STRUCTURED_OUTPUT='{"verdict":"complete","summary":"complete","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":true,"checklist":[{"id":"CCA-01","status":"pass","blocking":true,"evidence":"fixture"}],"acceptance":[{"criterion":"A1","status":"pass","evidence":["fixture"]}],"mergegate":{"required_checks":"pass"},"confidence":1.0,"repair_packet":null}' \
   python3 scripts/enforce_cca_verdict.py >/tmp/shiki-cca-valid-complete.out
 grep "CCA verdict complete" /tmp/shiki-cca-valid-complete.out >/dev/null
 
 mkdir -p "$TARGET"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-control-install.out
+test -f "$TARGET/skills/engineering/shiki/SKILL.md"
+test -f "$TARGET/skills/engineering/grill-with-docs/SKILL.md"
 
 cd "$TARGET"
 git init -b main >/tmp/shiki-control-git-init.out
@@ -213,7 +221,7 @@ cca = {
     "head_sha": "abc123",
     "can_merge": True,
     "checklist": [],
-    "acceptance": [{"id": "A1", "status": "pass", "evidence": "fixture"}],
+    "acceptance": [{"criterion": "A1", "status": "pass", "evidence": ["fixture"]}],
     "mergegate": {"required_checks": "pass"},
     "confidence": 1,
 }
@@ -285,7 +293,7 @@ import sys
 target = pathlib.Path(sys.argv[1])
 path = target / ".shiki" / "gha" / "cca-verdict.json"
 cca = json.loads(path.read_text())
-cca["acceptance"] = [{"id": "A1", "status": "pass", "evidence": "fixture"}]
+cca["acceptance"] = [{"criterion": "A1", "status": "pass", "evidence": ["fixture"]}]
 cca["checklist"] = [{"id": "CCA-99", "status": "fail", "blocking": True}]
 path.write_text(json.dumps(cca, indent=2, sort_keys=True) + "\n")
 PY

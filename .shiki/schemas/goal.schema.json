@@ -11,7 +11,8 @@
     "non_goals",
     "risk_level",
     "required_skills",
-    "acceptance_evidence"
+    "acceptance_evidence",
+    "status"
   ],
   "properties": {
     "id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
@@ -28,6 +29,9 @@
       "items": { "type": "string" }
     },
     "risk_level": { "enum": ["low", "medium", "high", "critical"] },
+    "status": {
+      "enum": ["planned", "ready", "blocked", "complete", "archived", "historical"]
+    },
     "required_skills": {
       "type": "array",
       "items": { "type": "string" }

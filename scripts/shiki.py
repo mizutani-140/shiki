@@ -44,6 +44,7 @@ TEMPLATE_PATHS = [
     ".github/workflows/shiki-orchestrator.yml",
     "docs/agents",
     "docs/adr",
+    "skills/engineering",
     "scripts/shiki_schema.py",
     "scripts/validate_shiki.py",
     "scripts/enforce_cca_verdict.py",

@@ -17,6 +17,7 @@
         "lock",
         "check",
         "review",
+        "cca-verdict",
         "repair",
         "mergegate",
         "completion",

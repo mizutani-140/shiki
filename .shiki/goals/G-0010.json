@@ -1,0 +1,24 @@
+{
+  "acceptance_evidence": [
+    "python3 scripts/validate_shiki.py",
+    "all scripts/test_shiki_*.sh pass in CI-like git identity environment",
+    "GitHub checks, CCA, and MergeGate pass"
+  ],
+  "completion_conditions": [
+    "skills/engineering/shiki/SKILL.md exists and required skills are filesystem-backed",
+    "goal.schema.json requires status and includes historical",
+    "ledger schema/docs include cca-verdict and hyphenated ledger types",
+    "cca-verdict.schema.json strictly defines checklist and acceptance statuses/evidence"
+  ],
+  "created_at": "2026-06-01T03:22:39+00:00",
+  "github_issue": null,
+  "id": "G-0010",
+  "non_goals": [],
+  "outcome": "Shiki skill registry, JSON schemas, validator checks, and ledger docs share one filesystem-backed vocabulary.",
+  "required_skills": [
+    "shiki"
+  ],
+  "risk_level": "low",
+  "status": "planned",
+  "title": "schema hardening: skill registry and vocabulary alignment"
+}
