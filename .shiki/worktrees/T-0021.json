@@ -10,7 +10,11 @@
     "path:.codex/**",
     "path:.claude/**",
     "path:.github/prompts/**",
+    "path:.shiki/**",
     "path:docs/agents/**",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/shiki.py",
+    "path:scripts/shiki_contracts.py",
     "path:scripts/validate_shiki.py",
     "path:scripts/test_shiki_*.sh"
   ],

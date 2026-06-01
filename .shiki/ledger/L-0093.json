@@ -1,0 +1,23 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "grill-with-docs used to preserve the user-approved Goal and Task DAG from Issue #30.",
+    "improve-codebase-architecture used to centralize contract constants without changing runtime command contracts.",
+    "tdd used: scripts/test_shiki_control_plane.sh failed before scripts/shiki_contracts.py and validator drift checks were implemented, then passed after the bounded repair.",
+    "python3 scripts/validate_shiki.py passed.",
+    "PYTHONPYCACHEPREFIX=/tmp/shiki-pycache python3 -m py_compile scripts/*.py passed.",
+    "for script in scripts/test_shiki_*.sh; do PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash \"$script\"; done passed.",
+    "git diff --check passed."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0093",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/30",
+    "https://github.com/mizutani-140/shiki/issues/31",
+    "https://github.com/mizutani-140/shiki/pull/32"
+  ],
+  "summary": "Recorded required skill and verification evidence for T-0021: grill-with-docs, improve-codebase-architecture, and tdd.",
+  "task_id": "T-0021",
+  "timestamp": "2026-06-01T11:06:00+00:00",
+  "type": "check"
+}
