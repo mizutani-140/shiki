@@ -52,9 +52,30 @@ jobs:
         id: schema
         shell: bash
         run: |
+          # Use a shallow transport schema for Claude Code structured output.
+          # The next step enforces the stricter repository schema from
+          # .shiki/schemas/cca-verdict.schema.json before MergeGate can pass.
           {
             echo "json<<EOF"
-            jq -c . .shiki/schemas/cca-verdict.schema.json
+            jq -c '{
+              type: "object",
+              required: .required,
+              properties: {
+                verdict: .properties.verdict,
+                summary: {type: "string"},
+                goal_id: {type: "string"},
+                task_id: {type: "string"},
+                pr: {type: "integer"},
+                head_sha: {type: "string"},
+                can_merge: {type: "boolean"},
+                blocking_reason: {type: "string"},
+                checklist: {type: "array", items: {type: "object", additionalProperties: true}},
+                acceptance: {type: "array", items: {type: "object", additionalProperties: true}},
+                mergegate: {type: "object", additionalProperties: true},
+                repair_packet: {type: ["object", "null"], additionalProperties: true},
+                confidence: {type: "number"}
+              }
+            }' .shiki/schemas/cca-verdict.schema.json
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
