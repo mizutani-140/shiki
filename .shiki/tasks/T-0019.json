@@ -9,12 +9,13 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/t-0019-align-skill-registry-and-schema-vocabularies",
-  "expected_pr": null,
+  "expected_pr": 27,
   "github_issue": null,
   "goal_id": "G-0010",
   "id": "T-0019",
   "ledger_evidence": [
-    "L-0067"
+    "L-0067",
+    "L-0068"
   ],
   "locks": [
     "path:skills/engineering/shiki/SKILL.md",
@@ -36,6 +37,6 @@
   ],
   "risk_level": "low",
   "scope": "skills/engineering/shiki/SKILL.md, skills/engineering registry deployment, scripts/validate_shiki.py, scripts/shiki.py, .shiki/schemas/{goal,ledger,cca-verdict}.schema.json, docs/agents/ledger-schema.md, scripts/test_shiki_control_plane.sh",
-  "status": "planned",
+  "status": "review",
   "title": "align skill registry and schema vocabularies"
 }
