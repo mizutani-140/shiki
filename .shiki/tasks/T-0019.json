@@ -26,7 +26,8 @@
     "path:docs/agents/ledger-schema.md",
     "path:scripts/test_shiki_control_plane.sh",
     "path:scripts/shiki.py",
-    "path:skills/engineering/**"
+    "path:skills/engineering/**",
+    "path:.shiki/**"
   ],
   "non_goals": [
     "Changing CCA workflow behavior",
