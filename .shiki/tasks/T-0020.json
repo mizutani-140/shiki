@@ -1,0 +1,46 @@
+{
+  "acceptance_checks": [
+    "Validator rejects required skills without skills/engineering/<skill>/SKILL.md",
+    "Goal, ledger, and CCA verdict schemas encode the current Shiki vocabulary",
+    "Ledger docs use id/type and hyphenated event types matching schema",
+    "install-target copies skills/engineering so target validators can enforce filesystem-backed skills",
+    "validate_shiki.py and all scripts/test_shiki_*.sh pass"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/t-0019-align-skill-registry-and-schema-vocabularies",
+  "expected_pr": 27,
+  "github_issue": null,
+  "goal_id": "G-0011",
+  "id": "T-0020",
+  "ledger_evidence": [
+    "L-0071",
+    "L-0072",
+    "L-0073"
+  ],
+  "locks": [
+    "path:skills/engineering/shiki/SKILL.md",
+    "path:scripts/validate_shiki.py",
+    "path:.shiki/schemas/goal.schema.json",
+    "path:.shiki/schemas/ledger.schema.json",
+    "path:.shiki/schemas/cca-verdict.schema.json",
+    "path:docs/agents/ledger-schema.md",
+    "path:docs/agents/completion-check-agent.md",
+    "path:.github/prompts/cca-completion-check.md",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/shiki.py",
+    "path:skills/engineering/**",
+    "path:.shiki/**"
+  ],
+  "non_goals": [
+    "Changing CCA workflow behavior",
+    "Changing MergeGate policy semantics beyond schema/docs consistency"
+  ],
+  "required_skills": [
+    "shiki"
+  ],
+  "risk_level": "low",
+  "scope": "skills/engineering/shiki/SKILL.md, skills/engineering registry deployment, scripts/validate_shiki.py, scripts/shiki.py, .shiki/schemas/{goal,ledger,cca-verdict}.schema.json, docs/agents/{ledger-schema,completion-check-agent}.md, .github/prompts/cca-completion-check.md, scripts/test_shiki_control_plane.sh",
+  "status": "review",
+  "title": "align skill registry and schema vocabularies"
+}

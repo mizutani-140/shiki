@@ -1,4 +1,6 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/cca-verdict.schema.json",
   "type": "object",
   "required": [
     "verdict",
@@ -37,7 +39,10 @@
         "required": ["id", "status", "blocking"],
         "properties": {
           "id": { "type": "string" },
-          "status": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pass", "fail", "insufficient_evidence", "not_applicable"]
+          },
           "blocking": { "type": "boolean" },
           "evidence": { "type": "string" },
           "reason": { "type": "string" }
@@ -49,6 +54,19 @@
       "type": "array",
       "items": {
         "type": "object",
+        "required": ["criterion", "status", "evidence"],
+        "properties": {
+          "criterion": { "type": "string", "minLength": 1 },
+          "status": {
+            "type": "string",
+            "enum": ["pass", "fail", "insufficient_evidence", "not_applicable"]
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "reason": { "type": "string" }
+        },
         "additionalProperties": true
       }
     },

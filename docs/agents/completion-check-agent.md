@@ -134,8 +134,21 @@ Minimum fields:
   "pr": 123,
   "head_sha": "abc123",
   "can_merge": false,
-  "checklist": [],
-  "acceptance": [],
+  "checklist": [
+    {
+      "id": "CCA-01",
+      "status": "pass",
+      "blocking": true,
+      "evidence": "Durable evidence exists."
+    }
+  ],
+  "acceptance": [
+    {
+      "criterion": "Acceptance criterion text",
+      "status": "pass",
+      "evidence": ["Evidence reference"]
+    }
+  ],
   "mergegate": {},
   "repair_packet": null,
   "confidence": 0.0

@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-0011.json"
+  ],
+  "goal_id": "G-0011",
+  "id": "L-0070",
+  "links": [],
+  "summary": "Goal registered: schema hardening: skill registry and vocabulary alignment",
+  "task_id": null,
+  "timestamp": "2026-06-01T03:22:39+00:00",
+  "type": "goal-created"
+}
