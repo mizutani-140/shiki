@@ -7,13 +7,14 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/bootstrap-cca-transport-schema",
-  "expected_pr": null,
+  "expected_pr": 28,
   "github_issue": null,
   "goal_id": "G-0010",
   "id": "T-0019",
   "ledger_evidence": [
     "L-0067",
-    "L-0068"
+    "L-0068",
+    "L-0069"
   ],
   "locks": [
     "path:.github/workflows/shiki-cca-completion.yml",
@@ -29,6 +30,6 @@
   ],
   "risk_level": "low",
   "scope": ".github/workflows/shiki-cca-completion.yml only: replace PR-branch strict schema transport with a fixed shallow transport schema; keep strict validation in enforce_cca_verdict.py",
-  "status": "planned",
+  "status": "review",
   "title": "decouple CCA transport schema from strict verdict schema"
 }
