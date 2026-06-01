@@ -40,6 +40,7 @@
         "properties": {
           "id": { "type": "string" },
           "status": {
+            "type": "string",
             "enum": ["pass", "fail", "insufficient_evidence", "not_applicable"]
           },
           "blocking": { "type": "boolean" },
@@ -57,6 +58,7 @@
         "properties": {
           "criterion": { "type": "string", "minLength": 1 },
           "status": {
+            "type": "string",
             "enum": ["pass", "fail", "insufficient_evidence", "not_applicable"]
           },
           "evidence": {
