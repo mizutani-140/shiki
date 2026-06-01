@@ -11,13 +11,14 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/fix-p1-review-followups",
-  "expected_pr": null,
+  "expected_pr": 26,
   "github_issue": null,
   "goal_id": "G-0009",
   "id": "T-0018",
   "ledger_evidence": [
     "L-0058",
-    "L-0062"
+    "L-0062",
+    "L-0063"
   ],
   "locks": [
     "path:.github/workflows/shiki-validate.yml",
