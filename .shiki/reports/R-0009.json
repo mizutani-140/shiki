@@ -8,6 +8,7 @@
     ".shiki/schemas/ledger.schema.json",
     ".shiki/schemas/cca-verdict.schema.json",
     "docs/agents/ledger-schema.md",
+    "https://github.com/mizutani-140/shiki/pull/29",
     "https://github.com/mizutani-140/shiki/pull/27",
     "merge commit 3c45bbe"
   ],
