@@ -137,6 +137,16 @@ shiki-mergegate
 
 Branch protection or rulesets should require these stable checks. Avoid making optional matrix job names the only required checks, because matrix/check naming can change over time.
 
+### Guardian approval evidence
+
+Guardian approval for high-risk or critical work must be machine-readable. MergeGate accepts only configured sources:
+
+- an explicit configured approval label such as `guardian:approved`;
+- an approved GitHub review from a configured Guardian user or team;
+- a structured ledger field named `guardian_approval` with `approved: true` and a configured `approver`, `user`, or `team`.
+
+Ledger prose is not approval evidence. Negative or explanatory text such as "no Guardian approval evidence is present" must not satisfy MG-06.
+
 ### CD Gate
 
 Deployment requires a separate gate from merge. Merge means the code can enter the protected branch. Deploy means the code can affect an environment.

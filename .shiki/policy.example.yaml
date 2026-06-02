@@ -20,6 +20,13 @@ execution:
   codex_may_merge: false
   codex_may_deploy_production: false
 
+guardian:
+  labels:
+    - guardian:approved
+  users: []
+  teams: []
+  structured_ledger_field: guardian_approval
+
 worktrees:
   default_strategy: per_task_when_local_or_parallel
   path_template: "../.worktrees/{task_id}-{slug}"

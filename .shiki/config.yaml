@@ -8,6 +8,12 @@ defaults:
   automatic_repair_limit: 3
   required_review: true
   required_ledger_evidence: true
+guardian:
+  labels:
+    - guardian:approved
+  users:
+    - mizutani-140
+  teams: []
 runtimes:
   front: codex
   planner: claude-code
