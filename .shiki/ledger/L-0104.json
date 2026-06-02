@@ -3,6 +3,7 @@
   "evidence": [
     "Added branch protection review-count derivation from .shiki/config.yaml defaults.required_review.",
     "Configured required_review=true to produce required_approving_review_count >= 1.",
+    "TDD evidence: added regression tests before final verification for required_review=true and required_review=false branch protection review-count behavior.",
     "Added regression coverage for required_review=true and required_review=false branch protection behavior.",
     "Documented the interaction between branch protection, required_review, and the CCA Review Bridge.",
     "Scope is limited to Goal #30 P0.3.5; CODEOWNERS governance remains separate."
