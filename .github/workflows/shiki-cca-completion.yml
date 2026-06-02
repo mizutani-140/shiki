@@ -161,6 +161,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BOT_LOGIN: github-actions[bot]
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -172,7 +173,7 @@ jobs:
           echo "Repository: ${REPOSITORY}"
           echo "PR_NUMBER: ${PR_NUMBER}"
 
-          bot_login="$(gh api user --jq '.login')"
+          bot_login="${BOT_LOGIN}"
           echo "Authenticated GitHub login: ${bot_login}"
 
           pr_payload="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")"

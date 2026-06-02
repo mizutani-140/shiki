@@ -68,6 +68,7 @@ grep '"insufficient_evidence"' .shiki/schemas/cca-verdict.schema.json >/dev/null
 grep 'github_token: \${{ github.token }}' .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "CCA Review Bridge" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "author,headRefName" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "BOT_LOGIN: github-actions\\[bot\\]" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "Cannot submit CCA Review Bridge approval: authenticated identity is PR author" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "already_approved" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep 'repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews' .github/workflows/shiki-cca-completion.yml >/dev/null
