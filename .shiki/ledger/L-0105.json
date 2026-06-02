@@ -1,0 +1,31 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "PR #42 was merged into main at merge commit 6fae3317ece8f17f4350a3ac876fda2979ac075c.",
+    "Head before merge was 3dc2a6b6ba1d70e51083628d0a569ea3ab85bebf.",
+    "CCA verdict passed.",
+    "CCA Review Bridge created an APPROVED GitHub review for the merged head.",
+    "MergeGate policy check passed.",
+    "MergeGate metadata check passed.",
+    "Validate Shiki mirror passed.",
+    "Claude review passed.",
+    "Issue #41 has completion evidence and is closed.",
+    "Goal #30 P0.3.5 is marked complete; P0.3.7 remains open.",
+    "PR #43 carries the bounded post-merge mirror reconciliation for T-0031.",
+    "T-0031 status is set to done.",
+    "No active T-0031 lock exists."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0105",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/42",
+    "https://github.com/mizutani-140/shiki/pull/43",
+    "https://github.com/mizutani-140/shiki/commit/6fae3317ece8f17f4350a3ac876fda2979ac075c",
+    "https://github.com/mizutani-140/shiki/issues/41",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Recorded T-0031 post-merge completion and Goal #30 P0.3.5 evidence.",
+  "task_id": "T-0031",
+  "timestamp": "2026-06-02T10:23:20Z",
+  "type": "completion"
+}
