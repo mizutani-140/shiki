@@ -20,7 +20,8 @@
     "L-0095",
     "L-0096",
     "L-0097",
-    "L-0099"
+        "L-0099",
+        "L-0100"
   ],
   "locks": [
     "path:scripts/shiki.py",
@@ -48,6 +49,6 @@
   ],
   "risk_level": "critical",
   "scope": "Remove dangerous default side effects from bootstrap/init, including silent origin rewrite, broad git staging, warning-only branch protection failure, and warning-only required secret failure.",
-  "status": "review",
+    "status": "done",
   "title": "Make bootstrap and init safe by default"
 }
