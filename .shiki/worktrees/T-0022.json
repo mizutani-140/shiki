@@ -8,7 +8,17 @@
     "path:scripts/shiki.py",
     "path:bin/shiki",
     "path:docs/agents/bootstrap-command.md",
-    "path:scripts/test_shiki_*.sh"
+    "path:scripts/test_shiki_*.sh",
+    "path:.shiki/tasks/T-0021.json",
+    "path:.shiki/tasks/T-0022.json",
+    "path:.shiki/locks/T-0021.json",
+    "path:.shiki/locks/T-0022.json",
+    "path:.shiki/ledger/L-0095.json",
+    "path:.shiki/ledger/L-0096.json",
+    "path:.shiki/ledger/L-0097.json",
+    "path:.shiki/ledger/L-0098.json",
+    "path:.shiki/ledger/L-0099.json",
+    "path:.shiki/worktrees/T-0022.json"
   ],
   "path": "/Users/kio.mizutani/shiki",
   "pr": 36,

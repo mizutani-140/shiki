@@ -21,7 +21,8 @@
     "L-0091",
     "L-0092",
     "L-0093",
-    "L-0094"
+    "L-0094",
+    "L-0098"
   ],
   "locks": [
     "path:AGENTS.md",
@@ -48,6 +49,6 @@
   ],
   "risk_level": "high",
   "scope": "Align authority order, CCA schema paths, canonical constants, and validator coverage across contracts, runtime wrappers, workflows, docs, and skills.",
-  "status": "review",
+  "status": "done",
   "title": "Normalize Shiki contracts and source-of-truth"
 }

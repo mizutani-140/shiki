@@ -2,6 +2,9 @@
   "actor": "codex",
   "evidence": [
     "RED: scripts/test_shiki_init.sh failed because init rewrote mismatched origin automatically.",
+    "diagnose skill used to isolate the unsafe bootstrap/init side effects before editing.",
+    "tdd skill used for RED/GREEN bootstrap/init regression coverage.",
+    "improve-codebase-architecture skill used to keep the change bounded to the bootstrap/init contract instead of broadening MergeGate semantics.",
     "GREEN: PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash scripts/test_shiki_init.sh passed.",
     "GREEN: PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash scripts/test_shiki_start.sh passed.",
     "GREEN: for script in scripts/test_shiki_*.sh; do PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash \"$script\"; done passed."

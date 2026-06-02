@@ -1,0 +1,18 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "PR #32 merged into main.",
+    "Issue #31 closed as T-0021 complete.",
+    ".shiki/locks/T-0021.json removed to release completed T-0021 locks."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0098",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/32",
+    "https://github.com/mizutani-140/shiki/issues/31"
+  ],
+  "summary": "Marked T-0021 done and released completed task locks after PR #32 merge.",
+  "task_id": "T-0021",
+  "timestamp": "2026-06-02T02:18:55+00:00",
+  "type": "completion"
+}
