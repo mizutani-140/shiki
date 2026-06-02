@@ -13,8 +13,8 @@
   "dependencies": [
     "T-0021"
   ],
-  "expected_branch": "shiki/t-0023-enforce-mergegate-review-branch-protection-and-g",
-  "expected_pr": 39,
+  "expected_branch": "reconcile-t0023-post-merge",
+  "expected_pr": 40,
   "github_issue": 33,
   "goal_id": "G-0012",
   "id": "T-0023",
@@ -34,6 +34,7 @@
     "path:.github/pull_request_template.md",
     "path:CODEOWNERS",
     "path:docs/agents/**",
+    "path:.shiki/goals/G-0012.json",
     "path:.shiki/tasks/T-0023.json",
     "path:.shiki/ledger/L-0101.json",
     "path:.shiki/ledger/L-0102.json",

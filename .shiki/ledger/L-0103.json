@@ -2,6 +2,7 @@
   "actor": "codex-front",
   "evidence": [
     "PR #39 was merged into main at merge commit 017bba2.",
+    "PR #40 records the bounded post-merge mirror reconciliation for T-0023.",
     "CCA verdict passed.",
     "CCA Review Bridge created an APPROVED GitHub review using the GitHub Actions identity.",
     "MergeGate policy check passed.",
@@ -17,6 +18,7 @@
   "id": "L-0103",
   "links": [
     "https://github.com/mizutani-140/shiki/pull/39",
+    "https://github.com/mizutani-140/shiki/pull/40",
     "https://github.com/mizutani-140/shiki/commit/017bba2",
     "https://github.com/mizutani-140/shiki/issues/33",
     "https://github.com/mizutani-140/shiki/issues/30"
