@@ -1,0 +1,30 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "PR #39 was merged into main at merge commit 017bba2.",
+    "PR #40 records the bounded post-merge mirror reconciliation for T-0023.",
+    "CCA verdict passed.",
+    "CCA Review Bridge created an APPROVED GitHub review using the GitHub Actions identity.",
+    "MergeGate policy check passed.",
+    "MergeGate metadata check passed.",
+    "Validate Shiki mirror passed.",
+    "Claude review passed.",
+    "T-0023 status is set to done.",
+    "T-0023 active locks are absent.",
+    "Issue #33 is ready to be closed as complete.",
+    "Goal #30 P0.3 progress is ready to be updated, except branch-protection approval-count and CODEOWNERS/governance items that remain open until separately proven."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0103",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/39",
+    "https://github.com/mizutani-140/shiki/pull/40",
+    "https://github.com/mizutani-140/shiki/commit/017bba2",
+    "https://github.com/mizutani-140/shiki/issues/33",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Recorded T-0023 post-merge completion and released task state after PR #39 merge.",
+  "task_id": "T-0023",
+  "timestamp": "2026-06-02T08:34:46Z",
+  "type": "completion"
+}
