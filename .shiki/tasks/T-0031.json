@@ -1,0 +1,41 @@
+{
+  "acceptance_checks": [
+    "protect_branch() no longer emits required_approving_review_count: 0 when required_review is true.",
+    "Required review count is derived from .shiki/config.yaml defaults.required_review.",
+    "Tests prove required_review=true leads to required_approving_review_count >= 1.",
+    "Tests prove required_review=false does not force an approving review.",
+    "Docs explain interaction between GitHub branch protection, CCA Review Bridge, and required_review."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0023"
+  ],
+  "expected_branch": "shiki/t-0031-enforce-branch-protection-review-count",
+  "expected_pr": null,
+  "github_issue": 41,
+  "goal_id": "G-0012",
+  "id": "T-0031",
+  "ledger_evidence": [
+    "L-0104"
+  ],
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:scripts/test_shiki_init.sh",
+    "path:docs/agents/decision-control.md",
+    "path:docs/agents/bootstrap-command.md",
+    "path:.shiki/tasks/T-0031.json",
+    "path:.shiki/ledger/L-0104.json"
+  ],
+  "non_goals": [
+    "Do not weaken MergeGate.",
+    "Do not remove CCA Review Bridge.",
+    "Do not broaden into CODEOWNERS governance."
+  ],
+  "required_skills": [
+    "tdd"
+  ],
+  "risk_level": "critical",
+  "scope": "Close Goal #30 P0.3.5 by making Shiki branch protection require at least one approving review whenever .shiki/config.yaml has defaults.required_review: true.",
+  "status": "review",
+  "title": "Enforce required review count in branch protection payload"
+}

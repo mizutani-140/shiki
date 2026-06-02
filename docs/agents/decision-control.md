@@ -155,6 +155,8 @@ The CCA Review Bridge is not advisory Claude review and is not Guardian approval
 
 The bridge uses REST PR review creation after CCA verdict enforcement succeeds. If the repository's `GITHUB_TOKEN` cannot create approvals even when `can_approve_pull_request_reviews=true`, configure a non-author reviewer bot token or GitHub App installation token with `Pull requests: write`; do not weaken `required_review` or substitute advisory Claude review.
 
+When `.shiki/config.yaml` sets `defaults.required_review: true`, Shiki branch protection must require at least one approving PR review. The CCA Review Bridge is the automation path that can satisfy that GitHub review requirement in solo operation after CCA and Guardian gates have already passed; it does not replace MergeGate policy or Guardian evidence.
+
 ### CD Gate
 
 Deployment requires a separate gate from merge. Merge means the code can enter the protected branch. Deploy means the code can affect an environment.
