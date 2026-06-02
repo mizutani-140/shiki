@@ -8,7 +8,10 @@
     "Added regression coverage that ledger text containing no Guardian approval evidence is present does not satisfy MG-06.",
     "Added structured Guardian approval coverage using guardian_approval with a configured approver identity.",
     "Local verification passed: PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash scripts/test_shiki_control_plane.sh",
-    "PR #39 was opened for T-0023."
+    "PR #39 was opened for T-0023.",
+    "Repair added CCA Review Bridge after Enforce CCA verdict and before Upload CCA evidence.",
+    "CCA Review Bridge refreshes PR metadata with author/reviews, rejects authenticated identity equal to PR author, avoids duplicate approvals, submits a real GitHub PR Review approval, and refreshes .shiki/gha/pr.json before MergeGate policy.",
+    "Regression coverage checks CCA Review Bridge workflow contract strings in scripts/test_shiki_control_plane.sh."
   ],
   "goal_id": "G-0012",
   "id": "L-0101",

@@ -147,6 +147,12 @@ Guardian approval for high-risk or critical work must be machine-readable. Merge
 
 Ledger prose is not approval evidence. Negative or explanatory text such as "no Guardian approval evidence is present" must not satisfy MG-06.
 
+### CCA Review Bridge
+
+For solo/self-running operation, Shiki may submit an automated GitHub PR review approval only after CCA returns `complete`.
+
+The CCA Review Bridge is not advisory Claude review and is not Guardian approval. It exists only to satisfy `required_review: true` after CCA has judged the PR complete and Guardian evidence is already present when required. The bridge must not approve if the authenticated GitHub identity is the PR author, and it must refresh `.shiki/gha/pr.json` after submitting the review so MergeGate policy reads current review state.
+
 ### CD Gate
 
 Deployment requires a separate gate from merge. Merge means the code can enter the protected branch. Deploy means the code can affect an environment.

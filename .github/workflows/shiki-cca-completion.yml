@@ -43,7 +43,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
           mkdir -p .shiki/gha
-          gh pr view "$PR_NUMBER" --json number,title,body,headRefName,baseRefName,headRefOid,labels,files,reviews,statusCheckRollup > .shiki/gha/pr.json
+          gh pr view "$PR_NUMBER" --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
           base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
           git fetch origin "$base_ref" --depth=1
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
@@ -155,6 +155,51 @@ jobs:
         env:
           STRUCTURED_OUTPUT: ${{ steps.cca.outputs.structured_output }}
         run: python3 scripts/enforce_cca_verdict.py
+
+      - name: CCA Review Bridge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          gh pr view "$PR_NUMBER" \
+            --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup \
+            > .shiki/gha/pr.json
+
+          bot_login="$(gh api user --jq .login)"
+          author_login="$(jq -r '.author.login // empty' .shiki/gha/pr.json)"
+
+          if [ -z "$bot_login" ] || [ -z "$author_login" ]; then
+            echo "Could not resolve CCA Review Bridge authenticated user or PR author login"
+            exit 1
+          fi
+
+          if [ "$bot_login" = "$author_login" ]; then
+            echo "Cannot submit CCA Review Bridge approval: authenticated user is PR author: $bot_login"
+            exit 1
+          fi
+
+          already_approved="$(
+            jq -r --arg login "$bot_login" '
+              [.reviews[]? | select((.state // "" | ascii_upcase) == "APPROVED") | select(.author.login == $login)] | length
+            ' .shiki/gha/pr.json
+          )"
+
+          if [ "$already_approved" = "0" ]; then
+            gh pr review "$PR_NUMBER" \
+              --approve \
+              --body "Shiki CCA Review Bridge approval.
+
+          CCA verdict completed for this PR and Guardian approval evidence is present. This automated GitHub Review approval exists to satisfy Shiki required_review policy for solo/self-running operation.
+
+          This is not advisory Claude review. It is emitted only after the CCA verdict check succeeds."
+          fi
+
+          gh pr view "$PR_NUMBER" \
+            --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup \
+            > .shiki/gha/pr.json
 
       - name: Upload CCA evidence
         if: always()

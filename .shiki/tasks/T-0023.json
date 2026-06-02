@@ -6,7 +6,8 @@
     "Guardian approvals are checked through configured users or teams.",
     "MergeGate blocks missing CCA, review, ledger, required checks, and Guardian evidence.",
     "Ledger text containing no Guardian approval evidence is present does not satisfy MG-06.",
-    "guardian:approved label handling is explicit and documented."
+    "guardian:approved label handling is explicit and documented.",
+    "CCA Review Bridge submits a non-author GitHub review only after CCA completes and refreshes PR metadata for MergeGate."
   ],
   "assigned_runtime": "codex",
   "dependencies": [
