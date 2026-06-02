@@ -1,0 +1,18 @@
+{
+  "base": "main",
+  "branch": "shiki/t-0022-make-bootstrap-and-init-safe-by-default",
+  "created_at": "2026-06-02T02:16:47+00:00",
+  "created_by": "codex",
+  "goal_id": "G-0012",
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:bin/shiki",
+    "path:docs/agents/bootstrap-command.md",
+    "path:scripts/test_shiki_*.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki",
+  "pr": 36,
+  "runtime": "codex",
+  "state": "registered",
+  "task_id": "T-0022"
+}

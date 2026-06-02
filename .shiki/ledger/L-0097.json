@@ -1,0 +1,18 @@
+{
+  "actor": "codex",
+  "evidence": [
+    ".shiki/tasks/T-0022.json",
+    ".shiki/worktrees/T-0022.json",
+    "https://github.com/mizutani-140/shiki/pull/36"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0097",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/35",
+    "https://github.com/mizutani-140/shiki/pull/36"
+  ],
+  "summary": "Opened PR #36 for T-0022 bootstrap/init safety implementation.",
+  "task_id": "T-0022",
+  "timestamp": "2026-06-02T02:16:47+00:00",
+  "type": "review"
+}
