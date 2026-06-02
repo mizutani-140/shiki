@@ -1,0 +1,23 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "PR #45 merged into main at merge commit 6aed8da7de5ee1b1ba31de69d99b92ac58595c6e.",
+    "Issue #44 was closed with T-0032 completion evidence.",
+    "Goal #30 P0.3.7 was checked as complete after PR #45 merge.",
+    "T-0032 status was reconciled from review to done.",
+    "G-0012 ledger evidence was connected to L-0106 and L-0107.",
+    "No implementation code, workflow, branch protection behavior, or CODEOWNERS rules were changed by this reconciliation."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0107",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/45",
+    "https://github.com/mizutani-140/shiki/issues/44",
+    "https://github.com/mizutani-140/shiki/issues/46",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Reconciled T-0032 post-merge mirror state after PR #45.",
+  "task_id": "T-0032",
+  "timestamp": "2026-06-02T11:44:06Z",
+  "type": "check"
+}
