@@ -21,7 +21,8 @@
   "ledger_evidence": [
     "L-0079",
     "L-0101",
-    "L-0102"
+    "L-0102",
+    "L-0103"
   ],
   "locks": [
     "path:.shiki/config.yaml",
@@ -35,7 +36,8 @@
     "path:docs/agents/**",
     "path:.shiki/tasks/T-0023.json",
     "path:.shiki/ledger/L-0101.json",
-    "path:.shiki/ledger/L-0102.json"
+    "path:.shiki/ledger/L-0102.json",
+    "path:.shiki/ledger/L-0103.json"
   ],
   "non_goals": [
     "Do not weaken CCA or MergeGate to make PRs easier to merge."
@@ -47,6 +49,6 @@
   ],
   "risk_level": "critical",
   "scope": "Make required checks single-source, ensure required_review is enforced by GitHub branch protection, separate advisory AI review from blocking review, and make Guardian approval machine-readable.",
-  "status": "review",
+  "status": "done",
   "title": "Enforce MergeGate, review, branch protection, and Guardian rules"
 }
