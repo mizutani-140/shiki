@@ -151,12 +151,18 @@ def ensure_git_repo(path: Path, branch: str) -> None:
         run(["git", "checkout", "-B", branch], cwd=path)
 
 
-def ensure_remote(repo: str, path: Path) -> None:
+def ensure_remote(repo: str, path: Path, *, adopt_existing_repo: bool = False) -> None:
     remote_url = f"https://github.com/{repo}.git"
     existing = run(["git", "remote", "get-url", "origin"], cwd=path, check=False)
     if existing.returncode == 0:
         current = existing.stdout.strip()
         if current != remote_url:
+            if not adopt_existing_repo:
+                raise ShikiError(
+                    "origin already points to "
+                    f"{current}; refusing to rewrite it to {remote_url}. "
+                    "Pass --adopt-existing-repo to explicitly adopt this repository."
+                )
             run(["git", "remote", "set-url", "origin", remote_url], cwd=path)
             info(f"updated origin to {remote_url}")
         else:
@@ -190,14 +196,20 @@ def has_commits(path: Path) -> bool:
     return run(["git", "rev-parse", "--verify", "HEAD"], cwd=path, check=False).returncode == 0
 
 
-def has_staged_or_unstaged_changes(path: Path) -> bool:
-    result = run(["git", "status", "--porcelain"], cwd=path)
-    return bool(result.stdout.strip())
+def manifest_stage_paths(path: Path) -> list[str]:
+    candidates = list(TEMPLATE_PATHS)
+    candidates.append(".shiki/repo.json")
+    return [relative for relative in candidates if (path / relative).exists()]
 
 
-def commit_all(path: Path, message: str) -> None:
-    run(["git", "add", "."], cwd=path)
-    if not has_staged_or_unstaged_changes(path):
+def commit_manifest(path: Path, message: str) -> None:
+    stage_paths = manifest_stage_paths(path)
+    if not stage_paths:
+        info("nothing to commit")
+        return
+    run(["git", "add", "--", *stage_paths], cwd=path)
+    staged = run(["git", "diff", "--cached", "--quiet"], cwd=path, check=False)
+    if staged.returncode == 0:
         info("nothing to commit")
         return
     run(["git", "commit", "-m", message], cwd=path)
@@ -248,10 +260,11 @@ def configure_claude_code_secret(repo: str, *, enabled: bool, secret_env: str) -
     secret_value = os.environ.get(secret_env, "")
     if not secret_value:
         status["remediation"] = claude_secret_remediation(repo, secret_env)
-        warn(f"{secret_env} is not set; skipping GitHub secret CLAUDE_CODE_OAUTH_TOKEN")
-        warn("Claude Code login does not automatically expose a GitHub Actions token to Shiki.")
-        warn(status["remediation"])
-        return status
+        raise ShikiError(
+            f"missing required GitHub Actions secret source: {secret_env}. "
+            "Claude Code login does not automatically expose a GitHub Actions token to Shiki. "
+            f"{status['remediation']}"
+        )
 
     set_secret(repo, "CLAUDE_CODE_OAUTH_TOKEN", secret_value)
     status["configured"] = True
@@ -310,8 +323,10 @@ def protect_branch(repo: str, branch: str, required_checks: list[str]) -> None:
     if result.returncode == 0:
         info(f"configured branch protection for {branch}")
     else:
-        warn(f"could not configure branch protection: {result.stderr.strip()}")
-        warn("configure required checks manually if your GitHub plan or permissions block the API")
+        raise ShikiError(
+            f"could not configure branch protection: {result.stderr.strip()}. "
+            "Branch protection is required; rerun with --no-protect only for an explicit non-protected setup."
+        )
 
 
 def validate_local_shiki() -> None:
@@ -1073,6 +1088,7 @@ def initialize_target_from_start(args: argparse.Namespace, target: Path, repo: s
         secret_env=args.secret_env,
         protect=args.protect,
         required_check=args.required_check,
+        adopt_existing_repo=args.adopt_existing_repo,
     )
     cmd_init(init_args)
 
@@ -1173,7 +1189,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     )
 
     if args.commit:
-        commit_all(target, "shiki: start project control plane")
+        commit_manifest(target, "shiki: start project control plane")
     if args.push:
         push_branch(target, args.branch)
 
@@ -2071,14 +2087,14 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
     run(["gh", "auth", "status"])
     ensure_git_repo(ROOT, branch)
     ensure_github_repo(repo, visibility)
-    ensure_remote(repo, ROOT)
+    ensure_remote(repo, ROOT, adopt_existing_repo=args.adopt_existing_repo)
 
     active_branch = current_branch(ROOT)
     if active_branch != branch:
         run(["git", "checkout", "-B", branch], cwd=ROOT)
 
     if args.commit:
-        commit_all(ROOT, args.commit_message)
+        commit_manifest(ROOT, args.commit_message)
 
     if args.push:
         push_branch(ROOT, branch)
@@ -2140,18 +2156,18 @@ def cmd_init(args: argparse.Namespace) -> int:
     visibility = "private" if args.private else "public"
 
     run(["gh", "auth", "status"])
-    install_template(target, force=args.force, validate=args.validate)
-    write_target_repo_config(target, repo, branch)
     ensure_git_repo(target, branch)
     ensure_github_repo(repo, visibility)
-    ensure_remote(repo, target)
+    ensure_remote(repo, target, adopt_existing_repo=args.adopt_existing_repo)
+    install_template(target, force=args.force, validate=args.validate)
+    write_target_repo_config(target, repo, branch)
 
     active_branch = current_branch(target)
     if active_branch != branch:
         run(["git", "checkout", "-B", branch], cwd=target)
 
     if args.commit:
-        commit_all(target, args.commit_message)
+        commit_manifest(target, args.commit_message)
 
     if args.push:
         push_branch(target, branch)
@@ -2510,6 +2526,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--set-secret", action=argparse.BooleanOptionalAction, default=True)
     init.add_argument("--secret-env", default="CLAUDE_CODE_OAUTH_TOKEN")
     init.add_argument("--protect", action=argparse.BooleanOptionalAction, default=True)
+    init.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin to the requested GitHub repo")
     init.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
     init.set_defaults(func=cmd_init)
 
@@ -2529,6 +2546,7 @@ def build_parser() -> argparse.ArgumentParser:
     github.add_argument("--set-secret", action=argparse.BooleanOptionalAction, default=True)
     github.add_argument("--secret-env", default="CLAUDE_CODE_OAUTH_TOKEN")
     github.add_argument("--protect", action=argparse.BooleanOptionalAction, default=True)
+    github.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin to the requested GitHub repo")
     github.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
     github.set_defaults(func=cmd_bootstrap_github)
 
@@ -2543,6 +2561,7 @@ def build_parser() -> argparse.ArgumentParser:
     deprecated.add_argument("--set-secret", action=argparse.BooleanOptionalAction, default=True)
     deprecated.add_argument("--secret-env", default="CLAUDE_CODE_OAUTH_TOKEN")
     deprecated.add_argument("--protect", action=argparse.BooleanOptionalAction, default=True)
+    deprecated.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin to the requested GitHub repo")
     deprecated.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
     deprecated.set_defaults(func=cmd_bootstrap_github)
 
@@ -2600,6 +2619,7 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("--set-secret", action=argparse.BooleanOptionalAction, default=True)
     start.add_argument("--secret-env", default="CLAUDE_CODE_OAUTH_TOKEN")
     start.add_argument("--protect", action=argparse.BooleanOptionalAction, default=True)
+    start.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin during init")
     start.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
     start.add_argument("--create-issues", action=argparse.BooleanOptionalAction, default=True)
     start.add_argument("--create-handoffs", action=argparse.BooleanOptionalAction, default=True)

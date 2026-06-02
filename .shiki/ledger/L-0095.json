@@ -1,0 +1,17 @@
+{
+  "actor": "codex",
+  "evidence": [
+    ".shiki/tasks/T-0022.json",
+    ".shiki/locks/T-0022.json",
+    "https://github.com/mizutani-140/shiki/issues/35"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0095",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/35"
+  ],
+  "summary": "Linked T-0022 to Issue #35 and acquired bootstrap/init safety locks.",
+  "task_id": "T-0022",
+  "timestamp": "2026-06-02T02:14:18+00:00",
+  "type": "task-registered"
+}

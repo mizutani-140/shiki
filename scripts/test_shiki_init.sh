@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_ROOT="${TMPDIR:-/tmp}/shiki-init-test-$$"
+FAKE_BIN="$TMP_ROOT/bin"
 
 cleanup() {
   rm -rf "$TMP_ROOT"
@@ -26,7 +27,46 @@ python3 scripts/shiki.py --help | grep -E "init|preflight" >/dev/null
 grep "shiki start" .claude/commands/shiki.md >/dev/null
 grep "shiki start" .codex/skills/shiki/SKILL.md >/dev/null
 
-mkdir -p "$TMP_ROOT/missing-repo" "$TMP_ROOT/invalid-repo" "$TMP_ROOT/no-local" "$TMP_ROOT/local-only"
+mkdir -p "$TMP_ROOT/missing-repo" "$TMP_ROOT/invalid-repo" "$TMP_ROOT/no-local" "$TMP_ROOT/local-only" "$FAKE_BIN"
+
+cat >"$FAKE_BIN/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "$*" >>"${SHIKI_FAKE_GH_LOG}"
+case "$1 $2" in
+  "auth status")
+    exit 0
+    ;;
+  "repo view")
+    exit 0
+    ;;
+  "repo create")
+    echo "https://github.com/example/shiki-init-test"
+    exit 0
+    ;;
+  "secret set")
+    cat >/dev/null
+    exit 0
+    ;;
+  "api repos/example/shiki-init-protect/branches/main/protection")
+    echo "branch protection rejected" >&2
+    exit 1
+    ;;
+  "api repos/"*)
+    cat >/dev/null
+    exit 0
+    ;;
+esac
+echo "fake gh unsupported: $*" >&2
+exit 1
+SH
+chmod +x "$FAKE_BIN/gh"
+export PATH="$FAKE_BIN:$PATH"
+export SHIKI_FAKE_GH_LOG="$TMP_ROOT/gh.log"
+export GIT_AUTHOR_NAME="Shiki Test"
+export GIT_AUTHOR_EMAIL="shiki-test@example.local"
+export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 
 expect_fail python3 scripts/shiki.py init "$TMP_ROOT/missing-repo"
 expect_fail python3 scripts/shiki.py init "$TMP_ROOT/invalid-repo" --repo invalid-slug
@@ -38,5 +78,61 @@ test -z "$(find "$TMP_ROOT/local-only/.shiki/tasks" -type f -name '*.json' -prin
 test -z "$(find "$TMP_ROOT/local-only/.shiki/ledger" -type f -name '*.json' -print -quit)"
 
 expect_fail python3 scripts/shiki.py preflight "$TMP_ROOT/local-only" --require-github
+
+ORIGIN_MISMATCH="$TMP_ROOT/origin-mismatch"
+mkdir -p "$ORIGIN_MISMATCH"
+git -C "$ORIGIN_MISMATCH" init -b main >/tmp/shiki-init-origin-git.out
+git -C "$ORIGIN_MISMATCH" remote add origin https://github.com/example/wrong-repo.git
+expect_fail python3 scripts/shiki.py init "$ORIGIN_MISMATCH" \
+  --repo example/shiki-init-test \
+  --no-commit \
+  --no-push \
+  --no-set-secret \
+  --no-protect
+grep "origin already points" /tmp/shiki-expected-fail.out >/dev/null
+test "$(git -C "$ORIGIN_MISMATCH" remote get-url origin)" = "https://github.com/example/wrong-repo.git"
+
+ADOPTED="$TMP_ROOT/adopted"
+mkdir -p "$ADOPTED"
+git -C "$ADOPTED" init -b main >/tmp/shiki-init-adopt-git.out
+git -C "$ADOPTED" remote add origin https://github.com/example/wrong-repo.git
+python3 scripts/shiki.py init "$ADOPTED" \
+  --repo example/shiki-init-test \
+  --adopt-existing-repo \
+  --no-commit \
+  --no-push \
+  --no-set-secret \
+  --no-protect >/tmp/shiki-init-adopt.out
+test "$(git -C "$ADOPTED" remote get-url origin)" = "https://github.com/example/shiki-init-test.git"
+
+STAGING="$TMP_ROOT/staging"
+mkdir -p "$STAGING"
+printf 'do not stage me\n' >"$STAGING/unrelated.txt"
+python3 scripts/shiki.py init "$STAGING" \
+  --repo example/shiki-init-staging \
+  --no-push \
+  --no-set-secret \
+  --no-protect >/tmp/shiki-init-staging.out
+expect_fail git -C "$STAGING" ls-files --error-unmatch unrelated.txt
+test -f "$STAGING/unrelated.txt"
+
+MISSING_SECRET="$TMP_ROOT/missing-secret"
+mkdir -p "$MISSING_SECRET"
+unset CLAUDE_CODE_OAUTH_TOKEN || true
+expect_fail python3 scripts/shiki.py init "$MISSING_SECRET" \
+  --repo example/shiki-init-secret \
+  --no-commit \
+  --no-push \
+  --no-protect
+grep "missing required GitHub Actions secret source" /tmp/shiki-expected-fail.out >/dev/null
+
+PROTECT_FAIL="$TMP_ROOT/protect-fail"
+mkdir -p "$PROTECT_FAIL"
+export CLAUDE_CODE_OAUTH_TOKEN="fake-test-token"
+expect_fail python3 scripts/shiki.py init "$PROTECT_FAIL" \
+  --repo example/shiki-init-protect \
+  --no-commit \
+  --no-push
+grep "could not configure branch protection" /tmp/shiki-expected-fail.out >/dev/null
 
 echo "shiki init tests passed"

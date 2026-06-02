@@ -1,0 +1,16 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "MergeGate metadata check failed because T-0021 was still review in the repo mirror, completed T-0021 locks remained active, T-0022 .shiki evidence paths were missing from locks, and required skill evidence was not explicit.",
+    "Repair marks T-0021 done, releases T-0021 locks, expands T-0022 locks for mirror evidence, and records diagnose/tdd/improve-codebase-architecture evidence in L-0096."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0099",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/36"
+  ],
+  "summary": "Repaired T-0022 MergeGate metadata evidence after PR #36 metadata failure.",
+  "task_id": "T-0022",
+  "timestamp": "2026-06-02T02:18:55+00:00",
+  "type": "repair"
+}

@@ -39,11 +39,11 @@ This is the standard user-facing Shiki entrypoint. It will:
 - install Shiki template files;
 - initialize Git if needed;
 - create the GitHub repository if missing;
-- add or update `origin`;
+- add `origin` if missing, or fail if an existing `origin` points elsewhere unless `--adopt-existing-repo` is passed;
 - write `.shiki/repo.json`;
-- commit and push the initial Shiki state;
-- set `CLAUDE_CODE_OAUTH_TOKEN` from the environment when present;
-- configure branch protection with Shiki required checks when GitHub permissions allow it;
+- commit and push only the Shiki manifest files;
+- require `CLAUDE_CODE_OAUTH_TOKEN` when secret setup is enabled;
+- hard-fail if required branch protection cannot be configured while protection is enabled;
 - collect or consume Goal answers;
 - write a machine-readable plan;
 - run Shiki orchestration;
@@ -64,9 +64,9 @@ Do not use `install-target` for normal setup. Shiki is GitHub-first.
 ### Claude Code Action Secret
 
 `shiki start`, `shiki init`, and `shiki bootstrap-platform` automatically set
-the GitHub secret `CLAUDE_CODE_OAUTH_TOKEN` only when the environment variable
-`CLAUDE_CODE_OAUTH_TOKEN` is present in the shell that runs Shiki. Claude Code
-login by itself does not expose a GitHub Actions token to child processes.
+the GitHub secret `CLAUDE_CODE_OAUTH_TOKEN` from the environment variable
+`CLAUDE_CODE_OAUTH_TOKEN`. Claude Code login by itself does not expose a GitHub
+Actions token to child processes.
 
 If the secret is missing, create a long-lived Claude Code token:
 
@@ -75,7 +75,8 @@ claude setup-token
 ```
 
 Then export the token as `CLAUDE_CODE_OAUTH_TOKEN` before running Shiki, or set
-it directly:
+it directly and rerun Shiki with `--no-set-secret` only when that exception is
+intentional:
 
 ```bash
 gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo OWNER/REPO
@@ -94,10 +95,10 @@ The command is idempotent. It will:
 - validate `.shiki/`;
 - initialize Git if needed;
 - create the GitHub repo if missing;
-- add `origin` if missing;
-- commit and push the current Shiki template;
-- set `CLAUDE_CODE_OAUTH_TOKEN` from the environment when present;
-- configure branch protection with Shiki required checks when GitHub permissions allow it;
+- add `origin` if missing, or fail if an existing `origin` points elsewhere unless `--adopt-existing-repo` is passed;
+- commit and push only the Shiki manifest files;
+- require `CLAUDE_CODE_OAUTH_TOKEN` when secret setup is enabled;
+- hard-fail if required branch protection cannot be configured while protection is enabled;
 - save defaults in `~/.shiki/config.json`.
 
 After defaults are saved, rerun:
