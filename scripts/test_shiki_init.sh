@@ -28,6 +28,7 @@ grep "shiki start" .claude/commands/shiki.md >/dev/null
 grep "shiki start" .codex/skills/shiki/SKILL.md >/dev/null
 
 mkdir -p "$TMP_ROOT/missing-repo" "$TMP_ROOT/invalid-repo" "$TMP_ROOT/no-local" "$TMP_ROOT/local-only" "$FAKE_BIN"
+export TMP_ROOT
 
 cat >"$FAKE_BIN/gh" <<'SH'
 #!/usr/bin/env bash
@@ -53,7 +54,7 @@ case "$1 $2" in
     exit 1
     ;;
   "api repos/"*)
-    cat >/dev/null
+    cat >"${SHIKI_FAKE_GH_PAYLOAD:-/dev/null}"
     exit 0
     ;;
 esac
@@ -134,5 +135,46 @@ expect_fail python3 scripts/shiki.py init "$PROTECT_FAIL" \
   --no-commit \
   --no-push
 grep "could not configure branch protection" /tmp/shiki-expected-fail.out >/dev/null
+
+CONFIG_FALSE="$TMP_ROOT/config-false"
+mkdir -p "$CONFIG_FALSE/.shiki"
+cat >"$CONFIG_FALSE/.shiki/config.yaml" <<'YAML'
+defaults:
+  required_review: false
+YAML
+python3 - <<'PY'
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path.cwd() / "scripts"))
+import shiki
+
+root = Path(os.environ["TMP_ROOT"])
+if shiki.branch_protection_review_count(Path.cwd()) < 1:
+    raise SystemExit("required_review=true must require at least one approving review")
+if shiki.branch_protection_review_count(root / "config-false") != 0:
+    raise SystemExit("required_review=false must not force an approving review")
+PY
+
+PROTECT_PASS="$TMP_ROOT/protect-pass"
+mkdir -p "$PROTECT_PASS"
+export SHIKI_FAKE_GH_PAYLOAD="$TMP_ROOT/protect-payload.json"
+python3 scripts/shiki.py init "$PROTECT_PASS" \
+  --repo example/shiki-init-protect-pass \
+  --no-commit \
+  --no-push >/tmp/shiki-init-protect-pass.out
+python3 - "$SHIKI_FAKE_GH_PAYLOAD" <<'PY'
+import json
+import sys
+
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+count = payload["required_pull_request_reviews"]["required_approving_review_count"]
+if count < 1:
+    raise SystemExit(f"expected required_approving_review_count >= 1, got {count}")
+contexts = payload["required_status_checks"]["contexts"]
+if "MergeGate metadata check" not in contexts or "MergeGate policy check" not in contexts:
+    raise SystemExit(f"branch protection contexts missing MergeGate checks: {contexts}")
+PY
 
 echo "shiki init tests passed"

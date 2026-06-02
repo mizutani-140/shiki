@@ -181,6 +181,66 @@ def github_repo_exists(repo: str) -> bool:
     return run(["gh", "repo", "view", repo, "--json", "name"], check=False).returncode == 0
 
 
+def parse_config_scalar(value: str) -> Any:
+    value = value.strip().strip("\"'")
+    lowered = value.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    return value
+
+
+def load_shiki_config(target: Path) -> dict[str, dict[str, Any]]:
+    """Read the small .shiki/config.yaml subset bootstrap owns."""
+    config_path = target / ".shiki" / "config.yaml"
+    if not config_path.exists():
+        return {}
+
+    config: dict[str, dict[str, Any]] = {}
+    section: str | None = None
+    key: str | None = None
+    for raw_line in config_path.read_text(encoding="utf-8").splitlines():
+        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
+            continue
+        indent = len(raw_line) - len(raw_line.lstrip(" "))
+        stripped = raw_line.strip()
+        if indent == 0:
+            section = stripped[:-1] if stripped.endswith(":") else None
+            key = None
+            if section:
+                config.setdefault(section, {})
+            continue
+        if section is None:
+            continue
+        if indent == 2:
+            if stripped.endswith(":"):
+                key = stripped[:-1]
+                config[section].setdefault(key, [])
+                continue
+            if ":" in stripped:
+                item_key, value = stripped.split(":", 1)
+                config[section][item_key.strip()] = parse_config_scalar(value)
+                key = None
+                continue
+        if indent >= 4 and key and stripped.startswith("- "):
+            values = config[section].setdefault(key, [])
+            if isinstance(values, list):
+                values.append(parse_config_scalar(stripped[2:]))
+    return config
+
+
+def configured_required_review(target: Path) -> bool:
+    value = load_shiki_config(target).get("defaults", {}).get("required_review")
+    if isinstance(value, bool):
+        return value
+    return True
+
+
+def branch_protection_review_count(target: Path) -> int:
+    return 1 if configured_required_review(target) else 0
+
+
 def ensure_github_repo(repo: str, visibility: str) -> None:
     if github_repo_exists(repo):
         info(f"GitHub repository already exists: {repo}")
@@ -289,7 +349,7 @@ def github_secret_status(repo: str, secret_name: str) -> dict[str, Any]:
     }
 
 
-def protect_branch(repo: str, branch: str, required_checks: list[str]) -> None:
+def protect_branch(repo: str, branch: str, required_checks: list[str], *, review_count: int) -> None:
     payload = {
         "required_status_checks": {
             "strict": True,
@@ -299,7 +359,7 @@ def protect_branch(repo: str, branch: str, required_checks: list[str]) -> None:
         "required_pull_request_reviews": {
             "dismiss_stale_reviews": True,
             "require_code_owner_reviews": False,
-            "required_approving_review_count": 0,
+            "required_approving_review_count": review_count,
         },
         "restrictions": None,
         "required_conversation_resolution": True,
@@ -2103,7 +2163,7 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
     configure_claude_code_secret(repo, enabled=args.set_secret, secret_env=args.secret_env)
 
     if args.protect:
-        protect_branch(repo, branch, args.required_check)
+        protect_branch(repo, branch, args.required_check, review_count=branch_protection_review_count(ROOT))
 
     save_default_config(repo, branch)
     info("bootstrap complete")
@@ -2176,7 +2236,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     configure_claude_code_secret(repo, enabled=args.set_secret, secret_env=args.secret_env)
 
     if args.protect:
-        protect_branch(repo, branch, args.required_check)
+        protect_branch(repo, branch, args.required_check, review_count=branch_protection_review_count(target))
 
     info("GitHub-first init complete")
     return 0

@@ -191,6 +191,9 @@ The bootstrap command attempts to require:
 
 - `Validate Shiki mirror`
 - `CCA verdict`
+- `MergeGate metadata check`
 - `MergeGate policy check`
+
+When `.shiki/config.yaml` sets `defaults.required_review: true`, the bootstrap command configures branch protection with at least one required approving PR review. Solo/self-running operation relies on the CCA Review Bridge to create that GitHub review only after CCA completes and Guardian evidence is present when required.
 
 If the GitHub API rejects branch protection because of plan or permission limits, configure these checks manually in branch protection or rulesets.
