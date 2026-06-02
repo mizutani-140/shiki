@@ -71,6 +71,7 @@ grep "author,headRefName" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "Cannot submit CCA Review Bridge approval: authenticated user is PR author" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "already_approved" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep 'gh pr review "$PR_NUMBER"' .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "can_approve_pull_request_reviews" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "This is not advisory Claude review" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "reviewDecision,statusCheckRollup" .github/workflows/shiki-cca-completion.yml >/dev/null
 
