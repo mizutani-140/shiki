@@ -157,6 +157,12 @@ The bridge uses REST PR review creation after CCA verdict enforcement succeeds. 
 
 When `.shiki/config.yaml` sets `defaults.required_review: true`, Shiki branch protection must require at least one approving PR review. The CCA Review Bridge is the automation path that can satisfy that GitHub review requirement in solo operation after CCA and Guardian gates have already passed; it does not replace MergeGate policy or Guardian evidence.
 
+### CODEOWNERS Governance
+
+Critical Shiki governance paths are covered by `.github/CODEOWNERS` and owned by the configured Guardian owner. Branch protection must require code owner reviews so changes to workflows, MergeGate, CCA, bootstrap, core contracts, and root agent instructions receive machine-checkable owner review.
+
+CODEOWNERS review is separate from advisory Claude review, Guardian approval evidence, and the CCA Review Bridge. The bridge may create the required GitHub review after CCA completes, but it does not replace path-owner governance for critical files.
+
 ### CD Gate
 
 Deployment requires a separate gate from merge. Merge means the code can enter the protected branch. Deploy means the code can affect an environment.

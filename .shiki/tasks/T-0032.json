@@ -1,0 +1,47 @@
+{
+  "acceptance_checks": [
+    ".github/CODEOWNERS exists.",
+    "Critical Shiki governance paths require configured owner review.",
+    "Branch protection enables code owner reviews when Shiki config requires review.",
+    "Validator fails if CODEOWNERS is missing or does not cover critical paths.",
+    "Tests prove branch protection payload uses require_code_owner_reviews: true.",
+    "Docs explain CODEOWNERS governance and its separation from CCA Review Bridge."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0023",
+    "T-0031"
+  ],
+  "expected_branch": "shiki/t-0032-codeowners-governance",
+  "expected_pr": 45,
+  "github_issue": 44,
+  "goal_id": "G-0012",
+  "id": "T-0032",
+  "ledger_evidence": [
+    "L-0106"
+  ],
+  "locks": [
+    "path:.github/CODEOWNERS",
+    "path:scripts/shiki.py",
+    "path:scripts/shiki_contracts.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_init.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:docs/agents/decision-control.md",
+    "path:docs/agents/bootstrap-command.md",
+    "path:.shiki/tasks/T-0032.json",
+    "path:.shiki/ledger/L-0106.json"
+  ],
+  "non_goals": [
+    "Do not change runtime adapter behavior.",
+    "Do not implement P0.2.1 dry-run / execute gating.",
+    "Do not mark P0.4 state and evidence integrity items complete."
+  ],
+  "required_skills": [
+    "tdd"
+  ],
+  "risk_level": "critical",
+  "scope": "Close Goal #30 P0.3.7 by adding CODEOWNERS governance for critical Shiki paths, enforcing code owner review in branch protection, and validating CODEOWNERS coverage.",
+  "status": "review",
+  "title": "Add CODEOWNERS governance for critical Shiki paths"
+}

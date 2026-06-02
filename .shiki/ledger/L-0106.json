@@ -1,0 +1,22 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "Added .github/CODEOWNERS for critical Shiki governance paths.",
+    "Configured branch protection payload to require code owner reviews.",
+    "Added validator coverage for required CODEOWNERS rules and owner.",
+    "TDD evidence: added regression coverage for CODEOWNERS presence, validator wiring, template install, and branch protection require_code_owner_reviews payload behavior.",
+    "Documented CODEOWNERS governance as separate from advisory Claude review, Guardian approval evidence, and the CCA Review Bridge.",
+    "P0.3.7 scope is limited to CODEOWNERS or equivalent machine-checkable governance."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0106",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/45",
+    "https://github.com/mizutani-140/shiki/issues/44",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Implemented P0.3.7 CODEOWNERS governance for critical Shiki paths.",
+  "task_id": "T-0032",
+  "timestamp": "2026-06-02T11:00:07Z",
+  "type": "check"
+}

@@ -19,6 +19,26 @@ DEFAULT_REQUIRED_CHECKS = (
     "MergeGate policy check",
 )
 
+CODEOWNERS_PATH = ".github/CODEOWNERS"
+CODEOWNERS_REQUIRED_OWNER = "@mizutani-140"
+CODEOWNERS_CRITICAL_PATHS = (
+    "/.shiki/config.yaml",
+    "/.shiki/policy.example.yaml",
+    "/.github/CODEOWNERS",
+    "/.github/pull_request_template.md",
+    "/.github/PULL_REQUEST_TEMPLATE/*",
+    "/.github/prompts/*",
+    "/.github/workflows/*",
+    "/scripts/shiki.py",
+    "/scripts/mergegate_check.py",
+    "/scripts/enforce_cca_verdict.py",
+    "/scripts/validate_shiki.py",
+    "/scripts/shiki_contracts.py",
+    "/AGENTS.md",
+    "/SYSTEM_PROMPT.md",
+    "/CLAUDE.md",
+)
+
 RUNTIME_NAMES = (
     "codex",
     "codex-front",
