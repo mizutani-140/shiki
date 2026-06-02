@@ -68,9 +68,12 @@ grep '"insufficient_evidence"' .shiki/schemas/cca-verdict.schema.json >/dev/null
 grep 'github_token: \${{ github.token }}' .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "CCA Review Bridge" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "author,headRefName" .github/workflows/shiki-cca-completion.yml >/dev/null
-grep "Cannot submit CCA Review Bridge approval: authenticated user is PR author" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "Cannot submit CCA Review Bridge approval: authenticated identity is PR author" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "already_approved" .github/workflows/shiki-cca-completion.yml >/dev/null
-grep 'gh pr review "$PR_NUMBER"' .github/workflows/shiki-cca-completion.yml >/dev/null
+grep 'repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews' .github/workflows/shiki-cca-completion.yml >/dev/null
+grep '"https://api.github.com/repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews"' .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "REST create review HTTP status" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "create-review-response.json" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "can_approve_pull_request_reviews" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "This is not advisory Claude review" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "reviewDecision,statusCheckRollup" .github/workflows/shiki-cca-completion.yml >/dev/null
@@ -514,6 +517,27 @@ python3 "$TARGET/scripts/mergegate_check.py" \
   --result-file "$TARGET/.shiki/gha/mergegate-result.json" \
   >/tmp/shiki-mergegate-review-pass.json
 grep '"mergegate": "ready"' /tmp/shiki-mergegate-review-pass.json >/dev/null
+
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+path = target / ".shiki" / "gha" / "pr.json"
+pr = json.loads(path.read_text())
+pr["reviewDecision"] = ""
+pr["reviews"] = [{"state": "APPROVED", "author": {"login": "github-actions[bot]"}}]
+path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
+PY
+python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json" \
+  >/tmp/shiki-mergegate-actions-bot-review-pass.json
+grep '"mergegate": "ready"' /tmp/shiki-mergegate-actions-bot-review-pass.json >/dev/null
 
 python3 - "$TARGET" <<'PY'
 import json

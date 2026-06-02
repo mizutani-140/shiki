@@ -1,0 +1,21 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "Previous PR #39 CCA Review Bridge failure: gh pr review --approve returned Resource not accessible by integration (HTTP 403).",
+    "Repository workflow permission had already been changed to default_workflow_permissions=read and can_approve_pull_request_reviews=true before this repair.",
+    "Repair changed the CCA Review Bridge from gh pr review to direct REST PR review creation: POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews with event APPROVE.",
+    "The bridge still runs only after Enforce CCA verdict succeeds and refuses approval when the authenticated GitHub identity equals the PR author.",
+    "The bridge records REST request, response, before-review, after-review, and workflow-permission diagnostics under .shiki/gha for durable debugging.",
+    "REST 403 or 422 is not bypassed or hidden; the bridge reports the HTTP status and response body, then fails.",
+    "Guardian approval remains separate from the required GitHub review approval."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0102",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/39"
+  ],
+  "summary": "Repaired PR #39 CCA Review Bridge to use REST PR review creation with explicit failure evidence.",
+  "task_id": "T-0023",
+  "timestamp": "2026-06-02T08:10:55Z",
+  "type": "repair"
+}
