@@ -6,6 +6,7 @@
     "Dry-run output lists intended filesystem, git, GitHub repo, secret, branch protection, default-branch, commit, and push mutations.",
     "TDD evidence: scripts/test_shiki_init.sh proves default dry-run does not call fake gh or create the target, dry-run tolerates missing secret input, and explicit --execute reaches mocked mutation paths.",
     "Regression coverage preserves existing-origin mismatch hard-fail, --adopt-existing-repo, manifest-only staging, missing-secret hard-fail in execute mode, and branch-protection hard-fail in execute mode.",
+    "Bounded repair evidence: GitHub origin comparison now treats https://github.com/OWNER/REPO and https://github.com/OWNER/REPO.git as the same repository while preserving mismatch hard-fail behavior.",
     "Updated start tests to use explicit --execute for the existing mutation path.",
     "Documented dry-run vs execute behavior and existing bounded flags in docs/agents/bootstrap-command.md."
   ],

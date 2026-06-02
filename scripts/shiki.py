@@ -159,12 +159,25 @@ def existing_origin_url(path: Path) -> str | None:
     return result.stdout.strip()
 
 
+def canonical_github_remote_url(url: str) -> str:
+    value = url.strip().removesuffix("/")
+    if value.endswith(".git"):
+        value = value[:-4]
+    if value.startswith("git@github.com:"):
+        value = "https://github.com/" + value.removeprefix("git@github.com:")
+    return value
+
+
 def check_remote_adoption(repo: str, path: Path, *, adopt_existing_repo: bool = False) -> None:
     if not path.exists() or not is_git_repo(path):
         return
     remote_url = f"https://github.com/{repo}.git"
     current = existing_origin_url(path)
-    if current and current != remote_url and not adopt_existing_repo:
+    if (
+        current
+        and canonical_github_remote_url(current) != canonical_github_remote_url(remote_url)
+        and not adopt_existing_repo
+    ):
         raise ShikiError(
             "origin already points to "
             f"{current}; refusing to rewrite it to {remote_url}. "
@@ -176,7 +189,7 @@ def ensure_remote(repo: str, path: Path, *, adopt_existing_repo: bool = False) -
     remote_url = f"https://github.com/{repo}.git"
     current = existing_origin_url(path)
     if current:
-        if current != remote_url:
+        if canonical_github_remote_url(current) != canonical_github_remote_url(remote_url):
             if not adopt_existing_repo:
                 raise ShikiError(
                     "origin already points to "

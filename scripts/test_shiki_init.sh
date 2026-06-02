@@ -136,6 +136,14 @@ expect_fail python3 scripts/shiki.py init "$ORIGIN_MISMATCH" \
 grep "origin already points" /tmp/shiki-expected-fail.out >/dev/null
 test "$(git -C "$ORIGIN_MISMATCH" remote get-url origin)" = "https://github.com/example/wrong-repo.git"
 
+ORIGIN_WITHOUT_DOT_GIT="$TMP_ROOT/origin-without-dot-git"
+mkdir -p "$ORIGIN_WITHOUT_DOT_GIT"
+git -C "$ORIGIN_WITHOUT_DOT_GIT" init -b main >/tmp/shiki-init-origin-url-git.out
+git -C "$ORIGIN_WITHOUT_DOT_GIT" remote add origin https://github.com/example/shiki-init-test
+python3 scripts/shiki.py init "$ORIGIN_WITHOUT_DOT_GIT" \
+  --repo example/shiki-init-test >/tmp/shiki-init-origin-without-dot-git.out
+grep "dry-run: no bootstrap/init mutations were executed" /tmp/shiki-init-origin-without-dot-git.out >/dev/null
+
 ADOPTED="$TMP_ROOT/adopted"
 mkdir -p "$ADOPTED"
 git -C "$ADOPTED" init -b main >/tmp/shiki-init-adopt-git.out
