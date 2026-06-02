@@ -12,13 +12,14 @@
     "T-0023",
     "T-0031"
   ],
-  "expected_branch": "shiki/t-0032-codeowners-governance",
-  "expected_pr": 45,
+  "expected_branch": "shiki/t-0032-post-merge-reconcile",
+  "expected_pr": 47,
   "github_issue": 44,
   "goal_id": "G-0012",
   "id": "T-0032",
   "ledger_evidence": [
-    "L-0106"
+    "L-0106",
+    "L-0107"
   ],
   "locks": [
     "path:.github/CODEOWNERS",
@@ -30,7 +31,9 @@
     "path:docs/agents/decision-control.md",
     "path:docs/agents/bootstrap-command.md",
     "path:.shiki/tasks/T-0032.json",
-    "path:.shiki/ledger/L-0106.json"
+    "path:.shiki/ledger/L-0106.json",
+    "path:.shiki/ledger/L-0107.json",
+    "path:.shiki/goals/G-0012.json"
   ],
   "non_goals": [
     "Do not change runtime adapter behavior.",
@@ -42,6 +45,6 @@
   ],
   "risk_level": "critical",
   "scope": "Close Goal #30 P0.3.7 by adding CODEOWNERS governance for critical Shiki paths, enforcing code owner review in branch protection, and validating CODEOWNERS coverage.",
-  "status": "review",
+  "status": "done",
   "title": "Add CODEOWNERS governance for critical Shiki paths"
 }
