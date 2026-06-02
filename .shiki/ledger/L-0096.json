@@ -1,0 +1,18 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "RED: scripts/test_shiki_init.sh failed because init rewrote mismatched origin automatically.",
+    "GREEN: PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash scripts/test_shiki_init.sh passed.",
+    "GREEN: PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash scripts/test_shiki_start.sh passed.",
+    "GREEN: for script in scripts/test_shiki_*.sh; do PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash \"$script\"; done passed."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0096",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/35"
+  ],
+  "summary": "Implemented bootstrap/init safety guards for origin adoption, manifest staging, required secret hard fail, and branch protection hard fail.",
+  "task_id": "T-0022",
+  "timestamp": "2026-06-02T02:14:18+00:00",
+  "type": "check"
+}

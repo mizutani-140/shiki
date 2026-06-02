@@ -1,0 +1,12 @@
+{
+  "acquired_at": "2026-06-02T02:14:18+00:00",
+  "goal_id": "G-0012",
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:bin/shiki",
+    "path:docs/agents/bootstrap-command.md",
+    "path:scripts/test_shiki_*.sh"
+  ],
+  "owner": "codex",
+  "task_id": "T-0022"
+}
