@@ -80,6 +80,49 @@ test -z "$(find "$TMP_ROOT/local-only/.shiki/ledger" -type f -name '*.json' -pri
 
 expect_fail python3 scripts/shiki.py preflight "$TMP_ROOT/local-only" --require-github
 
+DRY_RUN="$TMP_ROOT/dry-run"
+: >"$SHIKI_FAKE_GH_LOG"
+python3 scripts/shiki.py init "$DRY_RUN" \
+  --repo example/shiki-init-dry-run >/tmp/shiki-init-dry-run.out
+grep "dry-run: no bootstrap/init mutations were executed" /tmp/shiki-init-dry-run.out >/dev/null
+grep "filesystem: create target directory" /tmp/shiki-init-dry-run.out >/dev/null
+grep "git: initialize repository" /tmp/shiki-init-dry-run.out >/dev/null
+grep "github-repo: create or reuse example/shiki-init-dry-run" /tmp/shiki-init-dry-run.out >/dev/null
+grep "secret: set CLAUDE_CODE_OAUTH_TOKEN" /tmp/shiki-init-dry-run.out >/dev/null
+grep "branch-protection: configure required checks" /tmp/shiki-init-dry-run.out >/dev/null
+grep "default-branch: set main" /tmp/shiki-init-dry-run.out >/dev/null
+grep "commit: create manifest commit" /tmp/shiki-init-dry-run.out >/dev/null
+grep "push: push main to origin" /tmp/shiki-init-dry-run.out >/dev/null
+test ! -e "$DRY_RUN"
+test -z "$(cat "$SHIKI_FAKE_GH_LOG")"
+
+DRY_RUN_NO_SECRET="$TMP_ROOT/dry-run-no-secret"
+unset CLAUDE_CODE_OAUTH_TOKEN || true
+python3 scripts/shiki.py init "$DRY_RUN_NO_SECRET" \
+  --repo example/shiki-init-dry-run-no-secret >/tmp/shiki-init-dry-run-no-secret.out
+grep "dry-run: no bootstrap/init mutations were executed" /tmp/shiki-init-dry-run-no-secret.out >/dev/null
+
+: >"$SHIKI_FAKE_GH_LOG"
+python3 scripts/shiki.py bootstrap-platform \
+  --repo mizutani-140/shiki >/tmp/shiki-bootstrap-platform-dry-run.out
+grep "dry-run: no bootstrap/init mutations were executed" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
+grep "filesystem: validate local Shiki platform files" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
+grep "github-repo: create or reuse mizutani-140/shiki" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
+test -z "$(cat "$SHIKI_FAKE_GH_LOG")"
+
+I_UNDERSTAND="$TMP_ROOT/i-understand"
+: >"$SHIKI_FAKE_GH_LOG"
+python3 scripts/shiki.py init "$I_UNDERSTAND" \
+  --repo example/shiki-init-understand \
+  --i-understand \
+  --no-commit \
+  --no-push \
+  --no-set-secret \
+  --no-protect >/tmp/shiki-init-understand.out
+test -d "$I_UNDERSTAND/.git"
+grep "auth status" "$SHIKI_FAKE_GH_LOG" >/dev/null
+grep "repo view example/shiki-init-understand --json name" "$SHIKI_FAKE_GH_LOG" >/dev/null
+
 ORIGIN_MISMATCH="$TMP_ROOT/origin-mismatch"
 mkdir -p "$ORIGIN_MISMATCH"
 git -C "$ORIGIN_MISMATCH" init -b main >/tmp/shiki-init-origin-git.out
@@ -93,12 +136,21 @@ expect_fail python3 scripts/shiki.py init "$ORIGIN_MISMATCH" \
 grep "origin already points" /tmp/shiki-expected-fail.out >/dev/null
 test "$(git -C "$ORIGIN_MISMATCH" remote get-url origin)" = "https://github.com/example/wrong-repo.git"
 
+ORIGIN_WITHOUT_DOT_GIT="$TMP_ROOT/origin-without-dot-git"
+mkdir -p "$ORIGIN_WITHOUT_DOT_GIT"
+git -C "$ORIGIN_WITHOUT_DOT_GIT" init -b main >/tmp/shiki-init-origin-url-git.out
+git -C "$ORIGIN_WITHOUT_DOT_GIT" remote add origin https://github.com/example/shiki-init-test
+python3 scripts/shiki.py init "$ORIGIN_WITHOUT_DOT_GIT" \
+  --repo example/shiki-init-test >/tmp/shiki-init-origin-without-dot-git.out
+grep "dry-run: no bootstrap/init mutations were executed" /tmp/shiki-init-origin-without-dot-git.out >/dev/null
+
 ADOPTED="$TMP_ROOT/adopted"
 mkdir -p "$ADOPTED"
 git -C "$ADOPTED" init -b main >/tmp/shiki-init-adopt-git.out
 git -C "$ADOPTED" remote add origin https://github.com/example/wrong-repo.git
 python3 scripts/shiki.py init "$ADOPTED" \
   --repo example/shiki-init-test \
+  --execute \
   --adopt-existing-repo \
   --no-commit \
   --no-push \
@@ -111,6 +163,7 @@ mkdir -p "$STAGING"
 printf 'do not stage me\n' >"$STAGING/unrelated.txt"
 python3 scripts/shiki.py init "$STAGING" \
   --repo example/shiki-init-staging \
+  --execute \
   --no-push \
   --no-set-secret \
   --no-protect >/tmp/shiki-init-staging.out
@@ -122,6 +175,7 @@ mkdir -p "$MISSING_SECRET"
 unset CLAUDE_CODE_OAUTH_TOKEN || true
 expect_fail python3 scripts/shiki.py init "$MISSING_SECRET" \
   --repo example/shiki-init-secret \
+  --execute \
   --no-commit \
   --no-push \
   --no-protect
@@ -132,6 +186,7 @@ mkdir -p "$PROTECT_FAIL"
 export CLAUDE_CODE_OAUTH_TOKEN="fake-test-token"
 expect_fail python3 scripts/shiki.py init "$PROTECT_FAIL" \
   --repo example/shiki-init-protect \
+  --execute \
   --no-commit \
   --no-push
 grep "could not configure branch protection" /tmp/shiki-expected-fail.out >/dev/null
@@ -162,6 +217,7 @@ mkdir -p "$PROTECT_PASS"
 export SHIKI_FAKE_GH_PAYLOAD="$TMP_ROOT/protect-payload.json"
 python3 scripts/shiki.py init "$PROTECT_PASS" \
   --repo example/shiki-init-protect-pass \
+  --execute \
   --no-commit \
   --no-push >/tmp/shiki-init-protect-pass.out
 python3 - "$SHIKI_FAKE_GH_PAYLOAD" <<'PY'
