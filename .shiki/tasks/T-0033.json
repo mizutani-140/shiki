@@ -15,8 +15,8 @@
     "T-0022",
     "T-0032"
   ],
-  "expected_branch": "shiki/t-0033-bootstrap-execute-gate",
-  "expected_pr": 49,
+  "expected_branch": "shiki/t-0033-post-merge-reconcile",
+  "expected_pr": 50,
   "github_issue": 48,
   "goal_id": "G-0012",
   "id": "T-0033",
@@ -30,7 +30,9 @@
     "path:scripts/test_shiki_start.sh",
     "path:docs/agents/bootstrap-command.md",
     "path:.shiki/tasks/T-0033.json",
-    "path:.shiki/ledger/L-0108.json"
+    "path:.shiki/ledger/L-0108.json",
+    "path:.shiki/ledger/L-0109.json",
+    "path:.shiki/goals/G-0012.json"
   ],
   "non_goals": [
     "Do not weaken existing P0.2.2 through P0.2.7 safety fixes.",
