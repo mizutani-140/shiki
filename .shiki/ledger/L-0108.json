@@ -1,0 +1,22 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "Added --execute and --i-understand as explicit execution confirmations for bootstrap/init mutation paths.",
+    "Made init, bootstrap-platform, bootstrap-github, and uninitialized start default to dry-run before dangerous filesystem, Git, GitHub repo, secret, branch protection, default-branch, commit, or push mutations.",
+    "Dry-run output lists intended filesystem, git, GitHub repo, secret, branch protection, default-branch, commit, and push mutations.",
+    "TDD evidence: scripts/test_shiki_init.sh proves default dry-run does not call fake gh or create the target, dry-run tolerates missing secret input, and explicit --execute reaches mocked mutation paths.",
+    "Regression coverage preserves existing-origin mismatch hard-fail, --adopt-existing-repo, manifest-only staging, missing-secret hard-fail in execute mode, and branch-protection hard-fail in execute mode.",
+    "Updated start tests to use explicit --execute for the existing mutation path.",
+    "Documented dry-run vs execute behavior and existing bounded flags in docs/agents/bootstrap-command.md."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0108",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/48",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Implemented P0.2.1 bootstrap/init dry-run execute gate.",
+  "task_id": "T-0033",
+  "timestamp": "2026-06-02T12:30:35Z",
+  "type": "check"
+}

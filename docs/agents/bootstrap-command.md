@@ -34,7 +34,18 @@ terminal entrypoints can still use `shiki start` when their own auth is ready.
 shiki start /path/to/target-repo --repo OWNER/REPO --private
 ```
 
-This is the standard user-facing Shiki entrypoint. It will:
+This is the standard user-facing Shiki entrypoint. By default it is a dry-run
+for uninitialized targets: it prints the intended bootstrap/init mutations and
+does not create a GitHub repo, mutate `origin`, commit, push, set secrets,
+change the default branch, or configure branch protection.
+
+To execute bootstrap/init mutations, pass `--execute`:
+
+```bash
+CLAUDE_CODE_OAUTH_TOKEN=... shiki start /path/to/target-repo --repo OWNER/REPO --private --execute
+```
+
+In execute mode, the command will:
 
 - install Shiki template files;
 - initialize Git if needed;
@@ -51,6 +62,7 @@ This is the standard user-facing Shiki entrypoint. It will:
 
 `shiki init` is still available as a lower-level command, but `/shiki` should
 prefer `shiki start` unless the user explicitly asks for advanced control.
+`shiki init` uses the same default dry-run and `--execute` gate.
 
 `shiki start` may run interactively. When values are missing, it asks one
 question at a time for the GitHub repo slug, project name, Goal, outcome,
@@ -63,7 +75,7 @@ Do not use `install-target` for normal setup. Shiki is GitHub-first.
 
 ### Claude Code Action Secret
 
-`shiki start`, `shiki init`, and `shiki bootstrap-platform` automatically set
+In execute mode, `shiki start`, `shiki init`, and `shiki bootstrap-platform` set
 the GitHub secret `CLAUDE_CODE_OAUTH_TOKEN` from the environment variable
 `CLAUDE_CODE_OAUTH_TOKEN`. Claude Code login by itself does not expose a GitHub
 Actions token to child processes.
@@ -90,7 +102,15 @@ Shiki must never read local Claude OAuth credential files or print token values.
 CLAUDE_CODE_OAUTH_TOKEN=... shiki bootstrap-platform --repo OWNER/shiki --private
 ```
 
-The command is idempotent. It will:
+The command is idempotent. By default it is a dry-run and prints the intended
+platform bootstrap mutations without applying them. To execute, pass
+`--execute`:
+
+```bash
+CLAUDE_CODE_OAUTH_TOKEN=... shiki bootstrap-platform --repo OWNER/shiki --private --execute
+```
+
+In execute mode, it will:
 
 - validate `.shiki/`;
 - initialize Git if needed;
@@ -104,8 +124,31 @@ The command is idempotent. It will:
 After defaults are saved, rerun:
 
 ```bash
-shiki bootstrap-platform
+shiki bootstrap-platform --execute
 ```
+
+## Dry-Run And Execute Controls
+
+`shiki start`, `shiki init`, `shiki bootstrap-platform`, and the deprecated
+`shiki bootstrap-github` alias default to dry-run. Dry-run output lists intended
+filesystem, Git, GitHub repository, secret, branch protection, default-branch,
+commit, and push mutations.
+
+Use `--execute` to apply those mutations. `--i-understand` is accepted as an
+equivalent explicit execution confirmation.
+
+The existing bounded flags still shape execute mode:
+
+- `--adopt-existing-repo` is required before Shiki rewrites an existing
+  mismatched `origin`.
+- `--no-set-secret` skips `CLAUDE_CODE_OAUTH_TOKEN` setup.
+- `--no-protect` skips branch protection configuration.
+- `--no-commit` skips manifest commit creation.
+- `--no-push` skips pushing and default-branch mutation.
+
+When execute mode is used, missing required secret input remains a hard failure
+unless `--no-set-secret` is passed, and branch protection failure remains a hard
+failure unless `--no-protect` is passed.
 
 ## Local-Only Template Copy
 

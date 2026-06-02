@@ -1,0 +1,46 @@
+{
+  "acceptance_checks": [
+    "Default bootstrap/init path does not create repo, rewrite remote, commit, push, set secret, set default branch, or configure branch protection without explicit execute confirmation.",
+    "Explicit execute mode performs the intended operations or reaches the expected mocked calls in tests.",
+    "Dry-run output lists intended filesystem, git, GitHub repo, secret, branch protection, default-branch, commit, and push mutations.",
+    "Existing-origin mismatch remains hard-fail unless --adopt-existing-repo is passed.",
+    "Manifest-only staging remains intact.",
+    "Missing required secret remains hard-fail when secret setup is actually executed.",
+    "Branch protection configuration failure remains hard-fail when protection is actually executed.",
+    "Docs explain dry-run vs execute, --adopt-existing-repo, --no-set-secret, --no-protect, --commit, and --push.",
+    "Goal #30 P0.2.1 can be checked after merge."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0022",
+    "T-0032"
+  ],
+  "expected_branch": "shiki/t-0033-bootstrap-execute-gate",
+  "expected_pr": null,
+  "github_issue": 48,
+  "goal_id": "G-0012",
+  "id": "T-0033",
+  "ledger_evidence": [
+    "L-0108"
+  ],
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:scripts/test_shiki_init.sh",
+    "path:scripts/test_shiki_start.sh",
+    "path:docs/agents/bootstrap-command.md",
+    "path:.shiki/tasks/T-0033.json",
+    "path:.shiki/ledger/L-0108.json"
+  ],
+  "non_goals": [
+    "Do not weaken existing P0.2.2 through P0.2.7 safety fixes.",
+    "Do not weaken P0.3 governance, CCA, MergeGate, Guardian, branch protection, or CODEOWNERS.",
+    "Do not broaden into P0.4 state, ID, lock, or evidence integrity work."
+  ],
+  "required_skills": [
+    "tdd"
+  ],
+  "risk_level": "critical",
+  "scope": "Close Goal #30 P0.2.1 by making dangerous bootstrap/init operations dry-run by default unless --execute or --i-understand is passed.",
+  "status": "review",
+  "title": "Add bootstrap/init dry-run execute gate"
+}

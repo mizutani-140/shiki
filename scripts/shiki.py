@@ -152,11 +152,30 @@ def ensure_git_repo(path: Path, branch: str) -> None:
         run(["git", "checkout", "-B", branch], cwd=path)
 
 
+def existing_origin_url(path: Path) -> str | None:
+    result = run(["git", "remote", "get-url", "origin"], cwd=path, check=False)
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def check_remote_adoption(repo: str, path: Path, *, adopt_existing_repo: bool = False) -> None:
+    if not path.exists() or not is_git_repo(path):
+        return
+    remote_url = f"https://github.com/{repo}.git"
+    current = existing_origin_url(path)
+    if current and current != remote_url and not adopt_existing_repo:
+        raise ShikiError(
+            "origin already points to "
+            f"{current}; refusing to rewrite it to {remote_url}. "
+            "Pass --adopt-existing-repo to explicitly adopt this repository."
+        )
+
+
 def ensure_remote(repo: str, path: Path, *, adopt_existing_repo: bool = False) -> None:
     remote_url = f"https://github.com/{repo}.git"
-    existing = run(["git", "remote", "get-url", "origin"], cwd=path, check=False)
-    if existing.returncode == 0:
-        current = existing.stdout.strip()
+    current = existing_origin_url(path)
+    if current:
         if current != remote_url:
             if not adopt_existing_repo:
                 raise ShikiError(
@@ -171,6 +190,73 @@ def ensure_remote(repo: str, path: Path, *, adopt_existing_repo: bool = False) -
         return
     run(["git", "remote", "add", "origin", remote_url], cwd=path)
     info(f"added origin {remote_url}")
+
+
+def execution_confirmed(args: argparse.Namespace) -> bool:
+    return bool(getattr(args, "execute", False) or getattr(args, "i_understand", False))
+
+
+def bootstrap_dry_run_lines(
+    *,
+    command: str,
+    target: Path,
+    repo: str,
+    branch: str,
+    visibility: str,
+    commit: bool,
+    push: bool,
+    set_secret_enabled: bool,
+    protect: bool,
+    required_checks: list[str],
+    platform: bool = False,
+) -> list[str]:
+    target_label = "platform repository" if platform else str(target)
+    lines = [
+        "dry-run: no bootstrap/init mutations were executed",
+        f"dry-run: rerun with --execute to apply these operations for {command}",
+        f"filesystem: create target directory {target_label}",
+    ]
+    if platform:
+        lines.append("filesystem: validate local Shiki platform files")
+    else:
+        lines.extend(
+            [
+                f"filesystem: install Shiki template files into {target_label}",
+                f"filesystem: write .shiki/repo.json for {repo}",
+                "filesystem: ensure .shiki state directories",
+            ]
+        )
+    lines.extend(
+        [
+            f"git: initialize repository on {branch}",
+            f"git: configure origin https://github.com/{repo}.git",
+            f"github-repo: create or reuse {repo} as {visibility}",
+        ]
+    )
+    if commit:
+        lines.append("commit: create manifest commit")
+    else:
+        lines.append("commit: skipped by --no-commit")
+    if push:
+        lines.append(f"push: push {branch} to origin")
+        lines.append(f"default-branch: set {branch}")
+    else:
+        lines.append("push: skipped by --no-push")
+        lines.append("default-branch: skipped because push is disabled")
+    if set_secret_enabled:
+        lines.append("secret: set CLAUDE_CODE_OAUTH_TOKEN")
+    else:
+        lines.append("secret: skipped by --no-set-secret")
+    if protect:
+        lines.append(f"branch-protection: configure required checks {', '.join(required_checks)}")
+    else:
+        lines.append("branch-protection: skipped by --no-protect")
+    return lines
+
+
+def print_bootstrap_dry_run(lines: list[str]) -> None:
+    for line in lines:
+        info(line)
 
 
 def require_github_repo_slug(repo: str) -> None:
@@ -1150,6 +1236,8 @@ def initialize_target_from_start(args: argparse.Namespace, target: Path, repo: s
         protect=args.protect,
         required_check=args.required_check,
         adopt_existing_repo=args.adopt_existing_repo,
+        execute=args.execute,
+        i_understand=args.i_understand,
     )
     cmd_init(init_args)
 
@@ -1163,12 +1251,18 @@ def create_issues_for_dispatchable_tasks(target: Path, task_ids: list[str]) -> l
 
 def cmd_start(args: argparse.Namespace) -> int:
     target = target_path(start_target_value(args))
-    target.mkdir(parents=True, exist_ok=True)
     answers = load_start_answers(args)
 
-    already_initialized = (target / ".shiki" / "repo.json").exists() and is_git_repo(target) and github_origin(target)
+    already_initialized = (
+        target.exists()
+        and (target / ".shiki" / "repo.json").exists()
+        and is_git_repo(target)
+        and github_origin(target)
+    )
     if not already_initialized:
         initialize_target_from_start(args, target, answers["repo"])
+        if not execution_confirmed(args):
+            return 0
     else:
         require_github_first_target(target)
         ensure_control_dirs(target)
@@ -2144,6 +2238,25 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
     branch = args.branch or config.get("default_branch") or "main"
     visibility = "private" if args.private else "public"
 
+    if not execution_confirmed(args):
+        check_remote_adoption(repo, ROOT, adopt_existing_repo=args.adopt_existing_repo)
+        print_bootstrap_dry_run(
+            bootstrap_dry_run_lines(
+                command="bootstrap-platform",
+                target=ROOT,
+                repo=repo,
+                branch=branch,
+                visibility=visibility,
+                commit=args.commit,
+                push=args.push,
+                set_secret_enabled=args.set_secret,
+                protect=args.protect,
+                required_checks=args.required_check,
+                platform=True,
+            )
+        )
+        return 0
+
     validate_local_shiki()
     run(["gh", "auth", "status"])
     ensure_git_repo(ROOT, branch)
@@ -2206,7 +2319,6 @@ def cmd_init(args: argparse.Namespace) -> int:
     require_tool("gh")
 
     target = Path(args.target).expanduser().resolve()
-    target.mkdir(parents=True, exist_ok=True)
 
     if not args.repo:
         raise ShikiError("shiki init requires --repo OWNER/NAME because Shiki is GitHub-first")
@@ -2216,6 +2328,25 @@ def cmd_init(args: argparse.Namespace) -> int:
     branch = args.branch
     visibility = "private" if args.private else "public"
 
+    if not execution_confirmed(args):
+        check_remote_adoption(repo, target, adopt_existing_repo=args.adopt_existing_repo)
+        print_bootstrap_dry_run(
+            bootstrap_dry_run_lines(
+                command="init",
+                target=target,
+                repo=repo,
+                branch=branch,
+                visibility=visibility,
+                commit=args.commit,
+                push=args.push,
+                set_secret_enabled=args.set_secret,
+                protect=args.protect,
+                required_checks=args.required_check,
+            )
+        )
+        return 0
+
+    target.mkdir(parents=True, exist_ok=True)
     run(["gh", "auth", "status"])
     ensure_git_repo(target, branch)
     ensure_github_repo(repo, visibility)
@@ -2588,6 +2719,8 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--secret-env", default="CLAUDE_CODE_OAUTH_TOKEN")
     init.add_argument("--protect", action=argparse.BooleanOptionalAction, default=True)
     init.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin to the requested GitHub repo")
+    init.add_argument("--execute", action="store_true", help="Execute bootstrap/init mutations; default is dry-run")
+    init.add_argument("--i-understand", action="store_true", help="Alias for --execute")
     init.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
     init.set_defaults(func=cmd_init)
 
@@ -2608,6 +2741,8 @@ def build_parser() -> argparse.ArgumentParser:
     github.add_argument("--secret-env", default="CLAUDE_CODE_OAUTH_TOKEN")
     github.add_argument("--protect", action=argparse.BooleanOptionalAction, default=True)
     github.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin to the requested GitHub repo")
+    github.add_argument("--execute", action="store_true", help="Execute bootstrap mutations; default is dry-run")
+    github.add_argument("--i-understand", action="store_true", help="Alias for --execute")
     github.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
     github.set_defaults(func=cmd_bootstrap_github)
 
@@ -2623,6 +2758,8 @@ def build_parser() -> argparse.ArgumentParser:
     deprecated.add_argument("--secret-env", default="CLAUDE_CODE_OAUTH_TOKEN")
     deprecated.add_argument("--protect", action=argparse.BooleanOptionalAction, default=True)
     deprecated.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin to the requested GitHub repo")
+    deprecated.add_argument("--execute", action="store_true", help="Execute bootstrap mutations; default is dry-run")
+    deprecated.add_argument("--i-understand", action="store_true", help="Alias for --execute")
     deprecated.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
     deprecated.set_defaults(func=cmd_bootstrap_github)
 
@@ -2681,6 +2818,8 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("--secret-env", default="CLAUDE_CODE_OAUTH_TOKEN")
     start.add_argument("--protect", action=argparse.BooleanOptionalAction, default=True)
     start.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin during init")
+    start.add_argument("--execute", action="store_true", help="Execute bootstrap/init mutations; default is dry-run for uninitialized targets")
+    start.add_argument("--i-understand", action="store_true", help="Alias for --execute")
     start.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
     start.add_argument("--create-issues", action=argparse.BooleanOptionalAction, default=True)
     start.add_argument("--create-handoffs", action=argparse.BooleanOptionalAction, default=True)

@@ -94,6 +94,7 @@ JSON
 python3 scripts/shiki.py start \
   "$TARGET" \
   --answers-file "$TMP_ROOT/answers.json" \
+  --execute \
   --no-push \
   --no-protect \
   >/tmp/shiki-start.json
