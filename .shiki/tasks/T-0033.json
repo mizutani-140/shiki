@@ -16,7 +16,7 @@
     "T-0032"
   ],
   "expected_branch": "shiki/t-0033-bootstrap-execute-gate",
-  "expected_pr": null,
+  "expected_pr": 49,
   "github_issue": 48,
   "goal_id": "G-0012",
   "id": "T-0033",
