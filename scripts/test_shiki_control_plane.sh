@@ -65,6 +65,7 @@ grep '"historical"' .shiki/schemas/goal.schema.json >/dev/null
 grep '"cca-verdict"' .shiki/schemas/ledger.schema.json >/dev/null
 grep '"criterion"' .shiki/schemas/cca-verdict.schema.json >/dev/null
 grep '"insufficient_evidence"' .shiki/schemas/cca-verdict.schema.json >/dev/null
+grep 'github_token: \${{ github.token }}' .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "CCA Review Bridge" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "author,headRefName" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "Cannot submit CCA Review Bridge approval: authenticated user is PR author" .github/workflows/shiki-cca-completion.yml >/dev/null
