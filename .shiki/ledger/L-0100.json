@@ -1,0 +1,26 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "PR #36 was merged into main at 2edb82a7b61b0f69835570a0d5c7e08a9cd87ac5.",
+    "Issue #35 was completed and closed.",
+    "Goal #30 was updated: P0.2.2 through P0.2.7 are complete; P0.2.1 remains open because default dry-run / explicit execute was outside T-0022 scope.",
+    "Issue #37 was created as the P0.2.1 follow-up.",
+    "T-0022 status is set to done.",
+    "T-0022 active locks are released.",
+    "PR #38 records post-merge mirror reconciliation for T-0022."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0100",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/36",
+    "https://github.com/mizutani-140/shiki/commit/2edb82a7b61b0f69835570a0d5c7e08a9cd87ac5",
+    "https://github.com/mizutani-140/shiki/issues/35",
+    "https://github.com/mizutani-140/shiki/issues/30",
+    "https://github.com/mizutani-140/shiki/issues/37",
+    "https://github.com/mizutani-140/shiki/pull/38"
+  ],
+  "summary": "Recorded T-0022 post-merge completion, released locks, and preserved P0.2.1 as an open follow-up.",
+  "task_id": "T-0022",
+  "timestamp": "2026-06-02T05:23:35+00:00",
+  "type": "completion"
+}

@@ -23,7 +23,8 @@
   "id": "G-0012",
   "ledger_evidence": [
     "L-0076",
-    "L-0094"
+        "L-0094",
+        "L-0100"
   ],
   "non_goals": [
     "Do not add unrelated product features.",
