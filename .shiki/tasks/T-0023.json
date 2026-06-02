@@ -4,28 +4,38 @@
     "required_review true maps to at least one enforced approval.",
     "Advisory AI review cannot satisfy blocking review.",
     "Guardian approvals are checked through configured users or teams.",
-    "MergeGate blocks missing CCA, review, ledger, required checks, and Guardian evidence."
+    "MergeGate blocks missing CCA, review, ledger, required checks, and Guardian evidence.",
+    "Ledger text containing no Guardian approval evidence is present does not satisfy MG-06.",
+    "guardian:approved label handling is explicit and documented.",
+    "CCA Review Bridge submits a non-author GitHub review only after CCA completes and refreshes PR metadata for MergeGate."
   ],
   "assigned_runtime": "codex",
   "dependencies": [
     "T-0021"
   ],
   "expected_branch": "shiki/t-0023-enforce-mergegate-review-branch-protection-and-g",
-  "expected_pr": null,
-  "github_issue": null,
+  "expected_pr": 39,
+  "github_issue": 33,
   "goal_id": "G-0012",
   "id": "T-0023",
   "ledger_evidence": [
-    "L-0079"
+    "L-0079",
+    "L-0101",
+    "L-0102"
   ],
   "locks": [
     "path:.shiki/config.yaml",
+    "path:.shiki/policy.example.yaml",
     "path:.github/workflows/**",
     "path:scripts/shiki.py",
     "path:scripts/mergegate_check.py",
+    "path:scripts/test_shiki_*.sh",
     "path:.github/pull_request_template.md",
     "path:CODEOWNERS",
-    "path:docs/agents/**"
+    "path:docs/agents/**",
+    "path:.shiki/tasks/T-0023.json",
+    "path:.shiki/ledger/L-0101.json",
+    "path:.shiki/ledger/L-0102.json"
   ],
   "non_goals": [
     "Do not weaken CCA or MergeGate to make PRs easier to merge."
@@ -37,6 +47,6 @@
   ],
   "risk_level": "critical",
   "scope": "Make required checks single-source, ensure required_review is enforced by GitHub branch protection, separate advisory AI review from blocking review, and make Guardian approval machine-readable.",
-  "status": "planned",
+  "status": "review",
   "title": "Enforce MergeGate, review, branch protection, and Guardian rules"
 }

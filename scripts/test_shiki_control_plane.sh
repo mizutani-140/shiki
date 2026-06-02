@@ -65,6 +65,19 @@ grep '"historical"' .shiki/schemas/goal.schema.json >/dev/null
 grep '"cca-verdict"' .shiki/schemas/ledger.schema.json >/dev/null
 grep '"criterion"' .shiki/schemas/cca-verdict.schema.json >/dev/null
 grep '"insufficient_evidence"' .shiki/schemas/cca-verdict.schema.json >/dev/null
+grep 'github_token: \${{ github.token }}' .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "CCA Review Bridge" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "author,headRefName" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "BOT_LOGIN: github-actions\\[bot\\]" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "Cannot submit CCA Review Bridge approval: authenticated identity is PR author" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "already_approved" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep 'repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews' .github/workflows/shiki-cca-completion.yml >/dev/null
+grep '"https://api.github.com/repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews"' .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "REST create review HTTP status" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "create-review-response.json" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "can_approve_pull_request_reviews" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "This is not advisory Claude review" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "reviewDecision,statusCheckRollup" .github/workflows/shiki-cca-completion.yml >/dev/null
 
 expect_fail env \
   CCA_VERDICT_FILE=/tmp/shiki-cca-invalid-complete.json \
@@ -232,8 +245,8 @@ pr = {
     "headRefName": task["expected_branch"],
     "headRefOid": "abc123",
     "labels": [],
-    "reviewDecision": "",
-    "reviews": [],
+    "reviewDecision": "APPROVED",
+    "reviews": [{"state": "APPROVED", "author": {"login": "human-reviewer"}}],
     "statusCheckRollup": [
         {
             "name": "Validate Shiki mirror",
@@ -286,6 +299,32 @@ python3 "$TARGET/scripts/mergegate_check.py" \
   --result-file "$TARGET/.shiki/gha/mergegate-result.json" \
   >/tmp/shiki-mergegate-pass.json
 grep '"mergegate": "ready"' /tmp/shiki-mergegate-pass.json >/dev/null
+
+python3 - "$TARGET" <<'PY'
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+path = target / ".shiki" / "config.yaml"
+text = path.read_text()
+path.write_text(text.replace("    - Validate Shiki mirror\n", "    - Validate Shiki mirror\n    - Missing required job\n"))
+PY
+expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json"
+grep "Required check Missing required job is not defined by workflow job names" /tmp/shiki-expected-fail.out >/dev/null
+python3 - "$TARGET" <<'PY'
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+path = target / ".shiki" / "config.yaml"
+path.write_text(path.read_text().replace("    - Missing required job\n", ""))
+PY
+
 test -f "$TARGET/.shiki/gha/mergegate-result.json"
 printf 'src/other.py\n' >"$TARGET/.shiki/gha/changed-files.txt"
 expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
@@ -437,7 +476,17 @@ target = pathlib.Path(sys.argv[1])
 path = target / ".shiki" / "gha" / "pr.json"
 pr = json.loads(path.read_text())
 pr["statusCheckRollup"][0]["headSha"] = "abc123"
-pr["labels"] = [{"name": "review:required"}]
+pr["reviewDecision"] = ""
+pr["reviews"] = []
+pr["labels"] = []
+pr["statusCheckRollup"].append(
+    {
+        "name": "Claude review",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "headSha": "abc123",
+    }
+)
 path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
 PY
 expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
@@ -447,6 +496,49 @@ expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
   --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
   --result-file "$TARGET/.shiki/gha/mergegate-result.json"
 grep "Required review is missing" /tmp/shiki-expected-fail.out >/dev/null
+
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+path = target / ".shiki" / "gha" / "pr.json"
+pr = json.loads(path.read_text())
+pr["reviewDecision"] = "APPROVED"
+pr["reviews"] = [{"state": "APPROVED", "author": {"login": "human-reviewer"}}]
+pr["labels"] = [{"name": "review:required"}]
+path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
+PY
+python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json" \
+  >/tmp/shiki-mergegate-review-pass.json
+grep '"mergegate": "ready"' /tmp/shiki-mergegate-review-pass.json >/dev/null
+
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+path = target / ".shiki" / "gha" / "pr.json"
+pr = json.loads(path.read_text())
+pr["reviewDecision"] = ""
+pr["reviews"] = [{"state": "APPROVED", "author": {"login": "github-actions[bot]"}}]
+path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
+PY
+python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json" \
+  >/tmp/shiki-mergegate-actions-bot-review-pass.json
+grep '"mergegate": "ready"' /tmp/shiki-mergegate-actions-bot-review-pass.json >/dev/null
 
 python3 - "$TARGET" <<'PY'
 import json
@@ -477,7 +569,9 @@ target = pathlib.Path(sys.argv[1])
 task_id = sys.argv[2]
 pr_path = target / ".shiki" / "gha" / "pr.json"
 pr = json.loads(pr_path.read_text())
-pr["reviews"] = []
+pr["labels"] = []
+pr["reviewDecision"] = "APPROVED"
+pr["reviews"] = [{"state": "APPROVED", "author": {"login": "human-reviewer"}}]
 pr_path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
 
 task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
@@ -492,6 +586,67 @@ expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
   --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
   --result-file "$TARGET/.shiki/gha/mergegate-result.json"
 grep "Guardian approval is required" /tmp/shiki-expected-fail.out >/dev/null
+
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+task_id = sys.argv[2]
+ledger_path = next((target / ".shiki" / "ledger").glob("L-*.json"))
+ledger = json.loads(ledger_path.read_text())
+ledger["evidence"].append("no Guardian approval evidence is present")
+ledger_path.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n")
+
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+task["risk_level"] = "high"
+task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json"
+grep "Guardian approval is required" /tmp/shiki-expected-fail.out >/dev/null
+
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+task_id = sys.argv[2]
+config_path = target / ".shiki" / "config.yaml"
+config_text = config_path.read_text()
+if "    - guardian-user\n" not in config_text:
+    config_text = config_text.replace("  users:\n", "  users:\n    - guardian-user\n")
+    config_path.write_text(config_text)
+
+ledger_path = next((target / ".shiki" / "ledger").glob("L-*.json"))
+ledger = json.loads(ledger_path.read_text())
+ledger["guardian_approval"] = {
+    "approved": True,
+    "approver": "guardian-user",
+    "source": "structured_ledger",
+}
+ledger_path.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n")
+
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+task["risk_level"] = "high"
+task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+PY
+python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json" \
+  >/tmp/shiki-mergegate-guardian-pass.json
+grep '"mergegate": "ready"' /tmp/shiki-mergegate-guardian-pass.json >/dev/null
 
 python3 - "$TARGET" "$TASK_ID" <<'PY'
 import json

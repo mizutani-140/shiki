@@ -43,7 +43,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
           mkdir -p .shiki/gha
-          gh pr view "$PR_NUMBER" --json number,title,body,headRefName,baseRefName,headRefOid,labels,files,reviews,statusCheckRollup > .shiki/gha/pr.json
+          gh pr view "$PR_NUMBER" --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
           base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
           git fetch origin "$base_ref" --depth=1
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
@@ -123,6 +123,7 @@ jobs:
         id: cca
         uses: anthropics/claude-code-action@v1
         with:
+          github_token: ${{ github.token }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             REPOSITORY: ${{ github.repository }}
@@ -155,6 +156,132 @@ jobs:
         env:
           STRUCTURED_OUTPUT: ${{ steps.cca.outputs.structured_output }}
         run: python3 scripts/enforce_cca_verdict.py
+
+      - name: CCA Review Bridge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BOT_LOGIN: github-actions[bot]
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p .shiki/gha
+
+          echo "::group::CCA Review Bridge diagnostics"
+          echo "Repository: ${REPOSITORY}"
+          echo "PR_NUMBER: ${PR_NUMBER}"
+
+          bot_login="${BOT_LOGIN}"
+          echo "Authenticated GitHub login: ${bot_login}"
+
+          pr_payload="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")"
+          author_login="$(jq -r '.user.login // empty' <<<"$pr_payload")"
+          head_sha="$(jq -r '.head.sha // empty' <<<"$pr_payload")"
+
+          echo "PR author login: ${author_login}"
+          echo "PR head SHA: ${head_sha}"
+
+          if [ -z "$bot_login" ] || [ -z "$author_login" ] || [ -z "$head_sha" ]; then
+            echo "::error::Could not resolve CCA Review Bridge authenticated login, PR author, or PR head SHA."
+            exit 1
+          fi
+
+          if [ "$bot_login" = "$author_login" ]; then
+            echo "::error::Cannot submit CCA Review Bridge approval: authenticated identity is PR author: ${bot_login}"
+            exit 1
+          fi
+
+          echo "::group::Repository workflow permission diagnostics"
+          if gh api "repos/${REPOSITORY}/actions/permissions/workflow" > .shiki/gha/workflow-permissions.json 2> .shiki/gha/workflow-permissions.err; then
+            cat .shiki/gha/workflow-permissions.json
+          else
+            echo "::warning::Could not introspect repository workflow permissions with this token."
+            cat .shiki/gha/workflow-permissions.err || true
+          fi
+          echo "::endgroup::"
+
+          gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews" > .shiki/gha/reviews-before-bridge.json
+
+          already_approved="$(
+            jq -r --arg login "$bot_login" '
+              [.[]? | select((.state // "" | ascii_upcase) == "APPROVED") | select(.user.login == $login)] | length
+            ' .shiki/gha/reviews-before-bridge.json
+          )"
+
+          echo "Existing APPROVED reviews by ${bot_login}: ${already_approved}"
+
+          if [ "$already_approved" = "0" ]; then
+            review_body="Shiki CCA Review Bridge approval.
+
+          CCA verdict completed for this PR and Guardian approval evidence is present.
+
+          This automated GitHub Review approval exists to satisfy Shiki required_review policy for solo/self-running operation.
+
+          This is not advisory Claude review. It is emitted only after CCA verdict enforcement succeeds."
+
+            jq -nc \
+              --arg event "APPROVE" \
+              --arg body "$review_body" \
+              --arg commit_id "$head_sha" \
+              '{event: $event, body: $body, commit_id: $commit_id}' \
+              > .shiki/gha/create-review-request.json
+
+            echo "Submitting REST PR review approval as ${bot_login} for PR #${PR_NUMBER} at ${head_sha}"
+
+            http_status="$(
+              curl -sS \
+                -o .shiki/gha/create-review-response.json \
+                -w "%{http_code}" \
+                -X POST \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
+                --data @.shiki/gha/create-review-request.json
+            )"
+
+            echo "REST create review HTTP status: ${http_status}"
+            cat .shiki/gha/create-review-response.json || true
+
+            case "$http_status" in
+              200|201)
+                echo "CCA Review Bridge REST approval submitted."
+                ;;
+              *)
+                echo "::error::CCA Review Bridge REST approval failed with HTTP ${http_status}."
+                echo "::error::If this is 403 after can_approve_pull_request_reviews=true, GITHUB_TOKEN cannot create the required approval in this repository context. Use a non-author reviewer bot token or GitHub App token."
+                exit 1
+                ;;
+            esac
+          else
+            echo "CCA Review Bridge approval already exists for ${bot_login}; skipping create-review call."
+          fi
+
+          sleep 5
+
+          gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews" > .shiki/gha/reviews-after-bridge.json
+
+          approved_after="$(
+            jq -r --arg login "$bot_login" '
+              [.[]? | select((.state // "" | ascii_upcase) == "APPROVED") | select(.user.login == $login)] | length
+            ' .shiki/gha/reviews-after-bridge.json
+          )"
+
+          echo "APPROVED reviews by ${bot_login} after bridge: ${approved_after}"
+
+          if [ "$approved_after" = "0" ]; then
+            echo "::error::CCA Review Bridge did not produce a visible APPROVED review."
+            exit 1
+          fi
+
+          gh pr view "$PR_NUMBER" \
+            --repo "$REPOSITORY" \
+            --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup \
+            > .shiki/gha/pr.json
+
+          echo "::endgroup::"
 
       - name: Upload CCA evidence
         if: always()

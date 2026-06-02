@@ -40,6 +40,55 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def parse_config_scalar(value: str) -> Any:
+    value = value.strip().strip("\"'")
+    lowered = value.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    return value
+
+
+def load_shiki_config(target: Path) -> dict[str, dict[str, Any]]:
+    """Read the small .shiki/config.yaml subset MergeGate owns."""
+    config_path = target / ".shiki" / "config.yaml"
+    if not config_path.exists():
+        return {}
+
+    config: dict[str, dict[str, Any]] = {}
+    section: str | None = None
+    key: str | None = None
+    for raw_line in config_path.read_text(encoding="utf-8").splitlines():
+        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
+            continue
+        indent = len(raw_line) - len(raw_line.lstrip(" "))
+        stripped = raw_line.strip()
+        if indent == 0:
+            section = stripped[:-1] if stripped.endswith(":") else None
+            key = None
+            if section:
+                config.setdefault(section, {})
+            continue
+        if section is None:
+            continue
+        if indent == 2:
+            if stripped.endswith(":"):
+                key = stripped[:-1]
+                config[section].setdefault(key, [])
+                continue
+            if ":" in stripped:
+                item_key, value = stripped.split(":", 1)
+                config[section][item_key.strip()] = parse_config_scalar(value)
+                key = None
+                continue
+        if indent >= 4 and key and stripped.startswith("- "):
+            values = config[section].setdefault(key, [])
+            if isinstance(values, list):
+                values.append(parse_config_scalar(stripped[2:]))
+    return config
+
+
 def has_heading(body: str, heading: str) -> bool:
     return re.search(rf"^#+\s+{re.escape(heading)}\s*$", body, re.IGNORECASE | re.MULTILINE) is not None
 
@@ -126,35 +175,65 @@ def validate_cca_contract(target: Path, cca: dict[str, Any]) -> list[str]:
 
 
 def configured_required_checks(target: Path) -> list[str]:
-    """Read mergegate.required_checks from .shiki/config.yaml without a YAML dependency."""
-    config_path = target / ".shiki" / "config.yaml"
-    if not config_path.exists():
-        return DEFAULT_REQUIRED_CHECKS
-
-    checks: list[str] = []
-    in_mergegate = False
-    in_required_checks = False
-    for raw_line in config_path.read_text(encoding="utf-8").splitlines():
-        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
-            continue
-        indent = len(raw_line) - len(raw_line.lstrip(" "))
-        stripped = raw_line.strip()
-        if indent == 0:
-            in_mergegate = stripped == "mergegate:"
-            in_required_checks = False
-            continue
-        if in_mergegate and indent == 2:
-            in_required_checks = stripped == "required_checks:"
-            continue
-        if in_mergegate and in_required_checks:
-            if indent <= 2:
-                in_required_checks = False
-                continue
-            if stripped.startswith("- "):
-                check = stripped[2:].strip().strip("\"'")
-                if check:
-                    checks.append(check)
+    mergegate = load_shiki_config(target).get("mergegate", {})
+    checks = [str(check) for check in mergegate.get("required_checks") or [] if str(check).strip()]
     return checks or DEFAULT_REQUIRED_CHECKS
+
+
+def configured_required_review(target: Path) -> bool:
+    defaults = load_shiki_config(target).get("defaults", {})
+    value = defaults.get("required_review")
+    if isinstance(value, bool):
+        return value
+    return True
+
+
+def configured_guardian_policy(target: Path) -> dict[str, set[str]]:
+    guardian = load_shiki_config(target).get("guardian", {})
+    return {
+        "labels": {str(label).strip().lower() for label in guardian.get("labels") or [] if str(label).strip()},
+        "users": {str(user).strip().lower() for user in guardian.get("users") or [] if str(user).strip()},
+        "teams": {str(team).strip().lower() for team in guardian.get("teams") or [] if str(team).strip()},
+    }
+
+
+def workflow_job_names(target: Path) -> set[str]:
+    names: set[str] = set()
+    workflow_dir = target / ".github" / "workflows"
+    if not workflow_dir.exists():
+        return names
+    for path in sorted(workflow_dir.glob("*.yml")) + sorted(workflow_dir.glob("*.yaml")):
+        in_jobs = False
+        in_job = False
+        for raw_line in path.read_text(encoding="utf-8").splitlines():
+            if not raw_line.strip() or raw_line.lstrip().startswith("#"):
+                continue
+            indent = len(raw_line) - len(raw_line.lstrip(" "))
+            stripped = raw_line.strip()
+            if indent == 0:
+                in_jobs = stripped == "jobs:"
+                in_job = False
+                continue
+            if in_jobs and indent == 2 and stripped.endswith(":"):
+                in_job = True
+                continue
+            if in_jobs and in_job and indent == 4 and stripped.startswith("name:"):
+                name = stripped.split(":", 1)[1].strip().strip("\"'")
+                if name:
+                    names.add(name)
+    return names
+
+
+def enforce_required_check_definitions(target: Path, blocking: list[str]) -> None:
+    jobs = workflow_job_names(target)
+    if not jobs:
+        blocking.append("No GitHub workflow job names are available for required check validation")
+        return
+    for check in configured_required_checks(target):
+        if check in PLACEHOLDER_CHECKS:
+            continue
+        if check not in jobs:
+            blocking.append(f"Required check {check} is not defined by workflow job names")
 
 
 def pr_label_names(pr: dict[str, Any]) -> set[str]:
@@ -224,16 +303,10 @@ def review_approved(pr: dict[str, Any]) -> bool:
     for review in pr.get("reviews") or []:
         if isinstance(review, dict) and str(review.get("state") or "").upper() == "APPROVED":
             return True
-    checks = status_checks(pr)
-    claude_review = checks.get("Claude review")
-    if claude_review:
-        status = str(claude_review.get("status") or "").upper()
-        conclusion = str(claude_review.get("conclusion") or "").upper()
-        return status == "COMPLETED" and conclusion == "SUCCESS"
     return False
 
 
-def enforce_review_policy(pr: dict[str, Any], blocking: list[str]) -> None:
+def enforce_review_policy(pr: dict[str, Any], target: Path, blocking: list[str]) -> None:
     review_decision = str(pr.get("reviewDecision") or "").upper()
     if review_decision == "CHANGES_REQUESTED":
         blocking.append("PR review requested changes")
@@ -249,16 +322,46 @@ def enforce_review_policy(pr: dict[str, Any], blocking: list[str]) -> None:
 
     labels = pr_label_names(pr)
     explicit_review_required = bool(labels.intersection({"review:required", "requires-review", "needs-review"}))
-    if (explicit_review_required or review_decision == "REVIEW_REQUIRED") and not review_approved(pr):
+    if (configured_required_review(target) or explicit_review_required or review_decision == "REVIEW_REQUIRED") and not review_approved(pr):
         blocking.append("Required review is missing")
 
 
-def guardian_approved(pr: dict[str, Any], ledger_entries: list[dict[str, Any]]) -> bool:
+def guardian_identity_allowed(identity: str, allowed: set[str]) -> bool:
+    return bool(identity and identity.strip().lower() in allowed)
+
+
+def guardian_review_approved(pr: dict[str, Any], users: set[str], teams: set[str]) -> bool:
+    for review in pr.get("reviews") or []:
+        if not isinstance(review, dict) or str(review.get("state") or "").upper() != "APPROVED":
+            continue
+        author = review.get("author") or {}
+        login = author.get("login") if isinstance(author, dict) else author
+        if guardian_identity_allowed(str(login or ""), users):
+            return True
+        team = review.get("team") or {}
+        slug = team.get("slug") if isinstance(team, dict) else team
+        if guardian_identity_allowed(str(slug or ""), teams):
+            return True
+    return False
+
+
+def structured_guardian_approval(entry: dict[str, Any], users: set[str], teams: set[str]) -> bool:
+    approval = entry.get("guardian_approval")
+    if not isinstance(approval, dict) or approval.get("approved") is not True:
+        return False
+    approver = str(approval.get("approver") or approval.get("user") or "").strip()
+    team = str(approval.get("team") or "").strip()
+    return guardian_identity_allowed(approver, users) or guardian_identity_allowed(team, teams)
+
+
+def guardian_approved(pr: dict[str, Any], ledger_entries: list[dict[str, Any]], target: Path) -> bool:
+    policy = configured_guardian_policy(target)
     labels = pr_label_names(pr)
-    if labels.intersection({"guardian:approved", "approval:guardian", "risk:approved"}):
+    if policy["labels"] and labels.intersection(policy["labels"]):
         return True
-    ledger_text = "\n".join(ledger_entry_text(entry) for entry in ledger_entries)
-    return "guardian approved" in ledger_text or "guardian approval" in ledger_text
+    if guardian_review_approved(pr, policy["users"], policy["teams"]):
+        return True
+    return any(structured_guardian_approval(entry, policy["users"], policy["teams"]) for entry in ledger_entries)
 
 
 def active_lock_conflicts(target: Path, task_id: str, locks: list[str], files: list[str]) -> list[str]:
@@ -330,6 +433,7 @@ def main() -> int:
                 blocking.append(f"PR body is missing {heading} section")
     else:
         warnings.append(f"PR JSON not found at {args.pr_json}; skipping PR metadata checks")
+    enforce_required_check_definitions(target, blocking)
 
     task: dict[str, Any] | None = None
     ledger_entries: list[dict[str, Any]] = []
@@ -417,8 +521,8 @@ def main() -> int:
                 blocking.append(f"Task ledger evidence does not reference PR #{pr_number}")
         if pr:
             enforce_required_checks(pr, target, blocking, warnings)
-            enforce_review_policy(pr, blocking)
-            if task and task.get("risk_level") in {"high", "critical"} and not guardian_approved(pr, ledger_entries):
+            enforce_review_policy(pr, target, blocking)
+            if task and task.get("risk_level") in {"high", "critical"} and not guardian_approved(pr, ledger_entries, target):
                 blocking.append(f"Guardian approval is required for {task.get('risk_level')} risk task {task.get('id')}")
     elif not args.allow_missing_cca:
         blocking.append(f"CCA verdict file not found at {args.cca_verdict}")
