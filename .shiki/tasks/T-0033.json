@@ -21,7 +21,8 @@
   "goal_id": "G-0012",
   "id": "T-0033",
   "ledger_evidence": [
-    "L-0108"
+    "L-0108",
+    "L-0109"
   ],
   "locks": [
     "path:scripts/shiki.py",
@@ -41,6 +42,6 @@
   ],
   "risk_level": "critical",
   "scope": "Close Goal #30 P0.2.1 by making dangerous bootstrap/init operations dry-run by default unless --execute or --i-understand is passed.",
-  "status": "review",
+  "status": "done",
   "title": "Add bootstrap/init dry-run execute gate"
 }

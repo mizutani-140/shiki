@@ -1,0 +1,22 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "PR #49 merged into main at merge commit 3abde156461a30f0a1edadc7267525b93b178bc8.",
+    "PR #49 implemented Goal #30 P0.2.1 bootstrap/init dry-run execute gate for T-0033.",
+    "T-0033 status was reconciled from review to done after PR #49 merge.",
+    "G-0012 ledger evidence was connected to L-0108 and L-0109.",
+    "No implementation code, workflow files, P0.3 governance, or P0.4 state/ID/lock behavior was changed by this reconciliation.",
+    "No active T-0033 lock exists because .shiki/locks is absent on main."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0109",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/49",
+    "https://github.com/mizutani-140/shiki/issues/48",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Reconciled T-0033 post-merge mirror state after PR #49.",
+  "task_id": "T-0033",
+  "timestamp": "2026-06-02T13:08:00Z",
+  "type": "check"
+}
