@@ -7,12 +7,14 @@
     "Added regression coverage that advisory Claude review cannot satisfy required human review.",
     "Added regression coverage that ledger text containing no Guardian approval evidence is present does not satisfy MG-06.",
     "Added structured Guardian approval coverage using guardian_approval with a configured approver identity.",
-    "Local verification passed: PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash scripts/test_shiki_control_plane.sh"
+    "Local verification passed: PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash scripts/test_shiki_control_plane.sh",
+    "PR #39 was opened for T-0023."
   ],
   "goal_id": "G-0012",
   "id": "L-0101",
   "links": [
-    "https://github.com/mizutani-140/shiki/issues/33"
+    "https://github.com/mizutani-140/shiki/issues/33",
+    "https://github.com/mizutani-140/shiki/pull/39"
   ],
   "summary": "Implemented T-0023 MergeGate review and Guardian approval enforcement with RED/GREEN regression coverage.",
   "task_id": "T-0023",
