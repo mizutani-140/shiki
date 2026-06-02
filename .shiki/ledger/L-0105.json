@@ -11,6 +11,7 @@
     "Claude review passed.",
     "Issue #41 has completion evidence and is closed.",
     "Goal #30 P0.3.5 is marked complete; P0.3.7 remains open.",
+    "PR #43 carries the bounded post-merge mirror reconciliation for T-0031.",
     "T-0031 status is set to done.",
     "No active T-0031 lock exists."
   ],
@@ -18,6 +19,7 @@
   "id": "L-0105",
   "links": [
     "https://github.com/mizutani-140/shiki/pull/42",
+    "https://github.com/mizutani-140/shiki/pull/43",
     "https://github.com/mizutani-140/shiki/commit/6fae3317ece8f17f4350a3ac876fda2979ac075c",
     "https://github.com/mizutani-140/shiki/issues/41",
     "https://github.com/mizutani-140/shiki/issues/30"
