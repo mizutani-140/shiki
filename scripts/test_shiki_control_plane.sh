@@ -50,6 +50,11 @@ grep "gh pr create" .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "CANONICAL_CCA_VERDICT_SCHEMA_PATH" scripts/shiki_contracts.py >/dev/null
 grep "CANONICAL_REPAIR_PACKET_SCHEMA_PATH" scripts/shiki_contracts.py >/dev/null
 grep "CANONICAL_SOURCE_OF_TRUTH_ORDER" scripts/shiki_contracts.py >/dev/null
+grep "CODEOWNERS_CRITICAL_PATHS" scripts/shiki_contracts.py >/dev/null
+grep "validate_codeowners_governance" scripts/validate_shiki.py >/dev/null
+grep -F "/.github/workflows/* @mizutani-140" .github/CODEOWNERS >/dev/null
+grep -F "/scripts/mergegate_check.py @mizutani-140" .github/CODEOWNERS >/dev/null
+grep -F "/AGENTS.md @mizutani-140" .github/CODEOWNERS >/dev/null
 grep ".shiki/schemas/cca-verdict.schema.json" AGENTS.md SYSTEM_PROMPT.md CLAUDE.md >/dev/null
 if grep -R ".shiki/templates/cca-verdict.schema.json" AGENTS.md SYSTEM_PROMPT.md CLAUDE.md .codex .claude .github/prompts docs/agents skills/engineering >/tmp/shiki-obsolete-schema-paths.out; then
   cat /tmp/shiki-obsolete-schema-paths.out >&2
@@ -99,6 +104,7 @@ grep "CCA verdict complete" /tmp/shiki-cca-valid-complete.out >/dev/null
 
 mkdir -p "$TARGET"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-control-install.out
+test -f "$TARGET/.github/CODEOWNERS"
 test -f "$TARGET/skills/engineering/shiki/SKILL.md"
 test -f "$TARGET/skills/engineering/grill-with-docs/SKILL.md"
 

@@ -37,6 +37,7 @@ TEMPLATE_PATHS = [
     ".codex/skills/shiki/SKILL.md",
     ".shiki",
     ".github/ISSUE_TEMPLATE",
+    ".github/CODEOWNERS",
     ".github/PULL_REQUEST_TEMPLATE",
     ".github/prompts",
     ".github/workflows/shiki-validate.yml",
@@ -358,7 +359,7 @@ def protect_branch(repo: str, branch: str, required_checks: list[str], *, review
         "enforce_admins": True,
         "required_pull_request_reviews": {
             "dismiss_stale_reviews": True,
-            "require_code_owner_reviews": False,
+            "require_code_owner_reviews": review_count > 0,
             "required_approving_review_count": review_count,
         },
         "restrictions": None,

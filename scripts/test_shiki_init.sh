@@ -169,12 +169,41 @@ import json
 import sys
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
+if payload["required_pull_request_reviews"]["require_code_owner_reviews"] is not True:
+    raise SystemExit("expected require_code_owner_reviews to be true")
 count = payload["required_pull_request_reviews"]["required_approving_review_count"]
 if count < 1:
     raise SystemExit(f"expected required_approving_review_count >= 1, got {count}")
 contexts = payload["required_status_checks"]["contexts"]
 if "MergeGate metadata check" not in contexts or "MergeGate policy check" not in contexts:
     raise SystemExit(f"branch protection contexts missing MergeGate checks: {contexts}")
+PY
+
+export SHIKI_FAKE_GH_PAYLOAD="$TMP_ROOT/protect-payload-review-false.json"
+python3 - <<'PY'
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path.cwd() / "scripts"))
+import shiki
+
+shiki.protect_branch(
+    "example/shiki-init-protect-review-false",
+    "main",
+    ["Validate Shiki mirror"],
+    review_count=0,
+)
+PY
+python3 - "$SHIKI_FAKE_GH_PAYLOAD" <<'PY'
+import json
+import sys
+
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+reviews = payload["required_pull_request_reviews"]
+if reviews["require_code_owner_reviews"] is not False:
+    raise SystemExit("expected require_code_owner_reviews to be false when review_count is 0")
+if reviews["required_approving_review_count"] != 0:
+    raise SystemExit("expected required_approving_review_count to remain 0")
 PY
 
 echo "shiki init tests passed"

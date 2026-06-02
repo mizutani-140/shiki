@@ -12,6 +12,9 @@ from typing import Any
 from shiki_contracts import (
     CANONICAL_CCA_VERDICT_SCHEMA_PATH,
     CANONICAL_REPAIR_PACKET_SCHEMA_PATH,
+    CODEOWNERS_CRITICAL_PATHS,
+    CODEOWNERS_PATH,
+    CODEOWNERS_REQUIRED_OWNER,
     CONTRACT_SCHEMA_SCAN_PATHS,
     CONTRACT_SOURCE_OF_TRUTH_FILES,
     OBSOLETE_CCA_VERDICT_SCHEMA_PATH,
@@ -542,6 +545,33 @@ def validate_issue_forms() -> None:
                 raise ValidationError(f"{path}: label {label!r} is not declared in docs/agents/triage-labels.md")
 
 
+def validate_codeowners_governance() -> None:
+    path = ROOT / CODEOWNERS_PATH
+    if not path.exists():
+        raise ValidationError(f"{path}: CODEOWNERS file is required for critical Shiki governance paths")
+
+    coverage: dict[str, set[str]] = {}
+    for line_number, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        parts = stripped.split()
+        if len(parts) < 2:
+            raise ValidationError(f"{path}:{line_number}: CODEOWNERS rule must include at least one owner")
+        pattern = parts[0]
+        owners = set(parts[1:])
+        coverage.setdefault(pattern, set()).update(owners)
+
+    for critical_path in CODEOWNERS_CRITICAL_PATHS:
+        owners = coverage.get(critical_path)
+        if not owners:
+            raise ValidationError(f"{path}: missing CODEOWNERS rule for {critical_path}")
+        if CODEOWNERS_REQUIRED_OWNER not in owners:
+            raise ValidationError(
+                f"{path}: {critical_path} must be owned by {CODEOWNERS_REQUIRED_OWNER}"
+            )
+
+
 def validate_prompt_contract_paths() -> None:
     suffixes = {".md", ".yml", ".yaml", ".json", ".toml"}
     for relative in CONTRACT_SCHEMA_SCAN_PATHS:
@@ -719,6 +749,7 @@ def main() -> int:
         validate_completion_check_docs()
         validate_validate_workflow_coverage()
         validate_issue_forms()
+        validate_codeowners_governance()
         validate_orchestrator_security()
 
         goal_paths = json_files(SHIKI / "goals")
