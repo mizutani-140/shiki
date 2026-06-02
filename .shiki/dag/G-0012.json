@@ -1,0 +1,97 @@
+{
+  "edges": [
+    {
+      "from": "T-0021",
+      "reason": "declared plan dependency",
+      "to": "T-0022"
+    },
+    {
+      "from": "T-0021",
+      "reason": "declared plan dependency",
+      "to": "T-0023"
+    },
+    {
+      "from": "T-0021",
+      "reason": "declared plan dependency",
+      "to": "T-0024"
+    },
+    {
+      "from": "T-0021",
+      "reason": "declared plan dependency",
+      "to": "T-0025"
+    },
+    {
+      "from": "T-0021",
+      "reason": "declared plan dependency",
+      "to": "T-0026"
+    },
+    {
+      "from": "T-0021",
+      "reason": "declared plan dependency",
+      "to": "T-0027"
+    },
+    {
+      "from": "T-0022",
+      "reason": "declared plan dependency",
+      "to": "T-0027"
+    },
+    {
+      "from": "T-0023",
+      "reason": "declared plan dependency",
+      "to": "T-0028"
+    },
+    {
+      "from": "T-0024",
+      "reason": "declared plan dependency",
+      "to": "T-0028"
+    },
+    {
+      "from": "T-0021",
+      "reason": "declared plan dependency",
+      "to": "T-0029"
+    },
+    {
+      "from": "T-0022",
+      "reason": "declared plan dependency",
+      "to": "T-0029"
+    },
+    {
+      "from": "T-0027",
+      "reason": "declared plan dependency",
+      "to": "T-0029"
+    },
+    {
+      "from": "T-0022",
+      "reason": "declared plan dependency",
+      "to": "T-0030"
+    },
+    {
+      "from": "T-0023",
+      "reason": "declared plan dependency",
+      "to": "T-0030"
+    },
+    {
+      "from": "T-0024",
+      "reason": "declared plan dependency",
+      "to": "T-0030"
+    },
+    {
+      "from": "T-0026",
+      "reason": "declared plan dependency",
+      "to": "T-0030"
+    }
+  ],
+  "goal_id": "G-0012",
+  "nodes": [
+    "T-0021",
+    "T-0022",
+    "T-0023",
+    "T-0024",
+    "T-0025",
+    "T-0026",
+    "T-0027",
+    "T-0028",
+    "T-0029",
+    "T-0030"
+  ]
+}

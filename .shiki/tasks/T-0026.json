@@ -1,0 +1,38 @@
+{
+  "acceptance_checks": [
+    "Workflow validation is structured where practical.",
+    "Schema validation strategy is explicit and tested.",
+    "Validator false-positive and false-negative cases are covered.",
+    "actionlint/shellcheck are integrated or rejected with durable rationale."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0021"
+  ],
+  "expected_branch": "shiki/t-0026-harden-validators-and-workflow-checks",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0012",
+  "id": "T-0026",
+  "ledger_evidence": [
+    "L-0082"
+  ],
+  "locks": [
+    "path:scripts/validate_shiki.py",
+    "path:.github/workflows/**",
+    "path:scripts/test_shiki_*.sh",
+    "path:docs/agents/**"
+  ],
+  "non_goals": [
+    "Do not add heavyweight dependencies to the bootstrap shim unless isolated."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "high",
+  "scope": "Move brittle string checks toward structured validation, add schema/workflow validation tests, and add actionlint/shellcheck or document why not.",
+  "status": "planned",
+  "title": "Harden validators and workflow checks"
+}

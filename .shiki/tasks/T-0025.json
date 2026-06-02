@@ -1,0 +1,37 @@
+{
+  "acceptance_checks": [
+    ".shiki manifest or equivalent exists.",
+    ".shiki README, actual tree, code constants, and validators agree.",
+    "Required empty directories are preserved or generated intentionally.",
+    "CI fails on layout drift."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0021"
+  ],
+  "expected_branch": "shiki/t-0025-add-manifest-and-align-shiki-layout",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0012",
+  "id": "T-0025",
+  "ledger_evidence": [
+    "L-0081"
+  ],
+  "locks": [
+    "path:.shiki/**",
+    "path:scripts/shiki.py",
+    "path:scripts/validate_shiki.py",
+    "path:docs/agents/**"
+  ],
+  "non_goals": [
+    "Do not redesign the entire state model in this task."
+  ],
+  "required_skills": [
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "high",
+  "scope": "Define Shiki-owned files, generated files, state directories, commit behavior, and local-only runtime files through a manifest and align README, code, and validators.",
+  "status": "planned",
+  "title": "Add manifest and align .shiki layout"
+}

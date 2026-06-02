@@ -11,16 +11,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_schema import SchemaValidationError, validate_instance
 
 
 TASK_ID = re.compile(r"\bT-[0-9]{4,}\b")
 GOAL_ID = re.compile(r"\bG-[0-9]{4,}\b")
-DEFAULT_REQUIRED_CHECKS = [
-    "Validate Shiki mirror",
-    "CCA verdict",
-    "MergeGate metadata check",
-]
 SELF_CHECKS = {"MergeGate policy check"}
 VERDICT_CHECKS = {"CCA verdict"}
 PLACEHOLDER_CHECKS = {"shiki-required-checks"}

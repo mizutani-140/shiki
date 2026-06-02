@@ -1,0 +1,25 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "CCA verdict failed on run 26751075524 job 78838912292 with verdict needs_guardian.",
+    "PR-08 failed because T-0021 risk_level is high under critical Goal G-0012 and no Guardian approval evidence is present.",
+    ".shiki/goals/G-0012.json now links GitHub Goal Issue #30.",
+    ".shiki/worktrees/T-0021.json now links PR #32.",
+    "CLAUDE.md obsolete repair packet schema path was replaced with .shiki/schemas/repair-packet.schema.json.",
+    "scripts/shiki_contracts.py now centralizes repair packet schema paths.",
+    "scripts/validate_shiki.py now rejects obsolete repair packet schema paths.",
+    "AGENTS.md and SYSTEM_PROMPT.md now keep a single canonical source-of-truth order and mark reading-order text as non-authoritative."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0094",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/30",
+    "https://github.com/mizutani-140/shiki/issues/31",
+    "https://github.com/mizutani-140/shiki/pull/32",
+    "https://github.com/mizutani-140/shiki/actions/runs/26751075524"
+  ],
+  "summary": "Recorded bounded repair for T-0021 CCA needs_guardian verdict and evidence/contract drift.",
+  "task_id": "T-0021",
+  "timestamp": "2026-06-01T11:18:00+00:00",
+  "type": "repair"
+}

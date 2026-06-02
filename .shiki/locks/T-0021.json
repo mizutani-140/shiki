@@ -1,0 +1,22 @@
+{
+  "created_at": "2026-06-01T10:54:50+00:00",
+  "goal_id": "G-0012",
+  "locks": [
+    "path:AGENTS.md",
+    "path:SYSTEM_PROMPT.md",
+    "path:CLAUDE.md",
+    "path:.codex/**",
+    "path:.claude/**",
+    "path:.github/prompts/**",
+    "path:.shiki/**",
+    "path:docs/agents/**",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/shiki.py",
+    "path:scripts/shiki_contracts.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_*.sh"
+  ],
+  "owner": "shiki-run",
+  "state": "active",
+  "task_id": "T-0021"
+}

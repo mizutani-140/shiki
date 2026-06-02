@@ -1,0 +1,42 @@
+{
+  "acceptance_checks": [
+    "Required checks are defined once and validated against workflow job names.",
+    "required_review true maps to at least one enforced approval.",
+    "Advisory AI review cannot satisfy blocking review.",
+    "Guardian approvals are checked through configured users or teams.",
+    "MergeGate blocks missing CCA, review, ledger, required checks, and Guardian evidence."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0021"
+  ],
+  "expected_branch": "shiki/t-0023-enforce-mergegate-review-branch-protection-and-g",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0012",
+  "id": "T-0023",
+  "ledger_evidence": [
+    "L-0079"
+  ],
+  "locks": [
+    "path:.shiki/config.yaml",
+    "path:.github/workflows/**",
+    "path:scripts/shiki.py",
+    "path:scripts/mergegate_check.py",
+    "path:.github/pull_request_template.md",
+    "path:CODEOWNERS",
+    "path:docs/agents/**"
+  ],
+  "non_goals": [
+    "Do not weaken CCA or MergeGate to make PRs easier to merge."
+  ],
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Make required checks single-source, ensure required_review is enforced by GitHub branch protection, separate advisory AI review from blocking review, and make Guardian approval machine-readable.",
+  "status": "planned",
+  "title": "Enforce MergeGate, review, branch protection, and Guardian rules"
+}

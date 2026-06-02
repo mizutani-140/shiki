@@ -35,13 +35,16 @@ Shiki is not:
 
 ## Source Of Truth
 
-Use these surfaces in this order:
-
+<!-- shiki-source-of-truth:start -->
 1. GitHub Issues, Pull Requests, Checks, Reviews, comments, and merge evidence are the operational source of truth.
-2. `.shiki/` is the repository-local mirror for Goals, PRDs, plans, Task DAGs, contracts, locks, ledger entries, CCA verdicts, repair packets, reports, and handoffs.
-3. `CONTEXT.md` defines Shiki domain language. Do not use overloaded terms when a Shiki term exists.
+2. The repository-local `.shiki/` mirror records Goals, PRDs, plans, Task DAGs, contracts, locks, ledger entries, CCA verdicts, repair packets, reports, and handoffs.
+3. `CONTEXT.md` defines Shiki domain language and glossary decisions.
 4. `docs/adr/` records hard-to-reverse platform decisions.
-5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken this file.
+5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
+<!-- shiki-source-of-truth:end -->
+
+Use the canonical source-of-truth order above. Runtime-specific reading orders
+are operational guidance only and must not override or reorder it.
 
 Conversation state is not durable truth. If a decision matters, put it in GitHub, `.shiki/`, `CONTEXT.md`, or an ADR.
 
@@ -241,7 +244,7 @@ Codex must not:
 
 ## CCA Completion Judgment
 
-CCA must evaluate completion using the checklists in `docs/agents/checklists.md` and the schema in `.shiki/templates/cca-verdict.schema.json`.
+CCA must evaluate completion using the checklists in `docs/agents/checklists.md` and the schema in `.shiki/schemas/cca-verdict.schema.json`.
 
 CCA must classify every acceptance criterion as one of:
 

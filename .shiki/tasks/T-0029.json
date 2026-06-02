@@ -1,0 +1,42 @@
+{
+  "acceptance_checks": [
+    "Root onboarding docs exist.",
+    "Security and contribution policy exist.",
+    "Install, upgrade, rollback, and migration are documented.",
+    "Versioning and release strategy are documented or implemented.",
+    "Platform runtime and target template responsibilities are clear."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0021",
+    "T-0022",
+    "T-0027"
+  ],
+  "expected_branch": "shiki/t-0029-add-distribution-and-onboarding-documentation",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0012",
+  "id": "T-0029",
+  "ledger_evidence": [
+    "L-0085"
+  ],
+  "locks": [
+    "path:README.md",
+    "path:LICENSE",
+    "path:SECURITY.md",
+    "path:CONTRIBUTING.md",
+    "path:docs/**",
+    "path:.github/workflows/**"
+  ],
+  "non_goals": [
+    "Do not publish a release until P0 and P1 gates pass."
+  ],
+  "required_skills": [
+    "grill-with-docs",
+    "to-prd"
+  ],
+  "risk_level": "medium",
+  "scope": "Add root README, license/security/contribution docs, install/upgrade/rollback docs, release/versioning strategy, and clarify platform-vs-template boundaries.",
+  "status": "planned",
+  "title": "Add distribution and onboarding documentation"
+}

@@ -1,0 +1,41 @@
+{
+  "acceptance_checks": [
+    "ID allocation is collision-resistant or based on GitHub identifiers.",
+    "State writes are atomic or safely retried.",
+    "Dispatch and MergeGate use the same lock matcher.",
+    "Lock matcher handles exact, glob, prefix, and documented semantic overlap.",
+    "Tests cover collisions, lock conflicts, and forged evidence."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0021"
+  ],
+  "expected_branch": "shiki/t-0024-fix-state-concurrency-ids-locks-and-evidence-int",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0012",
+  "id": "T-0024",
+  "ledger_evidence": [
+    "L-0080"
+  ],
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:scripts/mergegate_check.py",
+    "path:.shiki/schemas/**",
+    "path:.shiki/README.md",
+    "path:docs/agents/**",
+    "path:scripts/test_shiki_*.sh"
+  ],
+  "non_goals": [
+    "Do not introduce an external database unless justified by ADR."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Replace race-prone ID allocation, add safe state write semantics, unify lock matching, and prevent forged PR-local evidence from satisfying MergeGate.",
+  "status": "planned",
+  "title": "Fix state concurrency, IDs, locks, and evidence integrity"
+}

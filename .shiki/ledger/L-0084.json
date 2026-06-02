@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-0028.json"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0084",
+  "links": [],
+  "summary": "Task registered from plan: Strengthen governance and evidence model",
+  "task_id": "T-0028",
+  "timestamp": "2026-06-01T10:54:50+00:00",
+  "type": "task-registered"
+}

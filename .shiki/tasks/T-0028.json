@@ -1,0 +1,41 @@
+{
+  "acceptance_checks": [
+    "Guardian approvers are configured as users or teams.",
+    "CCA verdict evidence cannot be forged by PR file edits alone.",
+    "Ledger evidence has hash/check/artifact/signature cross-reference or documented equivalent.",
+    "Mirror, generated, cache, and local-only state are documented and validated.",
+    "Tests cover forged, stale, and missing governance evidence."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0023",
+    "T-0024"
+  ],
+  "expected_branch": "shiki/t-0028-strengthen-governance-and-evidence-model",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0012",
+  "id": "T-0028",
+  "ledger_evidence": [
+    "L-0084"
+  ],
+  "locks": [
+    "path:.shiki/config.yaml",
+    "path:.shiki/schemas/**",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/validate_shiki.py",
+    "path:docs/agents/**"
+  ],
+  "non_goals": [
+    "Do not require a paid external service."
+  ],
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Make Guardian approval, CCA verdict evidence, ledger integrity, and mirror/generated/cache distinctions machine-checkable.",
+  "status": "planned",
+  "title": "Strengthen governance and evidence model"
+}

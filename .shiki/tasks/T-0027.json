@@ -1,0 +1,40 @@
+{
+  "acceptance_checks": [
+    "Bootstrap shim remains usable.",
+    "Config, GitHub, contracts, state, MergeGate, and runtime logic are separated.",
+    "Runtime registry or adapter contract exists.",
+    "GitHub host/protocol/provider assumptions are configurable.",
+    "doctor verifies operational readiness."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0021",
+    "T-0022"
+  ],
+  "expected_branch": "shiki/t-0027-split-architecture-and-define-runtime-provider-a",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0012",
+  "id": "T-0027",
+  "ledger_evidence": [
+    "L-0083"
+  ],
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:bin/shiki",
+    "path:docs/**",
+    "path:tests/**"
+  ],
+  "non_goals": [
+    "Do not change user-facing commands unless compatibility is preserved or migration is documented."
+  ],
+  "required_skills": [
+    "zoom-out",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "high",
+  "scope": "Refactor the monolithic CLI/control-plane script into maintainable modules while preserving bootstrap behavior and defining runtime/provider extension points.",
+  "status": "planned",
+  "title": "Split architecture and define runtime/provider adapters"
+}

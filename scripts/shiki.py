@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from shiki_contracts import DEFAULT_REQUIRED_CHECKS, TARGET_STATE_DIRECTORIES
+
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL_CONFIG = Path.home() / ".shiki" / "config.json"
@@ -47,6 +49,7 @@ TEMPLATE_PATHS = [
     "skills/engineering",
     "scripts/shiki_schema.py",
     "scripts/validate_shiki.py",
+    "scripts/shiki_contracts.py",
     "scripts/enforce_cca_verdict.py",
     "scripts/mergegate_check.py",
     "scripts/shiki.py",
@@ -57,12 +60,6 @@ TEMPLATE_PATHS = [
     "scripts/test_shiki_runner_codex.sh",
     "scripts/test_shiki_start.sh",
     "scripts/test_shiki_runtime_auth.sh",
-]
-
-DEFAULT_REQUIRED_CHECKS = [
-    "Validate Shiki mirror",
-    "CCA verdict",
-    "MergeGate policy check",
 ]
 
 DEFAULT_GLOBAL_COMMAND_PATH = "~/.local/bin/shiki"
@@ -83,23 +80,6 @@ START_QUESTIONS = [
     "First task scope",
     "First task acceptance checks",
     "First task locks",
-]
-TARGET_STATE_DIRECTORIES = [
-    ".shiki/goals",
-    ".shiki/plans",
-    ".shiki/tasks",
-    ".shiki/dag",
-    ".shiki/ledger",
-    ".shiki/locks",
-    ".shiki/worktrees",
-    ".shiki/repairs",
-    ".shiki/reports",
-    ".shiki/runs",
-    ".shiki/inbox",
-    ".shiki/handoffs",
-    ".shiki/runner",
-    ".shiki/smoke",
-    ".shiki/starts",
 ]
 GITHUB_REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 

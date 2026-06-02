@@ -1,0 +1,41 @@
+{
+  "acceptance_checks": [
+    "All P2.3 adversarial tests exist.",
+    "Tests run in CI.",
+    "Tests fail against representative broken fixtures.",
+    "Repair loop limit and repair packet content are tested."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0022",
+    "T-0023",
+    "T-0024",
+    "T-0026"
+  ],
+  "expected_branch": "shiki/t-0030-add-adversarial-and-regression-test-suite",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-0012",
+  "id": "T-0030",
+  "ledger_evidence": [
+    "L-0086"
+  ],
+  "locks": [
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/**",
+    "path:fixtures/**",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/mergegate_check.py"
+  ],
+  "non_goals": [
+    "Do not fake passing tests by weakening validation."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd"
+  ],
+  "risk_level": "high",
+  "scope": "Add tests for malicious PR mutation, fork PR limitations, duplicate IDs, lock conflicts, missing CCA, branch protection failure, schema drift, required check drift, and repair loop limits.",
+  "status": "planned",
+  "title": "Add adversarial and regression test suite"
+}

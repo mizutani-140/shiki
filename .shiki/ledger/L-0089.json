@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/runs/RUN-0001.json",
+    ".shiki/dag/G-0012.json"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0089",
+  "links": [],
+  "summary": "Shiki run RUN-0001 created 10 task(s) from plan P-0001",
+  "task_id": null,
+  "timestamp": "2026-06-01T10:54:50+00:00",
+  "type": "handoff"
+}
