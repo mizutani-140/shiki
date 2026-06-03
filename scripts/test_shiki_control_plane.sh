@@ -85,6 +85,14 @@ grep "create-review-response.json" .github/workflows/shiki-cca-completion.yml >/
 grep "can_approve_pull_request_reviews" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "This is not advisory Claude review" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "reviewDecision,statusCheckRollup" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "rm -rf .shiki/gha" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "live-pr.json" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "live-changed-files-status.txt" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep -- "--base-shiki .shiki/gha/base-shiki/.shiki" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep -- "--expected-head-sha" .github/workflows/shiki-cca-completion.yml >/dev/null
+grep "author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup" .github/workflows/shiki-mergegate.yml >/dev/null
+grep "rm -rf .shiki/gha" .github/workflows/shiki-mergegate.yml >/dev/null
+grep "changed-files-status.txt" .github/workflows/shiki-mergegate.yml >/dev/null
 
 python3 - "$ROOT" <<'PY'
 import json
@@ -1081,6 +1089,298 @@ expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
   --result-file "$TARGET/.shiki/gha/mergegate-result.json"
 grep "Lock conflict" /tmp/shiki-expected-fail.out >/dev/null
 rm -f "$TARGET/.shiki/locks/T-9999.json"
+
+python3 - "$ROOT" "$TMP_ROOT" "$TARGET" "$TASK_ID" "$GOAL_ID" <<'PY'
+import json
+import pathlib
+import shutil
+import subprocess
+import sys
+
+root = pathlib.Path(sys.argv[1])
+tmp_root = pathlib.Path(sys.argv[2])
+source_target = pathlib.Path(sys.argv[3])
+task_id = sys.argv[4]
+goal_id = sys.argv[5]
+script = root / "scripts" / "mergegate_check.py"
+
+
+def write_json(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+
+
+def load_json(path):
+    return json.loads(path.read_text())
+
+
+def make_case(name):
+    case = tmp_root / f"evidence-live-{name}"
+    if case.exists():
+        shutil.rmtree(case)
+    shutil.copytree(source_target, case)
+
+    task_path = case / ".shiki" / "tasks" / f"{task_id}.json"
+    task = load_json(task_path)
+    task.update(
+        {
+            "expected_pr": 123,
+            "expected_branch": "branch",
+            "risk_level": "low",
+            "status": "review",
+            "required_skills": ["none"],
+            "locks": ["shiki:state", "path:src/audit/*"],
+        }
+    )
+    write_json(task_path, task)
+
+    gha = case / ".shiki" / "gha"
+    gha.mkdir(parents=True, exist_ok=True)
+    body = f"""## Task
+- Goal: {goal_id}
+- Task: {task_id}
+
+## Scope
+MergeGate protected evidence fixture.
+
+## Acceptance
+Policy validates protected evidence.
+
+## Evidence
+Local fixture.
+
+## MergeGate
+Policy inputs are fixture-controlled.
+"""
+    pr = {
+        "number": 123,
+        "body": body,
+        "headRefName": "branch",
+        "headRefOid": "abc123",
+        "labels": [],
+        "reviewDecision": "APPROVED",
+        "reviews": [{"state": "APPROVED", "author": {"login": "reviewer"}}],
+        "statusCheckRollup": [
+            {"name": "Validate Shiki mirror", "status": "COMPLETED", "conclusion": "SUCCESS", "headSha": "abc123"},
+            {"name": "CCA verdict", "status": "COMPLETED", "conclusion": "SUCCESS", "headSha": "abc123"},
+            {"name": "MergeGate metadata check", "status": "COMPLETED", "conclusion": "SUCCESS", "headSha": "abc123"},
+        ],
+    }
+    write_json(gha / "pr.json", pr)
+    cca = {
+        "verdict": "complete",
+        "summary": "fixture complete",
+        "goal_id": goal_id,
+        "task_id": task_id,
+        "pr": 123,
+        "head_sha": "abc123",
+        "can_merge": True,
+        "checklist": [],
+        "acceptance": [{"criterion": "fixture", "status": "pass", "evidence": ["fixture"]}],
+        "mergegate": {},
+        "confidence": 1,
+    }
+    write_json(gha / "cca-verdict.json", cca)
+
+    base = tmp_root / f"base-shiki-{name}" / ".shiki"
+    if base.parent.exists():
+        shutil.rmtree(base.parent)
+    shutil.copytree(case / ".shiki", base)
+    return case, base
+
+
+def run_mergegate(case, base, *, paths=None, statuses=None, expected_head="abc123"):
+    gha = case / ".shiki" / "gha"
+    paths = paths or ["src/audit/query.py"]
+    statuses = statuses or [f"M\t{path}" for path in paths]
+    (gha / "changed-files.txt").write_text("\n".join(paths) + "\n")
+    (gha / "changed-files-status.txt").write_text("\n".join(statuses) + "\n")
+    return subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--target",
+            str(case),
+            "--pr-json",
+            str(gha / "pr.json"),
+            "--changed-files",
+            str(gha / "changed-files.txt"),
+            "--changed-files-status",
+            str(gha / "changed-files-status.txt"),
+            "--cca-verdict",
+            str(gha / "cca-verdict.json"),
+            "--result-file",
+            str(gha / "mergegate-result.json"),
+            "--expected-head-sha",
+            expected_head,
+            "--base-shiki",
+            str(base),
+        ],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+
+
+def assert_ready(name, mutate, paths=None, statuses=None):
+    case, base = make_case(name)
+    mutate(case, base)
+    result = run_mergegate(case, base, paths=paths, statuses=statuses)
+    assert result.returncode == 0, result.stdout
+
+
+def assert_blocked(name, mutate, expected, paths=None, statuses=None, expected_head="abc123"):
+    case, base = make_case(name)
+    mutate(case, base)
+    result = run_mergegate(case, base, paths=paths, statuses=statuses, expected_head=expected_head)
+    assert result.returncode != 0, result.stdout
+    assert expected in result.stdout, result.stdout
+
+
+def noop(case, base):
+    return None
+
+
+def current_task_changed(case, base):
+    task_path = case / ".shiki" / "tasks" / f"{task_id}.json"
+    task = load_json(task_path)
+    task["scope"] = str(task.get("scope", "")) + " fixture"
+    write_json(task_path, task)
+
+
+assert_ready("current-task", current_task_changed, [f".shiki/tasks/{task_id}.json"], [f"M\t.shiki/tasks/{task_id}.json"])
+assert_blocked("gha-pr", noop, "Runtime CCA/MergeGate evidence path .shiki/gha/pr.json", [".shiki/gha/pr.json"], ["A\t.shiki/gha/pr.json"])
+assert_blocked("gha-cca", noop, "Runtime CCA/MergeGate evidence path .shiki/gha/cca-verdict.json", [".shiki/gha/cca-verdict.json"], ["A\t.shiki/gha/cca-verdict.json"])
+assert_blocked("gha-result", noop, "Runtime CCA/MergeGate evidence path .shiki/gha/mergegate-result.json", [".shiki/gha/mergegate-result.json"], ["A\t.shiki/gha/mergegate-result.json"])
+assert_blocked("unrelated-task", noop, "unrelated Shiki task file", [".shiki/tasks/T-9999.json"], ["M\t.shiki/tasks/T-9999.json"])
+assert_blocked("unrelated-goal", noop, "unrelated Shiki goal file", [".shiki/goals/G-9999.json"], ["M\t.shiki/goals/G-9999.json"])
+assert_blocked("delete-task", noop, "must not delete Shiki task file", [f".shiki/tasks/{task_id}.json"], [f"D\t.shiki/tasks/{task_id}.json"])
+assert_blocked("delete-goal", noop, "must not delete Shiki goal file", [f".shiki/goals/{goal_id}.json"], [f"D\t.shiki/goals/{goal_id}.json"])
+
+
+def add_listed_ledger(case, base, *, ledger_id="L-20260603T060000000000Z-11111111", ledger_task_id=None):
+    task_path = case / ".shiki" / "tasks" / f"{task_id}.json"
+    task = load_json(task_path)
+    if ledger_id not in task["ledger_evidence"]:
+        task["ledger_evidence"].append(ledger_id)
+    write_json(task_path, task)
+    ledger = {
+        "actor": "codex-front",
+        "evidence": ["diagnose", "tdd", "improve-codebase-architecture"],
+        "goal_id": goal_id,
+        "id": ledger_id,
+        "links": ["https://github.com/mizutani-140/shiki/pull/123"],
+        "summary": "fixture ledger",
+        "task_id": ledger_task_id or task_id,
+        "timestamp": "2026-06-03T06:00:00Z",
+        "type": "check",
+    }
+    write_json(case / ".shiki" / "ledger" / f"{ledger_id}.json", ledger)
+    return ledger_id
+
+
+listed_id = "L-20260603T060000000000Z-11111111"
+assert_ready(
+    "listed-ledger",
+    lambda case, base: add_listed_ledger(case, base, ledger_id=listed_id),
+    [f".shiki/ledger/{listed_id}.json"],
+    [f"A\t.shiki/ledger/{listed_id}.json"],
+)
+unlisted_id = "L-20260603T060000000000Z-22222222"
+assert_blocked(
+    "unlisted-ledger",
+    lambda case, base: write_json(
+        case / ".shiki" / "ledger" / f"{unlisted_id}.json",
+        {"id": unlisted_id, "task_id": task_id, "goal_id": goal_id, "evidence": [], "links": []},
+    ),
+    "not listed in current task ledger_evidence",
+    [f".shiki/ledger/{unlisted_id}.json"],
+    [f"A\t.shiki/ledger/{unlisted_id}.json"],
+)
+
+
+def modify_existing_ledger(case, base):
+    task = load_json(case / ".shiki" / "tasks" / f"{task_id}.json")
+    ledger_id = task["ledger_evidence"][0]
+    path = case / ".shiki" / "ledger" / f"{ledger_id}.json"
+    ledger = load_json(path)
+    ledger["summary"] = "modified"
+    write_json(path, ledger)
+
+
+assert_blocked("modify-base-ledger", modify_existing_ledger, "must not modify existing base ledger file")
+
+
+def delete_existing_ledger(case, base):
+    task = load_json(case / ".shiki" / "tasks" / f"{task_id}.json")
+    ledger_id = task["ledger_evidence"][0]
+    (case / ".shiki" / "ledger" / f"{ledger_id}.json").unlink()
+
+
+assert_blocked("delete-base-ledger", delete_existing_ledger, "must not delete base ledger file")
+mismatch_id = "L-20260603T060000000000Z-33333333"
+assert_blocked(
+    "ledger-id-mismatch",
+    lambda case, base: (
+        add_listed_ledger(case, base, ledger_id=mismatch_id),
+        write_json(
+            case / ".shiki" / "ledger" / f"{mismatch_id}.json",
+            {"id": "L-20260603T060000000000Z-deadbeef", "task_id": task_id, "goal_id": goal_id, "evidence": [], "links": []},
+        ),
+    ),
+    "does not match JSON id",
+    [f".shiki/ledger/{mismatch_id}.json"],
+    [f"A\t.shiki/ledger/{mismatch_id}.json"],
+)
+wrong_task_id = "L-20260603T060000000000Z-44444444"
+assert_blocked(
+    "ledger-task-mismatch",
+    lambda case, base: add_listed_ledger(case, base, ledger_id=wrong_task_id, ledger_task_id="T-9999"),
+    "is not scoped to task",
+    [f".shiki/ledger/{wrong_task_id}.json"],
+    [f"A\t.shiki/ledger/{wrong_task_id}.json"],
+)
+
+
+def current_lock(case, base):
+    write_json(case / ".shiki" / "locks" / f"{task_id}.json", {"task_id": task_id, "locks": ["shiki:state"], "state": "active"})
+
+
+assert_ready("current-lock", current_lock, [f".shiki/locks/{task_id}.json"], [f"M\t.shiki/locks/{task_id}.json"])
+assert_blocked("unrelated-lock", noop, "unrelated Shiki lock file", [".shiki/locks/T-9999.json"], ["M\t.shiki/locks/T-9999.json"])
+assert_blocked("delete-unrelated-lock", noop, "unrelated Shiki lock file", [".shiki/locks/T-9999.json"], ["D\t.shiki/locks/T-9999.json"])
+
+
+def pr_number_mismatch(case, base):
+    task_path = case / ".shiki" / "tasks" / f"{task_id}.json"
+    task = load_json(task_path)
+    task["expected_pr"] = 999
+    write_json(task_path, task)
+
+
+assert_blocked("expected-pr", pr_number_mismatch, "expected_pr 999 does not match PR #123")
+
+
+def branch_mismatch(case, base):
+    task_path = case / ".shiki" / "tasks" / f"{task_id}.json"
+    task = load_json(task_path)
+    task["expected_branch"] = "old-branch"
+    write_json(task_path, task)
+
+
+assert_blocked("expected-branch", branch_mismatch, "expected_branch 'old-branch' does not match PR head 'branch'")
+assert_blocked("expected-head", noop, "does not match expected checked-out HEAD", expected_head="old-sha")
+
+
+def stale_pr_json(case, base):
+    pr_path = case / ".shiki" / "gha" / "pr.json"
+    pr = load_json(pr_path)
+    pr["headRefOid"] = "old-sha"
+    write_json(pr_path, pr)
+
+
+assert_blocked("stale-pr-json", stale_pr_json, "does not match expected checked-out HEAD")
+PY
 
 python3 "$ROOT/scripts/shiki.py" task status --target "$TARGET" "$TASK_ID" --status done >/tmp/shiki-task-status.json
 python3 "$ROOT/scripts/shiki.py" goal complete --target "$TARGET" "$GOAL_ID" >/tmp/shiki-goal-complete.json

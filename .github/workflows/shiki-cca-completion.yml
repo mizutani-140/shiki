@@ -32,6 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Validate Shiki artifacts
         run: python3 scripts/validate_shiki.py
@@ -42,11 +43,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
+          rm -rf .shiki/gha
           mkdir -p .shiki/gha
           gh pr view "$PR_NUMBER" --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
           base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
           git fetch origin "$base_ref" --depth=1
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
+          git diff --name-status "origin/${base_ref}...HEAD" > .shiki/gha/changed-files-status.txt
 
       - name: Prepare CCA transport schema
         id: schema
@@ -297,6 +300,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Reset CCA evidence runtime directory
+        run: |
+          rm -rf .shiki/gha
+          mkdir -p .shiki/gha
 
       - name: Download CCA evidence
         uses: actions/download-artifact@v4
@@ -307,5 +318,49 @@ jobs:
       - name: Validate Shiki artifacts
         run: python3 scripts/validate_shiki.py
 
+      - name: Refresh live PR state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          rm -f .shiki/gha/live-pr.json .shiki/gha/live-changed-files.txt .shiki/gha/live-changed-files-status.txt
+          rm -rf .shiki/gha/base-shiki
+          mkdir -p .shiki/gha/base-shiki
+
+          gh pr view "$PR_NUMBER" \
+            --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup \
+            > .shiki/gha/live-pr.json
+
+          base_ref="$(jq -r '.baseRefName' .shiki/gha/live-pr.json)"
+          head_oid="$(jq -r '.headRefOid' .shiki/gha/live-pr.json)"
+
+          git fetch origin "$base_ref" --depth=1
+
+          git diff --name-only "origin/${base_ref}...HEAD" \
+            > .shiki/gha/live-changed-files.txt
+
+          git diff --name-status "origin/${base_ref}...HEAD" \
+            > .shiki/gha/live-changed-files-status.txt
+
+          git archive "origin/${base_ref}" .shiki | tar -x -C .shiki/gha/base-shiki || true
+
+          current_head="$(git rev-parse HEAD)"
+          if [ "$head_oid" != "$current_head" ]; then
+            echo "::error::Live PR headRefOid ${head_oid} does not match checked out HEAD ${current_head}"
+            exit 1
+          fi
+
       - name: Enforce MergeGate
-        run: python3 scripts/mergegate_check.py
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 scripts/mergegate_check.py \
+            --pr-json .shiki/gha/live-pr.json \
+            --changed-files .shiki/gha/live-changed-files.txt \
+            --changed-files-status .shiki/gha/live-changed-files-status.txt \
+            --cca-verdict .shiki/gha/cca-verdict.json \
+            --expected-head-sha "$EXPECTED_HEAD_SHA" \
+            --base-shiki .shiki/gha/base-shiki/.shiki

@@ -95,6 +95,21 @@ no-overwrite semantics and retry on ID collision. Existing ledger files must not
 be replaced during append. Mutable Shiki state records should be written through
 atomic replace helpers where practical.
 
+### Protected Mirror Evidence Policy
+
+Runtime CCA and MergeGate evidence under `.shiki/gha` is workflow-generated and
+must not be committed by PRs. PR-mutated `.shiki` mirror files are proposed
+state changes, not trusted authority.
+
+MergeGate refreshes live GitHub PR state immediately before policy evaluation
+and uses that live state for PR labels, reviews, review decision, head SHA, and
+status rollup. It also compares protected `.shiki` paths against a base-branch
+snapshot before accepting proposed mirror changes.
+
+Ledger evidence is append-only: new ledger files may be added only when linked
+from the current task, while existing ledger files must not be modified or
+deleted by PRs.
+
 ### Required worktree record
 
 ```json
