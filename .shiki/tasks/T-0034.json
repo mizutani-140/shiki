@@ -19,7 +19,8 @@
   "goal_id": "G-0012",
   "id": "T-0034",
   "ledger_evidence": [
-    "L-0110"
+    "L-0110",
+    "L-0111"
   ],
   "locks": [
     "path:scripts/shiki.py",
@@ -47,6 +48,6 @@
   ],
   "risk_level": "critical",
   "scope": "Close Goal #30 P0.4.1 through P0.4.3 by replacing max-plus-one Shiki state allocation with collision-resistant generated IDs, making ledger appends no-overwrite, and adding atomic JSON state helpers.",
-  "status": "review",
+  "status": "done",
   "title": "Make Shiki state IDs and ledger writes collision-resistant"
 }
