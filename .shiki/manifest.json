@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "description": "Canonical Shiki mirror layout manifest.",
+  "source_of_truth": "GitHub operational state is authoritative; .shiki is a repository-local mirror.",
+  "directories": {
+    ".shiki/dag": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Task dependency graphs mirrored from Goal planning."
+    },
+    ".shiki/goals": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Goal records mirrored from GitHub Goal Issues."
+    },
+    ".shiki/handoffs": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Durable handoff records for runtime transitions."
+    },
+    ".shiki/inbox": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Imported plans and intake artifacts waiting for Shiki processing."
+    },
+    ".shiki/ledger": {
+      "kind": "append-only-evidence",
+      "tracked": true,
+      "required": true,
+      "description": "Durable append-only evidence entries."
+    },
+    ".shiki/locks": {
+      "kind": "lock-mirror",
+      "tracked": true,
+      "required": false,
+      "create_on_demand": true,
+      "description": "Active lock files created on demand. Task lock intent is tracked in task records."
+    },
+    ".shiki/plans": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Goal Seek and Task DAG planning artifacts."
+    },
+    ".shiki/repairs": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Bounded repair packets and repair coordination records."
+    },
+    ".shiki/reports": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Completion, repair, and handoff reports."
+    },
+    ".shiki/runner": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Runner execution records emitted by local or self-hosted runtimes."
+    },
+    ".shiki/runs": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Plan run records and dispatch state."
+    },
+    ".shiki/schemas": {
+      "kind": "contract",
+      "tracked": true,
+      "required": true,
+      "description": "JSON Schemas for Shiki mirror artifacts."
+    },
+    ".shiki/smoke": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Smoke-test run records."
+    },
+    ".shiki/starts": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Shiki start/bootstrap records."
+    },
+    ".shiki/tasks": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Executable task contracts mirrored from GitHub Task Issues."
+    },
+    ".shiki/templates": {
+      "kind": "template",
+      "tracked": true,
+      "required": true,
+      "description": "Starter templates for Shiki mirror artifacts."
+    },
+    ".shiki/worktrees": {
+      "kind": "mirror",
+      "tracked": true,
+      "required": true,
+      "description": "Registered local or self-hosted worktree records."
+    }
+  },
+  "runtime_directories": {
+    ".shiki/gha": {
+      "kind": "runtime-evidence",
+      "tracked": false,
+      "required": false,
+      "description": "Workflow-generated GitHub Actions evidence. Must not be committed by PRs."
+    }
+  },
+  "files": {
+    ".shiki/config.yaml": {
+      "kind": "config",
+      "tracked": true,
+      "required": true
+    },
+    ".shiki/manifest.json": {
+      "kind": "layout-contract",
+      "tracked": true,
+      "required": true
+    },
+    ".shiki/policy.example.yaml": {
+      "kind": "example-policy",
+      "tracked": true,
+      "required": true
+    },
+    ".shiki/README.md": {
+      "kind": "validated-doc",
+      "tracked": true,
+      "required": true
+    }
+  },
+  "install": {
+    "include": [
+      ".shiki/manifest.json",
+      ".shiki/README.md",
+      ".shiki/config.yaml",
+      ".shiki/policy.example.yaml",
+      ".shiki/schemas/**",
+      ".shiki/templates/**"
+    ],
+    "create_directories": [
+      ".shiki/goals",
+      ".shiki/plans",
+      ".shiki/tasks",
+      ".shiki/dag",
+      ".shiki/ledger",
+      ".shiki/locks",
+      ".shiki/worktrees",
+      ".shiki/repairs",
+      ".shiki/reports",
+      ".shiki/runs",
+      ".shiki/inbox",
+      ".shiki/handoffs",
+      ".shiki/runner",
+      ".shiki/smoke",
+      ".shiki/starts"
+    ],
+    "exclude_from_commit": [
+      ".shiki/gha/**"
+    ]
+  }
+}

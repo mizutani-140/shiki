@@ -101,6 +101,16 @@ Runtime CCA and MergeGate evidence under `.shiki/gha` is workflow-generated and
 must not be committed by PRs. PR-mutated `.shiki` mirror files are proposed
 state changes, not trusted authority.
 
+`.shiki/manifest.json` is the canonical repository-local layout contract for
+the mirror. It defines official directories, required files, runtime-only
+paths, install-time directory creation, and commit exclusions. `.shiki/README.md`
+is human-readable documentation validated against the manifest; it is not the
+source of truth.
+
+Required empty tracked state directories are represented with `.gitkeep` or
+created according to the manifest. Runtime-only directories such as
+`.shiki/gha` are generated on demand and must not be committed.
+
 MergeGate refreshes live GitHub PR state immediately before policy evaluation
 and uses that live state for PR labels, reviews, review decision, head SHA, and
 status rollup. It also compares protected `.shiki` paths against a base-branch

@@ -1,0 +1,29 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "Created GitHub Issue #63 for T-0038 / Goal #30 P1.1.",
+    "Required skill used: diagnose for existing layout drift and MergeGate metadata failure classification.",
+    "Required skill used: tdd for scripts/test_shiki_manifest.sh manifest parser, README drift, constant drift, runtime-only evidence, and install/staging regression coverage.",
+    "Required skill used: improve-codebase-architecture for introducing a manifest helper instead of duplicating layout logic across bootstrap, validation, and docs.",
+    "Added .shiki/manifest.json as the canonical repository-local layout contract for official directories, runtime-only directories, required files, install include paths, create directories, and commit exclusions.",
+    "Aligned .shiki/README.md with the manifest through a validated SHIKI_MANIFEST_LAYOUT block.",
+    "Added scripts/shiki_manifest.py as a standard-library manifest loader and renderer.",
+    "Updated scripts/shiki.py so state directory creation and install/runtime exclusions are manifest-driven.",
+    "Added validate_shiki manifest checks for required files/directories, README drift, TARGET_STATE_DIRECTORIES drift, install include consistency, and runtime-only committed state.",
+    "Added scripts/test_shiki_manifest.sh covering valid/missing/invalid manifests, outside .shiki paths, missing required directories/files, committed runtime-only evidence, README drift, TARGET_STATE_DIRECTORIES drift, and install/staging behavior.",
+    "Added .gitkeep files for required tracked empty directories: .shiki/handoffs, .shiki/runner, .shiki/smoke, and .shiki/starts.",
+    "Documented manifest authority and runtime-only .shiki/gha policy in docs/agents/decision-control.md, docs/agents/checklists.md, and docs/agents/completion-check-agent.md.",
+    "Bounded MergeGate policy repair: added explicit PR #64 ledger reference after MergeGate reported that task ledger evidence did not reference PR #64.",
+    "Non-goals preserved: no P1.2 workflow/YAML validator hardening, no P1.3 architecture split, no P1.4 governance redesign, no P2 docs/package work, and no Guardian/CCA Review Bridge/branch protection/CODEOWNERS behavior changes."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260603T092748386232Z-8324a948",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/63",
+    "https://github.com/mizutani-140/shiki/pull/64"
+  ],
+  "summary": "Recorded T-0038 .shiki manifest and state layout alignment implementation evidence.",
+  "task_id": "T-0038",
+  "timestamp": "2026-06-03T09:27:48Z",
+  "type": "check"
+}
