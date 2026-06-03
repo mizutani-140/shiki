@@ -1,0 +1,24 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "PR #61 merged T-0037 at approved head 22e980d0a669c046dcce3f055689620c3f788beb.",
+    "Mandatory hidden / bidirectional Unicode control character check passed before merge.",
+    "T-0037 status is reconciled from review to done after PR #61 merge.",
+    "G-0012 ledger evidence is reconciled to include L-20260603T074711349074Z-414f6a83 and L-20260603T083033603611Z-2c645e64.",
+    "No active T-0037 lock exists in .shiki/locks.",
+    "Issue #60 can be closed after this reconciliation merges.",
+    "Goal #30 P0.4.8 can be marked complete after this reconciliation merges."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260603T083033603611Z-2c645e64",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/61",
+    "https://github.com/mizutani-140/shiki/pull/62",
+    "https://github.com/mizutani-140/shiki/issues/60",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Recorded T-0037 post-merge mirror reconciliation.",
+  "task_id": "T-0037",
+  "timestamp": "2026-06-03T08:30:33Z",
+  "type": "check"
+}
