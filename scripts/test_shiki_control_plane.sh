@@ -106,6 +106,26 @@ assert shiki_locks.locks_overlap("path:src/audit/", "path:src/audit/deep/query.p
 assert shiki_locks.locks_overlap("goal:G-0012", "goal:G-*")
 assert not shiki_locks.locks_overlap("path:src/audit/*", "path:src/billing/query.py")
 assert shiki_locks.files_outside_locks(["src/other.py"], ["path:src/audit/"]) == ["src/other.py"]
+assert shiki_locks.locks_overlap("shiki:state", "path:.shiki/tasks/T-0035.json")
+assert shiki_locks.locks_overlap("shiki:state", "path:.shiki/ledger/L-0112.json")
+assert shiki_locks.locks_overlap("shiki:governance", "path:scripts/mergegate_check.py")
+assert shiki_locks.locks_overlap("shiki:governance", "path:.github/workflows/shiki-validate.yml")
+assert shiki_locks.locks_overlap("shiki:workflows", "path:.github/workflows/shiki-validate.yml")
+assert shiki_locks.locks_overlap("shiki:contracts", "path:AGENTS.md")
+assert shiki_locks.locks_overlap("shiki:contracts", "path:docs/agents/checklists.md")
+assert shiki_locks.locks_overlap("shiki:governance", "shiki:workflows")
+assert not shiki_locks.locks_overlap("shiki:state", "path:docs/agents/checklists.md")
+assert shiki_locks.path_matches_lock("scripts/mergegate_check.py", "shiki:governance")
+assert shiki_locks.path_matches_lock(".github/workflows/shiki-validate.yml", "shiki:workflows")
+assert shiki_locks.path_matches_lock("AGENTS.md", "shiki:contracts")
+assert shiki_locks.path_matches_lock(".shiki/tasks/T-0035.json", "shiki:state")
+assert shiki_locks.files_outside_locks(["scripts/mergegate_check.py"], ["shiki:governance"]) == []
+assert shiki_locks.known_shiki_semantic_locks() == {
+    "shiki:state",
+    "shiki:governance",
+    "shiki:workflows",
+    "shiki:contracts",
+}
 
 ids = [shiki_state.new_control_id("L") for _ in range(200)]
 assert len(ids) == len(set(ids))
@@ -122,7 +142,7 @@ with tempfile.TemporaryDirectory() as tmp:
     (locks_dir / "T-9000.json").write_text(json.dumps({
         "task_id": "T-9000",
         "goal_id": "G-9000",
-        "locks": ["path:src/audit/", "goal:G-0012"],
+        "locks": ["path:src/audit/", "goal:G-0012", "shiki:state"],
         "state": "active",
         "owner": "fixture",
         "created_at": "2026-06-03T00:00:00+00:00",
@@ -134,6 +154,12 @@ with tempfile.TemporaryDirectory() as tmp:
         ["src/audit/query.py"],
     )
     assert any("T-9000" in conflict and "path:src/audit/" in conflict for conflict in conflicts)
+    state_conflicts = shiki_locks.active_lock_conflicts(
+        target,
+        "T-9002",
+        ["path:.shiki/tasks/T-0035.json"],
+    )
+    assert any("T-9000" in conflict and "shiki:state" in conflict for conflict in state_conflicts)
 
     create_path = target / ".shiki" / "state" / "record.json"
     shiki_state.atomic_create_json(create_path, {"id": "record", "value": 1})
@@ -414,16 +440,21 @@ esac
 test -f "$TARGET/.shiki/tasks/$TASK_ID.json"
 test -f "$TARGET/.shiki/dag/$GOAL_ID.json"
 
-python3 - "$TARGET" <<'PY'
+python3 - "$TARGET" "$TASK_ID" <<'PY'
 import json
 import pathlib
 import sys
 
 target = pathlib.Path(sys.argv[1])
+task_id = sys.argv[2]
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+task["locks"] = [f"path:.shiki/tasks/{task_id}.json"]
+task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
 lock = {
     "task_id": "T-9998",
     "goal_id": "G-9998",
-    "locks": ["path:src/audit/"],
+    "locks": ["shiki:state"],
     "state": "active",
     "owner": "other",
     "created_at": "2026-01-01T00:00:00+00:00",
@@ -435,6 +466,44 @@ expect_fail python3 "$ROOT/scripts/shiki.py" lock acquire --target "$TARGET" "$T
 grep "Lock conflict" /tmp/shiki-expected-fail.out >/dev/null
 grep "T-9998" /tmp/shiki-expected-fail.out >/dev/null
 rm -f "$TARGET/.shiki/locks/T-9998.json"
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+task_id = sys.argv[2]
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+task["locks"] = ["path:src/audit/*"]
+task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+PY
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+task_id = sys.argv[2]
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+task["locks"] = ["shiki:unknown"]
+task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$TARGET/scripts/validate_shiki.py"
+grep "unsupported Shiki semantic lock" /tmp/shiki-expected-fail.out >/dev/null
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+task_id = sys.argv[2]
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+task["locks"] = ["path:src/audit/*"]
+task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+PY
 
 python3 "$ROOT/scripts/shiki.py" lock acquire --target "$TARGET" "$TASK_ID" >/tmp/shiki-lock.json
 python3 "$ROOT/scripts/shiki.py" dispatch check --target "$TARGET" "$TASK_ID" >/tmp/shiki-dispatch.json
@@ -562,6 +631,74 @@ python3 "$TARGET/scripts/mergegate_check.py" \
   --result-file "$TARGET/.shiki/gha/mergegate-result.json" \
   >/tmp/shiki-mergegate-pass.json
 grep '"mergegate": "ready"' /tmp/shiki-mergegate-pass.json >/dev/null
+
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+task_id = sys.argv[2]
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+task["locks"] = ["shiki:governance"]
+task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+(target / ".shiki" / "gha" / "changed-files.txt").write_text("scripts/mergegate_check.py\n")
+PY
+python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json" \
+  >/tmp/shiki-mergegate-semantic-coverage-pass.json
+grep '"mergegate": "ready"' /tmp/shiki-mergegate-semantic-coverage-pass.json >/dev/null
+
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+task_id = sys.argv[2]
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+task["locks"] = ["shiki:state"]
+task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+(target / ".shiki" / "gha" / "changed-files.txt").write_text(f".shiki/tasks/{task_id}.json\n")
+lock = {
+    "task_id": "T-9997",
+    "goal_id": "G-9997",
+    "locks": ["path:.shiki/tasks/**"],
+    "state": "active",
+    "owner": "other",
+    "created_at": "2026-01-01T00:00:00+00:00",
+}
+(target / ".shiki" / "locks").mkdir(parents=True, exist_ok=True)
+(target / ".shiki" / "locks" / "T-9997.json").write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json"
+grep "Lock conflict" /tmp/shiki-expected-fail.out >/dev/null
+grep "T-9997" /tmp/shiki-expected-fail.out >/dev/null
+rm -f "$TARGET/.shiki/locks/T-9997.json"
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+task_id = sys.argv[2]
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+task["locks"] = ["path:src/audit/*"]
+task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+(target / ".shiki" / "gha" / "changed-files.txt").write_text("src/audit/query.py\n")
+PY
 
 python3 - "$TARGET" <<'PY'
 import pathlib

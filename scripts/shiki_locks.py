@@ -8,6 +8,41 @@ from pathlib import Path
 from typing import Any
 
 
+SHIKI_SEMANTIC_LOCKS: dict[str, list[str]] = {
+    "shiki:state": [
+        "path:.shiki/goals/**",
+        "path:.shiki/tasks/**",
+        "path:.shiki/ledger/**",
+        "path:.shiki/locks/**",
+        "path:.shiki/dag/**",
+        "path:.shiki/reports/**",
+    ],
+    "shiki:governance": [
+        "path:.shiki/config.yaml",
+        "path:.shiki/policy.example.yaml",
+        "path:.github/CODEOWNERS",
+        "path:.github/workflows/**",
+        "path:scripts/mergegate_check.py",
+        "path:scripts/enforce_cca_verdict.py",
+        "path:scripts/validate_shiki.py",
+        "path:scripts/shiki_contracts.py",
+    ],
+    "shiki:workflows": [
+        "path:.github/workflows/**",
+    ],
+    "shiki:contracts": [
+        "path:AGENTS.md",
+        "path:SYSTEM_PROMPT.md",
+        "path:CLAUDE.md",
+        "path:.codex/**",
+        "path:.claude/**",
+        "path:.github/prompts/**",
+        "path:docs/agents/**",
+        "path:scripts/shiki_contracts.py",
+    ],
+}
+
+
 def normalize_path(value: str) -> str:
     normalized = value.strip().replace("\\", "/")
     while normalized.startswith("./"):
@@ -25,7 +60,25 @@ def split_lock(lock: str) -> tuple[str, str] | None:
         return None
     if kind == "path":
         value = normalize_path(value)
+    elif kind == "shiki":
+        value = value.lower()
     return kind, value
+
+
+def normalize_lock(lock: str) -> str:
+    parsed = split_lock(lock)
+    if parsed is None:
+        return lock.strip()
+    return f"{parsed[0]}:{parsed[1]}"
+
+
+def expand_lock(lock: str) -> list[str]:
+    normalized = normalize_lock(lock)
+    return SHIKI_SEMANTIC_LOCKS.get(normalized, [normalized])
+
+
+def known_shiki_semantic_locks() -> set[str]:
+    return set(SHIKI_SEMANTIC_LOCKS)
 
 
 def is_glob_pattern(value: str) -> bool:
@@ -47,9 +100,10 @@ def path_lock_patterns(lock: str) -> list[str]:
 
 def path_matches_lock(path: str, lock: str) -> bool:
     normalized = normalize_path(path)
-    for pattern in path_lock_patterns(lock):
-        if normalized == pattern or fnmatch.fnmatch(normalized, pattern):
-            return True
+    for expanded_lock in expand_lock(lock):
+        for pattern in path_lock_patterns(expanded_lock):
+            if normalized == pattern or fnmatch.fnmatch(normalized, pattern):
+                return True
     return False
 
 
@@ -95,7 +149,7 @@ def semantic_values_overlap(left: str, right: str) -> bool:
     return bool(left_prefix and right_prefix and (left_prefix.startswith(right_prefix) or right_prefix.startswith(left_prefix)))
 
 
-def locks_overlap(left_lock: str, right_lock: str) -> bool:
+def primitive_locks_overlap(left_lock: str, right_lock: str) -> bool:
     if left_lock == right_lock:
         return True
     left = split_lock(left_lock)
@@ -109,6 +163,14 @@ def locks_overlap(left_lock: str, right_lock: str) -> bool:
             for right_pattern in path_lock_patterns(right_lock)
         )
     return semantic_values_overlap(left[1], right[1])
+
+
+def locks_overlap(left_lock: str, right_lock: str) -> bool:
+    return any(
+        primitive_locks_overlap(left, right)
+        for left in expand_lock(left_lock)
+        for right in expand_lock(right_lock)
+    )
 
 
 def load_lock_record(path: Path) -> dict[str, Any] | None:

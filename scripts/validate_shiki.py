@@ -22,6 +22,7 @@ from shiki_contracts import (
     RUNTIME_NAMES,
     canonical_source_of_truth_markdown,
 )
+from shiki_locks import known_shiki_semantic_locks, normalize_lock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -200,6 +201,19 @@ def skill_exists(skill: str) -> bool:
     return (ROOT / "skills" / "engineering" / skill / "SKILL.md").exists()
 
 
+def validate_lock_names(path: Path, locks: list[Any]) -> None:
+    known_shiki_locks = known_shiki_semantic_locks()
+    for lock in locks:
+        if not isinstance(lock, str) or not lock.strip():
+            raise ValidationError(f"{path}: locks must contain non-empty strings")
+        normalized = normalize_lock(lock)
+        if normalized.startswith("shiki:") and normalized not in known_shiki_locks:
+            raise ValidationError(
+                f"{path}: unsupported Shiki semantic lock {lock!r}; "
+                f"expected one of {sorted(known_shiki_locks)}"
+            )
+
+
 def validate_goal(path: Path, data: dict[str, Any]) -> str:
     require_keys(path, data, GOAL_REQUIRED)
 
@@ -240,7 +254,7 @@ def validate_task(path: Path, data: dict[str, Any]) -> tuple[str, list[str]]:
 
     require_list(path, data, "non_goals")
     dependencies = require_list(path, data, "dependencies")
-    require_list(path, data, "locks")
+    validate_lock_names(path, require_list(path, data, "locks"))
     require_list(path, data, "acceptance_checks", non_empty=True)
     require_list(path, data, "ledger_evidence", non_empty=True)
 
@@ -371,7 +385,7 @@ def validate_worktree(path: Path, data: dict[str, Any], known_tasks: set[str]) -
     require_string(path, data, "state")
     require_string(path, data, "created_by")
     require_string(path, data, "created_at")
-    require_list(path, data, "locks")
+    validate_lock_names(path, require_list(path, data, "locks"))
 
 
 def validate_plan(path: Path, data: dict[str, Any]) -> None:
@@ -396,6 +410,11 @@ def validate_plan(path: Path, data: dict[str, Any]) -> None:
                 raise ValidationError(f"{path}: tasks[{index}] missing {key}")
         if not isinstance(task.get("acceptance_checks"), list) or not task["acceptance_checks"]:
             raise ValidationError(f"{path}: tasks[{index}].acceptance_checks must not be empty")
+        if "locks" in task:
+            locks = task.get("locks")
+            if not isinstance(locks, list):
+                raise ValidationError(f"{path}: tasks[{index}].locks must be a list")
+            validate_lock_names(path, locks)
 
 
 def validate_run(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
