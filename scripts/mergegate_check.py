@@ -519,7 +519,7 @@ def enforce_untrusted_shiki_mutations(
             if str(repair.get("task_id") or "") != task_id:
                 blocking.append(f"Repair packet {repair_id} is not scoped to task {task_id}")
             repair_pr = repair.get("pr")
-            if repair_pr != pr_number and repair_id not in allowed_ledger_ids and f"path:{path}" not in task_locks:
+            if repair_pr != pr_number:
                 blocking.append(f"Repair packet {repair_id} does not reference current PR #{pr_number}")
 
     if base_shiki is None:
