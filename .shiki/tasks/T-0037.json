@@ -13,13 +13,14 @@
   "dependencies": [
     "T-0036"
   ],
-  "expected_branch": "shiki/t-0037-adversarial-state-regression",
-  "expected_pr": 61,
+  "expected_branch": "shiki/t-0037-post-merge-reconcile",
+  "expected_pr": null,
   "github_issue": 60,
   "goal_id": "G-0012",
   "id": "T-0037",
   "ledger_evidence": [
-    "L-20260603T074711349074Z-414f6a83"
+    "L-20260603T074711349074Z-414f6a83",
+    "L-20260603T083033603611Z-2c645e64"
   ],
   "locks": [
     "shiki:state",
@@ -34,6 +35,7 @@
     "path:docs/agents/**",
     "path:.shiki/tasks/T-0037.json",
     "path:.shiki/ledger/**",
+    "path:.shiki/ledger/L-20260603T083033603611Z-2c645e64.json",
     "path:.shiki/repairs/RP-0037.json",
     "path:.shiki/goals/G-0012.json"
   ],
@@ -54,6 +56,6 @@
   ],
   "risk_level": "critical",
   "scope": "Close Goal #30 P0.4.8 by adding a focused adversarial regression suite that guards T-0034 state ID and ledger atomicity, T-0035 shared lock matching, and T-0036 runtime evidence / live GitHub state protections.",
-  "status": "review",
+  "status": "done",
   "title": "Add adversarial state / evidence / lock regression suite"
 }
