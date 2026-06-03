@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Iterable
 
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS, TARGET_STATE_DIRECTORIES
+from shiki_locks import active_lock_conflicts
 from shiki_state import append_ledger_entry, atomic_replace_json, new_control_id
 
 
@@ -52,6 +53,7 @@ TEMPLATE_PATHS = [
     "scripts/shiki_schema.py",
     "scripts/validate_shiki.py",
     "scripts/shiki_contracts.py",
+    "scripts/shiki_locks.py",
     "scripts/enforce_cca_verdict.py",
     "scripts/mergegate_check.py",
     "scripts/shiki.py",
@@ -706,19 +708,7 @@ def tasks_for_goal(target: Path, goal_id: str) -> list[dict[str, Any]]:
 
 
 def has_active_lock_conflict(target: Path, task_id: str, locks: list[str]) -> list[str]:
-    conflicts: list[str] = []
-    directory = shiki_path(target, "locks")
-    if not directory.exists():
-        return conflicts
-    requested = set(locks)
-    for path in sorted(directory.glob("*.json")):
-        data = read_json(path)
-        if data.get("task_id") == task_id or data.get("state") != "active":
-            continue
-        overlap = requested.intersection(set(data.get("locks", [])))
-        for lock in sorted(overlap):
-            conflicts.append(f"{lock} held by {data.get('task_id')}")
-    return conflicts
+    return active_lock_conflicts(target, task_id, locks)
 
 
 def lock_record(target: Path, task_id: str) -> dict[str, Any] | None:

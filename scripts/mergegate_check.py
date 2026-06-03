@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import fnmatch
 import json
 import re
 import sys
@@ -12,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
+from shiki_locks import active_lock_conflicts, files_outside_locks
 from shiki_schema import SchemaValidationError, validate_instance
 
 
@@ -103,28 +103,6 @@ def changed_files(path: Path) -> list[str]:
     if not path.exists():
         return []
     return [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-
-
-def lock_pattern(lock: str) -> str | None:
-    if not lock.startswith("path:"):
-        return None
-    pattern = lock.removeprefix("path:").strip()
-    return pattern or None
-
-
-def path_matches_lock(path: str, lock: str) -> bool:
-    pattern = lock_pattern(lock)
-    if pattern is None:
-        return False
-    candidates = {pattern}
-    if pattern.endswith("/"):
-        candidates.add(pattern + "**")
-    elif pattern.endswith("/*"):
-        candidates.add(pattern[:-1] + "**")
-    for candidate in candidates:
-        if path == candidate or fnmatch.fnmatch(path, candidate):
-            return True
-    return False
 
 
 def ledger_entry_text(entry: dict[str, Any]) -> str:
@@ -365,27 +343,6 @@ def guardian_approved(pr: dict[str, Any], ledger_entries: list[dict[str, Any]], 
     return any(structured_guardian_approval(entry, policy["users"], policy["teams"]) for entry in ledger_entries)
 
 
-def active_lock_conflicts(target: Path, task_id: str, locks: list[str], files: list[str]) -> list[str]:
-    conflicts: list[str] = []
-    directory = target / ".shiki" / "locks"
-    if not directory.exists():
-        return conflicts
-    for path in sorted(directory.glob("*.json")):
-        record = load_json(path)
-        if not record or record.get("state") != "active" or record.get("task_id") == task_id:
-            continue
-        owner_task = record.get("task_id") or path.stem
-        for other_lock in [str(lock) for lock in record.get("locks") or []]:
-            if other_lock in locks:
-                conflicts.append(f"Lock conflict: {other_lock} held by {owner_task}")
-                continue
-            for changed_file in files:
-                if path_matches_lock(changed_file, other_lock) and any(path_matches_lock(changed_file, lock) for lock in locks):
-                    conflicts.append(f"Lock conflict: {other_lock} held by {owner_task} overlaps {changed_file}")
-                    break
-    return conflicts
-
-
 def load_ledger_entries(target: Path, task: dict[str, Any], warnings: list[str], blocking: list[str]) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     for ledger_id in task.get("ledger_evidence") or []:
@@ -473,9 +430,8 @@ def main() -> int:
             locks = [str(lock) for lock in task.get("locks") or []]
             if files and not locks:
                 blocking.append(f"Task {resolved_task_id} has no locks but PR changes files")
-            for path in files:
-                if not any(path_matches_lock(path, lock) for lock in locks):
-                    blocking.append(f"Changed file {path} is outside declared task locks")
+            for path in files_outside_locks(files, locks):
+                blocking.append(f"Changed file {path} is outside declared task locks")
             blocking.extend(active_lock_conflicts(target, resolved_task_id, locks, files))
 
             ledger_entries = load_ledger_entries(target, task, warnings, blocking)

@@ -27,6 +27,7 @@ cd "$ROOT"
 python3 scripts/validate_shiki.py
 python3 -m py_compile scripts/shiki.py
 python3 -m py_compile scripts/shiki_state.py
+python3 -m py_compile scripts/shiki_locks.py
 python3 -m py_compile scripts/shiki_schema.py
 python3 -m py_compile scripts/shiki_contracts.py
 python3 scripts/shiki.py --help | grep -E "goal|issue|dispatch|repair" >/dev/null
@@ -95,7 +96,16 @@ import threading
 
 root = pathlib.Path(sys.argv[1])
 sys.path.insert(0, str(root / "scripts"))
+import shiki_locks
 import shiki_state
+
+assert shiki_locks.path_matches_lock("src/audit/query.py", "path:src/audit/*")
+assert shiki_locks.path_matches_lock("src/audit/deep/query.py", "path:src/audit/")
+assert shiki_locks.locks_overlap("path:src/audit/*", "path:src/audit/query.py")
+assert shiki_locks.locks_overlap("path:src/audit/", "path:src/audit/deep/query.py")
+assert shiki_locks.locks_overlap("goal:G-0012", "goal:G-*")
+assert not shiki_locks.locks_overlap("path:src/audit/*", "path:src/billing/query.py")
+assert shiki_locks.files_outside_locks(["src/other.py"], ["path:src/audit/"]) == ["src/other.py"]
 
 ids = [shiki_state.new_control_id("L") for _ in range(200)]
 assert len(ids) == len(set(ids))
@@ -106,7 +116,24 @@ with tempfile.TemporaryDirectory() as tmp:
     target = pathlib.Path(tmp)
     ledger_dir = target / ".shiki" / "ledger"
     ledger_dir.mkdir(parents=True)
+    locks_dir = target / ".shiki" / "locks"
+    locks_dir.mkdir(parents=True)
     (ledger_dir / "L-9999.json").write_text('{"id":"L-9999"}\n')
+    (locks_dir / "T-9000.json").write_text(json.dumps({
+        "task_id": "T-9000",
+        "goal_id": "G-9000",
+        "locks": ["path:src/audit/", "goal:G-0012"],
+        "state": "active",
+        "owner": "fixture",
+        "created_at": "2026-06-03T00:00:00+00:00",
+    }) + "\n")
+    conflicts = shiki_locks.active_lock_conflicts(
+        target,
+        "T-9001",
+        ["path:src/audit/*.py", "goal:G-*"],
+        ["src/audit/query.py"],
+    )
+    assert any("T-9000" in conflict and "path:src/audit/" in conflict for conflict in conflicts)
 
     create_path = target / ".shiki" / "state" / "record.json"
     shiki_state.atomic_create_json(create_path, {"id": "record", "value": 1})
@@ -198,6 +225,7 @@ mkdir -p "$TARGET"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-control-install.out
 test -f "$TARGET/.github/CODEOWNERS"
 test -f "$TARGET/scripts/shiki_state.py"
+test -f "$TARGET/scripts/shiki_locks.py"
 test -f "$TARGET/skills/engineering/shiki/SKILL.md"
 test -f "$TARGET/skills/engineering/grill-with-docs/SKILL.md"
 
@@ -385,6 +413,28 @@ case "$TASK_ID" in
 esac
 test -f "$TARGET/.shiki/tasks/$TASK_ID.json"
 test -f "$TARGET/.shiki/dag/$GOAL_ID.json"
+
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+lock = {
+    "task_id": "T-9998",
+    "goal_id": "G-9998",
+    "locks": ["path:src/audit/"],
+    "state": "active",
+    "owner": "other",
+    "created_at": "2026-01-01T00:00:00+00:00",
+}
+(target / ".shiki" / "locks").mkdir(parents=True, exist_ok=True)
+(target / ".shiki" / "locks" / "T-9998.json").write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$ROOT/scripts/shiki.py" lock acquire --target "$TARGET" "$TASK_ID"
+grep "Lock conflict" /tmp/shiki-expected-fail.out >/dev/null
+grep "T-9998" /tmp/shiki-expected-fail.out >/dev/null
+rm -f "$TARGET/.shiki/locks/T-9998.json"
 
 python3 "$ROOT/scripts/shiki.py" lock acquire --target "$TARGET" "$TASK_ID" >/tmp/shiki-lock.json
 python3 "$ROOT/scripts/shiki.py" dispatch check --target "$TARGET" "$TASK_ID" >/tmp/shiki-dispatch.json
@@ -807,13 +857,14 @@ import sys
 
 target = pathlib.Path(sys.argv[1])
 task_id = sys.argv[2]
-ledger_path = next((target / ".shiki" / "ledger").glob("L-*.json"))
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+ledger_id = task["ledger_evidence"][0]
+ledger_path = target / ".shiki" / "ledger" / f"{ledger_id}.json"
 ledger = json.loads(ledger_path.read_text())
 ledger["evidence"].append("no Guardian approval evidence is present")
 ledger_path.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n")
 
-task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
-task = json.loads(task_path.read_text())
 task["risk_level"] = "high"
 task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
 PY
@@ -838,7 +889,10 @@ if "    - guardian-user\n" not in config_text:
     config_text = config_text.replace("  users:\n", "  users:\n    - guardian-user\n")
     config_path.write_text(config_text)
 
-ledger_path = next((target / ".shiki" / "ledger").glob("L-*.json"))
+task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(task_path.read_text())
+ledger_id = task["ledger_evidence"][0]
+ledger_path = target / ".shiki" / "ledger" / f"{ledger_id}.json"
 ledger = json.loads(ledger_path.read_text())
 ledger["guardian_approval"] = {
     "approved": True,
@@ -847,8 +901,6 @@ ledger["guardian_approval"] = {
 }
 ledger_path.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n")
 
-task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
-task = json.loads(task_path.read_text())
 task["risk_level"] = "high"
 task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
 PY
@@ -876,7 +928,7 @@ task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
 lock = {
     "task_id": "T-9999",
     "goal_id": "G-9999",
-    "locks": ["path:src/audit/*"],
+    "locks": ["path:src/audit/"],
     "state": "active",
     "owner": "other",
     "created_at": "2026-01-01T00:00:00+00:00",
