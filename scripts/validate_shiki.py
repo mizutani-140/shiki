@@ -27,15 +27,23 @@ from shiki_contracts import (
 ROOT = Path(__file__).resolve().parents[1]
 SHIKI = ROOT / ".shiki"
 
-TASK_ID = re.compile(r"^T-[0-9]{4,}$")
-GOAL_ID = re.compile(r"^G-[0-9]{4,}$")
-LEDGER_ID = re.compile(r"^L-[0-9]{4,}$")
-PLAN_ID = re.compile(r"^P-[0-9]{4,}$")
-RUN_ID = re.compile(r"^RUN-[0-9]{4,}$")
-INBOX_ID = re.compile(r"^INBOX-[0-9]{4,}$")
-EXEC_ID = re.compile(r"^EXEC-[0-9]{4,}$")
-SMOKE_ID = re.compile(r"^SMOKE-[0-9]{4,}$")
-START_ID = re.compile(r"^START-[0-9]{4,}$")
+ID_SUFFIX = r"(?:[0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})"
+
+
+def control_id_pattern(prefix: str) -> re.Pattern[str]:
+    return re.compile(rf"^{re.escape(prefix)}-{ID_SUFFIX}$")
+
+
+TASK_ID = control_id_pattern("T")
+GOAL_ID = control_id_pattern("G")
+LEDGER_ID = control_id_pattern("L")
+PLAN_ID = control_id_pattern("P")
+RUN_ID = control_id_pattern("RUN")
+INBOX_ID = control_id_pattern("INBOX")
+EXEC_ID = control_id_pattern("EXEC")
+SMOKE_ID = control_id_pattern("SMOKE")
+START_ID = control_id_pattern("START")
+REPORT_ID = control_id_pattern("R")
 
 TASK_REQUIRED = {
     "id",
@@ -140,6 +148,15 @@ def load_json(path: Path) -> Any:
         raise ValidationError(f"{path}: invalid JSON: {error}") from error
 
 
+def id_format_description(prefix: str) -> str:
+    return f"{prefix}-0001 or {prefix}-YYYYMMDDTHHMMSSffffffZ-<8 hex>"
+
+
+def require_control_id(path: Path, value: str, pattern: re.Pattern[str], prefix: str, field: str = "id") -> None:
+    if not pattern.match(value):
+        raise ValidationError(f"{path}: {field} must match {id_format_description(prefix)}")
+
+
 def require_keys(path: Path, data: dict[str, Any], keys: set[str]) -> None:
     missing = sorted(keys - set(data))
     if missing:
@@ -187,8 +204,7 @@ def validate_goal(path: Path, data: dict[str, Any]) -> str:
     require_keys(path, data, GOAL_REQUIRED)
 
     goal_id = require_string(path, data, "id")
-    if not GOAL_ID.match(goal_id):
-        raise ValidationError(f"{path}: id must match G-0001 style")
+    require_control_id(path, goal_id, GOAL_ID, "G")
 
     require_string(path, data, "title")
     require_string(path, data, "outcome")
@@ -213,12 +229,10 @@ def validate_task(path: Path, data: dict[str, Any]) -> tuple[str, list[str]]:
     require_keys(path, data, TASK_REQUIRED)
 
     task_id = require_string(path, data, "id")
-    if not TASK_ID.match(task_id):
-        raise ValidationError(f"{path}: id must match T-0001 style")
+    require_control_id(path, task_id, TASK_ID, "T")
 
     goal_id = require_string(path, data, "goal_id")
-    if not GOAL_ID.match(goal_id):
-        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+    require_control_id(path, goal_id, GOAL_ID, "G", field="goal_id")
 
     require_string(path, data, "title")
     require_string(path, data, "scope")
@@ -244,7 +258,7 @@ def validate_task(path: Path, data: dict[str, Any]) -> tuple[str, list[str]]:
 
     for dependency in dependencies:
         if not isinstance(dependency, str) or not TASK_ID.match(dependency):
-            raise ValidationError(f"{path}: dependencies must contain T-0001 style ids")
+            raise ValidationError(f"{path}: dependencies must contain {id_format_description('T')} ids")
 
     validate_skill_names(path, require_list(path, data, "required_skills"), key="required_skills")
 
@@ -254,15 +268,14 @@ def validate_task(path: Path, data: dict[str, Any]) -> tuple[str, list[str]]:
 def validate_dag(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
     require_keys(path, data, DAG_REQUIRED)
     goal_id = require_string(path, data, "goal_id")
-    if not GOAL_ID.match(goal_id):
-        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+    require_control_id(path, goal_id, GOAL_ID, "G", field="goal_id")
 
     nodes = require_list(path, data, "nodes", non_empty=True)
     edges = require_list(path, data, "edges")
 
     for node in nodes:
         if not isinstance(node, str) or not TASK_ID.match(node):
-            raise ValidationError(f"{path}: nodes must contain T-0001 style ids")
+            raise ValidationError(f"{path}: nodes must contain {id_format_description('T')} ids")
         if known_tasks and node not in known_tasks:
             raise ValidationError(f"{path}: node {node} has no matching task file")
 
@@ -305,19 +318,17 @@ def validate_ledger(path: Path, data: dict[str, Any], known_tasks: set[str], kno
     require_keys(path, data, LEDGER_REQUIRED)
 
     ledger_id = require_string(path, data, "id")
-    if not LEDGER_ID.match(ledger_id):
-        raise ValidationError(f"{path}: id must match L-0001 style")
+    require_control_id(path, ledger_id, LEDGER_ID, "L")
 
     goal_id = require_string(path, data, "goal_id")
-    if not GOAL_ID.match(goal_id):
-        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+    require_control_id(path, goal_id, GOAL_ID, "G", field="goal_id")
     if known_goals and goal_id not in known_goals:
         raise ValidationError(f"{path}: goal_id {goal_id} has no matching goal file")
 
     task_id = data.get("task_id")
     if task_id is not None:
         if not isinstance(task_id, str) or not TASK_ID.match(task_id):
-            raise ValidationError(f"{path}: task_id must match T-0001 style or null")
+            raise ValidationError(f"{path}: task_id must match {id_format_description('T')} or null")
         if known_tasks and task_id not in known_tasks:
             raise ValidationError(f"{path}: task_id {task_id} has no matching task file")
 
@@ -347,14 +358,12 @@ def validate_worktree(path: Path, data: dict[str, Any], known_tasks: set[str]) -
     require_keys(path, data, required)
 
     task_id = require_string(path, data, "task_id")
-    if not TASK_ID.match(task_id):
-        raise ValidationError(f"{path}: task_id must match T-0001 style")
+    require_control_id(path, task_id, TASK_ID, "T", field="task_id")
     if known_tasks and task_id not in known_tasks:
         raise ValidationError(f"{path}: task_id {task_id} has no matching task file")
 
     goal_id = require_string(path, data, "goal_id")
-    if not GOAL_ID.match(goal_id):
-        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+    require_control_id(path, goal_id, GOAL_ID, "G", field="goal_id")
 
     require_string(path, data, "branch")
     require_string(path, data, "path")
@@ -368,8 +377,7 @@ def validate_worktree(path: Path, data: dict[str, Any], known_tasks: set[str]) -
 def validate_plan(path: Path, data: dict[str, Any]) -> None:
     require_keys(path, data, PLAN_REQUIRED)
     plan_id = require_string(path, data, "id")
-    if not PLAN_ID.match(plan_id):
-        raise ValidationError(f"{path}: id must match P-0001 style")
+    require_control_id(path, plan_id, PLAN_ID, "P")
     require_string(path, data, "title")
     require_string(path, data, "outcome")
 
@@ -393,18 +401,15 @@ def validate_plan(path: Path, data: dict[str, Any]) -> None:
 def validate_run(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
     require_keys(path, data, RUN_REQUIRED)
     run_id = require_string(path, data, "id")
-    if not RUN_ID.match(run_id):
-        raise ValidationError(f"{path}: id must match RUN-0001 style")
+    require_control_id(path, run_id, RUN_ID, "RUN")
     plan_id = require_string(path, data, "plan_id")
-    if not PLAN_ID.match(plan_id):
-        raise ValidationError(f"{path}: plan_id must match P-0001 style")
+    require_control_id(path, plan_id, PLAN_ID, "P", field="plan_id")
     goal_id = require_string(path, data, "goal_id")
-    if not GOAL_ID.match(goal_id):
-        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+    require_control_id(path, goal_id, GOAL_ID, "G", field="goal_id")
     for key in ("task_ids", "dispatchable_task_ids"):
         for task_id in require_list(path, data, key):
             if not isinstance(task_id, str) or not TASK_ID.match(task_id):
-                raise ValidationError(f"{path}: {key} must contain T-0001 style ids")
+                raise ValidationError(f"{path}: {key} must contain {id_format_description('T')} ids")
             if known_tasks and task_id not in known_tasks:
                 raise ValidationError(f"{path}: {key} references unknown task {task_id}")
     if not isinstance(data.get("blocked_task_ids"), dict):
@@ -417,16 +422,13 @@ def validate_run(path: Path, data: dict[str, Any], known_tasks: set[str]) -> Non
 def validate_runner_record(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
     require_keys(path, data, RUNNER_REQUIRED)
     exec_id = require_string(path, data, "id")
-    if not EXEC_ID.match(exec_id):
-        raise ValidationError(f"{path}: id must match EXEC-0001 style")
+    require_control_id(path, exec_id, EXEC_ID, "EXEC")
     task_id = require_string(path, data, "task_id")
-    if not TASK_ID.match(task_id):
-        raise ValidationError(f"{path}: task_id must match T-0001 style")
+    require_control_id(path, task_id, TASK_ID, "T", field="task_id")
     if known_tasks and task_id not in known_tasks:
         raise ValidationError(f"{path}: task_id {task_id} has no matching task file")
     goal_id = require_string(path, data, "goal_id")
-    if not GOAL_ID.match(goal_id):
-        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+    require_control_id(path, goal_id, GOAL_ID, "G", field="goal_id")
     require_string(path, data, "command")
     if not isinstance(data.get("returncode"), int):
         raise ValidationError(f"{path}: returncode must be an integer")
@@ -438,8 +440,7 @@ def validate_runner_record(path: Path, data: dict[str, Any], known_tasks: set[st
 def validate_smoke(path: Path, data: dict[str, Any]) -> None:
     require_keys(path, data, SMOKE_REQUIRED)
     smoke_id = require_string(path, data, "id")
-    if not SMOKE_ID.match(smoke_id):
-        raise ValidationError(f"{path}: id must match SMOKE-0001 style")
+    require_control_id(path, smoke_id, SMOKE_ID, "SMOKE")
     require_string(path, data, "repo")
     if not isinstance(data.get("dry_run"), bool):
         raise ValidationError(f"{path}: dry_run must be a boolean")
@@ -451,8 +452,7 @@ def validate_smoke(path: Path, data: dict[str, Any]) -> None:
 def validate_start(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
     require_keys(path, data, START_REQUIRED)
     start_id = require_string(path, data, "id")
-    if not START_ID.match(start_id):
-        raise ValidationError(f"{path}: id must match START-0001 style")
+    require_control_id(path, start_id, START_ID, "START")
     require_string(path, data, "repo")
     require_string(path, data, "project_name")
     require_string(path, data, "skills_dir")
@@ -460,17 +460,14 @@ def validate_start(path: Path, data: dict[str, Any], known_tasks: set[str]) -> N
     if not questions or not all(isinstance(question, str) and question for question in questions):
         raise ValidationError(f"{path}: questions must be a non-empty list of strings")
     plan_id = require_string(path, data, "plan_id")
-    if not PLAN_ID.match(plan_id):
-        raise ValidationError(f"{path}: plan_id must match P-0001 style")
+    require_control_id(path, plan_id, PLAN_ID, "P", field="plan_id")
     goal_id = require_string(path, data, "goal_id")
-    if not GOAL_ID.match(goal_id):
-        raise ValidationError(f"{path}: goal_id must match G-0001 style")
+    require_control_id(path, goal_id, GOAL_ID, "G", field="goal_id")
     run_id = require_string(path, data, "run_id")
-    if not RUN_ID.match(run_id):
-        raise ValidationError(f"{path}: run_id must match RUN-0001 style")
+    require_control_id(path, run_id, RUN_ID, "RUN", field="run_id")
     for task_id in require_list(path, data, "dispatchable_task_ids"):
         if not isinstance(task_id, str) or not TASK_ID.match(task_id):
-            raise ValidationError(f"{path}: dispatchable_task_ids must contain T-0001 style ids")
+            raise ValidationError(f"{path}: dispatchable_task_ids must contain {id_format_description('T')} ids")
         if known_tasks and task_id not in known_tasks:
             raise ValidationError(f"{path}: dispatchable task {task_id} has no matching task file")
     require_list(path, data, "issues")
@@ -484,20 +481,25 @@ def json_files(directory: Path) -> list[Path]:
     return sorted(path for path in directory.glob("*.json") if path.is_file())
 
 
-def require_contiguous_ids(paths: list[Path], prefix: str) -> None:
-    if not paths:
-        return
-    numbers: list[int] = []
+def validate_id_collection(
+    paths: list[Path],
+    *,
+    prefix: str,
+    pattern: re.Pattern[str],
+    field: str = "id",
+) -> None:
+    seen: dict[str, Path] = {}
     for path in paths:
-        match = re.match(rf"^{re.escape(prefix)}-([0-9]{{4,}})\.json$", path.name)
-        if match:
-            numbers.append(int(match.group(1)))
-    if not numbers:
-        return
-    expected = list(range(1, max(numbers) + 1))
-    if sorted(numbers) != expected:
-        missing = sorted(set(expected) - set(numbers))
-        raise ValidationError(f"{paths[0].parent}: missing contiguous {prefix} ids: {missing}")
+        data = load_json(path)
+        if not isinstance(data, dict):
+            raise ValidationError(f"{path}: state record must be a JSON object")
+        value = require_string(path, data, field)
+        require_control_id(path, value, pattern, prefix, field=field)
+        if value in seen:
+            raise ValidationError(f"{path}: duplicate {field} {value} also appears in {seen[value]}")
+        if path.name != f"{value}.json":
+            raise ValidationError(f"{path}: file name must match {field} {value}")
+        seen[value] = path
 
 
 def allowed_labels_from_docs() -> set[str]:
@@ -758,11 +760,11 @@ def main() -> int:
         dag_paths = json_files(SHIKI / "dag")
         report_paths = json_files(SHIKI / "reports")
 
-        require_contiguous_ids(goal_paths, "G")
-        require_contiguous_ids(task_paths, "T")
-        require_contiguous_ids(ledger_paths, "L")
-        require_contiguous_ids(dag_paths, "G")
-        require_contiguous_ids(report_paths, "R")
+        validate_id_collection(goal_paths, prefix="G", pattern=GOAL_ID)
+        validate_id_collection(task_paths, prefix="T", pattern=TASK_ID)
+        validate_id_collection(ledger_paths, prefix="L", pattern=LEDGER_ID)
+        validate_id_collection(dag_paths, prefix="G", pattern=GOAL_ID, field="goal_id")
+        validate_id_collection(report_paths, prefix="R", pattern=REPORT_ID)
 
         for goal_path in goal_paths:
             data = load_json(goal_path)

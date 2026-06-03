@@ -100,9 +100,9 @@ python3 scripts/shiki.py start \
   >/tmp/shiki-start.json
 
 test -f "$TARGET/.shiki/repo.json"
-test -f "$TARGET/.shiki/plans/P-0001.json"
-test -f "$TARGET/.shiki/runs/RUN-0001.json"
-test -f "$TARGET/.shiki/starts/START-0001.json"
+test -n "$(find "$TARGET/.shiki/plans" -type f -name 'P-*.json' -print -quit)"
+test -n "$(find "$TARGET/.shiki/runs" -type f -name 'RUN-*.json' -print -quit)"
+test -n "$(find "$TARGET/.shiki/starts" -type f -name 'START-*.json' -print -quit)"
 test -n "$(find "$TARGET/.shiki/tasks" -type f -name 'T-*.json' -print -quit)"
 grep "repo create" "$SHIKI_FAKE_GH_LOG" >/dev/null
 grep "issue create" "$SHIKI_FAKE_GH_LOG" >/dev/null
@@ -112,7 +112,11 @@ grep '"configured": true' /tmp/shiki-start.json >/dev/null
 START_ID="$(json_get /tmp/shiki-start.json start_id)"
 GOAL_ID="$(json_get /tmp/shiki-start.json goal_id)"
 SKILLS_DIR="$(json_get /tmp/shiki-start.json skills_dir)"
-test "$START_ID" = "START-0001"
+case "$START_ID" in
+  START-[0-9][0-9][0-9][0-9] | START-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]Z-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+  *) echo "unexpected start id: $START_ID" >&2; exit 1 ;;
+esac
+test -f "$TARGET/.shiki/starts/$START_ID.json"
 test -n "$SKILLS_DIR"
 test -f "$TARGET/.shiki/goals/$GOAL_ID.json"
 

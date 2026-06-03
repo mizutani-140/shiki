@@ -48,6 +48,13 @@ CCA should read all available durable inputs:
 
 If a load-bearing input is missing, use `insufficient_evidence` or `blocked`, not `complete`.
 
+Shiki accepts both historical sequential IDs such as `G-0012`, `T-0033`, and
+`L-0109` and new collision-resistant IDs such as
+`L-20260603T121530123456Z-a1b2c3d4`. CCA must not treat contiguous or gapless
+IDs as evidence quality. For ledger evidence, CCA should prefer durable
+append-only entries whose filenames match their JSON `id`, whose IDs are unique,
+and whose content links the relevant issue, PR, checks, reviews, or artifacts.
+
 ## Verdicts
 
 | Verdict | Meaning | MergeGate impact |

@@ -66,6 +66,35 @@ lock:     .shiki/locks/<task-id>.json
 ledger:   .shiki/ledger/<goal-id>/<task-id>.jsonl
 ```
 
+### State ID and Ledger Write Policy
+
+Historical Shiki state records may use legacy sequential IDs such as `G-0012`,
+`T-0033`, and `L-0109`. Validators must continue to accept those records so
+older evidence remains durable.
+
+New Shiki-generated state records use collision-resistant, filename-safe IDs:
+
+```text
+<PREFIX>-YYYYMMDDTHHMMSSffffffZ-<8 hex>
+```
+
+Examples:
+
+```text
+G-20260603T121530123456Z-a1b2c3d4
+T-20260603T121530123456Z-9f8e7d6c
+L-20260603T121530123456Z-feedface
+```
+
+Contiguous or gapless IDs are not a safety property. Audit integrity comes from
+durable evidence, matching filenames and JSON IDs, duplicate-ID rejection, and
+append-only ledger writes.
+
+Ledger writes are append-only. New ledger entries must be created with
+no-overwrite semantics and retry on ID collision. Existing ledger files must not
+be replaced during append. Mutable Shiki state records should be written through
+atomic replace helpers where practical.
+
 ### Required worktree record
 
 ```json
