@@ -18,7 +18,8 @@
   "goal_id": "G-0012",
   "id": "T-0035",
   "ledger_evidence": [
-    "L-0112"
+    "L-0112",
+    "L-20260603T043001525497Z-ef9679d5"
   ],
   "locks": [
     "path:scripts/shiki.py",
@@ -26,7 +27,9 @@
     "path:scripts/mergegate_check.py",
     "path:scripts/test_shiki_control_plane.sh",
     "path:.shiki/tasks/T-0035.json",
-    "path:.shiki/ledger/L-0112.json"
+    "path:.shiki/ledger/L-0112.json",
+    "path:.shiki/ledger/L-20260603T043001525497Z-ef9679d5.json",
+    "path:.shiki/repairs/RP-20260603T043001522412Z-f37e72e3.json"
   ],
   "non_goals": [
     "Do not implement P0.4.6 untrusted PR mutation protection.",

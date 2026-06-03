@@ -6,6 +6,9 @@
     "scripts/shiki.py delegates dispatch-time active lock conflict detection to the shared module before acquiring locks.",
     "scripts/mergegate_check.py delegates active lock conflict detection and outside-lock changed-file detection to the shared module.",
     "scripts/test_shiki_control_plane.sh covers direct matcher behavior, dispatch-time lock acquisition blocking, installed template copying, and MergeGate active-lock conflict blocking.",
+    "diagnose skill used to inspect the failing MergeGate metadata log and isolate the blocker to missing required skill evidence strings.",
+    "tdd skill used through control-plane regression assertions covering direct matcher behavior, dispatch-time blocking, and MergeGate active-lock blocking.",
+    "improve-codebase-architecture skill used to converge duplicate dispatch and MergeGate lock conflict logic into one shared module without broadening governance behavior.",
     "P0.4.6 through P0.4.8 remain out of scope for this task."
   ],
   "goal_id": "G-0012",

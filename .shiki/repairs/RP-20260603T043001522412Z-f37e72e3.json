@@ -1,0 +1,27 @@
+{
+  "attempt": 1,
+  "created_at": "2026-06-03T04:30:01+00:00",
+  "evidence_required": [
+    "MergeGate metadata check no longer reports missing required skill evidence"
+  ],
+  "failing_acceptance_criteria": [],
+  "failing_checklist_items": [
+    "MergeGate metadata check: required skill evidence missing from L-0112"
+  ],
+  "goal_id": "G-0012",
+  "minimal_required_changes": [
+    "Add explicit diagnose, tdd, and improve-codebase-architecture evidence strings to L-0112",
+    "Keep the generated repair packet and repair ledger as bounded evidence for the metadata-only repair"
+  ],
+  "pr": 55,
+  "prohibited_changes": [
+    "Do not modify implementation code, workflow files, Guardian, CCA Review Bridge, branch protection, CODEOWNERS, or P0.4.6-P0.4.8 scope"
+  ],
+  "repair_id": "RP-20260603T043001522412Z-f37e72e3",
+  "required_skill": "evidence-only",
+  "stop_condition": "If any non-ledger change is required, stop for renewed approval",
+  "task_id": "T-0035",
+  "verification_commands": [
+    "PYTHONPYCACHEPREFIX=/tmp/shiki-pycache python3 scripts/validate_shiki.py && git diff --check"
+  ]
+}
