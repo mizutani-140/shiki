@@ -1,0 +1,56 @@
+{
+  "acceptance_checks": [
+    "Shared lock matching module supports exact, glob, prefix, and semantic overlap matching.",
+    "CLI dispatch and lock acquisition use the shared lock conflict implementation.",
+    "MergeGate policy check uses the same shared lock conflict implementation.",
+    "Changed-file coverage checks continue to reject files outside declared task locks.",
+    "Regression tests cover path glob, path prefix, semantic goal overlap, dispatch-time conflict blocking, and MergeGate active-lock conflict blocking.",
+    "P0.4.4 and P0.4.5 can be checked after merge and mirror reconciliation.",
+    "P0.4.6 through P0.4.8 remain open."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0034"
+  ],
+  "expected_branch": "shiki/t-0035-shared-lock-matcher",
+  "expected_pr": 55,
+  "github_issue": 54,
+  "goal_id": "G-0012",
+  "id": "T-0035",
+  "ledger_evidence": [
+    "L-0112",
+    "L-20260603T043001525497Z-ef9679d5",
+    "L-20260603T044913392482Z-dae01131"
+  ],
+  "locks": [
+    "path:scripts/shiki.py",
+    "path:scripts/shiki_locks.py",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:.shiki/tasks/T-0035.json",
+    "path:.shiki/ledger/L-0112.json",
+    "path:.shiki/ledger/L-20260603T043001525497Z-ef9679d5.json",
+    "path:.shiki/repairs/RP-20260603T043001522412Z-f37e72e3.json",
+    "path:.shiki/ledger/L-20260603T044913392482Z-dae01131.json",
+    "path:.shiki/repairs/RP-20260603T044913391778Z-5befbe53.json"
+  ],
+  "non_goals": [
+    "Do not implement P0.4.6 untrusted PR mutation protection.",
+    "Do not implement P0.4.7 live GitHub state verification.",
+    "Do not implement P0.4.8 full adversarial forged-evidence suite.",
+    "Do not implement P1.1 manifest redesign.",
+    "Do not implement P1.3 architecture split.",
+    "Do not change CCA Review Bridge, Guardian approval, branch protection, CODEOWNERS ownership rules, or unrelated MergeGate policy behavior.",
+    "Do not change state ID or ledger atomicity behavior from T-0034."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Close Goal #30 P0.4.4 and P0.4.5 by introducing a shared lock matcher for exact, glob, prefix, and semantic overlap and using it from both Shiki dispatch-time lock acquisition and MergeGate policy checks.",
+  "status": "review",
+  "title": "Add shared lock matcher for dispatch and MergeGate"
+}

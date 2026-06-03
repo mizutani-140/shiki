@@ -1,0 +1,29 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "Added scripts/shiki_locks.py as the shared lock matching module.",
+    "Shared matching covers exact lock equality, path glob overlap, path prefix overlap, and semantic same-namespace overlap such as goal patterns.",
+    "scripts/shiki.py delegates dispatch-time active lock conflict detection to the shared module before acquiring locks.",
+    "scripts/mergegate_check.py delegates active lock conflict detection and outside-lock changed-file detection to the shared module.",
+    "scripts/test_shiki_control_plane.sh covers direct matcher behavior, dispatch-time lock acquisition blocking, installed template copying, and MergeGate active-lock conflict blocking.",
+    "diagnose skill used to inspect the failing MergeGate metadata log and isolate the blocker to missing required skill evidence strings.",
+    "tdd skill used through control-plane regression assertions covering direct matcher behavior, dispatch-time blocking, and MergeGate active-lock blocking.",
+    "improve-codebase-architecture skill used to converge duplicate dispatch and MergeGate lock conflict logic into one shared module without broadening governance behavior.",
+    "Guardian repair implemented semantic lock bundles for shiki:state, shiki:governance, shiki:workflows, and shiki:contracts.",
+    "path_matches_lock now expands semantic locks so changed-file coverage works for governance, workflows, contracts, and state paths.",
+    "validate_shiki rejects unsupported shiki:* semantic locks such as shiki:unknown while accepting the documented four semantic bundles.",
+    "Regression tests cover semantic lock versus path overlap, semantic lock versus semantic lock overlap, dispatch-side semantic active-lock blocking, MergeGate semantic changed-file coverage, and MergeGate semantic active-lock blocking.",
+    "P0.4.6 through P0.4.8 remain out of scope for this task."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0112",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/55",
+    "https://github.com/mizutani-140/shiki/issues/54",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Recorded T-0035 shared lock matcher implementation evidence.",
+  "task_id": "T-0035",
+  "timestamp": "2026-06-03T04:23:31Z",
+  "type": "check"
+}

@@ -1,0 +1,19 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/repairs/RP-20260603T044913391778Z-5befbe53.json",
+    "Guardian review found that shiki semantic locks were not expanded as path bundles.",
+    "Bounded repair scope is limited to semantic lock bundles, validator coverage, and dispatch/MergeGate regression tests."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260603T044913392482Z-dae01131",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/55",
+    "https://github.com/mizutani-140/shiki/issues/54",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Repair packet RP-20260603T044913391778Z-5befbe53 created for PR #55",
+  "task_id": "T-0035",
+  "timestamp": "2026-06-03T04:49:13+00:00",
+  "type": "repair"
+}
