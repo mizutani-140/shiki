@@ -14,7 +14,7 @@
     "T-0036"
   ],
   "expected_branch": "shiki/t-0037-post-merge-reconcile",
-  "expected_pr": null,
+  "expected_pr": 62,
   "github_issue": 60,
   "goal_id": "G-0012",
   "id": "T-0037",
