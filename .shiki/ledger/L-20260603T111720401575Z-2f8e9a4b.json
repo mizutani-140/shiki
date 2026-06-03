@@ -14,12 +14,14 @@
     "Local verification passed: git diff --check.",
     "Local actionlint and shellcheck wrapper tests printed deterministic skip messages because the tools are not installed locally; CI runs them in strict mode after installing pinned tools.",
     "Non-goals remain P1.3 architecture split, P1.4 governance/evidence redesign, P2 packaging/release work, runtime adapter redesign, Guardian/CCA Review Bridge changes, branch protection changes, CODEOWNERS changes, and P0.4 semantics changes.",
-    "Task Issue #66: https://github.com/mizutani-140/shiki/issues/66"
+    "Task Issue #66: https://github.com/mizutani-140/shiki/issues/66",
+    "Pull Request #67: https://github.com/mizutani-140/shiki/pull/67"
   ],
   "goal_id": "G-0012",
   "id": "L-20260603T111720401575Z-2f8e9a4b",
   "links": [
-    "https://github.com/mizutani-140/shiki/issues/66"
+    "https://github.com/mizutani-140/shiki/issues/66",
+    "https://github.com/mizutani-140/shiki/pull/67"
   ],
   "summary": "Recorded T-0039 validator and workflow hardening evidence.",
   "task_id": "T-0039",
