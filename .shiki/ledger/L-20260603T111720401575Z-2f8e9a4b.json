@@ -17,6 +17,8 @@
     "Local verification passed: git diff --check.",
     "Local actionlint and shellcheck wrapper tests printed deterministic skip messages because the tools are not installed locally; CI runs them in strict mode after installing pinned tools.",
     "Bounded CI repair included shellcheck-safe existing test script literals and explicit task locks for touched test scripts.",
+    "Bounded workflow repair deferred official action upgrades inside shiki-cca-completion.yml and shiki-claude-review.yml because anthropics/claude-code-action rejects PR-modified workflow files during OIDC app token exchange; the validator allows only explicit workflow/action/version exceptions for that case.",
+    "actionlint runs against all workflows with a single explicit ignore for the unchanged CCA Review Bridge BOT_LOGIN shellcheck false positive that cannot be repaired in this PR without changing the CCA workflow file.",
     "Non-goals remain P1.3 architecture split, P1.4 governance/evidence redesign, P2 packaging/release work, runtime adapter redesign, Guardian/CCA Review Bridge changes, branch protection changes, CODEOWNERS changes, and P0.4 semantics changes.",
     "Task Issue #66: https://github.com/mizutani-140/shiki/issues/66",
     "Pull Request #67: https://github.com/mizutani-140/shiki/pull/67"

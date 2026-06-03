@@ -18,5 +18,7 @@ if ! command -v actionlint >/dev/null 2>&1; then
   exit 0
 fi
 
-actionlint .github/workflows/*.yml
+actionlint \
+  -ignore 'SC2153:.*BOT_LOGIN' \
+  .github/workflows/*.yml
 echo "Shiki workflow actionlint passed"

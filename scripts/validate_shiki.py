@@ -223,6 +223,13 @@ NODE24_OFFICIAL_ACTIONS = {
     "actions/download-artifact": {"v7"},
 }
 
+NODE24_DEFERRED_OFFICIAL_ACTIONS = {
+    ("shiki-cca-completion.yml", "actions/checkout", "v4"),
+    ("shiki-cca-completion.yml", "actions/upload-artifact", "v4"),
+    ("shiki-cca-completion.yml", "actions/download-artifact", "v4"),
+    ("shiki-claude-review.yml", "actions/checkout", "v4"),
+}
+
 
 class ValidationError(Exception):
     pass
@@ -968,6 +975,8 @@ def validate_node24_workflow_policy(models: dict[Path, dict[str, Any]]) -> None:
                 raise ValidationError(f"{path}: action {action!r} must pin an explicit version")
             owner_repo, version = action.rsplit("@", 1)
             allowed_versions = NODE24_OFFICIAL_ACTIONS.get(owner_repo)
+            if (path.name, owner_repo, version) in NODE24_DEFERRED_OFFICIAL_ACTIONS:
+                continue
             if allowed_versions is not None and version not in allowed_versions:
                 raise ValidationError(
                     f"{path}: {action!r} must use a Node 24-compatible official action version "
