@@ -111,6 +111,18 @@ Required empty tracked state directories are represented with `.gitkeep` or
 created according to the manifest. Runtime-only directories such as
 `.shiki/gha` are generated on demand and must not be committed.
 
+### CLI Module Boundary Policy
+
+`scripts/shiki.py` is the executable Shiki CLI shim. Parser construction and
+command dispatch live in `scripts/shiki_cli.py`; implementation behavior lives
+in dependency-free standard-library `shiki_*` modules. The module boundaries are
+documented in `docs/agents/shiki-cli-architecture.md` and validated by
+`scripts/test_shiki_module_boundaries.sh`.
+
+New Shiki CLI modules must not perform git, GitHub, filesystem mutation,
+network, or command execution work at import time. Target installation and
+manifest staging must include every module required by the shim.
+
 MergeGate refreshes live GitHub PR state immediately before policy evaluation
 and uses that live state for PR labels, reviews, review decision, head SHA, and
 status rollup. It also compares protected `.shiki` paths against a base-branch

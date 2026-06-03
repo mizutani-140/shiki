@@ -186,6 +186,7 @@ Blocking values:
 | MG-15 | Required checks in `.shiki/config.yaml` match actual workflow job display names from structured workflow parsing. | blocking |
 | MG-16 | Workflow permissions, triggers, and Shiki job names match the validator contract. | blocking |
 | MG-17 | Workflow lint, shellcheck, and Node 24 compatibility validation pass or have an explicit bounded exception. | blocking |
+| MG-18 | `scripts/shiki.py` remains a thin executable shim and required `shiki_*` CLI modules import, install, and stage without side effects. | blocking |
 
 ## GC — Goal Completion Checklist
 
@@ -209,3 +210,13 @@ Blocking values:
 | VH-03 | Unsupported JSON Schema features fail closed with clear errors. | blocking |
 | VH-04 | `actionlint` and `shellcheck` run in CI; local scripts may skip only when the tools are unavailable. | blocking |
 | VH-05 | `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` is exercised and `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` is forbidden. | blocking |
+
+## MB — Module Boundary Checklist
+
+| ID | Item | Blocking |
+| --- | --- | --- |
+| MB-01 | `scripts/shiki.py` is a thin executable shim that delegates parser and main behavior to `shiki_cli.py`. | blocking |
+| MB-02 | New `scripts/shiki_*.py` CLI modules import successfully and do not perform mutation or network work at import time. | blocking |
+| MB-03 | CLI help remains compatible for existing commands and critical bootstrap flags. | blocking |
+| MB-04 | Target installation and manifest staging include every module required by `scripts/shiki.py`. | blocking |
+| MB-05 | `scripts/test_shiki_module_boundaries.sh` and `scripts/validate_shiki.py` enforce the module boundary contract. | blocking |
