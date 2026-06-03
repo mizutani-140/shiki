@@ -1,0 +1,24 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "Post-merge reconciliation for T-0038 after PR #64 merged.",
+    "PR #64 merged at 2026-06-03T10:18:21Z with merge commit 47ee938fe74f044a121ce0e747db88cce83c56a1.",
+    "Merged PR head was 9a97143c6db8bd4d2b9918e3435c39fb4e2ba531, matching renewed Guardian approval.",
+    "T-0038 status is updated from review to done.",
+    "Bounded metadata completion: T-0038 expected_branch now points to the post-merge reconciliation branch shiki/t-0038-post-merge-reconcile.",
+    "G-0012 ledger_evidence is connected to both T-0038 implementation ledger L-20260603T092748386232Z-8324a948 and this reconciliation ledger.",
+    "No active T-0038 lock was present on main after PR #64 merge.",
+    "This reconciliation does not change implementation code, workflow files, Guardian policy, CCA Review Bridge, branch protection, CODEOWNERS, P1.2, P1.3, P1.4, P2, or Node.js 20 behavior."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260603T101959400793Z-fc2a7cce",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/63",
+    "https://github.com/mizutani-140/shiki/pull/64",
+    "https://github.com/mizutani-140/shiki/pull/65"
+  ],
+  "summary": "Recorded T-0038 post-merge mirror reconciliation evidence.",
+  "task_id": "T-0038",
+  "timestamp": "2026-06-03T10:19:59Z",
+  "type": "completion"
+}
