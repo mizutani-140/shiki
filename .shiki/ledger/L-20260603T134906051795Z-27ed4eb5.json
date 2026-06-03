@@ -14,6 +14,8 @@
     "Claude review passed.",
     "T-0040 status is now done.",
     "No active T-0040 lock was present on main after PR #70 merge.",
+    "Pull Request #71 records the T-0040 post-merge mirror reconciliation: https://github.com/mizutani-140/shiki/pull/71",
+    "Bounded MergeGate repair for PR #71 added only this PR #71 ledger reference after MergeGate reported: Task ledger evidence does not reference PR #71.",
     "Goal #30 P1.3.1 and P1.3.2 are eligible to be marked complete after this reconciliation merges.",
     "Issue #69 can be closed after this reconciliation merges.",
     "P1.3.3 through P1.3.6, P1.4, P2, runtime adapter redesign, provider abstraction, doctor, migration framework, and Node.js 20 follow-up remain open non-goals."
@@ -22,7 +24,8 @@
   "id": "L-20260603T134906051795Z-27ed4eb5",
   "links": [
     "https://github.com/mizutani-140/shiki/issues/69",
-    "https://github.com/mizutani-140/shiki/pull/70"
+    "https://github.com/mizutani-140/shiki/pull/70",
+    "https://github.com/mizutani-140/shiki/pull/71"
   ],
   "summary": "Recorded T-0040 post-merge mirror reconciliation evidence.",
   "task_id": "T-0040",
