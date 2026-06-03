@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import re
 import subprocess
@@ -26,6 +27,7 @@ from shiki_contracts import (
 )
 from shiki_locks import known_shiki_semantic_locks, normalize_lock
 from shiki_jsonschema import UnsupportedJsonSchemaError, assert_supported_schema, validate_json_schema
+from shiki_installer import TEMPLATE_PATHS
 from shiki_manifest import (
     MANIFEST_PATH,
     README_LAYOUT_END,
@@ -230,6 +232,20 @@ NODE24_DEFERRED_OFFICIAL_ACTIONS = {
     ("shiki-claude-review.yml", "actions/checkout", "v4"),
 }
 
+SHIKI_CLI_MODULE_FILES = (
+    "scripts/shiki.py",
+    "scripts/shiki_bootstrap.py",
+    "scripts/shiki_cli.py",
+    "scripts/shiki_config.py",
+    "scripts/shiki_git.py",
+    "scripts/shiki_github.py",
+    "scripts/shiki_installer.py",
+    "scripts/shiki_process.py",
+    "scripts/shiki_runtime.py",
+    "scripts/shiki_tasks.py",
+)
+SHIKI_CLI_MODULE_NAMES = tuple(path.removeprefix("scripts/").removesuffix(".py") for path in SHIKI_CLI_MODULE_FILES)
+
 
 class ValidationError(Exception):
     pass
@@ -366,6 +382,48 @@ def validate_shiki_manifest(root: Path = ROOT) -> None:
         require_manifest_path(relative.removesuffix("/**"), field="install.exclude_from_commit")
 
     validate_readme_manifest_layout(root, manifest)
+
+
+def validate_shiki_cli_module_boundaries(root: Path = ROOT) -> None:
+    for relative in SHIKI_CLI_MODULE_FILES:
+        path = root / relative
+        if not path.is_file():
+            raise ValidationError(f"{relative}: expected Shiki CLI module file is missing")
+
+    shim = root / "scripts/shiki.py"
+    shim_text = shim.read_text(encoding="utf-8")
+    if not shim_text.startswith("#!/usr/bin/env python3"):
+        raise ValidationError("scripts/shiki.py: executable shim must keep the Python shebang")
+    if "from shiki_cli import build_parser, main" not in shim_text:
+        raise ValidationError("scripts/shiki.py: must delegate parser/main behavior to shiki_cli.py")
+    if len(shim_text.splitlines()) > 350:
+        raise ValidationError("scripts/shiki.py: shim must remain under 350 lines")
+
+    template_paths = set(TEMPLATE_PATHS)
+    for relative in SHIKI_CLI_MODULE_FILES:
+        if relative not in template_paths:
+            raise ValidationError(f"scripts/shiki_installer.py: TEMPLATE_PATHS must include {relative}")
+    if "scripts/test_shiki_module_boundaries.sh" not in template_paths:
+        raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_module_boundaries.sh")
+    if not (root / "scripts/test_shiki_module_boundaries.sh").is_file():
+        raise ValidationError("scripts/test_shiki_module_boundaries.sh: module boundary regression test is missing")
+
+    scripts_path = str(root / "scripts")
+    inserted = False
+    if scripts_path not in sys.path:
+        sys.path.insert(0, scripts_path)
+        inserted = True
+    try:
+        for module_name in SHIKI_CLI_MODULE_NAMES:
+            importlib.import_module(module_name)
+    except Exception as error:
+        raise ValidationError(f"Shiki CLI module import failed: {error}") from error
+    finally:
+        if inserted:
+            try:
+                sys.path.remove(scripts_path)
+            except ValueError:
+                pass
 
 
 def id_format_description(prefix: str) -> str:
@@ -1166,6 +1224,7 @@ def main() -> int:
         validate_workflow_contracts()
         validate_validate_workflow_coverage()
         validate_shiki_manifest()
+        validate_shiki_cli_module_boundaries()
         validate_issue_forms()
         validate_codeowners_governance()
         validate_orchestrator_security()

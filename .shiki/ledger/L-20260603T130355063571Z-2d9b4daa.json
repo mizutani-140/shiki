@@ -1,0 +1,31 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0040 covers Goal #30 P1.3.1-P1.3.2 only.",
+    "scripts/shiki.py is reduced to a thin executable shim that delegates parser construction and dispatch to scripts/shiki_cli.py.",
+    "Shiki CLI behavior is split into focused dependency-free standard-library modules: shiki_process, shiki_config, shiki_installer, shiki_git, shiki_github, shiki_bootstrap, shiki_tasks, shiki_runtime, and shiki_cli.",
+    "Transitional compatibility exports remain on scripts/shiki.py for existing local tests and installed targets.",
+    "New Shiki CLI modules import without performing git, GitHub, filesystem mutation, subprocess execution, or network work.",
+    "scripts/shiki_installer.py TEMPLATE_PATHS includes scripts/shiki.py, all required shiki_* CLI modules, and scripts/test_shiki_module_boundaries.sh so target installation and manifest staging remain complete.",
+    "scripts/validate_shiki.py validates the shim/module boundary, module importability, install/staging coverage, and module boundary test presence.",
+    "scripts/test_shiki_module_boundaries.sh covers module imports, thin shim size, transitional exports, CLI help, P0.2 safety flag preservation, dry-run init behavior, and install-target module copying.",
+    "docs/agents/shiki-cli-architecture.md documents the module boundary contract.",
+    "docs/agents/decision-control.md, docs/agents/checklists.md, and docs/agents/completion-check-agent.md document module boundary expectations for agents, MergeGate/CCA, and review.",
+    "Required skill evidence: diagnose was used to classify the split into behavior-preserving boundaries and preserve bootstrap/init safety behavior.",
+    "Required skill evidence: tdd was used by adding module-boundary regression coverage around imports, shim size, help output, dry-run behavior, and target installation.",
+    "Required skill evidence: improve-codebase-architecture was used to centralize CLI responsibilities in focused modules without introducing new runtime dependencies.",
+    "Non-goals remain P1.3.3-P1.3.6, P1.4, P2, Guardian policy changes, CCA Review Bridge changes, branch protection changes, CODEOWNERS changes, P0.4 semantics changes, and Node.js 20 / Claude / CCA deferred workflow changes.",
+    "Task Issue #69: https://github.com/mizutani-140/shiki/issues/69",
+    "Expected Pull Request #70: https://github.com/mizutani-140/shiki/pull/70"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260603T130355063571Z-2d9b4daa",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/69",
+    "https://github.com/mizutani-140/shiki/pull/70"
+  ],
+  "summary": "Recorded T-0040 Shiki CLI module split evidence.",
+  "task_id": "T-0040",
+  "timestamp": "2026-06-03T13:03:55Z",
+  "type": "check"
+}

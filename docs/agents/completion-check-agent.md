@@ -58,6 +58,14 @@ not an independent source of truth. If a PR changes `.shiki` layout, required
 files, install/create behavior, or runtime-only commit exclusions, CCA should
 require manifest validation evidence.
 
+If a PR changes `scripts/shiki.py` or the Shiki CLI support modules, CCA should
+require module-boundary evidence. The executable `scripts/shiki.py` entrypoint
+must remain a thin shim, parser and dispatch behavior must live in importable
+standard-library `shiki_*` modules, imports must not perform mutation or network
+work, and target installation / staging must include every module required by
+the shim. `scripts/test_shiki_module_boundaries.sh` and
+`scripts/validate_shiki.py` are the durable local checks for this contract.
+
 If a load-bearing input is missing, use `insufficient_evidence` or `blocked`, not `complete`.
 
 Shiki accepts both historical sequential IDs such as `G-0012`, `T-0033`, and
@@ -189,3 +197,5 @@ Minimum fields:
 - Treat required checks as workflow job display names from structured workflow
   extraction. Do not accept comments, advisory review text, or arbitrary strings
   as proof that a required check exists.
+- Treat Shiki CLI module boundaries as a validation contract when the entrypoint
+  or support modules change.
