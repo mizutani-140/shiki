@@ -1,0 +1,25 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "PR #55 merged T-0035 at approved head 884005b3c2b9222d7893f57253667fd2cc232e77.",
+    "PR #55 implemented shared exact, glob, prefix, and semantic lock matching.",
+    "Dispatch-time lock acquisition and MergeGate policy checks now use the shared lock implementation.",
+    "Semantic lock bundles for shiki:state, shiki:governance, shiki:workflows, and shiki:contracts were repaired before merge.",
+    "T-0035 status is reconciled from review to done after PR #55 merge.",
+    "G-0012 ledger evidence is reconciled to include L-0112, L-20260603T043001525497Z-ef9679d5, L-20260603T044913392482Z-dae01131, and L-0113.",
+    "No active T-0035 lock exists in .shiki/locks.",
+    "Goal #30 P0.4.4 and P0.4.5 are eligible to be marked complete after this reconciliation merges.",
+    "P0.4.6 through P0.4.8 remain open."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0113",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/55",
+    "https://github.com/mizutani-140/shiki/issues/54",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Recorded T-0035 post-merge mirror reconciliation.",
+  "task_id": "T-0035",
+  "timestamp": "2026-06-03T05:37:26Z",
+  "type": "check"
+}
