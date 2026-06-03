@@ -12,13 +12,14 @@
   "dependencies": [
     "T-0038"
   ],
-  "expected_branch": "shiki/t-0039-validator-workflow-hardening",
-  "expected_pr": 67,
+  "expected_branch": "shiki/t-0039-post-merge-reconcile",
+  "expected_pr": 68,
   "github_issue": 66,
   "goal_id": "G-0012",
   "id": "T-0039",
   "ledger_evidence": [
-    "L-20260603T111720401575Z-2f8e9a4b"
+    "L-20260603T111720401575Z-2f8e9a4b",
+    "L-20260603T121250000000Z-9b7d6c31"
   ],
   "locks": [
     "shiki:governance",
@@ -38,7 +39,8 @@
     "path:docs/agents/**",
     "path:.shiki/tasks/T-0039.json",
     "path:.shiki/ledger/**",
-    "path:.shiki/goals/G-0012.json"
+    "path:.shiki/goals/G-0012.json",
+    "path:.shiki/ledger/L-20260603T121250000000Z-9b7d6c31.json"
   ],
   "non_goals": [
     "Do not implement P1.3 architecture split.",
@@ -56,6 +58,6 @@
   ],
   "risk_level": "critical",
   "scope": "Close Goal #30 P1.2.1-P1.2.5 by hardening Shiki validator and workflow checks with structured workflow parsing, bounded JSON Schema validation, required-check drift detection, CI actionlint/shellcheck coverage, Node 24 compatibility handling, and false-positive/false-negative regression tests.",
-  "status": "review",
+  "status": "done",
   "title": "Harden validator and workflow checks"
 }
