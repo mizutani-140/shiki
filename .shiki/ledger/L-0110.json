@@ -7,6 +7,7 @@
     "Updated validate_shiki.py from contiguous ID checks to legacy/new ID format validation, filename/id matching, and duplicate rejection.",
     "Updated MergeGate task/goal ID extraction to accept the collision-resistant ID format.",
     "Regression coverage records diagnose/TDD evidence for ID uniqueness, legacy gap tolerance, malformed ID rejection, filename mismatch rejection, duplicate rejection, ledger collision retry, concurrent ledger append simulation, atomic create no-overwrite behavior, and atomic replace behavior.",
+    "improve-codebase-architecture was applied to keep the state ID and ledger atomicity helper centralized in scripts/shiki_state.py instead of spreading ad hoc allocation logic across Shiki command handlers.",
     "Documentation explains legacy ID compatibility, new generated state ID format, append-only ledger writes, and that gapless IDs are not an audit safety property.",
     "Non-goals P0.4.4 through P0.4.8 remain open."
   ],
