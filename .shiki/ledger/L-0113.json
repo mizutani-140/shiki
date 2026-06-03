@@ -7,6 +7,7 @@
     "Semantic lock bundles for shiki:state, shiki:governance, shiki:workflows, and shiki:contracts were repaired before merge.",
     "T-0035 status is reconciled from review to done after PR #55 merge.",
     "G-0012 ledger evidence is reconciled to include L-0112, L-20260603T043001525497Z-ef9679d5, L-20260603T044913392482Z-dae01131, and L-0113.",
+    "T-0035 expected_pr and expected_branch are aligned to PR #56 post-merge reconciliation metadata.",
     "No active T-0035 lock exists in .shiki/locks.",
     "Goal #30 P0.4.4 and P0.4.5 are eligible to be marked complete after this reconciliation merges.",
     "P0.4.6 through P0.4.8 remain open."
@@ -15,6 +16,7 @@
   "id": "L-0113",
   "links": [
     "https://github.com/mizutani-140/shiki/pull/55",
+    "https://github.com/mizutani-140/shiki/pull/56",
     "https://github.com/mizutani-140/shiki/issues/54",
     "https://github.com/mizutani-140/shiki/issues/30"
   ],

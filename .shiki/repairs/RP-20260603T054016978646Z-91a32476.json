@@ -1,0 +1,27 @@
+{
+  "attempt": 1,
+  "created_at": "2026-06-03T05:40:16+00:00",
+  "evidence_required": [
+    "MergeGate metadata check no longer reports expected_pr or expected_branch mismatch"
+  ],
+  "failing_acceptance_criteria": [],
+  "failing_checklist_items": [
+    "MergeGate metadata check: T-0035 expected_pr/expected_branch still point to implementation PR #55"
+  ],
+  "goal_id": "G-0012",
+  "minimal_required_changes": [
+    "Align T-0035 expected_pr and expected_branch to PR #56 post-merge reconciliation metadata"
+  ],
+  "pr": 56,
+  "prohibited_changes": [
+    "Do not modify implementation code, workflow files, Guardian, CCA Review Bridge, branch protection, CODEOWNERS, T-0034 behavior, or P0.4.6-P0.4.8 scope"
+  ],
+  "repair_id": "RP-20260603T054016978646Z-91a32476",
+  "required_skill": "evidence-only",
+  "stop_condition": "If any non-.shiki mirror metadata change is required, stop for renewed scope approval",
+  "task_id": "T-0035",
+  "verification_commands": [
+    "PYTHONPYCACHEPREFIX=/tmp/shiki-pycache python3 scripts/validate_shiki.py",
+    "git diff --check"
+  ]
+}

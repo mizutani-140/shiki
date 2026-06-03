@@ -1,0 +1,20 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/repairs/RP-20260603T054016978646Z-91a32476.json",
+    "Bounded repair aligns T-0035 expected_pr and expected_branch to PR #56 post-merge reconciliation metadata.",
+    "No implementation code, workflow files, governance behavior, or P0.4.6-P0.4.8 scope changed."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260603T054016979429Z-1e42cdd0",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/56",
+    "https://github.com/mizutani-140/shiki/pull/55",
+    "https://github.com/mizutani-140/shiki/issues/54",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Repair packet RP-20260603T054016978646Z-91a32476 created for PR #56",
+  "task_id": "T-0035",
+  "timestamp": "2026-06-03T05:40:16+00:00",
+  "type": "repair"
+}
