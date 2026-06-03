@@ -2,6 +2,9 @@
   "actor": "codex-front",
   "evidence": [
     "Created GitHub Issue #63 for T-0038 / Goal #30 P1.1.",
+    "Required skill used: diagnose for existing layout drift and MergeGate metadata failure classification.",
+    "Required skill used: tdd for scripts/test_shiki_manifest.sh manifest parser, README drift, constant drift, runtime-only evidence, and install/staging regression coverage.",
+    "Required skill used: improve-codebase-architecture for introducing a manifest helper instead of duplicating layout logic across bootstrap, validation, and docs.",
     "Added .shiki/manifest.json as the canonical repository-local layout contract for official directories, runtime-only directories, required files, install include paths, create directories, and commit exclusions.",
     "Aligned .shiki/README.md with the manifest through a validated SHIKI_MANIFEST_LAYOUT block.",
     "Added scripts/shiki_manifest.py as a standard-library manifest loader and renderer.",
