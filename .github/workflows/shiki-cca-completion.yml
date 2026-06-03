@@ -179,7 +179,7 @@ jobs:
           echo "Repository: ${REPOSITORY}"
           echo "PR_NUMBER: ${PR_NUMBER}"
 
-          bot_login="${BOT_LOGIN}"
+          bot_login="${BOT_LOGIN:?}"
           echo "Authenticated GitHub login: ${bot_login}"
 
           pr_payload="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")"

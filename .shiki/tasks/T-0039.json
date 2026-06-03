@@ -30,6 +30,8 @@
     "path:scripts/test_shiki_validator_hardening.sh",
     "path:scripts/test_shiki_workflow_lint.sh",
     "path:scripts/test_shiki_shellcheck.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_daemon_runner.sh",
     "path:scripts/shiki.py",
     "path:.github/workflows/**",
     "path:.shiki/schemas/**",
