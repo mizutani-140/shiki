@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -20,9 +21,25 @@ from shiki_contracts import (
     OBSOLETE_CCA_VERDICT_SCHEMA_PATH,
     OBSOLETE_REPAIR_PACKET_SCHEMA_PATH,
     RUNTIME_NAMES,
+    TARGET_STATE_DIRECTORIES,
     canonical_source_of_truth_markdown,
 )
 from shiki_locks import known_shiki_semantic_locks, normalize_lock
+from shiki_manifest import (
+    MANIFEST_PATH,
+    README_LAYOUT_END,
+    README_LAYOUT_START,
+    ManifestError,
+    load_manifest,
+    manifest_create_directories,
+    manifest_directories,
+    manifest_exclude_from_commit,
+    manifest_install_include,
+    manifest_required_directories,
+    manifest_required_files,
+    manifest_runtime_directories,
+    render_manifest_layout,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -147,6 +164,132 @@ def load_json(path: Path) -> Any:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
         raise ValidationError(f"{path}: invalid JSON: {error}") from error
+
+
+def require_manifest_path(relative: str, *, field: str) -> None:
+    if not relative.startswith(".shiki/"):
+        raise ValidationError(f"{MANIFEST_PATH}: {field} path {relative!r} must start with .shiki/")
+    path = Path(relative)
+    if path.is_absolute() or ".." in path.parts:
+        raise ValidationError(f"{MANIFEST_PATH}: {field} path {relative!r} must stay inside .shiki/")
+
+
+def git_tracked_paths(root: Path, relative: str) -> list[str]:
+    result = subprocess.run(
+        ["git", "ls-files", "-z", "--", relative],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+    return [path for path in result.stdout.split("\0") if path]
+
+
+def validate_readme_manifest_layout(root: Path, manifest: dict[str, Any]) -> None:
+    readme_path = root / ".shiki" / "README.md"
+    text = readme_path.read_text(encoding="utf-8")
+    start = text.find(README_LAYOUT_START)
+    end = text.find(README_LAYOUT_END)
+    if start == -1 or end == -1 or end < start:
+        raise ValidationError(f"{readme_path}: missing Shiki manifest layout markers")
+    end += len(README_LAYOUT_END)
+    actual = text[start:end].strip()
+    expected = render_manifest_layout(manifest).strip()
+    if actual != expected:
+        raise ValidationError(f"{readme_path}: manifest layout block is out of sync with {MANIFEST_PATH}")
+
+
+def validate_shiki_manifest(root: Path = ROOT) -> None:
+    try:
+        manifest = load_manifest(root)
+    except ManifestError as error:
+        raise ValidationError(str(error)) from error
+
+    if manifest.get("version") != 1:
+        raise ValidationError(f"{MANIFEST_PATH}: version must be 1")
+
+    directories = manifest_directories(manifest)
+    if not directories:
+        raise ValidationError(f"{MANIFEST_PATH}: directories must not be empty")
+
+    for relative, metadata in directories.items():
+        require_manifest_path(relative, field="directory")
+        if not isinstance(metadata.get("kind"), str) or not metadata["kind"]:
+            raise ValidationError(f"{MANIFEST_PATH}: {relative} must declare kind")
+        if not isinstance(metadata.get("tracked"), bool):
+            raise ValidationError(f"{MANIFEST_PATH}: {relative}.tracked must be a boolean")
+        if not isinstance(metadata.get("required"), bool):
+            raise ValidationError(f"{MANIFEST_PATH}: {relative}.required must be a boolean")
+
+    for relative in manifest_required_directories(manifest):
+        path = root / relative
+        metadata = directories[relative]
+        if not path.is_dir():
+            raise ValidationError(f"{MANIFEST_PATH}: required directory {relative} is missing")
+        if metadata.get("tracked") is True and not any(path.iterdir()):
+            raise ValidationError(f"{MANIFEST_PATH}: required tracked directory {relative} must contain .gitkeep or tracked files")
+
+    for relative in manifest_runtime_directories(manifest):
+        metadata = directories[relative]
+        if metadata.get("tracked") is True:
+            raise ValidationError(f"{MANIFEST_PATH}: runtime directory {relative} must not be tracked")
+        tracked = git_tracked_paths(root, relative)
+        if tracked:
+            raise ValidationError(f"{MANIFEST_PATH}: runtime-only directory {relative} has tracked files: {', '.join(tracked)}")
+
+    files = manifest.get("files")
+    if not isinstance(files, dict):
+        raise ValidationError(f"{MANIFEST_PATH}: files must be an object")
+    for relative, metadata in files.items():
+        require_manifest_path(relative, field="file")
+        if not isinstance(metadata, dict):
+            raise ValidationError(f"{MANIFEST_PATH}: file entry {relative} must be an object")
+    for relative in manifest_required_files(manifest):
+        if not (root / relative).is_file():
+            raise ValidationError(f"{MANIFEST_PATH}: required file {relative} is missing")
+
+    for required_file in (".shiki/config.yaml", ".shiki/policy.example.yaml", ".shiki/README.md", MANIFEST_PATH):
+        if required_file not in manifest_required_files(manifest):
+            raise ValidationError(f"{MANIFEST_PATH}: {required_file} must be listed as a required file")
+
+    for required_directory in (".shiki/schemas", ".shiki/templates"):
+        if required_directory not in directories:
+            raise ValidationError(f"{MANIFEST_PATH}: {required_directory} must be represented")
+
+    create_directories = manifest_create_directories(manifest)
+    if tuple(create_directories) != TARGET_STATE_DIRECTORIES:
+        raise ValidationError(f"{MANIFEST_PATH}: install.create_directories must match TARGET_STATE_DIRECTORIES")
+    for relative in create_directories:
+        require_manifest_path(relative, field="install.create_directories")
+        if relative not in directories:
+            raise ValidationError(f"{MANIFEST_PATH}: create directory {relative} has no directory entry")
+
+    install_include = manifest_install_include(manifest)
+    for relative in install_include:
+        require_manifest_path(relative.removesuffix("/**"), field="install.include")
+        if relative.endswith("/**"):
+            base = relative[:-3]
+            if not (root / base).is_dir():
+                raise ValidationError(f"{MANIFEST_PATH}: install include base {base} is missing")
+            continue
+        if not (root / relative).exists():
+            raise ValidationError(f"{MANIFEST_PATH}: install include {relative} is missing")
+    for required_file in manifest_required_files(manifest):
+        if required_file not in install_include:
+            raise ValidationError(f"{MANIFEST_PATH}: required file {required_file} must be included for install")
+    for required_include in (".shiki/schemas/**", ".shiki/templates/**"):
+        if required_include not in install_include:
+            raise ValidationError(f"{MANIFEST_PATH}: {required_include} must be included for install")
+
+    excluded = manifest_exclude_from_commit(manifest)
+    if ".shiki/gha/**" not in excluded:
+        raise ValidationError(f"{MANIFEST_PATH}: .shiki/gha/** must be excluded from committed state")
+    for relative in excluded:
+        require_manifest_path(relative.removesuffix("/**"), field="install.exclude_from_commit")
+
+    validate_readme_manifest_layout(root, manifest)
 
 
 def id_format_description(prefix: str) -> str:
@@ -769,6 +912,7 @@ def main() -> int:
         validate_source_of_truth_contracts()
         validate_completion_check_docs()
         validate_validate_workflow_coverage()
+        validate_shiki_manifest()
         validate_issue_forms()
         validate_codeowners_governance()
         validate_orchestrator_security()

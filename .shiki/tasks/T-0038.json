@@ -1,0 +1,56 @@
+{
+  "acceptance_checks": [
+    "P1.1.1 is satisfied by adding .shiki/manifest.json as the canonical repository-local layout contract.",
+    "P1.1.2 is satisfied by aligning .shiki/README.md, TARGET_STATE_DIRECTORIES validation, validators, and the actual .shiki tree.",
+    "P1.1.3 is satisfied by validating the .shiki/README.md layout block against the manifest.",
+    "P1.1.4 is satisfied by adding .gitkeep files for required tracked empty state directories and documenting runtime-only exceptions.",
+    "P1.1.5 is satisfied by manifest/docs/code drift validation and regression tests.",
+    "Runtime-only directories such as .shiki/gha remain excluded from committed state.",
+    "Verification bundle passes: validate_shiki, py_compile, scripts/test_shiki_*.sh, and git diff --check."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0037"
+  ],
+  "expected_branch": "shiki/t-0038-shiki-manifest-layout",
+  "github_issue": 63,
+  "goal_id": "G-0012",
+  "id": "T-0038",
+  "ledger_evidence": [
+    "L-20260603T092748386232Z-8324a948"
+  ],
+  "locks": [
+    "shiki:state",
+    "shiki:contracts",
+    "path:.shiki/manifest.json",
+    "path:.shiki/README.md",
+    "path:.shiki/**/.gitkeep",
+    "path:scripts/shiki.py",
+    "path:scripts/shiki_contracts.py",
+    "path:scripts/shiki_manifest.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_manifest.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:docs/agents/**",
+    "path:.shiki/tasks/T-0038.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/goals/G-0012.json"
+  ],
+  "non_goals": [
+    "Do not implement P1.2 structured YAML/workflow validator hardening.",
+    "Do not implement P1.3 architecture split.",
+    "Do not implement P1.4 governance/evidence model redesign.",
+    "Do not implement P2 README/LICENSE/SECURITY/CONTRIBUTING work.",
+    "Do not add new runtime adapters or external storage.",
+    "Do not change CCA Review Bridge, Guardian, branch protection, CODEOWNERS, or P0.4 semantics beyond narrow layout consistency."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Close Goal #30 P1.1.1-P1.1.5 by adding a canonical .shiki manifest, aligning README and target state directory behavior, validating manifest/docs/code drift, and documenting runtime-only state policy.",
+  "status": "review",
+  "title": "Add .shiki manifest and align state layout"
+}

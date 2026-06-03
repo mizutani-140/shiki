@@ -23,6 +23,12 @@ from typing import Iterable
 
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS, TARGET_STATE_DIRECTORIES
 from shiki_locks import active_lock_conflicts
+from shiki_manifest import (
+    load_manifest,
+    manifest_create_directories,
+    manifest_directories,
+    manifest_exclude_from_commit,
+)
 from shiki_state import append_ledger_entry, atomic_replace_json, new_control_id
 
 
@@ -54,6 +60,7 @@ TEMPLATE_PATHS = [
     "scripts/validate_shiki.py",
     "scripts/shiki_contracts.py",
     "scripts/shiki_locks.py",
+    "scripts/shiki_manifest.py",
     "scripts/enforce_cca_verdict.py",
     "scripts/mergegate_check.py",
     "scripts/shiki.py",
@@ -362,8 +369,29 @@ def has_commits(path: Path) -> bool:
 
 def manifest_stage_paths(path: Path) -> list[str]:
     candidates = list(TEMPLATE_PATHS)
+    candidates.append(".shiki/manifest.json")
     candidates.append(".shiki/repo.json")
-    return [relative for relative in candidates if (path / relative).exists()]
+    manifest = load_manifest(path) if (path / ".shiki" / "manifest.json").exists() else load_manifest(ROOT)
+    excluded = manifest_exclude_from_commit(manifest)
+    return [
+        relative
+        for relative in candidates
+        if (path / relative).exists() and not excluded_from_commit(relative, excluded)
+    ]
+
+
+def excluded_from_commit(relative: str, patterns: list[str]) -> bool:
+    normalized = relative.strip().replace("\\", "/")
+    for pattern in patterns:
+        clean = pattern.strip().replace("\\", "/")
+        if clean.endswith("/**"):
+            prefix = clean[:-3]
+            if normalized == prefix or normalized.startswith(f"{prefix}/"):
+                return True
+            continue
+        if normalized == clean:
+            return True
+    return False
 
 
 def commit_manifest(path: Path, message: str) -> None:
@@ -533,8 +561,14 @@ def shiki_path(target: Path, *parts: str) -> Path:
 
 
 def ensure_control_dirs(target: Path) -> None:
-    for relative in TARGET_STATE_DIRECTORIES:
-        (target / relative).mkdir(parents=True, exist_ok=True)
+    manifest = load_manifest(target) if (target / ".shiki" / "manifest.json").exists() else load_manifest(ROOT)
+    directories = manifest_directories(manifest)
+    for relative in manifest_create_directories(manifest):
+        directory = target / relative
+        directory.mkdir(parents=True, exist_ok=True)
+        metadata = directories.get(relative, {})
+        if metadata.get("tracked") is True and metadata.get("required") is True and not any(directory.iterdir()):
+            (directory / ".gitkeep").write_text("", encoding="utf-8")
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -2331,9 +2365,14 @@ def install_template(target: Path, *, force: bool, validate: bool) -> None:
             continue
         copy_path(source, target / relative, force=force, target_install=True)
 
-    for relative in TARGET_STATE_DIRECTORIES:
+    manifest = load_manifest(ROOT)
+    directories = manifest_directories(manifest)
+    for relative in manifest_create_directories(manifest):
         state_dir = target / relative
         state_dir.mkdir(parents=True, exist_ok=True)
+        metadata = directories.get(relative, {})
+        if metadata.get("tracked") is True and metadata.get("required") is True and not any(state_dir.iterdir()):
+            (state_dir / ".gitkeep").write_text("", encoding="utf-8")
         info(f"ensured empty state directory: {state_dir}")
 
     if validate:
@@ -2440,8 +2479,11 @@ def should_skip(path: Path, *, target_install: bool = False) -> bool:
     if target_install:
         relative = path.relative_to(ROOT)
         relative_text = relative.as_posix()
-        state_prefixes = tuple(f"{directory}/" for directory in TARGET_STATE_DIRECTORIES)
-        return relative_text.startswith(state_prefixes)
+        manifest = load_manifest(ROOT)
+        state_prefixes = tuple(f"{directory}/" for directory in manifest_create_directories(manifest))
+        if relative_text.startswith(state_prefixes):
+            return True
+        return excluded_from_commit(relative_text, manifest_exclude_from_commit(manifest))
     return False
 
 
