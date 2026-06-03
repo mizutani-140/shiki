@@ -12,13 +12,14 @@
   "dependencies": [
     "T-0039"
   ],
-  "expected_branch": "shiki/t-0040-shiki-cli-module-split",
-  "expected_pr": 70,
+  "expected_branch": "shiki/t-0040-post-merge-reconcile",
+  "expected_pr": 71,
   "github_issue": 69,
   "goal_id": "G-0012",
   "id": "T-0040",
   "ledger_evidence": [
-    "L-20260603T130355063571Z-2d9b4daa"
+    "L-20260603T130355063571Z-2d9b4daa",
+    "L-20260603T134906051795Z-27ed4eb5"
   ],
   "locks": [
     "shiki:contracts",
@@ -38,7 +39,8 @@
     "path:docs/agents/**",
     "path:.shiki/tasks/T-0040.json",
     "path:.shiki/ledger/**",
-    "path:.shiki/goals/G-0012.json"
+    "path:.shiki/goals/G-0012.json",
+    "path:.shiki/ledger/L-20260603T134906051795Z-27ed4eb5.json"
   ],
   "non_goals": [
     "Do not implement P1.3.3 runtime adapter registry or process isolation.",
@@ -59,6 +61,6 @@
   ],
   "risk_level": "critical",
   "scope": "Close Goal #30 P1.3.1-P1.3.2 by splitting scripts/shiki.py into maintainable standard-library modules while preserving existing CLI behavior, bootstrap/init safety semantics, target install behavior, validation, and tests.",
-  "status": "review",
+  "status": "done",
   "title": "Split Shiki CLI into maintainable modules"
 }
