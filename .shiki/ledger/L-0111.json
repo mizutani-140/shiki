@@ -1,0 +1,24 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "PR #52 merged T-0034 at approved head 9f3d2f9069916aeecfa655b4fb83bbc83102f3b0.",
+    "PR #53 performs the bounded post-merge mirror reconciliation for T-0034.",
+    "T-0034 status is reconciled from review to done after merge.",
+    "G-0012 ledger evidence is reconciled to include L-0110 and L-0111.",
+    "No active T-0034 lock exists in .shiki/locks.",
+    "Goal #30 P0.4.1, P0.4.2, and P0.4.3 are eligible to be marked complete after this reconciliation merges.",
+    "P0.4.4 through P0.4.8 remain open."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-0111",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/53",
+    "https://github.com/mizutani-140/shiki/pull/52",
+    "https://github.com/mizutani-140/shiki/issues/51",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Recorded T-0034 post-merge mirror reconciliation.",
+  "task_id": "T-0034",
+  "timestamp": "2026-06-03T03:36:30Z",
+  "type": "check"
+}
