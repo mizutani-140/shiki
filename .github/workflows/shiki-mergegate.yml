@@ -26,6 +26,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Validate Shiki artifacts
         run: python3 scripts/validate_shiki.py
@@ -37,11 +38,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          rm -rf .shiki/gha
           mkdir -p .shiki/gha
-          gh pr view "$PR_NUMBER" --json number,title,body,headRefName,baseRefName,headRefOid,labels,files,reviews,statusCheckRollup > .shiki/gha/pr.json
+          gh pr view "$PR_NUMBER" --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
           base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
           git fetch origin "$base_ref"
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
+          git diff --name-status "origin/${base_ref}...HEAD" > .shiki/gha/changed-files-status.txt
 
       - name: MergeGate metadata check
-        run: python3 scripts/mergegate_check.py --allow-missing-cca
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 scripts/mergegate_check.py \
+            --changed-files-status .shiki/gha/changed-files-status.txt \
+            --expected-head-sha "$EXPECTED_HEAD_SHA" \
+            --allow-missing-cca

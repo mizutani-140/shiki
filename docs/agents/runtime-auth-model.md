@@ -33,6 +33,19 @@ Do not assume `openai/codex-action` or `OPENAI_API_KEY` unless a target reposito
 4. Claude Code Action reviews the PR through GitHub Actions using the Claude Code OAuth token secret.
 5. MergeGate uses checks, review, locks, skills, and ledger evidence to decide readiness.
 
+## Runtime Evidence Boundary
+
+`.shiki/gha` is a GitHub Actions runtime directory. It may contain PR metadata,
+changed-file lists, CCA verdicts, review bridge diagnostics, and MergeGate
+results produced during a workflow run. Those files must not be committed by a
+PR.
+
+MergeGate policy refreshes live GitHub state immediately before evaluation and
+checks the live PR head SHA against the checked-out commit. It treats PR-edited
+`.shiki` files as proposed mirror changes and compares protected state against
+the base branch `.shiki` snapshot before accepting ledger, task, goal, lock, or
+repair evidence.
+
 ## Required Secrets
 
 Default Claude Code Action secret:

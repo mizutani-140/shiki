@@ -1,0 +1,56 @@
+{
+  "acceptance_checks": [
+    "PR changes to .shiki/gha, .shiki/cca, CCA verdict files, or MergeGate result files are blocked.",
+    "MergeGate refreshes live GitHub PR state immediately before policy evaluation.",
+    "MergeGate enforces PR headRefOid freshness against the checked-out head.",
+    "MergeGate compares protected .shiki state against base-branch .shiki state.",
+    "Unrelated task, goal, ledger, lock, and repair mutations are blocked.",
+    "Focused regression tests cover runtime evidence, task/goal, ledger, lock, live state, and workflow hygiene behavior.",
+    "Docs explain runtime evidence and PR-mutated mirror trust boundaries.",
+    "P0.4.6 and P0.4.7 can be checked after merge and mirror reconciliation.",
+    "P0.4.8 remains open."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0035"
+  ],
+  "expected_branch": "shiki/t-0036-evidence-live-state-hardening",
+  "expected_pr": 58,
+  "github_issue": 57,
+  "goal_id": "G-0012",
+  "id": "T-0036",
+  "ledger_evidence": [
+    "L-20260603T062957000000Z-a36e7c91"
+  ],
+  "locks": [
+    "shiki:state",
+    "shiki:governance",
+    "shiki:workflows",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:.github/workflows/shiki-mergegate.yml",
+    "path:docs/agents/**",
+    "path:.shiki/tasks/T-0036.json",
+    "path:.shiki/ledger/L-20260603T062957000000Z-a36e7c91.json",
+    "path:.shiki/goals/G-0012.json"
+  ],
+  "non_goals": [
+    "Do not implement P0.4.8 full adversarial forged-evidence regression suite.",
+    "Do not implement P1.1 .shiki/manifest.json redesign.",
+    "Do not implement P1.3 architecture split.",
+    "Do not add a new database, external storage, reviewer bot, or GitHub App.",
+    "Do not change CCA Review Bridge approval semantics except for path hygiene.",
+    "Do not change Guardian approval policy, branch protection payload, CODEOWNERS ownership, T-0034 ID behavior, or T-0035 lock matcher semantics."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Close Goal #30 P0.4.6 and P0.4.7 by protecting workflow runtime evidence and protected .shiki mirror state from untrusted PR mutation, and by making MergeGate policy refresh live GitHub PR state before evaluation.",
+  "status": "review",
+  "title": "Harden evidence against untrusted PR mutation and verify live GitHub state"
+}

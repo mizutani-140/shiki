@@ -179,6 +179,9 @@ Blocking values:
 | MG-08 | Ledger complete. | blocking |
 | MG-09 | PR metadata complete. | blocking |
 | MG-10 | Merge strategy and target branch are correct. | blocking |
+| MG-11 | Runtime CCA/MergeGate evidence comes from workflow artifacts, not PR-committed `.shiki/gha` files. | blocking |
+| MG-12 | Protected `.shiki` task, goal, ledger, lock, and repair changes are scoped to the current task and compared against base branch state. | blocking |
+| MG-13 | Live GitHub PR state is refreshed immediately before policy evaluation and matches the checked-out head SHA. | blocking |
 
 ## GC — Goal Completion Checklist
 

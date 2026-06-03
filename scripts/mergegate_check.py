@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import json
 import re
 import sys
@@ -21,6 +22,13 @@ GOAL_ID = re.compile(rf"\bG-{ID_SUFFIX}\b")
 SELF_CHECKS = {"MergeGate policy check"}
 VERDICT_CHECKS = {"CCA verdict"}
 PLACEHOLDER_CHECKS = {"shiki-required-checks"}
+
+
+@dataclass(frozen=True)
+class ChangedFile:
+    status: str
+    path: str
+    old_path: str | None = None
 
 
 def load_json(path: Path) -> dict[str, Any] | None:
@@ -103,6 +111,30 @@ def changed_files(path: Path) -> list[str]:
     if not path.exists():
         return []
     return [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def parse_changed_files_status(path: Path, fallback_files: list[str]) -> list[ChangedFile]:
+    if not path.exists():
+        return [ChangedFile("M", file) for file in fallback_files]
+
+    entries: list[ChangedFile] = []
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        parts = line.split("\t")
+        if len(parts) == 1:
+            parts = line.split()
+        status_token = parts[0]
+        status = status_token[:1].upper()
+        if status == "R" and len(parts) >= 3:
+            entries.append(ChangedFile("D", parts[1]))
+            entries.append(ChangedFile("A", parts[2], old_path=parts[1]))
+        elif status in {"A", "M", "D"} and len(parts) >= 2:
+            entries.append(ChangedFile(status, parts[1]))
+        elif len(parts) >= 2:
+            entries.append(ChangedFile(status or "M", parts[1]))
+    return entries
 
 
 def ledger_entry_text(entry: dict[str, Any]) -> str:
@@ -360,12 +392,172 @@ def load_ledger_entries(target: Path, task: dict[str, Any], warnings: list[str],
     return entries
 
 
+def normalize_repo_path(path: str) -> str:
+    normalized = path.strip().replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
+
+
+def runtime_evidence_path(path: str) -> bool:
+    normalized = normalize_repo_path(path)
+    name = Path(normalized).name
+    return (
+        normalized.startswith(".shiki/gha/")
+        or normalized.startswith(".shiki/cca/")
+        or (normalized.startswith(".shiki/") and name.startswith("cca-verdict") and name.endswith(".json"))
+        or (normalized.startswith(".shiki/") and name.startswith("mergegate-result") and name.endswith(".json"))
+    )
+
+
+def shiki_json_id(path: Path) -> str | None:
+    data = load_json(path)
+    if not data:
+        return None
+    value = data.get("id") or data.get("repair_id")
+    return str(value) if value else None
+
+
+def protected_base_files(base_shiki: Path, subdir: str) -> dict[str, Path]:
+    root = base_shiki / subdir
+    if not root.exists():
+        return {}
+    return {
+        f".shiki/{subdir}/{path.name}": path
+        for path in sorted(root.glob("*.json"))
+        if path.is_file()
+    }
+
+
+def file_bytes(path: Path) -> bytes | None:
+    if not path.exists() or not path.is_file():
+        return None
+    return path.read_bytes()
+
+
+def ledger_entry_allowed_for_task(entry: dict[str, Any], *, task_id: str, goal_id: str) -> bool:
+    entry_task = str(entry.get("task_id") or "").strip()
+    entry_goal = str(entry.get("goal_id") or "").strip()
+    if entry_task == task_id:
+        return True
+    return not entry_task and entry_goal == goal_id
+
+
+def enforce_untrusted_shiki_mutations(
+    *,
+    target: Path,
+    base_shiki: Path | None,
+    changed_files_status: list[ChangedFile],
+    task: dict[str, Any],
+    goal_id: str,
+    task_id: str,
+    pr: dict[str, Any],
+    blocking: list[str],
+    warnings: list[str],
+) -> None:
+    task_file = f".shiki/tasks/{task_id}.json"
+    goal_file = f".shiki/goals/{goal_id}.json"
+    lock_file = f".shiki/locks/{task_id}.json"
+    allowed_ledger_ids = {str(value) for value in task.get("ledger_evidence") or []}
+    task_locks = {str(value) for value in task.get("locks") or []}
+    pr_number = pr.get("number")
+
+    for entry in changed_files_status:
+        path = normalize_repo_path(entry.path)
+        old_path = normalize_repo_path(entry.old_path or "")
+        paths_to_check = [candidate for candidate in [path, old_path] if candidate]
+
+        for candidate in paths_to_check:
+            if runtime_evidence_path(candidate):
+                blocking.append(
+                    f"Runtime CCA/MergeGate evidence path {candidate} must come from workflow artifacts, not PR files"
+                )
+
+        if path.startswith(".shiki/tasks/") and path.endswith(".json"):
+            if entry.status == "D":
+                blocking.append(f"PR must not delete Shiki task file {path}")
+            elif path != task_file:
+                blocking.append(f"PR changes unrelated Shiki task file {path}; expected only {task_file}")
+
+        if path.startswith(".shiki/goals/") and path.endswith(".json"):
+            if entry.status == "D":
+                blocking.append(f"PR must not delete Shiki goal file {path}")
+            elif path != goal_file:
+                blocking.append(f"PR changes unrelated Shiki goal file {path}; expected only {goal_file}")
+
+        if path.startswith(".shiki/locks/") and path.endswith(".json"):
+            if path != lock_file:
+                blocking.append(f"PR changes unrelated Shiki lock file {path}; expected only {lock_file}")
+
+        if path.startswith(".shiki/ledger/") and path.endswith(".json"):
+            ledger_id = Path(path).stem
+            ledger_path = target / path
+            if entry.status == "D":
+                blocking.append(f"PR must not delete Shiki ledger file {path}")
+                continue
+            if ledger_id not in allowed_ledger_ids:
+                blocking.append(f"PR changes ledger {ledger_id} not listed in current task ledger_evidence")
+                continue
+            ledger = load_json(ledger_path)
+            if ledger is None:
+                blocking.append(f"Changed ledger file {path} is not readable")
+                continue
+            if str(ledger.get("id") or "") != ledger_id:
+                blocking.append(f"Ledger filename {path} does not match JSON id {ledger.get('id')!r}")
+            if not ledger_entry_allowed_for_task(ledger, task_id=task_id, goal_id=goal_id):
+                blocking.append(f"Ledger {ledger_id} is not scoped to task {task_id} or goal {goal_id}")
+
+        if path.startswith(".shiki/repairs/") and path.endswith(".json"):
+            repair_path = target / path
+            repair = load_json(repair_path)
+            repair_id = Path(path).stem
+            if repair is None:
+                blocking.append(f"Changed repair packet {path} is not readable")
+                continue
+            if str(repair.get("repair_id") or repair.get("id") or repair_id) != repair_id:
+                blocking.append(f"Repair filename {path} does not match JSON id")
+            if str(repair.get("task_id") or "") != task_id:
+                blocking.append(f"Repair packet {repair_id} is not scoped to task {task_id}")
+            repair_pr = repair.get("pr")
+            if repair_pr != pr_number and repair_id not in allowed_ledger_ids and f"path:{path}" not in task_locks:
+                blocking.append(f"Repair packet {repair_id} does not reference current PR #{pr_number}")
+
+    if base_shiki is None:
+        warnings.append("No base .shiki snapshot provided; protected base-state comparison was skipped")
+        return
+    if not base_shiki.exists():
+        warnings.append(f"Base .shiki snapshot not found at {base_shiki}; protected base-state comparison was skipped")
+        return
+
+    for base_path, source_path in protected_base_files(base_shiki, "ledger").items():
+        target_path = target / base_path
+        if not target_path.exists():
+            blocking.append(f"PR must not delete base ledger file {base_path}")
+            continue
+        if file_bytes(source_path) != file_bytes(target_path):
+            blocking.append(f"PR must not modify existing base ledger file {base_path}")
+
+    for subdir in ["tasks", "goals"]:
+        for base_path in protected_base_files(base_shiki, subdir):
+            if not (target / base_path).exists():
+                blocking.append(f"PR must not delete base Shiki {subdir[:-1]} file {base_path}")
+
+    for base_path in protected_base_files(base_shiki, "locks"):
+        if base_path == lock_file:
+            continue
+        if not (target / base_path).exists():
+            blocking.append(f"PR must not delete unrelated base Shiki lock file {base_path}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check Shiki MergeGate readiness")
     parser.add_argument("--target", default=".", help="Target repository path")
     parser.add_argument("--pr-json", default=".shiki/gha/pr.json")
     parser.add_argument("--cca-verdict", default=".shiki/gha/cca-verdict.json")
     parser.add_argument("--changed-files", default=".shiki/gha/changed-files.txt")
+    parser.add_argument("--changed-files-status", default=".shiki/gha/changed-files-status.txt")
+    parser.add_argument("--expected-head-sha")
+    parser.add_argument("--base-shiki")
     parser.add_argument("--result-file", default=".shiki/gha/mergegate-result.json")
     parser.add_argument("--allow-missing-cca", action="store_true")
     args = parser.parse_args()
@@ -382,6 +574,12 @@ def main() -> int:
         body = str(pr.get("body") or "")
         resolved_task_id = first_match(TASK_ID, body)
         resolved_goal_id = first_match(GOAL_ID, body)
+        if args.expected_head_sha:
+            pr_head = str(pr.get("headRefOid") or "")
+            if not pr_head:
+                blocking.append("PR headRefOid is missing")
+            elif pr_head != args.expected_head_sha:
+                blocking.append(f"PR headRefOid {pr_head} does not match expected checked-out HEAD {args.expected_head_sha}")
         if not resolved_task_id:
             blocking.append("PR body does not contain a Shiki task id like T-0001")
         if not resolved_goal_id:
@@ -427,6 +625,7 @@ def main() -> int:
                     blocking.append(f"Task dependency {dependency_id} is not done: {dependency.get('status')!r}")
 
             files = changed_files(Path(args.changed_files))
+            files_status = parse_changed_files_status(Path(args.changed_files_status), files)
             locks = [str(lock) for lock in task.get("locks") or []]
             if files and not locks:
                 blocking.append(f"Task {resolved_task_id} has no locks but PR changes files")
@@ -435,6 +634,18 @@ def main() -> int:
             blocking.extend(active_lock_conflicts(target, resolved_task_id, locks, files))
 
             ledger_entries = load_ledger_entries(target, task, warnings, blocking)
+            if pr:
+                enforce_untrusted_shiki_mutations(
+                    target=target,
+                    base_shiki=Path(args.base_shiki) if args.base_shiki else None,
+                    changed_files_status=files_status,
+                    task=task,
+                    goal_id=task_goal_id,
+                    task_id=resolved_task_id,
+                    pr=pr,
+                    blocking=blocking,
+                    warnings=warnings,
+                )
             ledger_text = "\n".join(ledger_entry_text(entry) for entry in ledger_entries)
             for skill in task.get("required_skills") or []:
                 skill_name = str(skill).strip().lower()

@@ -1,0 +1,26 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0036 covers Goal #30 P0.4.6 and P0.4.7 only.",
+    "diagnose: existing MergeGate accepted PR-provided .shiki/gha inputs and did not compare protected .shiki state against base branch state.",
+    "tdd: focused MergeGate regression cases were added for runtime artifact protection, task/goal mutation protection, ledger mutation protection, lock mutation protection, live head checks, and workflow hygiene.",
+    "improve-codebase-architecture: policy enforcement is centralized in scripts/mergegate_check.py while preserving the T-0035 shared lock matcher and existing review/Guardian gates.",
+    "Runtime CCA and MergeGate evidence under .shiki/gha is treated as workflow-generated evidence and PR changes to runtime evidence paths are blocked.",
+    "MergeGate policy refreshes live GitHub PR metadata, changed files, changed-file status, and base .shiki state immediately before policy evaluation.",
+    "MergeGate enforces that live PR headRefOid matches the checked-out head SHA.",
+    "Protected .shiki task, goal, ledger, lock, and repair changes are scoped to the current task and compared against base branch state.",
+    "Existing ledger files remain append-only: modifying or deleting base ledger files blocks MergeGate.",
+    "P0.4.8 full adversarial forged-evidence, duplicate-ID, parallel registration, and overlapping-lock regression suite remains a non-goal for T-0036."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260603T062957000000Z-a36e7c91",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/58",
+    "https://github.com/mizutani-140/shiki/issues/57",
+    "https://github.com/mizutani-140/shiki/issues/30"
+  ],
+  "summary": "Implemented T-0036 evidence hardening and live GitHub state verification.",
+  "task_id": "T-0036",
+  "timestamp": "2026-06-03T06:29:57Z",
+  "type": "check"
+}
