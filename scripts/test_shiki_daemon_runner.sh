@@ -75,7 +75,7 @@ python3 "$ROOT/scripts/shiki.py" runner execute \
   >/tmp/shiki-runner-execute.json
 grep "runner-ok" "$TARGET/daemon-marker.txt" >/dev/null
 
-python3 "$ROOT/scripts/shiki.py" task status --target "$TARGET" "$TASK_ID" --status done >/tmp/shiki-daemon-task-done.json
+python3 "$ROOT/scripts/shiki.py" task status --target "$TARGET" "$TASK_ID" --status "done" >/tmp/shiki-daemon-task-done.json
 python3 "$ROOT/scripts/shiki.py" goal complete --target "$TARGET" "$(json_get /tmp/shiki-daemon-run.json goal_id)" >/tmp/shiki-daemon-goal-complete.json
 
 cat >"$FAKE_BIN/gh" <<'SH'
