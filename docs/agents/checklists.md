@@ -183,6 +183,9 @@ Blocking values:
 | MG-12 | Protected `.shiki` task, goal, ledger, lock, and repair changes are scoped to the current task and compared against base branch state. | blocking |
 | MG-13 | Live GitHub PR state is refreshed immediately before policy evaluation and matches the checked-out head SHA. | blocking |
 | MG-14 | `.shiki/manifest.json`, `.shiki/README.md`, install/create directories, and commit exclusions remain consistent. | blocking |
+| MG-15 | Required checks in `.shiki/config.yaml` match actual workflow job display names from structured workflow parsing. | blocking |
+| MG-16 | Workflow permissions, triggers, and Shiki job names match the validator contract. | blocking |
+| MG-17 | Workflow lint, shellcheck, and Node 24 compatibility validation pass or have an explicit bounded exception. | blocking |
 
 ## GC — Goal Completion Checklist
 
@@ -196,3 +199,13 @@ Blocking values:
 | GC-06 | Remaining risks are explicit. | blocking |
 | GC-07 | Guardian approval exists when required. | blocking |
 | GC-08 | Goal issue is ready for `shiki:done`. | blocking |
+
+## Validator Hardening Checklist
+
+| ID | Item | Blocking |
+| --- | --- | --- |
+| VH-01 | Workflow validation uses structured extraction rather than raw substring matching. | blocking |
+| VH-02 | Required check names are compared with actual workflow job display names. | blocking |
+| VH-03 | Unsupported JSON Schema features fail closed with clear errors. | blocking |
+| VH-04 | `actionlint` and `shellcheck` run in CI; local scripts may skip only when the tools are unavailable. | blocking |
+| VH-05 | `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` is exercised and `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` is forbidden. | blocking |

@@ -408,3 +408,17 @@ Do not ask "which agent should decide?" Ask:
 4. Which evidence proves the transition happened correctly?
 
 This keeps autonomy at the execution layer while preserving deterministic control over state transitions.
+
+## 12. Validator And Workflow Checks
+
+Shiki validation treats workflow structure as a contract. Workflow names,
+triggers, top-level permissions, job display names, job-level permissions, and
+`uses:` actions are extracted structurally from workflow YAML. A required check
+is satisfied only by an actual workflow job display name; comment text, run
+output, job ids, or unrelated strings do not satisfy MergeGate required-check
+configuration.
+
+JSON Schema validation is intentionally bounded and dependency-free. Shiki
+supports the schema keywords used by its own contracts and fails closed on
+unsupported composition or reference features such as `$ref`, `oneOf`, `anyOf`,
+`allOf`, `format`, `dependencies`, and `if`/`then`/`else`.

@@ -1,0 +1,36 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0039 covers Goal #30 P1.2.1-P1.2.5 only.",
+    "Structured workflow validation is implemented through scripts/shiki_workflows.py and scripts/validate_shiki.py.",
+    "Required checks from .shiki/config.yaml are compared with actual workflow job display names, not comments, job ids, or unrelated strings.",
+    "Bounded JSON Schema validation is implemented through scripts/shiki_jsonschema.py; unsupported features such as $ref, oneOf, anyOf, allOf, format, dependencies, and if/then/else fail explicitly.",
+    "actionlint and shellcheck are integrated through scripts/test_shiki_workflow_lint.sh, scripts/test_shiki_shellcheck.sh, and the Shiki Validate workflow.",
+    "Node.js 20 warning handling upgrades official actions to Node 24-compatible major versions, sets FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true, and forbids ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION.",
+    "False-positive and false-negative coverage is added in scripts/test_shiki_validator_hardening.sh.",
+    "Required skill evidence: diagnose was used to classify CI/validator failure modes and separate validator defects from workflow lint defects.",
+    "Required skill evidence: tdd was used by adding failing false-positive and false-negative validator fixtures before relying on implementation behavior.",
+    "Required skill evidence: improve-codebase-architecture was used to centralize workflow parsing and bounded JSON Schema validation in shared helper modules rather than scattering raw string checks.",
+    "Local verification passed: PYTHONPYCACHEPREFIX=/tmp/shiki-pycache python3 scripts/validate_shiki.py.",
+    "Local verification passed: PYTHONPYCACHEPREFIX=/tmp/shiki-pycache python3 -m py_compile scripts/*.py.",
+    "Local verification passed: for script in scripts/test_shiki_*.sh; do PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash \"$script\"; done.",
+    "Local verification passed: git diff --check.",
+    "Local actionlint and shellcheck wrapper tests printed deterministic skip messages because the tools are not installed locally; CI runs them in strict mode after installing pinned tools.",
+    "Bounded CI repair included shellcheck-safe existing test script literals and explicit task locks for touched test scripts.",
+    "Bounded workflow repair deferred official action upgrades inside shiki-cca-completion.yml and shiki-claude-review.yml because anthropics/claude-code-action rejects PR-modified workflow files during OIDC app token exchange; the validator allows only explicit workflow/action/version exceptions for that case.",
+    "actionlint runs against all workflows with a single explicit ignore for the unchanged CCA Review Bridge BOT_LOGIN shellcheck false positive that cannot be repaired in this PR without changing the CCA workflow file.",
+    "Non-goals remain P1.3 architecture split, P1.4 governance/evidence redesign, P2 packaging/release work, runtime adapter redesign, Guardian/CCA Review Bridge changes, branch protection changes, CODEOWNERS changes, and P0.4 semantics changes.",
+    "Task Issue #66: https://github.com/mizutani-140/shiki/issues/66",
+    "Pull Request #67: https://github.com/mizutani-140/shiki/pull/67"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260603T111720401575Z-2f8e9a4b",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/66",
+    "https://github.com/mizutani-140/shiki/pull/67"
+  ],
+  "summary": "Recorded T-0039 validator and workflow hardening evidence.",
+  "task_id": "T-0039",
+  "timestamp": "2026-06-03T11:17:20Z",
+  "type": "check"
+}

@@ -1,0 +1,61 @@
+{
+  "acceptance_checks": [
+    "P1.2.1 is satisfied by replacing brittle workflow substring checks with structured workflow extraction.",
+    "P1.2.2 is satisfied by adding a bounded internal JSON Schema validator with explicit unsupported-feature failures.",
+    "P1.2.3 is satisfied by structurally validating workflow permissions, job names, triggers, and required checks.",
+    "P1.2.4 is satisfied by adding CI actionlint and shellcheck coverage with deterministic local skip behavior.",
+    "P1.2.5 is satisfied by adding false-positive and false-negative validator hardening tests.",
+    "Node.js 20 deprecation handling is bounded to official action upgrades, Node 24 compatibility mode, unsafe opt-out rejection, and docs.",
+    "Verification bundle passes: validate_shiki, py_compile, scripts/test_shiki_*.sh, and git diff --check."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0038"
+  ],
+  "expected_branch": "shiki/t-0039-validator-workflow-hardening",
+  "expected_pr": 67,
+  "github_issue": 66,
+  "goal_id": "G-0012",
+  "id": "T-0039",
+  "ledger_evidence": [
+    "L-20260603T111720401575Z-2f8e9a4b"
+  ],
+  "locks": [
+    "shiki:governance",
+    "shiki:workflows",
+    "shiki:contracts",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/shiki_workflows.py",
+    "path:scripts/shiki_jsonschema.py",
+    "path:scripts/test_shiki_validator_hardening.sh",
+    "path:scripts/test_shiki_workflow_lint.sh",
+    "path:scripts/test_shiki_shellcheck.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_daemon_runner.sh",
+    "path:scripts/shiki.py",
+    "path:.github/workflows/**",
+    "path:.shiki/schemas/**",
+    "path:docs/agents/**",
+    "path:.shiki/tasks/T-0039.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/goals/G-0012.json"
+  ],
+  "non_goals": [
+    "Do not implement P1.3 architecture split.",
+    "Do not implement P1.4 governance or evidence model redesign.",
+    "Do not implement P2 repository presentation, release, or packaging work.",
+    "Do not redesign runtime adapters or add external storage.",
+    "Do not change Guardian approval semantics or CCA Review Bridge semantics.",
+    "Do not change branch protection policy or CODEOWNERS ownership rules.",
+    "Do not change P0.4 ID, lock, or evidence semantics."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Close Goal #30 P1.2.1-P1.2.5 by hardening Shiki validator and workflow checks with structured workflow parsing, bounded JSON Schema validation, required-check drift detection, CI actionlint/shellcheck coverage, Node 24 compatibility handling, and false-positive/false-negative regression tests.",
+  "status": "review",
+  "title": "Harden validator and workflow checks"
+}

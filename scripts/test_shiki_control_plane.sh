@@ -47,6 +47,7 @@ grep '"head_sha"' docs/agents/completion-check-agent.md >/dev/null
 grep '"can_merge"' docs/agents/completion-check-agent.md >/dev/null
 grep "contents: read" .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "commit-evidence:" .github/workflows/shiki-orchestrator.yml >/dev/null
+# shellcheck disable=SC2016
 grep 'git push -u origin "$evidence_branch"' .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "gh pr create" .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "CANONICAL_CCA_VERDICT_SCHEMA_PATH" scripts/shiki_contracts.py >/dev/null
@@ -72,13 +73,16 @@ grep '"historical"' .shiki/schemas/goal.schema.json >/dev/null
 grep '"cca-verdict"' .shiki/schemas/ledger.schema.json >/dev/null
 grep '"criterion"' .shiki/schemas/cca-verdict.schema.json >/dev/null
 grep '"insufficient_evidence"' .shiki/schemas/cca-verdict.schema.json >/dev/null
+# shellcheck disable=SC2016
 grep 'github_token: \${{ github.token }}' .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "CCA Review Bridge" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "author,headRefName" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "BOT_LOGIN: github-actions\\[bot\\]" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "Cannot submit CCA Review Bridge approval: authenticated identity is PR author" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "already_approved" .github/workflows/shiki-cca-completion.yml >/dev/null
+# shellcheck disable=SC2016
 grep 'repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews' .github/workflows/shiki-cca-completion.yml >/dev/null
+# shellcheck disable=SC2016
 grep '"https://api.github.com/repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews"' .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "REST create review HTTP status" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "create-review-response.json" .github/workflows/shiki-cca-completion.yml >/dev/null
@@ -1382,7 +1386,7 @@ def stale_pr_json(case, base):
 assert_blocked("stale-pr-json", stale_pr_json, "does not match expected checked-out HEAD")
 PY
 
-python3 "$ROOT/scripts/shiki.py" task status --target "$TARGET" "$TASK_ID" --status done >/tmp/shiki-task-status.json
+python3 "$ROOT/scripts/shiki.py" task status --target "$TARGET" "$TASK_ID" --status "done" >/tmp/shiki-task-status.json
 python3 "$ROOT/scripts/shiki.py" goal complete --target "$TARGET" "$GOAL_ID" >/tmp/shiki-goal-complete.json
 
 python3 "$TARGET/scripts/validate_shiki.py"

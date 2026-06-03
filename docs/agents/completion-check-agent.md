@@ -142,6 +142,10 @@ When verdict is `insufficient_evidence`, request evidence first. Do not ask Code
 
 Structured output must match `.shiki/schemas/cca-verdict.schema.json`.
 
+The schema is checked by Shiki's bounded internal JSON Schema validator. The
+validator supports the subset used by Shiki contracts and rejects unsupported
+features explicitly instead of treating them as successful validation.
+
 Minimum fields:
 
 ```json
@@ -182,3 +186,6 @@ Minimum fields:
 - Prefer bounded repair over broad rewrite.
 - Never let Codex infer unresolved product decisions.
 - Stop and require Guardian approval for high-risk changes.
+- Treat required checks as workflow job display names from structured workflow
+  extraction. Do not accept comments, advisory review text, or arbitrary strings
+  as proof that a required check exists.

@@ -65,3 +65,24 @@ Do not store OAuth tokens in repository files, `.env`, logs, prompts, or `.shiki
 API-key based runners may be added by a target repository as an explicit extension. They are not the default Shiki template path.
 
 If a repo opts into API-key mode, record the exception in an ADR and update the repo's `AGENTS.md`, `.shiki/config.yaml`, and workflow permissions.
+
+## GitHub Actions Runtime Compatibility
+
+Shiki workflows set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` so validation
+runs exercise GitHub Actions Node 24 compatibility. Official GitHub actions are
+kept on Node 24-compatible major versions where Shiki can do so without changing
+runtime semantics.
+
+Workflow files that execute `anthropics/claude-code-action` are a bounded
+exception during pull-request validation: the action requires the workflow file
+content to match the default branch before it can exchange its OIDC token. Node
+24 action upgrades for those workflow files must land through a dedicated
+Guardian-approved workflow migration path; the validator records only explicit
+workflow/action/version exceptions, not a general allowance for deprecated
+official actions.
+
+`ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` is forbidden in Shiki workflows. If a
+third-party action still emits a Node 20 deprecation warning and no compatible
+release is available, record the specific action and a follow-up instead of
+weakening workflow validation. Advisory Claude review, Guardian approval, and
+the CCA Review Bridge remain separate from Node runtime compatibility checks.
