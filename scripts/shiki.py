@@ -59,8 +59,10 @@ TEMPLATE_PATHS = [
     "scripts/shiki_schema.py",
     "scripts/validate_shiki.py",
     "scripts/shiki_contracts.py",
+    "scripts/shiki_jsonschema.py",
     "scripts/shiki_locks.py",
     "scripts/shiki_manifest.py",
+    "scripts/shiki_workflows.py",
     "scripts/enforce_cca_verdict.py",
     "scripts/mergegate_check.py",
     "scripts/shiki.py",
@@ -72,6 +74,9 @@ TEMPLATE_PATHS = [
     "scripts/test_shiki_runner_codex.sh",
     "scripts/test_shiki_start.sh",
     "scripts/test_shiki_runtime_auth.sh",
+    "scripts/test_shiki_shellcheck.sh",
+    "scripts/test_shiki_validator_hardening.sh",
+    "scripts/test_shiki_workflow_lint.sh",
 ]
 
 DEFAULT_GLOBAL_COMMAND_PATH = "~/.local/bin/shiki"

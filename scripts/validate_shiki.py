@@ -25,6 +25,7 @@ from shiki_contracts import (
     canonical_source_of_truth_markdown,
 )
 from shiki_locks import known_shiki_semantic_locks, normalize_lock
+from shiki_jsonschema import UnsupportedJsonSchemaError, assert_supported_schema, validate_json_schema
 from shiki_manifest import (
     MANIFEST_PATH,
     README_LAYOUT_END,
@@ -39,6 +40,20 @@ from shiki_manifest import (
     manifest_required_files,
     manifest_runtime_directories,
     render_manifest_layout,
+)
+from shiki_workflows import (
+    WorkflowParseError,
+    load_workflow_model,
+    load_yaml_model,
+    workflow_job_display_names,
+    workflow_job_permissions,
+    workflow_jobs,
+    workflow_name,
+    workflow_permissions,
+    workflow_step_runs,
+    workflow_top_env,
+    workflow_triggers,
+    workflow_uses_actions,
 )
 
 
@@ -153,6 +168,60 @@ KNOWN_SKILLS = {
     "shiki",
 }
 CCA_ITEM_STATUSES = {"pass", "fail", "insufficient_evidence", "not_applicable"}
+
+WORKFLOW_CONTRACTS = {
+    "shiki-validate.yml": {
+        "name": "Shiki Validate",
+        "triggers": {"pull_request", "push", "workflow_dispatch"},
+        "permissions": {"contents": "read"},
+        "jobs": {"validate": "Validate Shiki mirror"},
+    },
+    "shiki-cca-completion.yml": {
+        "name": "Shiki CCA Completion",
+        "triggers": {"pull_request", "workflow_dispatch"},
+        "permissions": {
+            "contents": "read",
+            "pull-requests": "write",
+            "issues": "write",
+            "checks": "write",
+            "id-token": "write",
+        },
+        "jobs": {"cca": "CCA verdict", "mergegate": "MergeGate policy check"},
+    },
+    "shiki-mergegate.yml": {
+        "name": "Shiki MergeGate",
+        "triggers": {"pull_request", "workflow_dispatch"},
+        "permissions": {"contents": "read", "pull-requests": "read", "issues": "read"},
+        "jobs": {"mergegate": "MergeGate metadata check"},
+    },
+    "shiki-claude-review.yml": {
+        "name": "Shiki Claude Review",
+        "triggers": {"pull_request", "workflow_dispatch"},
+        "permissions": {
+            "contents": "read",
+            "pull-requests": "write",
+            "issues": "write",
+            "id-token": "write",
+        },
+        "jobs": {"review": "Claude review"},
+    },
+    "shiki-orchestrator.yml": {
+        "name": "Shiki Orchestrator",
+        "triggers": {"workflow_dispatch", "issue_comment"},
+        "permissions": {"contents": "read", "issues": "read", "pull-requests": "read"},
+        "jobs": {"shiki-run": "Shiki orchestrator run", "commit-evidence": "Commit Shiki evidence PR"},
+        "job_permissions": {
+            "shiki-run": {"contents": "read", "issues": "read", "pull-requests": "read"},
+            "commit-evidence": {"contents": "write", "issues": "write", "pull-requests": "write"},
+        },
+    },
+}
+
+NODE24_OFFICIAL_ACTIONS = {
+    "actions/checkout": {"v5", "v6"},
+    "actions/upload-artifact": {"v6", "v7"},
+    "actions/download-artifact": {"v7"},
+}
 
 
 class ValidationError(Exception):
@@ -778,11 +847,132 @@ def validate_completion_check_docs() -> None:
 
 def validate_validate_workflow_coverage() -> None:
     workflow_path = ROOT / ".github" / "workflows" / "shiki-validate.yml"
-    text = workflow_path.read_text(encoding="utf-8")
-    if "python3 -m py_compile scripts/*.py" not in text:
+    model = load_workflow_contract(workflow_path)
+    run_commands = "\n".join(workflow_step_runs(model))
+    if "python3 -m py_compile scripts/*.py" not in run_commands:
         raise ValidationError(f"{workflow_path}: must compile all scripts/*.py files")
-    if "for script in scripts/test_shiki_*.sh" not in text or 'bash "$script"' not in text:
+    if "for script in scripts/test_shiki_*.sh" not in run_commands or 'bash "$script"' not in run_commands:
         raise ValidationError(f"{workflow_path}: must run all scripts/test_shiki_*.sh contract tests")
+    if "scripts/test_shiki_workflow_lint.sh --strict" not in run_commands:
+        raise ValidationError(f"{workflow_path}: must run actionlint workflow lint in CI")
+    if "scripts/test_shiki_shellcheck.sh --strict" not in run_commands:
+        raise ValidationError(f"{workflow_path}: must run shellcheck in CI")
+    if workflow_top_env(model).get("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24") != "true":
+        raise ValidationError(f"{workflow_path}: must force Node 24 compatibility in the validation workflow")
+
+
+def load_workflow_contract(path: Path) -> dict[str, Any]:
+    try:
+        return load_workflow_model(path)
+    except WorkflowParseError as error:
+        raise ValidationError(f"{path}: {error}") from error
+
+
+def validate_workflow_contracts() -> None:
+    workflow_dir = ROOT / ".github" / "workflows"
+    models: dict[Path, dict[str, Any]] = {}
+    all_job_names: list[tuple[str, Path]] = []
+
+    for filename, contract in WORKFLOW_CONTRACTS.items():
+        path = workflow_dir / filename
+        if not path.exists():
+            raise ValidationError(f"{path}: required workflow file is missing")
+        model = load_workflow_contract(path)
+        models[path] = model
+
+        if workflow_name(model) != contract["name"]:
+            raise ValidationError(f"{path}: workflow name must be {contract['name']!r}")
+
+        triggers = workflow_triggers(model)
+        missing_triggers = sorted(set(contract["triggers"]) - triggers)
+        if missing_triggers:
+            raise ValidationError(f"{path}: missing required triggers: {', '.join(missing_triggers)}")
+
+        permissions = workflow_permissions(model)
+        expected_permissions = contract["permissions"]
+        if permissions != expected_permissions:
+            raise ValidationError(
+                f"{path}: top-level permissions must be {expected_permissions!r}, got {permissions!r}"
+            )
+
+        jobs = workflow_jobs(model)
+        for job_id, expected_name in contract["jobs"].items():
+            job = jobs.get(job_id)
+            if not isinstance(job, dict):
+                raise ValidationError(f"{path}: missing required job {job_id!r}")
+            actual_name = job.get("name")
+            if actual_name != expected_name:
+                raise ValidationError(f"{path}: job {job_id!r} name must be {expected_name!r}, got {actual_name!r}")
+            all_job_names.append((expected_name, path))
+
+        for job_id, expected_permissions in contract.get("job_permissions", {}).items():
+            actual_permissions = workflow_job_permissions(model, job_id)
+            if actual_permissions != expected_permissions:
+                raise ValidationError(
+                    f"{path}: job {job_id!r} permissions must be "
+                    f"{expected_permissions!r}, got {actual_permissions!r}"
+                )
+
+    seen: dict[str, Path] = {}
+    for name, path in all_job_names:
+        if name in seen:
+            raise ValidationError(f"{path}: duplicate workflow job display name {name!r} also appears in {seen[name]}")
+        seen[name] = path
+
+    validate_required_check_names(models)
+    validate_node24_workflow_policy(models)
+
+
+def config_required_checks() -> list[str]:
+    config_path = ROOT / ".shiki" / "config.yaml"
+    try:
+        model = load_yaml_model(config_path)
+    except WorkflowParseError as error:
+        raise ValidationError(f"{config_path}: {error}") from error
+    mergegate = model.get("mergegate")
+    if not isinstance(mergegate, dict):
+        raise ValidationError(f"{config_path}: mergegate must be a mapping")
+    checks = mergegate.get("required_checks")
+    if not isinstance(checks, list) or not all(isinstance(check, str) and check for check in checks):
+        raise ValidationError(f"{config_path}: mergegate.required_checks must be a non-empty list of strings")
+    return checks
+
+
+def validate_required_check_names(models: dict[Path, dict[str, Any]]) -> None:
+    job_names: dict[str, Path] = {}
+    for path, model in models.items():
+        for job in workflow_jobs(model).values():
+            if not isinstance(job, dict) or not isinstance(job.get("name"), str):
+                continue
+            job_name = job["name"]
+            if job_name in job_names:
+                raise ValidationError(f"{path}: duplicate workflow job display name {job_name!r} also appears in {job_names[job_name]}")
+            job_names[job_name] = path
+
+    for check in config_required_checks():
+        if check not in job_names:
+            raise ValidationError(
+                f".shiki/config.yaml: required check {check!r} has no matching workflow job display name"
+            )
+
+
+def validate_node24_workflow_policy(models: dict[Path, dict[str, Any]]) -> None:
+    for path, model in models.items():
+        text = path.read_text(encoding="utf-8")
+        if "ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION" in text:
+            raise ValidationError(f"{path}: ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION is forbidden")
+        for action in workflow_uses_actions(model):
+            if action.startswith("docker://"):
+                continue
+            if "@" not in action:
+                raise ValidationError(f"{path}: action {action!r} must pin an explicit version")
+            owner_repo, version = action.rsplit("@", 1)
+            allowed_versions = NODE24_OFFICIAL_ACTIONS.get(owner_repo)
+            if allowed_versions is not None and version not in allowed_versions:
+                raise ValidationError(
+                    f"{path}: {action!r} must use a Node 24-compatible official action version "
+                    f"from {sorted(allowed_versions)}"
+                )
 
 
 def top_level_permissions_block(text: str) -> str:
@@ -897,6 +1087,58 @@ def validate_contract_schema_consistency() -> None:
         raise ValidationError(f"{repair_schema_path}: required_skill enum must include evidence-only")
 
 
+def validate_json_schema_contracts() -> None:
+    for schema_path in json_files(SHIKI / "schemas"):
+        schema = load_json(schema_path)
+        if not isinstance(schema, dict):
+            raise ValidationError(f"{schema_path}: schema must be a JSON object")
+        try:
+            assert_supported_schema(schema)
+        except UnsupportedJsonSchemaError as error:
+            raise ValidationError(f"{schema_path}: {error}") from error
+
+    cca_schema = load_json(SHIKI / "schemas" / "cca-verdict.schema.json")
+    complete_cca = {
+        "verdict": "complete",
+        "summary": "fixture complete",
+        "goal_id": "G-0012",
+        "task_id": "T-0039",
+        "pr": 1,
+        "head_sha": "a" * 40,
+        "can_merge": True,
+        "checklist": [{"id": "fixture", "status": "pass", "blocking": False}],
+        "acceptance": [{"criterion": "fixture", "status": "pass", "evidence": ["fixture"]}],
+        "mergegate": {},
+        "confidence": 1,
+    }
+    try:
+        validate_json_schema(complete_cca, cca_schema)
+        validate_json_schema({**complete_cca, "verdict": "needs_guardian", "can_merge": False}, cca_schema)
+    except (UnsupportedJsonSchemaError, ValueError) as error:
+        raise ValidationError(f"{CANONICAL_CCA_VERDICT_SCHEMA_PATH}: fixture validation failed: {error}") from error
+
+    repair_schema = load_json(SHIKI / "schemas" / "repair-packet.schema.json")
+    repair_packet = {
+        "repair_id": "RP-0001",
+        "goal_id": "G-0012",
+        "task_id": "T-0039",
+        "pr": 1,
+        "attempt": 1,
+        "failing_checklist_items": ["fixture"],
+        "failing_acceptance_criteria": ["fixture"],
+        "minimal_required_changes": ["fixture"],
+        "prohibited_changes": [],
+        "required_skill": "evidence-only",
+        "verification_commands": ["python3 scripts/validate_shiki.py"],
+        "evidence_required": ["fixture"],
+        "stop_condition": "fixture",
+    }
+    try:
+        validate_json_schema(repair_packet, repair_schema)
+    except (UnsupportedJsonSchemaError, ValueError) as error:
+        raise ValidationError(f"{CANONICAL_REPAIR_PACKET_SCHEMA_PATH}: fixture validation failed: {error}") from error
+
+
 def main() -> int:
     errors: list[str] = []
     task_dependencies: dict[str, list[str]] = {}
@@ -908,9 +1150,11 @@ def main() -> int:
         for schema in json_files(SHIKI / "schemas"):
             load_json(schema)
         validate_contract_schema_consistency()
+        validate_json_schema_contracts()
         validate_prompt_contract_paths()
         validate_source_of_truth_contracts()
         validate_completion_check_docs()
+        validate_workflow_contracts()
         validate_validate_workflow_coverage()
         validate_shiki_manifest()
         validate_issue_forms()
