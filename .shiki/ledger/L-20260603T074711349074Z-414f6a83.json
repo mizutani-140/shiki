@@ -1,7 +1,7 @@
 {
   "actor": "codex-front",
   "evidence": [
-    "Created GitHub Issue #60 for T-0037 / Goal #30 P0.4.8.",
+    "Created GitHub Issue #60 and PR #61 for T-0037 / Goal #30 P0.4.8.",
     "Added scripts/test_shiki_adversarial_state.sh as a no-network adversarial regression suite.",
     "The suite covers duplicate ID allocation, legacy sparse IDs, append-only ledger writes, forced ledger ID collisions, repeated collision failure, and parallel ledger append JSON validity.",
     "The suite covers simulated parallel task registration and task-file collision no-overwrite behavior.",
@@ -16,7 +16,8 @@
   "goal_id": "G-0012",
   "id": "L-20260603T074711349074Z-414f6a83",
   "links": [
-    "https://github.com/mizutani-140/shiki/issues/60"
+    "https://github.com/mizutani-140/shiki/issues/60",
+    "https://github.com/mizutani-140/shiki/pull/61"
   ],
   "summary": "Recorded T-0037 adversarial state / evidence / lock regression suite implementation evidence.",
   "task_id": "T-0037",
