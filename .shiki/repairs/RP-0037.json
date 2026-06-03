@@ -1,0 +1,36 @@
+{
+  "attempt": 1,
+  "evidence_required": [
+    "scripts/test_shiki_adversarial_state.sh includes a fixture where a repair packet for another PR must block.",
+    "scripts/mergegate_check.py blocks changed repair packets whose JSON pr does not match the live PR number.",
+    "The full Shiki shell test loop passes after the bounded repair."
+  ],
+  "failing_acceptance_criteria": [
+    "Repair packet for another PR blocks."
+  ],
+  "failing_checklist_items": [
+    "T-0037 group E repair packet adversarial fixture"
+  ],
+  "goal_id": "G-0012",
+  "minimal_required_changes": [
+    "Remove the task-lock exception from MergeGate repair packet PR matching so repair_pr must equal the live PR number."
+  ],
+  "pr": 61,
+  "prohibited_changes": [
+    "Do not change Guardian policy.",
+    "Do not change CCA Review Bridge behavior.",
+    "Do not change branch protection or CODEOWNERS behavior.",
+    "Do not broaden beyond the repair packet PR mismatch fixture."
+  ],
+  "repair_id": "RP-0037",
+  "required_skill": "tdd",
+  "stop_condition": "The adversarial repair packet fixture blocks a repair packet for another PR and the full local verification bundle passes.",
+  "task_id": "T-0037",
+  "verification_commands": [
+    "PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash scripts/test_shiki_adversarial_state.sh",
+    "python3 scripts/validate_shiki.py",
+    "PYTHONPYCACHEPREFIX=/tmp/shiki-pycache python3 -m py_compile scripts/*.py",
+    "for script in scripts/test_shiki_*.sh; do PYTHONPYCACHEPREFIX=/tmp/shiki-pycache bash \"$script\"; done",
+    "git diff --check"
+  ]
+}

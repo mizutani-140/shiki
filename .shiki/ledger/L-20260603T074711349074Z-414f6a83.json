@@ -1,0 +1,25 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "Created GitHub Issue #60 for T-0037 / Goal #30 P0.4.8.",
+    "Added scripts/test_shiki_adversarial_state.sh as a no-network adversarial regression suite.",
+    "The suite covers duplicate ID allocation, legacy sparse IDs, append-only ledger writes, forced ledger ID collisions, repeated collision failure, and parallel ledger append JSON validity.",
+    "The suite covers simulated parallel task registration and task-file collision no-overwrite behavior.",
+    "The suite covers exact, glob, prefix, and semantic lock overlap at matcher, dispatch, and MergeGate fixture levels.",
+    "The suite covers forged runtime evidence under .shiki/gha, .shiki/cca, CCA verdict files, and MergeGate result files.",
+    "The suite covers forged task, goal, ledger, lock, and repair evidence mutations using MergeGate fixtures and base .shiki snapshots.",
+    "The suite covers stale live PR metadata: head SHA mismatch, expected PR mismatch, expected branch mismatch, required-check stale SHA, CCA head mismatch, and CCA PR mismatch.",
+    "The suite covers workflow hygiene checks for .shiki/gha reset, live-pr.json, live changed files, --expected-head-sha, --base-shiki, and MergeGate metadata PR fields.",
+    "Bounded repair RP-0037 fixes the exposed repair-packet gap: a repair packet for another PR must block even when the repair path is declared in task locks.",
+    "Non-goal: no new policy behavior beyond test-backed bounded repair."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260603T074711349074Z-414f6a83",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/60"
+  ],
+  "summary": "Recorded T-0037 adversarial state / evidence / lock regression suite implementation evidence.",
+  "task_id": "T-0037",
+  "timestamp": "2026-06-03T07:47:11Z",
+  "type": "check"
+}
