@@ -2,6 +2,7 @@
   "actor": "codex-front",
   "evidence": [
     "Created GitHub Issue #60 and PR #61 for T-0037 / Goal #30 P0.4.8.",
+    "Required skills used: diagnose and tdd.",
     "Added scripts/test_shiki_adversarial_state.sh as a no-network adversarial regression suite.",
     "The suite covers duplicate ID allocation, legacy sparse IDs, append-only ledger writes, forced ledger ID collisions, repeated collision failure, and parallel ledger append JSON validity.",
     "The suite covers simulated parallel task registration and task-file collision no-overwrite behavior.",
