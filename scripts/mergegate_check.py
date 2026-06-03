@@ -15,8 +15,9 @@ from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_schema import SchemaValidationError, validate_instance
 
 
-TASK_ID = re.compile(r"\bT-[0-9]{4,}\b")
-GOAL_ID = re.compile(r"\bG-[0-9]{4,}\b")
+ID_SUFFIX = r"(?:[0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})"
+TASK_ID = re.compile(rf"\bT-{ID_SUFFIX}\b")
+GOAL_ID = re.compile(rf"\bG-{ID_SUFFIX}\b")
 SELF_CHECKS = {"MergeGate policy check"}
 VERDICT_CHECKS = {"CCA verdict"}
 PLACEHOLDER_CHECKS = {"shiki-required-checks"}

@@ -26,6 +26,7 @@ cd "$ROOT"
 
 python3 scripts/validate_shiki.py
 python3 -m py_compile scripts/shiki.py
+python3 -m py_compile scripts/shiki_state.py
 python3 -m py_compile scripts/shiki_schema.py
 python3 -m py_compile scripts/shiki_contracts.py
 python3 scripts/shiki.py --help | grep -E "goal|issue|dispatch|repair" >/dev/null
@@ -84,6 +85,97 @@ grep "can_approve_pull_request_reviews" .github/workflows/shiki-cca-completion.y
 grep "This is not advisory Claude review" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "reviewDecision,statusCheckRollup" .github/workflows/shiki-cca-completion.yml >/dev/null
 
+python3 - "$ROOT" <<'PY'
+import json
+import pathlib
+import re
+import sys
+import tempfile
+import threading
+
+root = pathlib.Path(sys.argv[1])
+sys.path.insert(0, str(root / "scripts"))
+import shiki_state
+
+ids = [shiki_state.new_control_id("L") for _ in range(200)]
+assert len(ids) == len(set(ids))
+assert all(re.match(r"^L-\d{8}T\d{12}Z-[0-9a-f]{8}$", value) for value in ids)
+assert not any(re.match(r"^L-\d{4,}$", value) for value in ids)
+
+with tempfile.TemporaryDirectory() as tmp:
+    target = pathlib.Path(tmp)
+    ledger_dir = target / ".shiki" / "ledger"
+    ledger_dir.mkdir(parents=True)
+    (ledger_dir / "L-9999.json").write_text('{"id":"L-9999"}\n')
+
+    create_path = target / ".shiki" / "state" / "record.json"
+    shiki_state.atomic_create_json(create_path, {"id": "record", "value": 1})
+    before = create_path.read_text()
+    try:
+        shiki_state.atomic_create_json(create_path, {"id": "record", "value": 2})
+    except FileExistsError:
+        pass
+    else:
+        raise AssertionError("atomic_create_json must fail on existing files")
+    assert create_path.read_text() == before
+
+    replace_path = target / ".shiki" / "state" / "replace.json"
+    shiki_state.atomic_replace_json(replace_path, {"id": "replace", "value": 1})
+    shiki_state.atomic_replace_json(replace_path, {"id": "replace", "value": 2})
+    assert json.loads(replace_path.read_text())["value"] == 2
+    assert not list(replace_path.parent.glob("*.tmp"))
+
+    values = iter(["L-20260603T121530123456Z-deadbeef", "L-20260603T121530123457Z-feedface"])
+    original = shiki_state.new_control_id
+    shiki_state.new_control_id = lambda prefix: next(values)
+    try:
+        (ledger_dir / "L-20260603T121530123456Z-deadbeef.json").write_text('{"id":"existing","value":1}\n')
+        ledger_id = shiki_state.append_ledger_entry(
+            target,
+            lambda candidate: {
+                "id": candidate,
+                "timestamp": "2026-06-03T00:00:00+00:00",
+                "goal_id": "G-0001",
+                "type": "check",
+                "actor": "test",
+                "summary": "collision retry",
+                "evidence": ["retry"],
+            },
+            retries=2,
+        )
+    finally:
+        shiki_state.new_control_id = original
+    assert ledger_id == "L-20260603T121530123457Z-feedface"
+    assert json.loads((ledger_dir / "L-20260603T121530123456Z-deadbeef.json").read_text())["id"] == "existing"
+
+    created: list[str] = []
+    lock = threading.Lock()
+
+    def append_one() -> None:
+        new_id = shiki_state.append_ledger_entry(
+            target,
+            lambda candidate: {
+                "id": candidate,
+                "timestamp": "2026-06-03T00:00:00+00:00",
+                "goal_id": "G-0001",
+                "type": "check",
+                "actor": "test",
+                "summary": "concurrent append",
+                "evidence": ["thread"],
+            },
+        )
+        with lock:
+            created.append(new_id)
+
+    threads = [threading.Thread(target=append_one) for _ in range(20)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert len(created) == len(set(created)) == 20
+    assert not (ledger_dir / "L-10000.json").exists()
+PY
+
 expect_fail env \
   CCA_VERDICT_FILE=/tmp/shiki-cca-invalid-complete.json \
   STRUCTURED_OUTPUT='{"verdict":"complete"}' \
@@ -105,6 +197,7 @@ grep "CCA verdict complete" /tmp/shiki-cca-valid-complete.out >/dev/null
 mkdir -p "$TARGET"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-control-install.out
 test -f "$TARGET/.github/CODEOWNERS"
+test -f "$TARGET/scripts/shiki_state.py"
 test -f "$TARGET/skills/engineering/shiki/SKILL.md"
 test -f "$TARGET/skills/engineering/grill-with-docs/SKILL.md"
 
@@ -146,6 +239,108 @@ text = path.read_text()
 path.write_text(text.replace("Current conversation", "GitHub Issues, Pull Requests, Checks, Reviews, comments, and merge evidence"))
 PY
 
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+ledger = target / ".shiki" / "ledger"
+goal = target / ".shiki" / "goals"
+goal.mkdir(parents=True, exist_ok=True)
+(goal / "G-9999.json").write_text(json.dumps({
+    "acceptance_evidence": ["validator fixture"],
+    "completion_conditions": ["validator fixture"],
+    "id": "G-9999",
+    "non_goals": [],
+    "outcome": "validator fixture",
+    "required_skills": ["tdd"],
+    "risk_level": "low",
+    "status": "historical",
+    "title": "Validator fixture",
+}, indent=2, sort_keys=True) + "\n")
+
+def write_ledger(path_name: str, entry_id: str) -> None:
+    payload = {
+        "actor": "validator-test",
+        "evidence": ["validator id fixture"],
+        "goal_id": "G-9999",
+        "id": entry_id,
+        "links": [],
+        "summary": "validator id fixture",
+        "timestamp": "2026-06-03T00:00:00+00:00",
+        "type": "check",
+    }
+    (ledger / path_name).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+write_ledger("L-9999.json", "L-9999")
+write_ledger("L-20260603T121530123456Z-a1b2c3d4.json", "L-20260603T121530123456Z-a1b2c3d4")
+PY
+python3 "$TARGET/scripts/validate_shiki.py"
+
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+target = pathlib.Path(sys.argv[1])
+payload = {
+    "actor": "validator-test",
+    "evidence": ["filename mismatch fixture"],
+    "goal_id": "G-9999",
+    "id": "L-20260603T121530123456Z-a1b2c3d4",
+    "links": [],
+    "summary": "filename mismatch fixture",
+    "timestamp": "2026-06-03T00:00:00+00:00",
+    "type": "check",
+}
+(target / ".shiki" / "ledger" / "L-20260603T121530123457Z-a1b2c3d4.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$TARGET/scripts/validate_shiki.py"
+grep "duplicate id" /tmp/shiki-expected-fail.out >/dev/null
+rm "$TARGET/.shiki/ledger/L-20260603T121530123457Z-a1b2c3d4.json"
+
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+target = pathlib.Path(sys.argv[1])
+payload = {
+    "actor": "validator-test",
+    "evidence": ["filename mismatch fixture"],
+    "goal_id": "G-9999",
+    "id": "L-20260603T121530123458Z-a1b2c3d4",
+    "links": [],
+    "summary": "filename mismatch fixture",
+    "timestamp": "2026-06-03T00:00:00+00:00",
+    "type": "check",
+}
+(target / ".shiki" / "ledger" / "L-20260603T121530123459Z-a1b2c3d4.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$TARGET/scripts/validate_shiki.py"
+grep "file name must match id" /tmp/shiki-expected-fail.out >/dev/null
+rm "$TARGET/.shiki/ledger/L-20260603T121530123459Z-a1b2c3d4.json"
+
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+target = pathlib.Path(sys.argv[1])
+payload = {
+    "actor": "validator-test",
+    "evidence": ["malformed id fixture"],
+    "goal_id": "G-9999",
+    "id": "L-not-valid",
+    "links": [],
+    "summary": "malformed id fixture",
+    "timestamp": "2026-06-03T00:00:00+00:00",
+    "type": "check",
+}
+(target / ".shiki" / "ledger" / "L-not-valid.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$TARGET/scripts/validate_shiki.py"
+grep "id must match L-0001 or L-YYYYMMDDTHHMMSSffffffZ-<8 hex>" /tmp/shiki-expected-fail.out >/dev/null
+rm "$TARGET/.shiki/ledger/L-not-valid.json"
+
 cd "$TARGET"
 git init -b main >/tmp/shiki-control-git-init.out
 # Hermetic git identity so `git commit` works in CI where no global git user is configured.
@@ -164,6 +359,11 @@ python3 "$ROOT/scripts/shiki.py" goal create \
   >/tmp/shiki-goal-create.json
 
 GOAL_ID="$(json_get /tmp/shiki-goal-create.json goal_id)"
+case "$GOAL_ID" in
+  G-[0-9][0-9][0-9][0-9]) echo "goal id unexpectedly used legacy max-plus-one format: $GOAL_ID" >&2; exit 1 ;;
+  G-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]Z-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+  *) echo "unexpected goal id: $GOAL_ID" >&2; exit 1 ;;
+esac
 test -f "$TARGET/.shiki/goals/$GOAL_ID.json"
 
 python3 "$ROOT/scripts/shiki.py" issue plan \
@@ -178,6 +378,11 @@ python3 "$ROOT/scripts/shiki.py" issue plan \
   >/tmp/shiki-issue-plan.json
 
 TASK_ID="$(json_get /tmp/shiki-issue-plan.json task_id)"
+case "$TASK_ID" in
+  T-[0-9][0-9][0-9][0-9]) echo "task id unexpectedly used legacy max-plus-one format: $TASK_ID" >&2; exit 1 ;;
+  T-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]Z-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+  *) echo "unexpected task id: $TASK_ID" >&2; exit 1 ;;
+esac
 test -f "$TARGET/.shiki/tasks/$TASK_ID.json"
 test -f "$TARGET/.shiki/dag/$GOAL_ID.json"
 
@@ -209,8 +414,10 @@ task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
 task = json.loads(task_path.read_text())
 task["expected_pr"] = 123
 task["status"] = "review"
-ledger_numbers = [int(path.stem.split("-")[1]) for path in (target / ".shiki" / "ledger").glob("L-*.json")]
-ledger_id = f"L-{max(ledger_numbers, default=0) + 1:04d}"
+ledger_id = "L-9999"
+while (target / ".shiki" / "ledger" / f"{ledger_id}.json").exists():
+    number = int(ledger_id.split("-")[1]) - 1
+    ledger_id = f"L-{number:04d}"
 task["ledger_evidence"].append(ledger_id)
 task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
 

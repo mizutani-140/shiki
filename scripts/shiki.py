@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Iterable
 
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS, TARGET_STATE_DIRECTORIES
+from shiki_state import append_ledger_entry, atomic_replace_json, new_control_id
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +55,7 @@ TEMPLATE_PATHS = [
     "scripts/enforce_cca_verdict.py",
     "scripts/mergegate_check.py",
     "scripts/shiki.py",
+    "scripts/shiki_state.py",
     "scripts/test_shiki_init.sh",
     "scripts/test_shiki_control_plane.sh",
     "scripts/test_shiki_run_orchestrator.sh",
@@ -543,8 +545,7 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def write_json(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_replace_json(path, data)
 
 
 def print_json(data: dict[str, Any]) -> None:
@@ -649,8 +650,27 @@ def scan_ids(target: Path, prefix: str) -> list[int]:
 
 
 def next_control_id(target: Path, prefix: str) -> str:
-    number = max(scan_ids(target, prefix), default=0) + 1
-    return f"{prefix}-{number:04d}"
+    directories = {
+        "G": ["goals", "dag"],
+        "T": ["tasks"],
+        "L": ["ledger"],
+        "P": ["plans"],
+        "RUN": ["runs"],
+        "EXEC": ["runner"],
+        "SMOKE": ["smoke"],
+        "START": ["starts"],
+        "INBOX": ["inbox"],
+        "RP": ["repairs"],
+        "R": ["reports"],
+    }.get(prefix, [])
+    base = target / ".shiki"
+    for _ in range(10):
+        candidate = new_control_id(prefix)
+        if not directories:
+            return candidate
+        if not any((base / directory / f"{candidate}.json").exists() for directory in directories):
+            return candidate
+    raise ShikiError(f"could not allocate a unique {prefix} id after 10 attempts")
 
 
 def load_task(target: Path, task_id: str) -> dict[str, Any]:
@@ -773,20 +793,23 @@ def append_ledger(
     task_id: str | None = None,
     links: list[str] | None = None,
 ) -> str:
-    ledger_id = next_control_id(target, "L")
-    payload: dict[str, Any] = {
-        "id": ledger_id,
-        "timestamp": utc_now(),
-        "goal_id": goal_id,
-        "task_id": task_id,
-        "type": ledger_type,
-        "actor": "shiki-cli",
-        "summary": summary,
-        "evidence": evidence,
-        "links": links or [],
-    }
-    write_json(shiki_path(target, "ledger", f"{ledger_id}.json"), payload)
-    return ledger_id
+    try:
+        return append_ledger_entry(
+            target,
+            lambda ledger_id: {
+                "id": ledger_id,
+                "timestamp": utc_now(),
+                "goal_id": goal_id,
+                "task_id": task_id,
+                "type": ledger_type,
+                "actor": "shiki-cli",
+                "summary": summary,
+                "evidence": evidence,
+                "links": links or [],
+            },
+        )
+    except FileExistsError as error:
+        raise ShikiError(str(error)) from error
 
 
 def register_goal_from_plan(target: Path, plan: dict[str, Any], *, github_issue: int | None = None) -> tuple[str, str]:
