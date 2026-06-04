@@ -13,13 +13,15 @@
     ".shiki/manifest.json includes .shiki/migrations and .shiki/migrations/state.json as tracked required migration-state.",
     "scripts/test_shiki_migrations.sh covers registry, state validation, CLI status/plan/apply, dry-run/execute/idempotence, destructive policy, doctor integration, and manifest staging.",
     "docs/agents/shiki-migrations.md documents purpose, state path, migration ID format, baseline migration, dry-run / execute behavior, destructive migration policy, doctor, validator, GitHub source-of-truth relation, and repair/ledger relation.",
-    "Non-goals preserved: P1.4 governance/evidence redesign, P2 packaging/release/onboarding, runtime adapter execution engine, new provider support, Guardian policy, CCA Review Bridge semantics, branch protection, CODEOWNERS, P0.4 semantics, Node.js workflows, external migration services, and broad historical rewrites."
+    "Non-goals preserved: P1.4 governance/evidence redesign, P2 packaging/release/onboarding, runtime adapter execution engine, new provider support, Guardian policy, CCA Review Bridge semantics, branch protection, CODEOWNERS, P0.4 semantics, Node.js workflows, external migration services, and broad historical rewrites.",
+    "Pull Request #85 records the T-0045 .shiki migration framework implementation: https://github.com/mizutani-140/shiki/pull/85"
   ],
   "goal_id": "G-0012",
   "id": "L-20260604T103500000000Z-a9d4c1e2",
   "links": [
     "https://github.com/mizutani-140/shiki/issues/30",
-    "https://github.com/mizutani-140/shiki/issues/84"
+    "https://github.com/mizutani-140/shiki/issues/84",
+    "https://github.com/mizutani-140/shiki/pull/85"
   ],
   "summary": "Recorded T-0045 .shiki migration framework implementation evidence.",
   "task_id": "T-0045",
