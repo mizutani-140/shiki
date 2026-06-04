@@ -1,0 +1,42 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0041 post-merge reconciliation records PR #73 merge and main workflow verification results.",
+    "PR #73 merged into main with guarded head 81f44390f2658325ccb4b32dda897b87ff3a770e.",
+    "PR #73 merge commit on main is bb4c36787e6a7a98b80417ae4f5032f2447aeb38.",
+    "Guardian approval evidence was recorded on PR #73 with guardian:approved label and approval comment.",
+    "Pre-merge CCA Completion rerun on PR #73 passed: run 26928892526, CCA verdict job 79446885601.",
+    "Pre-merge CCA Review Bridge created or confirmed github-actions APPROVED review on PR #73.",
+    "Pre-merge MergeGate policy check passed: run 26928892526, job 79447428908.",
+    "Pre-merge MergeGate metadata check passed: run 26929544567, job 79446377950.",
+    "Pre-merge Validate Shiki mirror passed: run 26928861779, job 79444439141.",
+    "Pre-merge Claude review passed: run 26928861784, job 79444439189.",
+    "Post-merge Shiki Validate from main passed: run 26929981544, job 79447603606.",
+    "Post-merge Shiki Validate used actions/checkout@v5 with FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true and emitted no Node.js 20 deprecation warning.",
+    "Post-merge Shiki Claude Review from main passed: run 26929980995.",
+    "Post-merge Shiki Claude Review emitted a Node.js 20 deprecation warning only for actions/checkout@v4, which is an exact documented two-phase defer in docs/agents/node24-workflow-compatibility.md.",
+    "Post-merge Shiki CCA Completion from main produced a passing CCA verdict job: run 26929980409, job 79447601697.",
+    "Post-merge Shiki CCA Completion emitted Node.js 20 deprecation warnings only for actions/checkout@v4, actions/upload-artifact@v4, and actions/download-artifact@v4, which are exact documented two-phase defers in docs/agents/node24-workflow-compatibility.md.",
+    "Post-merge Shiki CCA Completion MergeGate policy job failed during Refresh live PR state because merged PR head 81f44390f2658325ccb4b32dda897b87ff3a770e did not match checked-out main merge commit bb4c36787e6a7a98b80417ae4f5032f2447aeb38; this is a post-merge workflow_dispatch context mismatch, not a Node.js warning failure.",
+    "No ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION usage was observed or introduced.",
+    "No active T-0041 lock exists on main.",
+    "T-0041 post-merge reconciliation PR #74: https://github.com/mizutani-140/shiki/pull/74",
+    "Issue #72 can be closed after this reconciliation is merged.",
+    "Goal #30 / G-0012 remains open because P1.3.3-P1.3.6, P1.4, and P2 work remain open."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260604T041523287792Z-6be0e47d",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/72",
+    "https://github.com/mizutani-140/shiki/pull/73",
+    "https://github.com/mizutani-140/shiki/pull/74",
+    "https://github.com/mizutani-140/shiki/actions/runs/26928892526",
+    "https://github.com/mizutani-140/shiki/actions/runs/26929980409",
+    "https://github.com/mizutani-140/shiki/actions/runs/26929980995",
+    "https://github.com/mizutani-140/shiki/actions/runs/26929981544"
+  ],
+  "summary": "Recorded T-0041 post-merge Node 24 workflow verification and completion evidence.",
+  "task_id": "T-0041",
+  "timestamp": "2026-06-04T04:15:23Z",
+  "type": "completion"
+}
