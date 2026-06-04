@@ -81,6 +81,28 @@ def model_from(root: Path, text: str):
     return load_workflow_model(write(root / ".github" / "workflows" / "fixture.yml", text))
 
 
+def model_at(path: Path, text: str):
+    return load_workflow_model(write(path, text))
+
+
+def node24_inventory_doc(*, include_deferred: bool = True) -> str:
+    rows = [
+        "# Node 24 Workflow Compatibility",
+        "",
+        "| Workflow | Job | Step / action | Current version | Node 20 warning status | Node 24-compatible candidate | Decision |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+        "| shiki-cca-completion.yml | CCA verdict | actions/checkout | actions/checkout@v6 | resolved | actions/checkout@v6 | upgraded |",
+    ]
+    if include_deferred:
+        rows.extend(
+            [
+                "| shiki-cca-completion.yml | CCA verdict | anthropics/claude-code-action | anthropics/claude-code-action@v1 | deferred third-party action | none verified | exact defer |",
+                "| shiki-claude-review.yml | Claude review | anthropics/claude-code-action | anthropics/claude-code-action@v1 | deferred third-party action | none verified | exact defer |",
+            ]
+        )
+    return "\n".join(rows) + "\n"
+
+
 with_temp_root(
     lambda root: expect_pass(
         "valid workflow required check",
@@ -242,6 +264,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+      - name: Upload
+        uses: actions/upload-artifact@v7
+      - name: Download
+        uses: actions/download-artifact@v8
 """,
         )
     )
@@ -266,6 +292,114 @@ jobs:
         lambda: validate_shiki.validate_node24_workflow_policy({path: deprecated_model}),
         "Node 24-compatible official action",
     )
+    wildcard = deprecated.replace("actions/checkout@v4", "actions/checkout@v*")
+    wildcard_model = load_workflow_model(write(path, wildcard))
+    expect_fail(
+        "wildcard action version fails deterministically",
+        lambda: validate_shiki.validate_node24_workflow_policy({path: wildcard_model}),
+        "wildcard",
+    )
+
+with_temp_root(
+    lambda root: (
+        write(root / "docs" / "agents" / "node24-workflow-compatibility.md", node24_inventory_doc()),
+        expect_pass(
+            "exact deferred Claude action passes with docs",
+            lambda: validate_shiki.validate_node24_workflow_policy(
+                {
+                    root
+                    / ".github/workflows/shiki-cca-completion.yml": model_at(
+                        root / ".github/workflows/shiki-cca-completion.yml",
+                        """\
+name: Shiki CCA Completion
+on:
+  pull_request:
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+permissions:
+  contents: read
+jobs:
+  cca:
+    name: CCA verdict
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run CCA
+        uses: anthropics/claude-code-action@v1
+""",
+                    )
+                }
+            ),
+        ),
+    )
+)
+
+with_temp_root(
+    lambda root: (
+        write(root / "docs" / "agents" / "node24-workflow-compatibility.md", node24_inventory_doc(include_deferred=False)),
+        expect_fail(
+            "deferred Claude action requires inventory docs",
+            lambda: validate_shiki.validate_node24_workflow_policy(
+                {
+                    root
+                    / ".github/workflows/shiki-cca-completion.yml": model_at(
+                        root / ".github/workflows/shiki-cca-completion.yml",
+                        """\
+name: Shiki CCA Completion
+on:
+  pull_request:
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+permissions:
+  contents: read
+jobs:
+  cca:
+    name: CCA verdict
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run CCA
+        uses: anthropics/claude-code-action@v1
+""",
+                    )
+                }
+            ),
+            "missing deferred action inventory",
+        ),
+    )
+)
+
+with_temp_root(
+    lambda root: (
+        write(root / "docs" / "agents" / "node24-workflow-compatibility.md", node24_inventory_doc()),
+        expect_fail(
+            "changed Claude action version is not implicitly deferred",
+            lambda: validate_shiki.validate_node24_workflow_policy(
+                {
+                    root
+                    / ".github/workflows/shiki-cca-completion.yml": model_at(
+                        root / ".github/workflows/shiki-cca-completion.yml",
+                        """\
+name: Shiki CCA Completion
+on:
+  pull_request:
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+permissions:
+  contents: read
+jobs:
+  cca:
+    name: CCA verdict
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run CCA
+        uses: anthropics/claude-code-action@v2
+""",
+                    )
+                }
+            ),
+            "explicit Node 24 deferred action exception",
+        ),
+    )
+)
 
 print("Shiki validator hardening tests passed")
 PY

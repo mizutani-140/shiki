@@ -76,10 +76,12 @@ runtime semantics.
 Workflow files that execute `anthropics/claude-code-action` are a bounded
 exception during pull-request validation: the action requires the workflow file
 content to match the default branch before it can exchange its OIDC token. Node
-24 action upgrades for those workflow files must land through a dedicated
-Guardian-approved workflow migration path; the validator records only explicit
-workflow/action/version exceptions, not a general allowance for deprecated
-official actions.
+24 action upgrades for official actions in those workflow files must land
+through a dedicated Guardian-approved workflow migration path. The inventory in
+`docs/agents/node24-workflow-compatibility.md` records the resolved official
+action upgrades and any remaining exact third-party workflow/action/version
+exception. The validator records only explicit workflow/action/version
+exceptions, not a general allowance for deprecated official actions.
 
 `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` is forbidden in Shiki workflows. If a
 third-party action still emits a Node 20 deprecation warning and no compatible

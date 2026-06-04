@@ -1,0 +1,61 @@
+{
+  "acceptance_checks": [
+    "CCA and Claude workflow official GitHub actions no longer rely on the T-0039 Node 24 deferred official-action exceptions.",
+    "Affected workflows set FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true and continue to forbid ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION.",
+    "Official GitHub actions use verified Node 24-compatible pinned versions: checkout v6, upload-artifact v7, and download-artifact v8 where applicable.",
+    "anthropics/claude-code-action@v1 remains a documented exact workflow/action/version defer for CCA and Claude review workflows only.",
+    "scripts/validate_shiki.py rejects unsafe Node opt-outs, deprecated official action versions, wildcard action versions, and changed Anthropic action versions that are not explicitly configured.",
+    "scripts/test_shiki_validator_hardening.sh covers exact defer acceptance, docs inventory coverage, changed-version rejection, wildcard rejection, and official action rejection.",
+    "docs/agents/node24-workflow-compatibility.md inventories every affected workflow action and records post-merge verification expectations.",
+    "Runtime auth, decision-control, and checklist docs distinguish Node runtime compatibility from Guardian approval, CCA Review Bridge, branch protection, CODEOWNERS, and other governance behavior.",
+    "Verification bundle passes: validate_shiki, py_compile, scripts/test_shiki_*.sh, git diff --check, and local actionlint/shellcheck wrappers."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0039",
+    "T-0040"
+  ],
+  "expected_branch": "shiki/t-0041-node24-cca-claude-workflows",
+  "expected_pr": 73,
+  "github_issue": 72,
+  "goal_id": "G-0012",
+  "id": "T-0041",
+  "ledger_evidence": [
+    "L-20260604T032222118996Z-7d033d14"
+  ],
+  "locks": [
+    "shiki:workflows",
+    "shiki:governance",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:.github/workflows/shiki-claude-review.yml",
+    "path:.github/workflows/shiki-orchestrator.yml",
+    "path:.github/workflows/shiki-validate.yml",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_validator_hardening.sh",
+    "path:docs/agents/**",
+    "path:.shiki/tasks/T-0041.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/goals/G-0012.json"
+  ],
+  "non_goals": [
+    "Do not implement P1.3.3 runtime registry or adapter contract.",
+    "Do not implement P1.3.4 GitHub host, protocol, or provider configuration.",
+    "Do not implement P1.3.5 doctor checks.",
+    "Do not implement P1.3.6 migration framework.",
+    "Do not implement P1.4 governance or evidence model hardening.",
+    "Do not implement P2 distribution, onboarding, packaging, or release work.",
+    "Do not change Guardian approval policy.",
+    "Do not change CCA Review Bridge behavior or semantics.",
+    "Do not change branch protection behavior or CODEOWNERS ownership rules.",
+    "Do not change P0.4 state ID, ledger, lock, untrusted PR, live-state, or adversarial evidence semantics."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Resolve the T-0039 deferred CCA / Claude workflow Node 24 compatibility surface by upgrading safe official GitHub actions, preserving exact Anthropic action defer semantics, strengthening validation and tests, and documenting post-merge verification.",
+  "status": "review",
+  "title": "Resolve deferred CCA / Claude workflow Node 24 compatibility"
+}

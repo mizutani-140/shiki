@@ -15,6 +15,9 @@ permissions:
   issues: write
   id-token: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   review:
     name: Claude review
@@ -22,7 +25,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Validate Shiki artifacts
         run: python3 scripts/validate_shiki.py

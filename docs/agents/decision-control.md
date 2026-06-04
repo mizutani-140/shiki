@@ -123,6 +123,20 @@ New Shiki CLI modules must not perform git, GitHub, filesystem mutation,
 network, or command execution work at import time. Target installation and
 manifest staging must include every module required by the shim.
 
+### Workflow Runtime Compatibility Policy
+
+Workflow runtime compatibility is part of MergeGate evidence. Shiki workflow
+JavaScript actions must pin explicit versions, forbid
+`ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`, and set
+`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` on workflows that exercise JavaScript
+actions. Official GitHub actions must use validator-approved Node
+24-compatible majors.
+
+The only accepted Node runtime defer is an exact workflow/action/version entry
+recorded in `docs/agents/node24-workflow-compatibility.md`. A broad defer for a
+workflow, action owner, wildcard version, or all third-party actions is not a
+decision Shiki runtimes may make.
+
 MergeGate refreshes live GitHub PR state immediately before policy evaluation
 and uses that live state for PR labels, reviews, review decision, head SHA, and
 status rollup. It also compares protected `.shiki` paths against a base-branch
