@@ -20,6 +20,7 @@
     "Post-merge Shiki CCA Completion MergeGate policy job failed during Refresh live PR state because merged PR head 81f44390f2658325ccb4b32dda897b87ff3a770e did not match checked-out main merge commit bb4c36787e6a7a98b80417ae4f5032f2447aeb38; this is a post-merge workflow_dispatch context mismatch, not a Node.js warning failure.",
     "No ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION usage was observed or introduced.",
     "No active T-0041 lock exists on main.",
+    "T-0041 post-merge reconciliation PR #74: https://github.com/mizutani-140/shiki/pull/74",
     "Issue #72 can be closed after this reconciliation is merged.",
     "Goal #30 / G-0012 remains open because P1.3.3-P1.3.6, P1.4, and P2 work remain open."
   ],
@@ -28,6 +29,7 @@
   "links": [
     "https://github.com/mizutani-140/shiki/issues/72",
     "https://github.com/mizutani-140/shiki/pull/73",
+    "https://github.com/mizutani-140/shiki/pull/74",
     "https://github.com/mizutani-140/shiki/actions/runs/26928892526",
     "https://github.com/mizutani-140/shiki/actions/runs/26929980409",
     "https://github.com/mizutani-140/shiki/actions/runs/26929980995",
