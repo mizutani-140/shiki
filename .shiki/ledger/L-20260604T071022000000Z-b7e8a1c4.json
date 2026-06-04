@@ -14,13 +14,14 @@
     "Goal #30 remains open because P1.3.5, P1.3.6, P1.4, and P2 work remain incomplete.",
     "GitHub Issue #78: https://github.com/mizutani-140/shiki/issues/78",
     "Implementation Pull Request #79: https://github.com/mizutani-140/shiki/pull/79",
-    "Reconciliation Pull Request: to be created from branch shiki/t-0043-post-merge-reconcile"
+    "Reconciliation Pull Request #80: https://github.com/mizutani-140/shiki/pull/80"
   ],
   "goal_id": "G-0012",
   "id": "L-20260604T071022000000Z-b7e8a1c4",
   "links": [
     "https://github.com/mizutani-140/shiki/issues/78",
-    "https://github.com/mizutani-140/shiki/pull/79"
+    "https://github.com/mizutani-140/shiki/pull/79",
+    "https://github.com/mizutani-140/shiki/pull/80"
   ],
   "summary": "Recorded T-0043 post-merge mirror reconciliation evidence.",
   "task_id": "T-0043",
