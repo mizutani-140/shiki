@@ -14,13 +14,14 @@
   "dependencies": [
     "T-0043"
   ],
-  "expected_branch": "shiki/t-0044-shiki-doctor-checks",
-  "expected_pr": 82,
+  "expected_branch": "shiki/t-0044-post-merge-reconcile",
+  "expected_pr": 83,
   "github_issue": 81,
   "goal_id": "G-0012",
   "id": "T-0044",
   "ledger_evidence": [
-    "L-20260604T080956865573Z-cddc061a"
+    "L-20260604T080956865573Z-cddc061a",
+    "L-20260604T095233305838Z-f6e55649"
   ],
   "locks": [
     "shiki:contracts",
@@ -61,6 +62,6 @@
   ],
   "risk_level": "critical",
   "scope": "Expand shiki doctor into a dependency-free readiness diagnostic for Shiki-managed repositories covering runtime auth, provider config, GitHub readiness, secrets, branch protection, workflows, required checks, CODEOWNERS, manifest layout, runtime registry assignments, and contract drift without mutating state.",
-  "status": "review",
+  "status": "done",
   "title": "Add shiki doctor checks"
 }
