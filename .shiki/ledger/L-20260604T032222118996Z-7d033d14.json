@@ -10,6 +10,9 @@
     "scripts/test_shiki_validator_hardening.sh covers exact deferred Claude action acceptance, missing docs inventory failure, changed Anthropic version failure, wildcard action failure, official action version failure, and safe official action acceptance.",
     "docs/agents/node24-workflow-compatibility.md records the workflow/action inventory, Anthropic OIDC/default-branch constraint, exact defer list, and post-merge verification plan.",
     "docs/agents/runtime-auth-model.md, docs/agents/decision-control.md, and docs/agents/checklists.md connect Node runtime compatibility policy without changing Guardian, CCA Review Bridge, branch protection, CODEOWNERS, or P0.4 semantics.",
+    "Required skill evidence: diagnose was used to separate safe official action upgrades from the remaining Anthropic OIDC/default-branch compatibility constraint.",
+    "Required skill evidence: tdd was used by adding validator hardening regressions for unsafe opt-out rejection, official action version rejection, wildcard rejection, exact Anthropic defer acceptance, docs inventory coverage, and changed-version rejection.",
+    "Required skill evidence: improve-codebase-architecture was used to keep workflow runtime compatibility policy centralized in validator and docs without changing unrelated runtime architecture.",
     "GitHub Issue #72: https://github.com/mizutani-140/shiki/issues/72",
     "Expected Pull Request #73: https://github.com/mizutani-140/shiki/pull/73"
   ],
