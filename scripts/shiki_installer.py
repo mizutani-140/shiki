@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 import shutil
 
-from shiki_manifest import load_manifest, manifest_create_directories, manifest_directories, manifest_exclude_from_commit
+from shiki_manifest import load_manifest, manifest_create_directories, manifest_directories, manifest_exclude_from_commit, manifest_install_include
 from shiki_process import ROOT, ShikiError, info, warn, validate_target_shiki, load_default_config
 
 TEMPLATE_PATHS = [
@@ -37,6 +37,7 @@ TEMPLATE_PATHS = [
     "scripts/shiki_jsonschema.py",
     "scripts/shiki_locks.py",
     "scripts/shiki_manifest.py",
+    "scripts/shiki_migrations.py",
     "scripts/shiki_provider.py",
     "scripts/shiki_workflows.py",
     "scripts/enforce_cca_verdict.py",
@@ -64,6 +65,7 @@ TEMPLATE_PATHS = [
     "scripts/test_shiki_runtime_registry.sh",
     "scripts/test_shiki_provider_config.sh",
     "scripts/test_shiki_doctor.sh",
+    "scripts/test_shiki_migrations.sh",
     "scripts/test_shiki_module_boundaries.sh",
     "scripts/test_shiki_shellcheck.sh",
     "scripts/test_shiki_validator_hardening.sh",
@@ -77,6 +79,7 @@ DEFAULT_CODEX_SKILL_PATH = "~/.codex/skills/shiki/SKILL.md"
 def manifest_stage_paths(path: Path) -> list[str]:
     candidates = list(TEMPLATE_PATHS)
     candidates.append(".shiki/manifest.json")
+    candidates.append(".shiki/migrations/state.json")
     candidates.append(".shiki/repo.json")
     manifest = load_manifest(path) if (path / ".shiki" / "manifest.json").exists() else load_manifest(ROOT)
     excluded = manifest_exclude_from_commit(manifest)
@@ -131,6 +134,8 @@ def should_skip(path: Path, *, target_install: bool = False) -> bool:
         relative = path.relative_to(ROOT)
         relative_text = relative.as_posix()
         manifest = load_manifest(ROOT)
+        if relative_text in manifest_install_include(manifest):
+            return False
         state_prefixes = tuple(f"{directory}/" for directory in manifest_create_directories(manifest))
         if relative_text.startswith(state_prefixes):
             return True

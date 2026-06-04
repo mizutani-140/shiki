@@ -1,0 +1,19 @@
+{
+  "applied": [
+    {
+      "actor": "codex-front",
+      "applied_at": "2026-06-04T10:30:00Z",
+      "evidence": [
+        ".shiki/manifest.json exists.",
+        ".shiki/tasks, .shiki/goals, and .shiki/ledger exist.",
+        "G-0012 exists.",
+        "Known prior state is accepted as the baseline without rewriting historical records."
+      ],
+      "id": "M-20260604-0001-baseline",
+      "status": "applied",
+      "summary": "Accepted existing post-P1.3.5 Shiki layout as the migration baseline."
+    }
+  ],
+  "source_of_truth": "Repository-local Shiki migration state. GitHub operational state remains authoritative.",
+  "version": 1
+}

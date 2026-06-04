@@ -33,6 +33,12 @@
       "required": true,
       "description": "Durable append-only evidence entries."
     },
+    ".shiki/migrations": {
+      "kind": "migration-state",
+      "tracked": true,
+      "required": true,
+      "description": "Migration framework state and applied migration evidence."
+    },
     ".shiki/locks": {
       "kind": "lock-mirror",
       "tracked": true,
@@ -126,6 +132,12 @@
       "tracked": true,
       "required": true
     },
+    ".shiki/migrations/state.json": {
+      "kind": "migration-state",
+      "tracked": true,
+      "required": true,
+      "description": "Repository-local applied migration records."
+    },
     ".shiki/policy.example.yaml": {
       "kind": "example-policy",
       "tracked": true,
@@ -143,6 +155,7 @@
       ".shiki/README.md",
       ".shiki/config.yaml",
       ".shiki/policy.example.yaml",
+      ".shiki/migrations/state.json",
       ".shiki/schemas/**",
       ".shiki/templates/**"
     ],
@@ -152,6 +165,7 @@
       ".shiki/tasks",
       ".shiki/dag",
       ".shiki/ledger",
+      ".shiki/migrations",
       ".shiki/locks",
       ".shiki/worktrees",
       ".shiki/repairs",

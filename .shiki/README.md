@@ -23,6 +23,7 @@ against it.
 | `.shiki/inbox` | mirror | yes | yes | Imported plans and intake artifacts waiting for Shiki processing. |
 | `.shiki/ledger` | append-only-evidence | yes | yes | Durable append-only evidence entries. |
 | `.shiki/locks` | lock-mirror | yes | no | Active lock files created on demand. Task lock intent is tracked in task records. |
+| `.shiki/migrations` | migration-state | yes | yes | Migration framework state and applied migration evidence. |
 | `.shiki/plans` | mirror | yes | yes | Goal Seek and Task DAG planning artifacts. |
 | `.shiki/repairs` | mirror | yes | yes | Bounded repair packets and repair coordination records. |
 | `.shiki/reports` | mirror | yes | yes | Completion, repair, and handoff reports. |

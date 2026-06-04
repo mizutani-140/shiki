@@ -49,6 +49,7 @@ TARGET_STATE_DIRECTORIES = (
     ".shiki/tasks",
     ".shiki/dag",
     ".shiki/ledger",
+    ".shiki/migrations",
     ".shiki/locks",
     ".shiki/worktrees",
     ".shiki/repairs",
