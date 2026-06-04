@@ -13,6 +13,7 @@ import subprocess
 from typing import Any, Literal
 
 from shiki_git import current_branch, existing_origin_url, is_git_repo
+from shiki_guardian import GUARDIAN_POLICY_PATH, GuardianPolicyError, load_guardian_policy, validate_guardian_policy
 from shiki_manifest import ManifestError, load_manifest, manifest_required_directories, manifest_required_files, manifest_runtime_directories
 from shiki_migrations import MIGRATION_STATE_PATH, migration_status
 from shiki_process import ROOT, first_line, print_json, run
@@ -444,6 +445,63 @@ def _migration_findings(target: Path) -> list[DoctorFinding]:
     return findings
 
 
+def _guardian_findings(target: Path) -> list[DoctorFinding]:
+    try:
+        policy = load_guardian_policy(target)
+    except GuardianPolicyError as error:
+        return [
+            _finding(
+                "doctor.guardian.policy",
+                "fail",
+                "Guardian policy",
+                str(error),
+                f"Restore {GUARDIAN_POLICY_PATH} before relying on Guardian approval checks.",
+            )
+        ]
+    errors = validate_guardian_policy(policy)
+    findings = [
+        _finding(
+            "doctor.guardian.policy",
+            "pass" if not errors else "fail",
+            "Guardian policy",
+            "Guardian policy parses and validates." if not errors else "Guardian policy is invalid.",
+            "Run `python3 scripts/validate_shiki.py` and repair Guardian policy drift." if errors else "",
+            {"path": GUARDIAN_POLICY_PATH, "errors": errors, "applies_to_risk": list(policy.applies_to_risk)},
+        )
+    ]
+    approver_errors: list[str] = []
+    if not policy.users and not policy.teams:
+        approver_errors.append("no Guardian users or teams configured")
+    findings.append(
+        _finding(
+            "doctor.guardian.approvers",
+            "pass" if not approver_errors else "fail",
+            "Guardian approvers",
+            "Guardian users/teams are configured." if not approver_errors else "Guardian approvers are incomplete.",
+            f"Add at least one user or team to {GUARDIAN_POLICY_PATH}." if approver_errors else "",
+            {"users": list(policy.users), "teams": list(policy.teams), "errors": approver_errors},
+        )
+    )
+    solo_ok = (not policy.solo_maintainer_enabled) or (policy.allow_pr_author_as_guardian and bool(policy.solo_maintainer_rationale))
+    findings.append(
+        _finding(
+            "doctor.guardian.solo_maintainer",
+            "pass" if solo_ok else "fail",
+            "Guardian solo maintainer policy",
+            "Solo maintainer policy is explicit." if solo_ok else "Solo maintainer policy is incomplete.",
+            "Set explicit allow_pr_author_as_guardian and rationale, or disable solo maintainer mode." if not solo_ok else "",
+            {
+                "enabled": policy.solo_maintainer_enabled,
+                "allow_pr_author_as_guardian": policy.allow_pr_author_as_guardian,
+                "has_rationale": bool(policy.solo_maintainer_rationale),
+                "review_bridge_counts_as_guardian": policy.github_actions_review_bridge_counts_as_guardian,
+                "claude_counts_as_guardian": policy.advisory_claude_review_counts_as_guardian,
+            },
+        )
+    )
+    return findings
+
+
 def _runtime_findings(target: Path, config: dict[str, Any]) -> list[DoctorFinding]:
     findings = [
         _finding(
@@ -660,6 +718,28 @@ def _online_findings(config: ProviderConfig | None, local_config: dict[str, Any]
                 {"default_workflow_permissions": default_perm, "can_approve_pull_request_reviews": can_approve},
             )
         )
+    comments = _gh(["api", f"repos/{config.repo}/issues/comments?per_page=1"], config)
+    events = _gh(["api", f"repos/{config.repo}/issues/events?per_page=1"], config)
+    guardian_events_ok = comments.returncode == 0 and events.returncode == 0
+    findings.append(
+        _finding(
+            "doctor.guardian.github_events",
+            "pass" if guardian_events_ok else "warn",
+            "Guardian GitHub evidence APIs",
+            "GitHub issue comments/events APIs are readable."
+            if guardian_events_ok
+            else "Could not verify GitHub issue comments/events API access for Guardian evidence.",
+            "Grant issue metadata read access or verify that workflows can call issue comments/events APIs."
+            if not guardian_events_ok
+            else "",
+            {
+                "comments_status": comments.returncode,
+                "events_status": events.returncode,
+                "comments_error": first_line(comments.stderr),
+                "events_error": first_line(events.stderr),
+            },
+        )
+    )
     return findings
 
 
@@ -691,6 +771,7 @@ def doctor_findings(target: Path, *, online: bool = False) -> list[DoctorFinding
     findings.extend(_codeowners_findings(target))
     findings.extend(_manifest_findings(target))
     findings.extend(_migration_findings(target))
+    findings.extend(_guardian_findings(target))
     findings.extend(_runtime_findings(target, config))
     findings.append(_contract_finding(target))
     if online:

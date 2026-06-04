@@ -50,6 +50,7 @@ perform a broad repository audit in this job.
 - Do not block solely because same-head status checks are still in progress while this CCA job is running; record them as residual risk unless a completed required check has failed.
 - Treat missing required skill evidence as a blocker.
 - Treat unresolved high-risk/critical items as `needs_guardian`.
+- For Guardian approval, use `.shiki/guardian-policy.json` and live GitHub evidence. Do not count CCA Review Bridge approval or advisory Claude review as Guardian approval.
 - Treat missing task/Goal/PRD links as `insufficient_evidence` or `blocked`.
 - Treat unrelated changes as scope drift.
 - If repair is needed, produce a bounded repair packet for Codex.

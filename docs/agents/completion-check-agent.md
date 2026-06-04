@@ -118,7 +118,7 @@ CCA must not return `complete` when any of these are true:
 - Required checks are failing, missing, or skipped without justification.
 - TDD evidence is required but absent.
 - Review has unresolved blocking findings.
-- Risk label requires Guardian approval and none exists.
+- Risk label requires policy-backed Guardian approval under `.shiki/guardian-policy.json` and live label plus Guardian comment/review evidence is missing.
 - Architecture gate was triggered and not resolved.
 - Required skill invocation is missing.
 - Locks conflict or are unrecorded.

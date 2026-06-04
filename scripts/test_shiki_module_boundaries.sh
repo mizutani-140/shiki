@@ -21,6 +21,7 @@ modules = [
     "shiki_doctor",
     "shiki_git",
     "shiki_github",
+    "shiki_guardian",
     "shiki_installer",
     "shiki_migrations",
     "shiki_process",
@@ -56,6 +57,7 @@ for required in [
     "scripts/shiki_doctor.py",
     "scripts/shiki_git.py",
     "scripts/shiki_github.py",
+    "scripts/shiki_guardian.py",
     "scripts/shiki_installer.py",
     "scripts/shiki_migrations.py",
     "scripts/shiki_provider.py",
@@ -65,6 +67,7 @@ for required in [
     "scripts/shiki_tasks.py",
     "scripts/test_shiki_doctor.sh",
     "scripts/test_shiki_migrations.sh",
+    "scripts/test_shiki_guardian_policy.sh",
     "scripts/test_shiki_module_boundaries.sh",
 ]:
     if required not in stage_paths:

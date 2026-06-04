@@ -45,6 +45,15 @@ M-20260604-0001-baseline
 It records the existing post-P1.3.5 layout as accepted baseline evidence. It
 does not rewrite historical `.shiki` records.
 
+The Guardian policy migration is:
+
+```text
+M-20260604-0002-guardian-policy
+```
+
+It records `.shiki/guardian-policy.json` as tracked governance state after the
+baseline migration.
+
 ## Commands
 
 ```bash

@@ -49,6 +49,7 @@ TEMPLATE_PATHS = [
     "scripts/shiki_doctor.py",
     "scripts/shiki_git.py",
     "scripts/shiki_github.py",
+    "scripts/shiki_guardian.py",
     "scripts/shiki_installer.py",
     "scripts/shiki_process.py",
     "scripts/shiki_runtime.py",
@@ -64,6 +65,7 @@ TEMPLATE_PATHS = [
     "scripts/test_shiki_runtime_auth.sh",
     "scripts/test_shiki_runtime_registry.sh",
     "scripts/test_shiki_provider_config.sh",
+    "scripts/test_shiki_guardian_policy.sh",
     "scripts/test_shiki_doctor.sh",
     "scripts/test_shiki_migrations.sh",
     "scripts/test_shiki_module_boundaries.sh",
@@ -79,6 +81,7 @@ DEFAULT_CODEX_SKILL_PATH = "~/.codex/skills/shiki/SKILL.md"
 def manifest_stage_paths(path: Path) -> list[str]:
     candidates = list(TEMPLATE_PATHS)
     candidates.append(".shiki/manifest.json")
+    candidates.append(".shiki/guardian-policy.json")
     candidates.append(".shiki/migrations/state.json")
     candidates.append(".shiki/repo.json")
     manifest = load_manifest(path) if (path / ".shiki" / "manifest.json").exists() else load_manifest(ROOT)

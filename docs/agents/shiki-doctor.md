@@ -123,6 +123,12 @@ validator used by CI. Doctor surfaces that validator result as
 repository readiness, runtime auth, provider metadata, and optional live GitHub
 state.
 
+Guardian policy diagnostics report `.shiki/guardian-policy.json` readiness
+through `doctor.guardian.policy`, `doctor.guardian.approvers`, and
+`doctor.guardian.solo_maintainer`. Online mode also checks whether GitHub issue
+comments/events APIs are readable as `doctor.guardian.github_events`; this is
+diagnostic only and never substitutes for MergeGate Guardian approval.
+
 ## Non-Goals
 
 Doctor does not:

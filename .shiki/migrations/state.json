@@ -12,6 +12,18 @@
       "id": "M-20260604-0001-baseline",
       "status": "applied",
       "summary": "Accepted existing post-P1.3.5 Shiki layout as the migration baseline."
+    },
+    {
+      "actor": "codex-front",
+      "applied_at": "2026-06-04T12:20:00Z",
+      "evidence": [
+        ".shiki/guardian-policy.json exists.",
+        ".shiki/manifest.json includes .shiki/guardian-policy.json.",
+        "Guardian policy validation is enforced by scripts/validate_shiki.py."
+      ],
+      "id": "M-20260604-0002-guardian-policy",
+      "status": "applied",
+      "summary": "Accepted Guardian policy config as tracked Shiki governance state."
     }
   ],
   "source_of_truth": "Repository-local Shiki migration state. GitHub operational state remains authoritative.",

@@ -19,6 +19,7 @@ MigrationStatus = Literal["applied", "pending", "failed", "skipped"]
 MIGRATION_STATE_PATH = ".shiki/migrations/state.json"
 MIGRATION_STATE_VERSION = 1
 BASELINE_MIGRATION_ID = "M-20260604-0001-baseline"
+GUARDIAN_POLICY_MIGRATION_ID = "M-20260604-0002-guardian-policy"
 MIGRATION_ID_RE = re.compile(r"^M-[0-9]{8}-[0-9]{4}-[a-z0-9][a-z0-9-]*$")
 MIGRATION_SOURCE_OF_TRUTH = "Repository-local Shiki migration state. GitHub operational state remains authoritative."
 
@@ -76,6 +77,25 @@ def _baseline_apply(root: Path, dry_run: bool) -> dict[str, Any]:
     }
 
 
+def _guardian_policy_apply(root: Path, dry_run: bool) -> dict[str, Any]:
+    required = [
+        ".shiki/guardian-policy.json",
+        ".shiki/manifest.json",
+    ]
+    missing = [relative for relative in required if not (root / relative).exists()]
+    if missing:
+        raise MigrationError(f"{GUARDIAN_POLICY_MIGRATION_ID}: guardian policy prerequisites are missing: {', '.join(missing)}")
+    return {
+        "summary": "Accepted Guardian policy config as tracked Shiki governance state.",
+        "evidence": [
+            ".shiki/guardian-policy.json exists.",
+            ".shiki/manifest.json includes .shiki/guardian-policy.json.",
+            "Guardian policy validation is enforced by scripts/validate_shiki.py.",
+        ],
+        "dry_run": dry_run,
+    }
+
+
 def migration_registry() -> tuple[Migration, ...]:
     return (
         Migration(
@@ -92,6 +112,20 @@ def migration_registry() -> tuple[Migration, ...]:
             ),
             destructive=False,
             apply=_baseline_apply,
+        ),
+        Migration(
+            id=GUARDIAN_POLICY_MIGRATION_ID,
+            title="Track Guardian approval policy",
+            description="Record .shiki/guardian-policy.json as the machine-readable Guardian approval governance contract.",
+            introduced_in="T-0046",
+            requires=(BASELINE_MIGRATION_ID,),
+            affected_paths=(
+                ".shiki/guardian-policy.json",
+                ".shiki/manifest.json",
+                MIGRATION_STATE_PATH,
+            ),
+            destructive=False,
+            apply=_guardian_policy_apply,
         ),
     )
 

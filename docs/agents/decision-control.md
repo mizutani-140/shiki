@@ -273,13 +273,13 @@ Branch protection or rulesets should require these stable checks. Avoid making o
 
 ### Guardian approval evidence
 
-Guardian approval for high-risk or critical work must be machine-readable. MergeGate accepts only configured sources:
+Guardian approval for high-risk or critical work is defined by `.shiki/guardian-policy.json`. MergeGate accepts only policy-backed live GitHub sources:
 
-- an explicit configured approval label such as `guardian:approved`;
+- the required `guardian:approved` label, applied by a configured Guardian when label actor evidence is available;
 - an approved GitHub review from a configured Guardian user or team;
-- a structured ledger field named `guardian_approval` with `approved: true` and a configured `approver`, `user`, or `team`.
+- or a Guardian approval comment from a configured Guardian that includes the current PR head SHA when the policy requires it.
 
-Ledger prose is not approval evidence. Negative or explanatory text such as "no Guardian approval evidence is present" must not satisfy MG-06.
+Label-only approval is not enough for high-risk or critical work when comment/head or review evidence is required. Ledger prose, PR body text, and structured ledger fields are not Guardian approval evidence. Negative or explanatory text such as "no Guardian approval evidence is present" must not satisfy MG-06.
 
 ### CCA Review Bridge
 
