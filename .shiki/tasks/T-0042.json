@@ -18,7 +18,7 @@
     "T-0041"
   ],
   "expected_branch": "shiki/t-0042-post-merge-reconcile",
-  "expected_pr": 76,
+  "expected_pr": 77,
   "github_issue": 75,
   "goal_id": "G-0012",
   "id": "T-0042",

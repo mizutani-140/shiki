@@ -16,13 +16,15 @@
     "Goal #30 / G-0012 remains open for remaining P1/P2 work.",
     "This reconciliation changes only Shiki mirror / ledger evidence; no implementation code or workflow files are changed.",
     "GitHub Issue #75: https://github.com/mizutani-140/shiki/issues/75",
-    "Implementation Pull Request #76: https://github.com/mizutani-140/shiki/pull/76"
+    "Implementation Pull Request #76: https://github.com/mizutani-140/shiki/pull/76",
+    "Reconciliation Pull Request #77: https://github.com/mizutani-140/shiki/pull/77"
   ],
   "goal_id": "G-0012",
   "id": "L-20260604T054404060890Z-5555eeab",
   "links": [
     "https://github.com/mizutani-140/shiki/issues/75",
-    "https://github.com/mizutani-140/shiki/pull/76"
+    "https://github.com/mizutani-140/shiki/pull/76",
+    "https://github.com/mizutani-140/shiki/pull/77"
   ],
   "summary": "Recorded T-0042 post-merge mirror reconciliation evidence.",
   "task_id": "T-0042",
