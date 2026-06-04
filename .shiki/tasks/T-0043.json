@@ -16,6 +16,7 @@
     "T-0042"
   ],
   "expected_branch": "shiki/t-0043-github-provider-config",
+  "expected_pr": 79,
   "github_issue": 78,
   "goal_id": "G-0012",
   "id": "T-0043",

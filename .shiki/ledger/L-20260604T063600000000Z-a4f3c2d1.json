@@ -16,12 +16,13 @@
     "Required skill evidence: tdd was used by adding scripts/test_shiki_provider_config.sh coverage for provider behavior and extending init/module-boundary tests.",
     "Required skill evidence: improve-codebase-architecture was used to introduce a dependency-free provider module without replacing gh, changing Guardian/CCA/MergeGate behavior, or adding non-GitHub provider support.",
     "GitHub Issue #78: https://github.com/mizutani-140/shiki/issues/78",
-    "Expected Pull Request: to be created from branch shiki/t-0043-github-provider-config"
+    "Pull Request #79: https://github.com/mizutani-140/shiki/pull/79"
   ],
   "goal_id": "G-0012",
   "id": "L-20260604T063600000000Z-a4f3c2d1",
   "links": [
-    "https://github.com/mizutani-140/shiki/issues/78"
+    "https://github.com/mizutani-140/shiki/issues/78",
+    "https://github.com/mizutani-140/shiki/pull/79"
   ],
   "summary": "Recorded T-0043 GitHub provider configuration implementation evidence.",
   "task_id": "T-0043",
