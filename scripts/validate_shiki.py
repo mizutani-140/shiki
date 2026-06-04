@@ -43,6 +43,14 @@ from shiki_manifest import (
     manifest_runtime_directories,
     render_manifest_layout,
 )
+from shiki_migrations import (
+    BASELINE_MIGRATION_ID,
+    MIGRATION_STATE_PATH,
+    load_migration_state,
+    migration_status,
+    validate_migration_registry,
+    validate_migration_state_data,
+)
 from shiki_provider import (
     DEFAULT_GITHUB_HOST,
     ProviderConfigError,
@@ -266,6 +274,7 @@ SHIKI_CLI_MODULE_FILES = (
     "scripts/shiki_git.py",
     "scripts/shiki_github.py",
     "scripts/shiki_installer.py",
+    "scripts/shiki_migrations.py",
     "scripts/shiki_provider.py",
     "scripts/shiki_process.py",
     "scripts/shiki_runtime.py",
@@ -433,8 +442,12 @@ def validate_shiki_cli_module_boundaries(root: Path = ROOT) -> None:
             raise ValidationError(f"scripts/shiki_installer.py: TEMPLATE_PATHS must include {relative}")
     if "scripts/test_shiki_module_boundaries.sh" not in template_paths:
         raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_module_boundaries.sh")
+    if "scripts/test_shiki_migrations.sh" not in template_paths:
+        raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_migrations.sh")
     if not (root / "scripts/test_shiki_module_boundaries.sh").is_file():
         raise ValidationError("scripts/test_shiki_module_boundaries.sh: module boundary regression test is missing")
+    if not (root / "scripts/test_shiki_migrations.sh").is_file():
+        raise ValidationError("scripts/test_shiki_migrations.sh: migration regression test is missing")
     if "scripts/test_shiki_provider_config.sh" not in template_paths:
         raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_provider_config.sh")
     if not (root / "scripts/test_shiki_provider_config.sh").is_file():
@@ -456,6 +469,56 @@ def validate_shiki_cli_module_boundaries(root: Path = ROOT) -> None:
                 sys.path.remove(scripts_path)
             except ValueError:
                 pass
+
+
+def validate_shiki_migrations(root: Path = ROOT) -> None:
+    registry_errors = validate_migration_registry()
+    if registry_errors:
+        raise ValidationError(f"scripts/shiki_migrations.py: {'; '.join(registry_errors)}")
+    state_path = root / MIGRATION_STATE_PATH
+    if not state_path.is_file():
+        raise ValidationError(f"{MIGRATION_STATE_PATH}: migration state file is missing")
+    try:
+        state = load_migration_state(root)
+    except Exception as error:
+        raise ValidationError(str(error)) from error
+    state_errors = validate_migration_state_data(state)
+    if state_errors:
+        raise ValidationError(f"{MIGRATION_STATE_PATH}: {'; '.join(state_errors)}")
+    status = migration_status(root)
+    if status["pending"]:
+        raise ValidationError(f"{MIGRATION_STATE_PATH}: committed repository must not have pending migrations: {', '.join(status['pending'])}")
+    applied_ids = {record.get("id") for record in state.get("applied", []) if isinstance(record, dict)}
+    if BASELINE_MIGRATION_ID not in applied_ids:
+        raise ValidationError(f"{MIGRATION_STATE_PATH}: baseline migration {BASELINE_MIGRATION_ID} must be applied")
+
+    manifest = load_manifest(root)
+    directories = manifest_directories(manifest)
+    if ".shiki/migrations" not in directories:
+        raise ValidationError(f"{MANIFEST_PATH}: .shiki/migrations must be represented")
+    migration_dir = directories[".shiki/migrations"]
+    if migration_dir.get("kind") != "migration-state" or migration_dir.get("tracked") is not True or migration_dir.get("required") is not True:
+        raise ValidationError(f"{MANIFEST_PATH}: .shiki/migrations must be tracked required migration-state")
+    if MIGRATION_STATE_PATH not in manifest_required_files(manifest):
+        raise ValidationError(f"{MANIFEST_PATH}: {MIGRATION_STATE_PATH} must be a required file")
+    if MIGRATION_STATE_PATH not in manifest_install_include(manifest):
+        raise ValidationError(f"{MANIFEST_PATH}: {MIGRATION_STATE_PATH} must be included for install")
+
+    docs = {
+        "docs/agents/shiki-migrations.md": ["M-20260604-0001-baseline", MIGRATION_STATE_PATH, "shiki migrate apply"],
+        "docs/agents/shiki-doctor.md": ["doctor.migrations.state", "doctor.migrations.pending"],
+        "docs/agents/shiki-cli-architecture.md": ["scripts/shiki_migrations.py"],
+        "docs/agents/decision-control.md": [MIGRATION_STATE_PATH],
+        "docs/agents/checklists.md": ["migration registry", MIGRATION_STATE_PATH],
+    }
+    for relative, needles in docs.items():
+        path = root / relative
+        if not path.is_file():
+            raise ValidationError(f"{relative}: migration documentation is missing")
+        text = path.read_text(encoding="utf-8")
+        for needle in needles:
+            if needle not in text:
+                raise ValidationError(f"{relative}: missing migration documentation reference {needle!r}")
 
 
 def validate_provider_config_contracts(root: Path = ROOT) -> None:
@@ -1430,6 +1493,7 @@ def main() -> int:
         validate_validate_workflow_coverage()
         validate_shiki_manifest()
         validate_shiki_cli_module_boundaries()
+        validate_shiki_migrations()
         validate_provider_config_contracts()
         validate_runtime_contracts()
         validate_issue_forms()

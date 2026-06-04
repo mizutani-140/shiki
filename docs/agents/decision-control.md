@@ -111,6 +111,13 @@ Required empty tracked state directories are represented with `.gitkeep` or
 created according to the manifest. Runtime-only directories such as
 `.shiki/gha` are generated on demand and must not be committed.
 
+`.shiki/migrations/state.json` records repository-local migration state and
+applied migration evidence. It is tracked Shiki mirror evidence, not a
+replacement for GitHub operational state, repair packets, ledger evidence, CCA,
+MergeGate, or Guardian approval. `shiki migrate apply` is dry-run by default and
+requires explicit `--execute` or `--i-understand` before writing migration
+state; destructive migrations require `--i-understand`.
+
 ### CLI Module Boundary Policy
 
 `scripts/shiki.py` is the executable Shiki CLI shim. Parser construction and

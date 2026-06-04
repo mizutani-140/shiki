@@ -12,6 +12,7 @@ from shiki_bootstrap import cmd_bootstrap_github, cmd_init, cmd_preflight, cmd_s
 from shiki_doctor import cmd_doctor
 from shiki_github import cmd_github_issue, cmd_github_pr
 from shiki_installer import DEFAULT_CLAUDE_COMMAND_PATH, DEFAULT_CODEX_SKILL_PATH, DEFAULT_GLOBAL_COMMAND_PATH, cmd_install_command, cmd_install_global, cmd_install_target, cmd_status
+from shiki_migrations import cmd_migrate
 from shiki_process import ShikiError
 from shiki_runtime import cmd_daemon_enqueue_plan, cmd_daemon_run, cmd_runner_codex, cmd_runner_execute, cmd_runner_next, cmd_smoke_live
 from shiki_tasks import cmd_dispatch_check, cmd_goal_complete, cmd_goal_create, cmd_handoff_repair, cmd_handoff_task, cmd_issue_plan, cmd_lock_acquire, cmd_plan_guide, cmd_plan_ingest, cmd_repair_packet, cmd_run, cmd_task_status, cmd_worktree_allocate
@@ -118,6 +119,25 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--online", action="store_true", help="Run GitHub API checks that require network/auth")
     doctor.add_argument("--strict", action="store_true", help="Exit non-zero on warnings as well as failures")
     doctor.set_defaults(func=cmd_doctor)
+
+    migrate = subcommands.add_parser("migrate", help="Inspect and apply repository-local .shiki state migrations")
+    migrate_subcommands = migrate.add_subparsers(dest="migrate_command", required=True)
+    migrate_status = migrate_subcommands.add_parser("status", help="Show migration state and registry status")
+    migrate_status.add_argument("--target", default=".", help="Target repository path, default current directory")
+    migrate_status.add_argument("--json", action="store_true", help="Print machine-readable status")
+    migrate_status.set_defaults(func=cmd_migrate)
+    migrate_plan = migrate_subcommands.add_parser("plan", help="Preview pending migrations without mutation")
+    migrate_plan.add_argument("--target", default=".", help="Target repository path, default current directory")
+    migrate_plan.add_argument("--migration", action="append", help="Plan a specific migration and its dependencies")
+    migrate_plan.add_argument("--json", action="store_true", help="Print machine-readable plan")
+    migrate_plan.set_defaults(func=cmd_migrate)
+    migrate_apply = migrate_subcommands.add_parser("apply", help="Apply pending migrations; defaults to dry-run")
+    migrate_apply.add_argument("--target", default=".", help="Target repository path, default current directory")
+    migrate_apply.add_argument("--migration", action="append", help="Apply a specific migration and its dependencies")
+    migrate_apply.add_argument("--execute", action="store_true", help="Execute non-destructive migration writes; default is dry-run")
+    migrate_apply.add_argument("--i-understand", action="store_true", help="Execute migrations and allow destructive migrations")
+    migrate_apply.add_argument("--json", action="store_true", help="Print machine-readable result")
+    migrate_apply.set_defaults(func=cmd_migrate)
 
     start = subcommands.add_parser("start", help="One-command interactive Shiki project setup and first run")
     start.add_argument("target_positional", nargs="?", help="Target repository path")

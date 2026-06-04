@@ -14,6 +14,7 @@ from typing import Any, Literal
 
 from shiki_git import current_branch, existing_origin_url, is_git_repo
 from shiki_manifest import ManifestError, load_manifest, manifest_required_directories, manifest_required_files, manifest_runtime_directories
+from shiki_migrations import MIGRATION_STATE_PATH, migration_status
 from shiki_process import ROOT, first_line, print_json, run
 from shiki_provider import ProviderConfig, ProviderConfigError, github_env, provider_from_repo_json, remote_matches_provider
 from shiki_runtime import claude_auth_status, codex_auth_status, github_auth_status, shiki_entrypoints_status
@@ -397,6 +398,52 @@ def _manifest_findings(target: Path) -> list[DoctorFinding]:
     ]
 
 
+def _migration_findings(target: Path) -> list[DoctorFinding]:
+    status = migration_status(target)
+    registry_errors = [error for error in status["errors"] if "registry" in error or "dependency" in error or "duplicate migration id" in error]
+    findings = [
+        _finding(
+            "doctor.migrations.registry",
+            "pass" if not registry_errors else "fail",
+            "Migration registry",
+            "Migration registry imports and dependencies are valid." if not registry_errors else "Migration registry validation failed.",
+            "Repair scripts/shiki_migrations.py registry IDs and dependencies." if registry_errors else "",
+            {"registry_ids": status["registry_ids"], "errors": registry_errors},
+        )
+    ]
+    state_errors = [error for error in status["errors"] if error not in registry_errors]
+    findings.append(
+        _finding(
+            "doctor.migrations.state",
+            "pass" if status["state_exists"] and not state_errors and not status["unknown_applied"] else "fail",
+            "Migration state",
+            f"{MIGRATION_STATE_PATH} is present and valid."
+            if status["state_exists"] and not state_errors and not status["unknown_applied"]
+            else f"{MIGRATION_STATE_PATH} is missing or invalid.",
+            "Run `shiki migrate status --target .` and repair migration state before relying on repository-local migration evidence."
+            if state_errors or status["unknown_applied"] or not status["state_exists"]
+            else "",
+            {
+                "state_path": status["state_path"],
+                "state_exists": status["state_exists"],
+                "unknown_applied": status["unknown_applied"],
+                "errors": state_errors,
+            },
+        )
+    )
+    findings.append(
+        _finding(
+            "doctor.migrations.pending",
+            "pass" if status["pending_count"] == 0 else "warn",
+            "Pending migrations",
+            "No pending migrations." if status["pending_count"] == 0 else f"{status['pending_count']} migration(s) are pending.",
+            "Run `shiki migrate plan --target .` and apply with `--execute` when the plan is accepted." if status["pending_count"] else "",
+            {"pending": status["pending"], "pending_count": status["pending_count"]},
+        )
+    )
+    return findings
+
+
 def _runtime_findings(target: Path, config: dict[str, Any]) -> list[DoctorFinding]:
     findings = [
         _finding(
@@ -643,6 +690,7 @@ def doctor_findings(target: Path, *, online: bool = False) -> list[DoctorFinding
     findings.extend(_workflow_findings(target, config))
     findings.extend(_codeowners_findings(target))
     findings.extend(_manifest_findings(target))
+    findings.extend(_migration_findings(target))
     findings.extend(_runtime_findings(target, config))
     findings.append(_contract_finding(target))
     if online:

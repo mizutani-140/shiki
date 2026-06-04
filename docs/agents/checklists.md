@@ -143,6 +143,11 @@ existence, secrets, branch protection, required checks, code-owner review, and
 workflow permissions. Doctor evidence supplements validation, CCA, MergeGate,
 and Guardian approval; it does not replace them.
 
+When `.shiki` layout or schema changes are in scope, migration evidence must
+include the migration registry status, `.shiki/migrations/state.json`, pending
+migration count, and whether `shiki migrate apply` was dry-run or executed with
+the explicit execute gate.
+
 ## CCA — Completion Judgment Checklist
 
 | ID | Item | Blocking |

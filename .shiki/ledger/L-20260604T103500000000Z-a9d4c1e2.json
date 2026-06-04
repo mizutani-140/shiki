@@ -1,0 +1,34 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0045 implements Goal #30 P1.3.6: Add migration framework for .shiki state changes.",
+    "scripts/shiki_migrations.py defines the dependency-free migration registry, migration state path .shiki/migrations/state.json, status, pending, dry-run plan, and explicit execute-gated apply behavior.",
+    "Baseline migration M-20260604-0001-baseline records the existing post-P1.3.5 Shiki layout without rewriting historical .shiki state.",
+    ".shiki/migrations/state.json records the applied baseline migration as repository-local migration evidence.",
+    "shiki migrate status, plan, and apply are exposed through scripts/shiki_cli.py.",
+    "shiki migrate apply defaults to dry-run and lists intended writes; mutation requires --execute or --i-understand.",
+    "Destructive migration policy requires --i-understand even when execution is requested.",
+    "shiki doctor reports migration registry, migration state, and pending migration findings without applying migrations.",
+    "scripts/validate_shiki.py validates migration registry IDs, dependency graph, state JSON, applied records, baseline application, manifest coverage, and migration documentation.",
+    ".shiki/manifest.json includes .shiki/migrations and .shiki/migrations/state.json as tracked required migration-state.",
+    "scripts/test_shiki_migrations.sh covers registry, state validation, CLI status/plan/apply, dry-run/execute/idempotence, destructive policy, doctor integration, and manifest staging.",
+    "docs/agents/shiki-migrations.md documents purpose, state path, migration ID format, baseline migration, dry-run / execute behavior, destructive migration policy, doctor, validator, GitHub source-of-truth relation, and repair/ledger relation.",
+    "Non-goals preserved: P1.4 governance/evidence redesign, P2 packaging/release/onboarding, runtime adapter execution engine, new provider support, Guardian policy, CCA Review Bridge semantics, branch protection, CODEOWNERS, P0.4 semantics, Node.js workflows, external migration services, and broad historical rewrites.",
+    "Pull Request #85 records the T-0045 .shiki migration framework implementation: https://github.com/mizutani-140/shiki/pull/85",
+    "Required skill diagnose evidence: the implementation built a deterministic feedback loop with py_compile, validate_shiki, targeted migration tests, doctor/module-boundary tests, full scripts/test_shiki_*.sh, migration smoke commands, and git diff checks before PR creation.",
+    "Required skill tdd evidence: scripts/test_shiki_migrations.sh exercises public CLI, validator-facing migration state functions, doctor findings, dry-run/execute behavior, destructive policy, and manifest staging as behavior-level regression coverage.",
+    "Required skill improve-codebase-architecture evidence: scripts/shiki_migrations.py is a deep dependency-free module behind a small status/plan/apply interface, with shiki_cli.py, shiki_doctor.py, and validate_shiki.py depending on the same migration seam instead of duplicating migration state logic.",
+    "Bounded MergeGate metadata repair for PR #85 added only missing task locks for changed documentation/installer/module-boundary files and explicit required skill evidence; implementation behavior, workflow files, Guardian policy, CCA Review Bridge, branch protection, CODEOWNERS, P1.4, and P2 remain unchanged."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260604T103500000000Z-a9d4c1e2",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/30",
+    "https://github.com/mizutani-140/shiki/issues/84",
+    "https://github.com/mizutani-140/shiki/pull/85"
+  ],
+  "summary": "Recorded T-0045 .shiki migration framework implementation evidence.",
+  "task_id": "T-0045",
+  "timestamp": "2026-06-04T10:35:00Z",
+  "type": "check"
+}

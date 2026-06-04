@@ -1,0 +1,66 @@
+{
+  "acceptance_checks": [
+    "scripts/shiki_migrations.py defines a dependency-free migration registry, migration state loading, status, pending, dry-run planning, and explicit execute-gated apply behavior.",
+    ".shiki/migrations/state.json is committed, required by the manifest, included in install/staging, and records baseline migration M-20260604-0001-baseline.",
+    "shiki migrate status/plan/apply expose machine-readable JSON and human output; apply is dry-run by default and requires --execute or --i-understand for mutation.",
+    "Destructive migrations require --i-understand even when execution is requested.",
+    "shiki doctor reports migration registry, migration state, and pending migration findings without applying migrations.",
+    "scripts/validate_shiki.py validates migration registry IDs, dependencies, state JSON, applied records, baseline application, manifest coverage, and migration docs.",
+    "scripts/test_shiki_migrations.sh covers registry, state validation, CLI status/plan/apply, dry-run/execute/idempotence, destructive policy, doctor integration, and manifest staging.",
+    "docs/agents/shiki-migrations.md and related agent docs describe migration state path, baseline, dry-run / execute behavior, destructive policy, doctor, validator, and GitHub source-of-truth relation.",
+    "Verification bundle passes: validate_shiki, py_compile, scripts/test_shiki_*.sh, migrate status JSON, migrate plan, migrate apply dry-run, and git diff --check."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0044"
+  ],
+  "expected_branch": "shiki/t-0045-shiki-migration-framework",
+  "expected_pr": 85,
+  "github_issue": 84,
+  "goal_id": "G-0012",
+  "id": "T-0045",
+  "ledger_evidence": [
+    "L-20260604T103500000000Z-a9d4c1e2"
+  ],
+  "locks": [
+    "shiki:state",
+    "shiki:contracts",
+    "path:scripts/shiki_migrations.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/shiki_doctor.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_migrations.sh",
+    "path:.shiki/manifest.json",
+    "path:.shiki/migrations/**",
+    "path:docs/agents/**",
+    "path:.shiki/tasks/T-0045.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/goals/G-0012.json",
+    "path:.shiki/README.md",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/test_shiki_module_boundaries.sh"
+  ],
+  "non_goals": [
+    "Do not implement P1.4 governance or evidence model redesign.",
+    "Do not implement P2 packaging, release, or onboarding work.",
+    "Do not implement a new runtime adapter execution engine.",
+    "Do not add new GitHub provider support.",
+    "Do not change Guardian policy.",
+    "Do not change CCA Review Bridge semantics.",
+    "Do not change branch protection or CODEOWNERS.",
+    "Do not change P0.4 state, lock, ledger, or evidence semantics.",
+    "Do not change Node.js workflows.",
+    "Do not add an external database or external migration service.",
+    "Do not broadly rewrite historical .shiki state.",
+    "Do not automatically migrate on every command without explicit user intent."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Add a dependency-free migration framework for repository-local .shiki state changes with deterministic registry, baseline migration state, dry-run planning, explicit execute-gated apply behavior, doctor readiness findings, validator coverage, manifest/staging integration, tests, and documentation.",
+  "status": "review",
+  "title": "Add .shiki migration framework"
+}

@@ -28,6 +28,9 @@ auth probes used by Shiki entrypoint status. They cover:
 - CODEOWNERS coverage for critical Shiki paths.
 - `.shiki/manifest.json` layout, required files/directories, and tracked
   runtime-only evidence.
+- `.shiki/migrations/state.json` state validity, migration registry validity,
+  and pending migration count through `doctor.migrations.state`,
+  `doctor.migrations.registry`, and `doctor.migrations.pending`.
 - runtime registry import and config/task runtime assignments.
 - `scripts/validate_shiki.py` contract drift status when available.
 
@@ -125,7 +128,7 @@ state.
 Doctor does not:
 
 - auto-fix files or GitHub settings;
-- create migrations;
+- create or apply migrations;
 - mutate branch protection;
 - set secrets;
 - approve reviews;
