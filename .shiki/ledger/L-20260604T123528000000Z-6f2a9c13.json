@@ -8,13 +8,15 @@
     "Updated Shiki CCA Completion workflow to fetch live Guardian comments, issue events, and timeline evidence before MergeGate policy enforcement.",
     "Updated validator, doctor, manifest, migration state, installer staging, and docs for Guardian policy governance.",
     "Added scripts/test_shiki_guardian_policy.sh and updated existing control-plane, adversarial, doctor, migration, and module-boundary tests.",
+    "Pull Request #88 records the T-0046 implementation: https://github.com/mizutani-140/shiki/pull/88",
     "Required skills used: diagnose, tdd, improve-codebase-architecture.",
     "Local verification will be recorded in the PR after validation completes."
   ],
   "goal_id": "G-0012",
   "id": "L-20260604T123528000000Z-6f2a9c13",
   "links": [
-    "https://github.com/mizutani-140/shiki/issues/87"
+    "https://github.com/mizutani-140/shiki/issues/87",
+    "https://github.com/mizutani-140/shiki/pull/88"
   ],
   "summary": "Implemented T-0046 Guardian approver policy configuration and enforcement.",
   "task_id": "T-0046",
