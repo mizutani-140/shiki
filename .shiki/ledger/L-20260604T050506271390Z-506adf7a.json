@@ -11,12 +11,14 @@
     "scripts/test_shiki_module_boundaries.sh includes shiki_runtime_registry in import, staging, and install-target smoke coverage.",
     "docs/agents/runtime-registry.md documents runtime identity vs runtime role, descriptor fields, supported runtimes, execution modes, auth modes, required tools/secrets, capability flags, and future adapter contract boundaries.",
     "docs/agents/decision-control.md, docs/agents/checklists.md, and docs/agents/runtime-auth-model.md reference the registry without expanding into doctor, provider, migration, workflow, Guardian, CCA Review Bridge, branch protection, CODEOWNERS, P1.4, or P2 work.",
-    "GitHub Issue #75: https://github.com/mizutani-140/shiki/issues/75"
+    "GitHub Issue #75: https://github.com/mizutani-140/shiki/issues/75",
+    "Expected Pull Request #76: https://github.com/mizutani-140/shiki/pull/76"
   ],
   "goal_id": "G-0012",
   "id": "L-20260604T050506271390Z-506adf7a",
   "links": [
-    "https://github.com/mizutani-140/shiki/issues/75"
+    "https://github.com/mizutani-140/shiki/issues/75",
+    "https://github.com/mizutani-140/shiki/pull/76"
   ],
   "summary": "Recorded T-0042 runtime registry / adapter contract implementation evidence.",
   "task_id": "T-0042",

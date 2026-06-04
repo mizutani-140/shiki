@@ -18,6 +18,7 @@
     "T-0041"
   ],
   "expected_branch": "shiki/t-0042-runtime-registry",
+  "expected_pr": 76,
   "github_issue": 75,
   "goal_id": "G-0012",
   "id": "T-0042",
