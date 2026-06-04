@@ -28,11 +28,19 @@ Each Agent Runtime still has its own login gate before it can invoke Shiki:
   `.shiki/repo.json` provider config or CLI flags, so `gh auth login -h HOST`
   must be completed for that host.
 
-Run `shiki doctor` to see which entrypoints are currently usable. A Claude Code
-error such as `Please run /login` or `API Error: 401 Invalid authentication
-credentials` means Claude Code failed before Shiki received control. Fix it with
-`claude auth login` or `/login` in Claude Code, or start the same Shiki flow from
-Codex or a terminal with `shiki start` while Claude auth is unavailable.
+Run `shiki doctor` to see which entrypoints are currently usable and whether the
+repository is ready for Shiki operation. Offline doctor checks cover configured
+runtime auth, provider metadata, git origin, workflows, required checks,
+CODEOWNERS, manifest layout, runtime assignments, and contract drift. Online
+checks are opt-in with `--online` and use `gh` to inspect repository existence,
+secrets, branch protection, required checks, code-owner review, and workflow
+permissions. See `docs/agents/shiki-doctor.md`.
+
+A Claude Code error such as `Please run /login` or `API Error: 401 Invalid
+authentication credentials` means Claude Code failed before Shiki received
+control. Fix it with `claude auth login` or `/login` in Claude Code, or start the
+same Shiki flow from Codex or a terminal with `shiki start` while Claude auth is
+unavailable.
 
 Do not assume `openai/codex-action` or `OPENAI_API_KEY` unless a target repository explicitly opts into an API-key based automation mode. The default Shiki loop is:
 

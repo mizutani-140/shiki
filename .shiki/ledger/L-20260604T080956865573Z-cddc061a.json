@@ -1,0 +1,30 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "Implemented T-0044 / P1.3.5 diagnostic-only shiki doctor expansion.",
+    "Added scripts/shiki_doctor.py with stable DoctorFinding records, JSON report shape, human output, overall status summary, --target, --online, and --strict behavior.",
+    "Preserved existing doctor runtime/entrypoint compatibility fields while adding findings for provider config, git, workflows, checks, CODEOWNERS, manifest, runtime registry, validate_shiki contract drift, and optional GitHub online readiness.",
+    "Online checks are opt-in with --online and use gh for auth, repository existence/default branch, secret metadata, branch protection, required checks/reviews/code-owner review, and workflow permissions.",
+    "Secret diagnostics report only metadata status and do not print secret values.",
+    "Added scripts/test_shiki_doctor.sh covering offline fixtures, fake gh online checks, permission-denied handling, strict warning exit, secret redaction, and human remediation output.",
+    "Updated scripts/shiki_cli.py, scripts/shiki_installer.py, scripts/test_shiki_module_boundaries.sh, and scripts/validate_shiki.py for doctor module wiring, staging, and validation.",
+    "Added docs/agents/shiki-doctor.md and updated decision-control, checklists, runtime-auth-model, runtime-registry, and github-provider-config docs.",
+    "Required skill diagnose applied: classified the existing doctor behavior, metadata blocker, validator reuse points, and online/offline diagnostic boundaries before repair.",
+    "Required skill tdd applied: added scripts/test_shiki_doctor.sh coverage for doctor output, offline fixtures, online fake-gh checks, strict mode, and secret redaction before final verification.",
+    "Required skill improve-codebase-architecture applied: kept doctor diagnostics in scripts/shiki_doctor.py and preserved existing module boundaries instead of expanding scripts/shiki.py or changing runtime/provider behavior.",
+    "Non-goals preserved: P1.3.6 migration framework, P1.4 governance/evidence model redesign, P2 packaging/release/onboarding, provider plugins, Guardian policy, CCA Review Bridge semantics, branch protection policy, CODEOWNERS ownership, P0.4 semantics, and Node workflow changes.",
+    "Local verification is recorded in Pull Request #82 evidence.",
+    "GitHub Issue #81: https://github.com/mizutani-140/shiki/issues/81",
+    "Pull Request #82: https://github.com/mizutani-140/shiki/pull/82"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260604T080956865573Z-cddc061a",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/81",
+    "https://github.com/mizutani-140/shiki/pull/82"
+  ],
+  "summary": "Recorded T-0044 shiki doctor implementation evidence.",
+  "task_id": "T-0044",
+  "timestamp": "2026-06-04T08:09:56Z",
+  "type": "check"
+}

@@ -135,9 +135,9 @@ handoff.
 
 The registry defines the supported runtime names, allowed roles, execution
 mode, auth mode, required tools and secrets, related workflows, and capability
-flags. It is a validation and adapter-contract surface only; it does not yet
-grant a provider abstraction, doctor checks, migration framework, or
-registry-driven dispatch authority.
+flags. It is a validation and adapter-contract surface only; it does not grant a
+provider abstraction, migration framework, or registry-driven dispatch
+authority.
 
 ### GitHub Provider Configuration Policy
 
@@ -150,9 +150,24 @@ remote protocol, web/API base URLs, canonical remote URL, repo API paths, and
 Only `provider=github` is supported. GitHub.com HTTPS is the compatibility
 default for legacy `.shiki/repo.json` records. GitHub Enterprise-compatible
 hosts may use custom host/API URL values, but this does not add non-GitHub
-providers, a provider plugin system, doctor checks, or a migration framework.
-Existing-origin mismatch remains a hard failure unless `--adopt-existing-repo`
-is explicitly passed.
+providers, a provider plugin system, or a migration framework. Existing-origin
+mismatch remains a hard failure unless `--adopt-existing-repo` is explicitly
+passed.
+
+### Doctor Diagnostic Policy
+
+`shiki doctor` is a diagnostic surface, not a decision owner and not an
+auto-remediation tool. It may report runtime auth, provider config, git origin,
+GitHub repository state, secrets, branch protection, required workflows/checks,
+CODEOWNERS, manifest layout, runtime registry assignment, Node workflow policy,
+and `validate_shiki.py` contract drift.
+
+Default doctor checks are offline. Live GitHub repository checks require
+`--online` and use `gh` with the configured provider host. Doctor must not read
+or print secret values, mutate branch protection, set secrets, create labels,
+submit reviews, or change files. A passing doctor report is useful readiness
+evidence, but it does not replace CCA, MergeGate, Guardian approval, branch
+protection, or required GitHub reviews.
 
 ### Workflow Runtime Compatibility Policy
 

@@ -18,6 +18,7 @@ modules = [
     "shiki_bootstrap",
     "shiki_cli",
     "shiki_config",
+    "shiki_doctor",
     "shiki_git",
     "shiki_github",
     "shiki_installer",
@@ -51,6 +52,7 @@ for required in [
     "scripts/shiki_bootstrap.py",
     "scripts/shiki_cli.py",
     "scripts/shiki_config.py",
+    "scripts/shiki_doctor.py",
     "scripts/shiki_git.py",
     "scripts/shiki_github.py",
     "scripts/shiki_installer.py",
@@ -59,6 +61,7 @@ for required in [
     "scripts/shiki_runtime.py",
     "scripts/shiki_runtime_registry.py",
     "scripts/shiki_tasks.py",
+    "scripts/test_shiki_doctor.sh",
     "scripts/test_shiki_module_boundaries.sh",
 ]:
     if required not in stage_paths:
@@ -70,6 +73,11 @@ python3 scripts/shiki.py --help >/tmp/shiki-module-help.out
 grep "init" /tmp/shiki-module-help.out >/dev/null
 grep "bootstrap-platform" /tmp/shiki-module-help.out >/dev/null
 grep "runner" /tmp/shiki-module-help.out >/dev/null
+
+python3 scripts/shiki.py doctor --help >/tmp/shiki-module-doctor-help.out
+grep -- "--target" /tmp/shiki-module-doctor-help.out >/dev/null
+grep -- "--online" /tmp/shiki-module-doctor-help.out >/dev/null
+grep -- "--strict" /tmp/shiki-module-doctor-help.out >/dev/null
 
 python3 scripts/shiki.py init --help >/tmp/shiki-module-init-help.out
 for flag in \
@@ -118,6 +126,7 @@ for path in \
   "scripts/shiki_bootstrap.py" \
   "scripts/shiki_cli.py" \
   "scripts/shiki_config.py" \
+  "scripts/shiki_doctor.py" \
   "scripts/shiki_git.py" \
   "scripts/shiki_github.py" \
   "scripts/shiki_installer.py" \
