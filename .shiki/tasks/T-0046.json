@@ -1,0 +1,75 @@
+{
+  "acceptance_checks": [
+    ".shiki/guardian-policy.json defines Guardian users, teams, approval sources, required label, current-head comment requirement, solo-maintainer policy, and explicit CCA Review Bridge / advisory Claude exclusions.",
+    "scripts/shiki_guardian.py loads, validates, and evaluates Guardian policy using only Python standard library APIs.",
+    "MergeGate requires policy-backed Guardian approval for high-risk and critical PRs and blocks label-only, github-actions Review Bridge, advisory Claude review, wrong-head comments, unconfigured actors, missing policy, and missing live evidence.",
+    ".github/workflows/shiki-cca-completion.yml fetches live Guardian comments, issue events, and timeline evidence before running MergeGate policy check.",
+    "scripts/validate_shiki.py validates Guardian policy, manifest/install coverage, workflow evidence wiring, docs, and template staging.",
+    "scripts/shiki_doctor.py reports Guardian policy, approvers, solo-maintainer policy, and online issue comments/events API diagnostics.",
+    "scripts/test_shiki_guardian_policy.sh covers policy validation, approval evaluation, MergeGate evidence requirements, workflow wiring, and doctor findings.",
+    "Docs describe Guardian policy, approvers, label/comment/review sources, current head SHA requirement, solo-maintainer mode, and why CCA Review Bridge / advisory Claude review are not Guardian approval.",
+    "Verification bundle passes: validate_shiki, py_compile, scripts/test_shiki_*.sh, and git diff --check."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0045"
+  ],
+  "expected_branch": "shiki/t-0046-guardian-policy",
+  "expected_pr": 88,
+  "github_issue": 87,
+  "goal_id": "G-0012",
+  "id": "T-0046",
+  "ledger_evidence": [
+    "L-20260604T123528000000Z-6f2a9c13"
+  ],
+  "locks": [
+    "shiki:state",
+    "shiki:governance",
+    "shiki:workflows",
+    "shiki:contracts",
+    "path:.github/prompts/cca-completion-check.md",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:.shiki/guardian-policy.json",
+    "path:.shiki/manifest.json",
+    "path:.shiki/migrations/**",
+    "path:.shiki/tasks/T-0046.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/goals/G-0012.json",
+    "path:docs/agents/**",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/shiki_contracts.py",
+    "path:scripts/shiki_doctor.py",
+    "path:scripts/shiki_guardian.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/shiki_migrations.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_adversarial_state.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_doctor.sh",
+    "path:scripts/test_shiki_guardian_policy.sh",
+    "path:scripts/test_shiki_migrations.sh",
+    "path:scripts/test_shiki_module_boundaries.sh"
+  ],
+  "non_goals": [
+    "Do not implement P1.4.3 CCA verdict evidence hardening.",
+    "Do not implement P1.4.4 ledger hash-chain, signature, or GitHub check/artifact cross-reference.",
+    "Do not implement P1.4.5 mirror/generated/cache/local-only state classification.",
+    "Do not implement P1.4.6 forged/stale/missing governance evidence suite.",
+    "Do not implement P2 documentation, packaging, release, or onboarding work.",
+    "Do not add a new GitHub App or reviewer bot.",
+    "Do not change CCA Review Bridge semantics.",
+    "Do not change branch protection or CODEOWNERS ownership rules.",
+    "Do not change P0.4 evidence, lock, ID, or ledger semantics.",
+    "Do not change runtime adapter execution behavior.",
+    "Do not change Node workflow runtime policy."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Define machine-readable Guardian approvers and approval policy, then enforce it for high-risk and critical PRs through MergeGate, validator, doctor, workflow evidence fetches, tests, docs, manifest, and migration state.",
+  "status": "review",
+  "title": "Define Guardian approvers and approval policy"
+}

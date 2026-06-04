@@ -83,6 +83,8 @@ test "$(finding_status /tmp/shiki-doctor-valid.json doctor.provider.repo_json)" 
 test "$(finding_status /tmp/shiki-doctor-valid.json doctor.git.origin)" = "pass"
 test "$(finding_status /tmp/shiki-doctor-valid.json doctor.workflows.required_files)" = "pass"
 test "$(finding_status /tmp/shiki-doctor-valid.json doctor.codeowners.coverage)" = "pass"
+test "$(finding_status /tmp/shiki-doctor-valid.json doctor.guardian.policy)" = "pass"
+test "$(finding_status /tmp/shiki-doctor-valid.json doctor.guardian.approvers)" = "pass"
 grep '"id": "doctor.contract.validate_shiki"' /tmp/shiki-doctor-valid.json >/dev/null
 
 NO_REPO="$TMP_ROOT/no-repo"
@@ -181,6 +183,12 @@ JSON
   "api repos/example/shiki-doctor/actions/permissions/workflow")
     echo '{"default_workflow_permissions":"read","can_approve_pull_request_reviews":true}'
     ;;
+  "api repos/example/shiki-doctor/issues/comments?per_page=1")
+    echo '[]'
+    ;;
+  "api repos/example/shiki-doctor/issues/events?per_page=1")
+    echo '[]'
+    ;;
   *)
     echo "fake gh unsupported: $*" >&2
     exit 1
@@ -195,6 +203,7 @@ test "$(finding_status /tmp/shiki-doctor-online.json doctor.github.repo_exists)"
 test "$(finding_status /tmp/shiki-doctor-online.json doctor.github.branch_protection)" = "pass"
 test "$(finding_status /tmp/shiki-doctor-online.json doctor.github.workflow_permissions)" = "pass"
 test "$(finding_status /tmp/shiki-doctor-online.json doctor.secrets.claude_code_oauth_token)" = "pass"
+test "$(finding_status /tmp/shiki-doctor-online.json doctor.guardian.github_events)" = "pass"
 if grep -q "super-secret-token-value" /tmp/shiki-doctor-online.json; then
   echo "doctor output leaked secret sentinel" >&2
   exit 1
@@ -225,6 +234,14 @@ case "$*" in
     echo "permission denied" >&2
     exit 1
     ;;
+  "api repos/example/shiki-doctor/issues/comments?per_page=1")
+    echo "permission denied" >&2
+    exit 1
+    ;;
+  "api repos/example/shiki-doctor/issues/events?per_page=1")
+    echo "permission denied" >&2
+    exit 1
+    ;;
   *)
     echo "fake gh unsupported: $*" >&2
     exit 1
@@ -236,6 +253,7 @@ PATH="$FAKE_BIN:$PATH" python3 scripts/shiki.py doctor --json --online --target 
 test "$(finding_status /tmp/shiki-doctor-online-permission.json doctor.github.branch_protection)" = "warn"
 test "$(finding_status /tmp/shiki-doctor-online-permission.json doctor.github.workflow_permissions)" = "warn"
 test "$(finding_status /tmp/shiki-doctor-online-permission.json doctor.secrets.claude_code_oauth_token)" = "warn"
+test "$(finding_status /tmp/shiki-doctor-online-permission.json doctor.guardian.github_events)" = "warn"
 
 python3 scripts/shiki.py doctor --target "$NO_REPO" >/tmp/shiki-doctor-human.out
 grep "provider:" /tmp/shiki-doctor-human.out >/dev/null

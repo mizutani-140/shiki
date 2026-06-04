@@ -159,7 +159,7 @@ the explicit execute gate.
 | CCA-05 | TDD evidence is present when required. | blocking |
 | CCA-06 | Required checks pass on current head SHA. | blocking |
 | CCA-07 | Dependencies and locks are satisfied. | blocking |
-| CCA-08 | Risk and Guardian requirements are satisfied. | blocking |
+| CCA-08 | Risk and policy-backed Guardian requirements from `.shiki/guardian-policy.json` are satisfied. | blocking |
 | CCA-09 | Ledger evidence is complete. | blocking |
 | CCA-10 | Verdict is one of the allowed statuses. | blocking |
 | CCA-11 | Non-complete verdict includes precise next action. | blocking |
@@ -213,7 +213,7 @@ the explicit execute gate.
 | GC-04 | Integration checks pass. | blocking |
 | GC-05 | Ledger includes all task, PR, check, CCA, repair, and merge evidence. | blocking |
 | GC-06 | Remaining risks are explicit. | blocking |
-| GC-07 | Guardian approval exists when required. | blocking |
+| GC-07 | Policy-backed Guardian approval exists when required. | blocking |
 | GC-08 | Goal issue is ready for `shiki:done`. | blocking |
 
 ## Validator Hardening Checklist

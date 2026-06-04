@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "description": "Machine-readable Guardian approval policy for high-risk and critical Shiki changes.",
+  "applies_to_risk": [
+    "high",
+    "critical"
+  ],
+  "approvers": {
+    "users": [
+      "mizutani-140"
+    ],
+    "teams": []
+  },
+  "approval_sources": {
+    "github_review": {
+      "enabled": true,
+      "require_approved_state": true
+    },
+    "guardian_label": {
+      "enabled": true,
+      "label": "guardian:approved",
+      "require_label_actor": true
+    },
+    "guardian_comment": {
+      "enabled": true,
+      "marker": "Guardian approval granted",
+      "require_head_sha": true
+    }
+  },
+  "solo_maintainer": {
+    "enabled": true,
+    "allow_pr_author_as_guardian": true,
+    "rationale": "This repository is currently operated by a single maintainer; Guardian approval is still recorded as label/comment/head-SHA evidence and must be checked by CCA/MergeGate."
+  },
+  "exclusions": {
+    "github_actions_review_bridge_counts_as_guardian": false,
+    "advisory_claude_review_counts_as_guardian": false
+  }
+}

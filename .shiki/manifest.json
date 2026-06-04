@@ -127,6 +127,12 @@
       "tracked": true,
       "required": true
     },
+    ".shiki/guardian-policy.json": {
+      "kind": "governance-policy",
+      "tracked": true,
+      "required": true,
+      "description": "Machine-readable Guardian approver and approval-source policy."
+    },
     ".shiki/manifest.json": {
       "kind": "layout-contract",
       "tracked": true,
@@ -152,6 +158,7 @@
   "install": {
     "include": [
       ".shiki/manifest.json",
+      ".shiki/guardian-policy.json",
       ".shiki/README.md",
       ".shiki/config.yaml",
       ".shiki/policy.example.yaml",

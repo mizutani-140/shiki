@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
+from shiki_guardian import GuardianPolicyError, evaluate_guardian_approval, load_guardian_policy_file, risk_requires_guardian, validate_guardian_policy
 from shiki_locks import active_lock_conflicts, files_outside_locks
 from shiki_schema import SchemaValidationError, validate_instance
 
@@ -35,6 +36,13 @@ def load_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_json_list(path: Path) -> list[dict[str, Any]]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, list):
+        raise ValueError(f"{path} must contain a JSON array")
+    return [entry for entry in data if isinstance(entry, dict)]
 
 
 def load_schema(path: Path) -> dict[str, Any]:
@@ -199,15 +207,6 @@ def configured_required_review(target: Path) -> bool:
     return True
 
 
-def configured_guardian_policy(target: Path) -> dict[str, set[str]]:
-    guardian = load_shiki_config(target).get("guardian", {})
-    return {
-        "labels": {str(label).strip().lower() for label in guardian.get("labels") or [] if str(label).strip()},
-        "users": {str(user).strip().lower() for user in guardian.get("users") or [] if str(user).strip()},
-        "teams": {str(team).strip().lower() for team in guardian.get("teams") or [] if str(team).strip()},
-    }
-
-
 def workflow_job_names(target: Path) -> set[str]:
     names: set[str] = set()
     workflow_dir = target / ".github" / "workflows"
@@ -337,42 +336,137 @@ def enforce_review_policy(pr: dict[str, Any], target: Path, blocking: list[str])
         blocking.append("Required review is missing")
 
 
-def guardian_identity_allowed(identity: str, allowed: set[str]) -> bool:
-    return bool(identity and identity.strip().lower() in allowed)
+def _guardian_policy_path(target: Path, value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else target / path
 
 
-def guardian_review_approved(pr: dict[str, Any], users: set[str], teams: set[str]) -> bool:
-    for review in pr.get("reviews") or []:
-        if not isinstance(review, dict) or str(review.get("state") or "").upper() != "APPROVED":
-            continue
-        author = review.get("author") or {}
-        login = author.get("login") if isinstance(author, dict) else author
-        if guardian_identity_allowed(str(login or ""), users):
-            return True
-        team = review.get("team") or {}
-        slug = team.get("slug") if isinstance(team, dict) else team
-        if guardian_identity_allowed(str(slug or ""), teams):
-            return True
-    return False
+def _guardian_risk_labels(pr: dict[str, Any], task: dict[str, Any] | None) -> list[str]:
+    labels = list(pr_label_names(pr))
+    if task:
+        risk = str(task.get("risk_level") or "").strip().lower()
+        if risk:
+            labels.append(risk)
+            labels.append(f"risk:{risk}")
+    return labels
 
 
-def structured_guardian_approval(entry: dict[str, Any], users: set[str], teams: set[str]) -> bool:
-    approval = entry.get("guardian_approval")
-    if not isinstance(approval, dict) or approval.get("approved") is not True:
-        return False
-    approver = str(approval.get("approver") or approval.get("user") or "").strip()
-    team = str(approval.get("team") or "").strip()
-    return guardian_identity_allowed(approver, users) or guardian_identity_allowed(team, teams)
+def _builtin_guardian_risk_required(risk_labels: list[str]) -> bool:
+    normalized = {label.strip().lower().removeprefix("risk:") for label in risk_labels if label.strip()}
+    return bool(normalized.intersection({"high", "critical"}))
 
 
-def guardian_approved(pr: dict[str, Any], ledger_entries: list[dict[str, Any]], target: Path) -> bool:
-    policy = configured_guardian_policy(target)
-    labels = pr_label_names(pr)
-    if policy["labels"] and labels.intersection(policy["labels"]):
-        return True
-    if guardian_review_approved(pr, policy["users"], policy["teams"]):
-        return True
-    return any(structured_guardian_approval(entry, policy["users"], policy["teams"]) for entry in ledger_entries)
+def _load_guardian_evidence(
+    *,
+    path: str,
+    target: Path,
+    required: bool,
+    blocking: list[str],
+    warnings: list[str],
+    description: str,
+) -> list[dict[str, Any]]:
+    evidence_path = Path(path)
+    if not evidence_path.is_absolute():
+        evidence_path = target / evidence_path
+    if not evidence_path.exists():
+        message = f"Guardian {description} evidence file is missing at {evidence_path}"
+        if required:
+            blocking.append(message)
+        else:
+            warnings.append(message)
+        return []
+    try:
+        return load_json_list(evidence_path)
+    except (OSError, json.JSONDecodeError, ValueError) as error:
+        message = f"Guardian {description} evidence file is invalid: {error}"
+        if required:
+            blocking.append(message)
+        else:
+            warnings.append(message)
+        return []
+
+
+def enforce_guardian_policy(
+    *,
+    pr: dict[str, Any],
+    task: dict[str, Any] | None,
+    target: Path,
+    guardian_policy: str,
+    guardian_comments: str,
+    guardian_events: str,
+    guardian_timeline: str,
+    blocking: list[str],
+    warnings: list[str],
+) -> None:
+    risk_labels = _guardian_risk_labels(pr, task)
+    requires_guardian = _builtin_guardian_risk_required(risk_labels)
+    try:
+        policy = load_guardian_policy_file(_guardian_policy_path(target, guardian_policy))
+    except GuardianPolicyError as error:
+        if requires_guardian:
+            blocking.append(f"Guardian policy is required for high/critical risk PRs: {error}")
+        else:
+            warnings.append(f"Guardian policy could not be loaded; skipping Guardian check for non-high-risk PR: {error}")
+        return
+    policy_errors = validate_guardian_policy(policy)
+    if policy_errors:
+        if requires_guardian:
+            blocking.extend(f"Guardian policy validation failed: {error}" for error in policy_errors)
+        else:
+            warnings.extend(f"Guardian policy validation warning: {error}" for error in policy_errors)
+        return
+    requires_guardian = requires_guardian or risk_requires_guardian(risk_labels, policy)
+    if not requires_guardian:
+        return
+
+    blocker_count_before_evidence = len(blocking)
+    comments = _load_guardian_evidence(
+        path=guardian_comments,
+        target=target,
+        required=True,
+        blocking=blocking,
+        warnings=warnings,
+        description="comments",
+    )
+    events = _load_guardian_evidence(
+        path=guardian_events,
+        target=target,
+        required=True,
+        blocking=blocking,
+        warnings=warnings,
+        description="label events",
+    )
+    timeline = _load_guardian_evidence(
+        path=guardian_timeline,
+        target=target,
+        required=False,
+        blocking=blocking,
+        warnings=warnings,
+        description="timeline",
+    )
+    if len(blocking) > blocker_count_before_evidence:
+        return
+
+    reviews = [review for review in pr.get("reviews") or [] if isinstance(review, dict)]
+    head_sha = str(pr.get("headRefOid") or "")
+    result = evaluate_guardian_approval(
+        policy=policy,
+        pr=pr,
+        reviews=reviews,
+        comments=comments,
+        label_events=events + timeline,
+        head_sha=head_sha,
+    )
+    warnings.extend(result.warnings)
+    if not result.approved:
+        blocking.extend(result.blockers or ("Guardian approval is required but policy-backed evidence is missing",))
+    else:
+        warnings.append(
+            "Guardian approval satisfied by "
+            + ", ".join(result.sources)
+            + " from "
+            + ", ".join(result.approvers or ("<unknown>",))
+        )
 
 
 def load_ledger_entries(target: Path, task: dict[str, Any], warnings: list[str], blocking: list[str]) -> list[dict[str, Any]]:
@@ -558,6 +652,10 @@ def main() -> int:
     parser.add_argument("--changed-files-status", default=".shiki/gha/changed-files-status.txt")
     parser.add_argument("--expected-head-sha")
     parser.add_argument("--base-shiki")
+    parser.add_argument("--guardian-policy", default=".shiki/guardian-policy.json")
+    parser.add_argument("--guardian-comments", default=".shiki/gha/live-guardian-comments.json")
+    parser.add_argument("--guardian-events", default=".shiki/gha/live-guardian-events.json")
+    parser.add_argument("--guardian-timeline", default=".shiki/gha/live-guardian-timeline.json")
     parser.add_argument("--result-file", default=".shiki/gha/mergegate-result.json")
     parser.add_argument("--allow-missing-cca", action="store_true")
     args = parser.parse_args()
@@ -690,8 +788,17 @@ def main() -> int:
         if pr:
             enforce_required_checks(pr, target, blocking, warnings)
             enforce_review_policy(pr, target, blocking)
-            if task and task.get("risk_level") in {"high", "critical"} and not guardian_approved(pr, ledger_entries, target):
-                blocking.append(f"Guardian approval is required for {task.get('risk_level')} risk task {task.get('id')}")
+            enforce_guardian_policy(
+                pr=pr,
+                task=task,
+                target=target,
+                guardian_policy=args.guardian_policy,
+                guardian_comments=args.guardian_comments,
+                guardian_events=args.guardian_events,
+                guardian_timeline=args.guardian_timeline,
+                blocking=blocking,
+                warnings=warnings,
+            )
     elif not args.allow_missing_cca:
         blocking.append(f"CCA verdict file not found at {args.cca_verdict}")
 

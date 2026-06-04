@@ -28,6 +28,7 @@ from shiki_contracts import (
 from shiki_locks import known_shiki_semantic_locks, normalize_lock
 from shiki_jsonschema import UnsupportedJsonSchemaError, assert_supported_schema, validate_json_schema
 from shiki_installer import TEMPLATE_PATHS
+from shiki_guardian import GUARDIAN_POLICY_PATH, GuardianPolicyError, load_guardian_policy, validate_guardian_policy
 from shiki_manifest import (
     MANIFEST_PATH,
     README_LAYOUT_END,
@@ -273,6 +274,7 @@ SHIKI_CLI_MODULE_FILES = (
     "scripts/shiki_doctor.py",
     "scripts/shiki_git.py",
     "scripts/shiki_github.py",
+    "scripts/shiki_guardian.py",
     "scripts/shiki_installer.py",
     "scripts/shiki_migrations.py",
     "scripts/shiki_provider.py",
@@ -379,7 +381,7 @@ def validate_shiki_manifest(root: Path = ROOT) -> None:
         if not (root / relative).is_file():
             raise ValidationError(f"{MANIFEST_PATH}: required file {relative} is missing")
 
-    for required_file in (".shiki/config.yaml", ".shiki/policy.example.yaml", ".shiki/README.md", MANIFEST_PATH):
+    for required_file in (".shiki/config.yaml", GUARDIAN_POLICY_PATH, ".shiki/policy.example.yaml", ".shiki/README.md", MANIFEST_PATH):
         if required_file not in manifest_required_files(manifest):
             raise ValidationError(f"{MANIFEST_PATH}: {required_file} must be listed as a required file")
 
@@ -444,6 +446,8 @@ def validate_shiki_cli_module_boundaries(root: Path = ROOT) -> None:
         raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_module_boundaries.sh")
     if "scripts/test_shiki_migrations.sh" not in template_paths:
         raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_migrations.sh")
+    if "scripts/test_shiki_guardian_policy.sh" not in template_paths:
+        raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_guardian_policy.sh")
     if not (root / "scripts/test_shiki_module_boundaries.sh").is_file():
         raise ValidationError("scripts/test_shiki_module_boundaries.sh: module boundary regression test is missing")
     if not (root / "scripts/test_shiki_migrations.sh").is_file():
@@ -519,6 +523,94 @@ def validate_shiki_migrations(root: Path = ROOT) -> None:
         for needle in needles:
             if needle not in text:
                 raise ValidationError(f"{relative}: missing migration documentation reference {needle!r}")
+
+
+def validate_guardian_policy_contracts(root: Path = ROOT) -> None:
+    policy_path = root / GUARDIAN_POLICY_PATH
+    if not policy_path.is_file():
+        raise ValidationError(f"{GUARDIAN_POLICY_PATH}: Guardian policy file is missing")
+    try:
+        policy = load_guardian_policy(root)
+    except GuardianPolicyError as error:
+        raise ValidationError(str(error)) from error
+    policy_errors = validate_guardian_policy(policy)
+    if policy_errors:
+        raise ValidationError(f"{GUARDIAN_POLICY_PATH}: {'; '.join(policy_errors)}")
+    if not {"high", "critical"}.issubset(set(policy.applies_to_risk)):
+        raise ValidationError(f"{GUARDIAN_POLICY_PATH}: high and critical risks must require Guardian approval")
+    if policy.label != "guardian:approved":
+        raise ValidationError(f"{GUARDIAN_POLICY_PATH}: guardian label must be guardian:approved")
+    if not policy.require_label_actor:
+        raise ValidationError(f"{GUARDIAN_POLICY_PATH}: guardian label actor must be required")
+    if not policy.guardian_comment_enabled or not policy.require_head_sha:
+        raise ValidationError(f"{GUARDIAN_POLICY_PATH}: Guardian comments must require current head SHA")
+    if policy.github_actions_review_bridge_counts_as_guardian:
+        raise ValidationError(f"{GUARDIAN_POLICY_PATH}: CCA Review Bridge must not count as Guardian")
+    if policy.advisory_claude_review_counts_as_guardian:
+        raise ValidationError(f"{GUARDIAN_POLICY_PATH}: advisory Claude review must not count as Guardian")
+
+    manifest = load_manifest(root)
+    files = manifest.get("files")
+    if not isinstance(files, dict) or GUARDIAN_POLICY_PATH not in files:
+        raise ValidationError(f"{MANIFEST_PATH}: {GUARDIAN_POLICY_PATH} must be listed in files")
+    guardian_file = files[GUARDIAN_POLICY_PATH]
+    if not isinstance(guardian_file, dict) or guardian_file.get("kind") != "governance-policy":
+        raise ValidationError(f"{MANIFEST_PATH}: {GUARDIAN_POLICY_PATH} must be kind governance-policy")
+    if GUARDIAN_POLICY_PATH not in manifest_required_files(manifest):
+        raise ValidationError(f"{MANIFEST_PATH}: {GUARDIAN_POLICY_PATH} must be required")
+    if GUARDIAN_POLICY_PATH not in manifest_install_include(manifest):
+        raise ValidationError(f"{MANIFEST_PATH}: {GUARDIAN_POLICY_PATH} must be included for install")
+
+    template_paths = set(TEMPLATE_PATHS)
+    for relative in ("scripts/shiki_guardian.py", "scripts/test_shiki_guardian_policy.sh"):
+        if relative not in template_paths:
+            raise ValidationError(f"scripts/shiki_installer.py: TEMPLATE_PATHS must include {relative}")
+
+    workflow_path = root / ".github" / "workflows" / "shiki-cca-completion.yml"
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    for needle in (
+        "live-guardian-comments.json",
+        "live-guardian-events.json",
+        "live-guardian-timeline.json",
+        "--guardian-policy .shiki/guardian-policy.json",
+        "--guardian-comments .shiki/gha/live-guardian-comments.json",
+        "--guardian-events .shiki/gha/live-guardian-events.json",
+    ):
+        if needle not in workflow_text:
+            raise ValidationError(f"{workflow_path}: missing Guardian evidence wiring {needle!r}")
+
+    mergegate_text = (root / "scripts" / "mergegate_check.py").read_text(encoding="utf-8")
+    for needle in (
+        "evaluate_guardian_approval",
+        "enforce_guardian_policy",
+        "--guardian-comments",
+        "--guardian-events",
+    ):
+        if needle not in mergegate_text:
+            raise ValidationError(f"scripts/mergegate_check.py: missing Guardian policy enforcement text {needle!r}")
+
+    docs = {
+        "docs/agents/guardian-policy.md": [
+            GUARDIAN_POLICY_PATH,
+            "guardian:approved",
+            "Guardian approval granted",
+            "CCA Review Bridge is not Guardian approval",
+            "advisory Claude review is not Guardian approval",
+        ],
+        "docs/agents/decision-control.md": [GUARDIAN_POLICY_PATH, "current PR head SHA"],
+        "docs/agents/checklists.md": [GUARDIAN_POLICY_PATH, "policy-backed Guardian"],
+        "docs/agents/completion-check-agent.md": [GUARDIAN_POLICY_PATH, "needs_guardian"],
+        "docs/agents/shiki-doctor.md": ["doctor.guardian.policy", "doctor.guardian.github_events"],
+        ".github/prompts/cca-completion-check.md": [GUARDIAN_POLICY_PATH, "CCA Review Bridge"],
+    }
+    for relative, needles in docs.items():
+        path = root / relative
+        if not path.is_file():
+            raise ValidationError(f"{relative}: Guardian policy documentation is missing")
+        text = path.read_text(encoding="utf-8")
+        for needle in needles:
+            if needle not in text:
+                raise ValidationError(f"{relative}: missing Guardian policy documentation reference {needle!r}")
 
 
 def validate_provider_config_contracts(root: Path = ROOT) -> None:
@@ -1494,6 +1586,7 @@ def main() -> int:
         validate_shiki_manifest()
         validate_shiki_cli_module_boundaries()
         validate_shiki_migrations()
+        validate_guardian_policy_contracts()
         validate_provider_config_contracts()
         validate_runtime_contracts()
         validate_issue_forms()

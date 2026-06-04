@@ -713,8 +713,12 @@ assert "Refresh live PR state" in cca_workflow
 assert "live-pr.json" in cca_workflow
 assert "live-changed-files.txt" in cca_workflow
 assert "live-changed-files-status.txt" in cca_workflow
+assert "live-guardian-comments.json" in cca_workflow
+assert "live-guardian-events.json" in cca_workflow
 assert "--expected-head-sha" in cca_workflow
 assert "--base-shiki .shiki/gha/base-shiki/.shiki" in cca_workflow
+assert "--guardian-comments .shiki/gha/live-guardian-comments.json" in cca_workflow
+assert "--guardian-events .shiki/gha/live-guardian-events.json" in cca_workflow
 assert "author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup" in mergegate_workflow
 
 print("adversarial state/evidence/lock regression suite passed")

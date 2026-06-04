@@ -1,0 +1,25 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "Created GitHub Issue #87 for T-0046 / P1.4.1-P1.4.2.",
+    "Added .shiki/guardian-policy.json as the machine-readable Guardian approval policy.",
+    "Added scripts/shiki_guardian.py for policy loading, validation, risk matching, and approval evidence evaluation.",
+    "Updated MergeGate to require policy-backed live Guardian evidence for high-risk and critical PRs.",
+    "Updated Shiki CCA Completion workflow to fetch live Guardian comments, issue events, and timeline evidence before MergeGate policy enforcement.",
+    "Updated validator, doctor, manifest, migration state, installer staging, and docs for Guardian policy governance.",
+    "Added scripts/test_shiki_guardian_policy.sh and updated existing control-plane, adversarial, doctor, migration, and module-boundary tests.",
+    "Pull Request #88 records the T-0046 implementation: https://github.com/mizutani-140/shiki/pull/88",
+    "Required skills used: diagnose, tdd, improve-codebase-architecture.",
+    "Local verification will be recorded in the PR after validation completes."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260604T123528000000Z-6f2a9c13",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/87",
+    "https://github.com/mizutani-140/shiki/pull/88"
+  ],
+  "summary": "Implemented T-0046 Guardian approver policy configuration and enforcement.",
+  "task_id": "T-0046",
+  "timestamp": "2026-06-04T12:35:28Z",
+  "type": "check"
+}

@@ -25,6 +25,7 @@ CODEOWNERS_PATH = ".github/CODEOWNERS"
 CODEOWNERS_REQUIRED_OWNER = "@mizutani-140"
 CODEOWNERS_CRITICAL_PATHS = (
     "/.shiki/config.yaml",
+    "/.shiki/guardian-policy.json",
     "/.shiki/policy.example.yaml",
     "/.github/CODEOWNERS",
     "/.github/pull_request_template.md",
@@ -36,6 +37,7 @@ CODEOWNERS_CRITICAL_PATHS = (
     "/scripts/enforce_cca_verdict.py",
     "/scripts/validate_shiki.py",
     "/scripts/shiki_contracts.py",
+    "/scripts/shiki_guardian.py",
     "/AGENTS.md",
     "/SYSTEM_PROMPT.md",
     "/CLAUDE.md",

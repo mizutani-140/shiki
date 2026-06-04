@@ -991,13 +991,16 @@ task = json.loads(task_path.read_text())
 task["risk_level"] = "high"
 task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
 PY
+printf '[]\n' >"$TARGET/.shiki/gha/live-guardian-comments.json"
+printf '[]\n' >"$TARGET/.shiki/gha/live-guardian-events.json"
+printf '[]\n' >"$TARGET/.shiki/gha/live-guardian-timeline.json"
 expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
   --target "$TARGET" \
   --pr-json "$TARGET/.shiki/gha/pr.json" \
   --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
   --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
   --result-file "$TARGET/.shiki/gha/mergegate-result.json"
-grep "Guardian approval is required" /tmp/shiki-expected-fail.out >/dev/null
+grep "Guardian label 'guardian:approved' is missing" /tmp/shiki-expected-fail.out >/dev/null
 
 python3 - "$TARGET" "$TASK_ID" <<'PY'
 import json
@@ -1023,7 +1026,7 @@ expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
   --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
   --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
   --result-file "$TARGET/.shiki/gha/mergegate-result.json"
-grep "Guardian approval is required" /tmp/shiki-expected-fail.out >/dev/null
+grep "Guardian label 'guardian:approved' is missing" /tmp/shiki-expected-fail.out >/dev/null
 
 python3 - "$TARGET" "$TASK_ID" <<'PY'
 import json
@@ -1032,26 +1035,32 @@ import sys
 
 target = pathlib.Path(sys.argv[1])
 task_id = sys.argv[2]
-config_path = target / ".shiki" / "config.yaml"
-config_text = config_path.read_text()
-if "    - guardian-user\n" not in config_text:
-    config_text = config_text.replace("  users:\n", "  users:\n    - guardian-user\n")
-    config_path.write_text(config_text)
+pr_path = target / ".shiki" / "gha" / "pr.json"
+pr = json.loads(pr_path.read_text())
+head = pr["headRefOid"]
+pr["labels"] = [{"name": "guardian:approved"}]
+pr["author"] = {"login": "mizutani-140"}
+pr_path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
 
 task_path = target / ".shiki" / "tasks" / f"{task_id}.json"
 task = json.loads(task_path.read_text())
-ledger_id = task["ledger_evidence"][0]
-ledger_path = target / ".shiki" / "ledger" / f"{ledger_id}.json"
-ledger = json.loads(ledger_path.read_text())
-ledger["guardian_approval"] = {
-    "approved": True,
-    "approver": "guardian-user",
-    "source": "structured_ledger",
-}
-ledger_path.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n")
-
 task["risk_level"] = "high"
 task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+
+(target / ".shiki" / "gha" / "live-guardian-comments.json").write_text(json.dumps([
+    {
+        "user": {"login": "mizutani-140"},
+        "body": f"Guardian approval granted for current head {head}"
+    }
+], indent=2) + "\n")
+(target / ".shiki" / "gha" / "live-guardian-events.json").write_text(json.dumps([
+    {
+        "event": "labeled",
+        "label": {"name": "guardian:approved"},
+        "actor": {"login": "mizutani-140"}
+    }
+], indent=2) + "\n")
+(target / ".shiki" / "gha" / "live-guardian-timeline.json").write_text("[]\n")
 PY
 python3 "$TARGET/scripts/mergegate_check.py" \
   --target "$TARGET" \

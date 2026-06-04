@@ -101,7 +101,7 @@ python3 scripts/shiki.py migrate status --json --target "$VALID" >/tmp/shiki-mig
 python3 -m json.tool /tmp/shiki-migrate-valid.json >/dev/null
 test "$(json_get /tmp/shiki-migrate-valid.json valid)" = "True"
 test "$(json_get /tmp/shiki-migrate-valid.json pending_count)" = "0"
-test "$(json_get /tmp/shiki-migrate-valid.json applied_count)" = "1"
+test "$(json_get /tmp/shiki-migrate-valid.json applied_count)" = "2"
 
 python3 scripts/shiki.py migrate status --json --target "$VALID" >/tmp/shiki-migrate-valid-2.json
 cmp /tmp/shiki-migrate-valid.json /tmp/shiki-migrate-valid-2.json >/dev/null

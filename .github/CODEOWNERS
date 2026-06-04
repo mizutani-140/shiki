@@ -1,5 +1,6 @@
 # Critical Shiki governance paths require Guardian owner review.
 /.shiki/config.yaml @mizutani-140
+/.shiki/guardian-policy.json @mizutani-140
 /.shiki/policy.example.yaml @mizutani-140
 /.github/CODEOWNERS @mizutani-140
 /.github/pull_request_template.md @mizutani-140
@@ -11,6 +12,7 @@
 /scripts/enforce_cca_verdict.py @mizutani-140
 /scripts/validate_shiki.py @mizutani-140
 /scripts/shiki_contracts.py @mizutani-140
+/scripts/shiki_guardian.py @mizutani-140
 /AGENTS.md @mizutani-140
 /SYSTEM_PROMPT.md @mizutani-140
 /CLAUDE.md @mizutani-140

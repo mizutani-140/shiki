@@ -327,12 +327,23 @@ jobs:
           set -euo pipefail
 
           rm -f .shiki/gha/live-pr.json .shiki/gha/live-changed-files.txt .shiki/gha/live-changed-files-status.txt
+          rm -f .shiki/gha/live-guardian-comments.json .shiki/gha/live-guardian-events.json .shiki/gha/live-guardian-timeline.json
           rm -rf .shiki/gha/base-shiki
           mkdir -p .shiki/gha/base-shiki
 
           gh pr view "$PR_NUMBER" \
             --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup \
             > .shiki/gha/live-pr.json
+
+          gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+            > .shiki/gha/live-guardian-comments.json
+
+          gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/events" \
+            > .shiki/gha/live-guardian-events.json
+
+          gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/timeline" \
+            -H "Accept: application/vnd.github+json" \
+            > .shiki/gha/live-guardian-timeline.json
 
           base_ref="$(jq -r '.baseRefName' .shiki/gha/live-pr.json)"
           head_oid="$(jq -r '.headRefOid' .shiki/gha/live-pr.json)"
@@ -363,4 +374,8 @@ jobs:
             --changed-files-status .shiki/gha/live-changed-files-status.txt \
             --cca-verdict .shiki/gha/cca-verdict.json \
             --expected-head-sha "$EXPECTED_HEAD_SHA" \
-            --base-shiki .shiki/gha/base-shiki/.shiki
+            --base-shiki .shiki/gha/base-shiki/.shiki \
+            --guardian-policy .shiki/guardian-policy.json \
+            --guardian-comments .shiki/gha/live-guardian-comments.json \
+            --guardian-events .shiki/gha/live-guardian-events.json \
+            --guardian-timeline .shiki/gha/live-guardian-timeline.json
