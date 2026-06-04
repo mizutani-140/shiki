@@ -1,0 +1,33 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "Post-merge reconciliation for T-0042 after PR #76 merged.",
+    "PR #76 merged T-0042 at approved head 9ccb81f0d00a014ad9633205342dc499c957eb45.",
+    "PR #76 merge commit on main is 21c045b0fcbb842814d7960890018f68d59c6de8.",
+    ".shiki/tasks/T-0042.json status is done.",
+    ".shiki/tasks/T-0042.json includes implementation ledger L-20260604T050506271390Z-506adf7a and reconciliation ledger L-20260604T054404060890Z-5555eeab.",
+    ".shiki/goals/G-0012.json includes L-20260604T050506271390Z-506adf7a and L-20260604T054404060890Z-5555eeab.",
+    "No active T-0042 lock exists on main after PR #76 merge.",
+    "Issue #75 can be closed after this post-merge reconciliation merges.",
+    "Goal #30 P1.3.3 can be marked complete after this post-merge reconciliation merges.",
+    "P1.3.4 GitHub host / protocol / provider configuration remains open.",
+    "P1.3.5 doctor checks remains open.",
+    "P1.3.6 migration framework remains open.",
+    "Goal #30 / G-0012 remains open for remaining P1/P2 work.",
+    "This reconciliation changes only Shiki mirror / ledger evidence; no implementation code or workflow files are changed.",
+    "GitHub Issue #75: https://github.com/mizutani-140/shiki/issues/75",
+    "Implementation Pull Request #76: https://github.com/mizutani-140/shiki/pull/76",
+    "Reconciliation Pull Request #77: https://github.com/mizutani-140/shiki/pull/77"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260604T054404060890Z-5555eeab",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/75",
+    "https://github.com/mizutani-140/shiki/pull/76",
+    "https://github.com/mizutani-140/shiki/pull/77"
+  ],
+  "summary": "Recorded T-0042 post-merge mirror reconciliation evidence.",
+  "task_id": "T-0042",
+  "timestamp": "2026-06-04T05:44:04Z",
+  "type": "completion"
+}
