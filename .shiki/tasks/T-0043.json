@@ -1,0 +1,68 @@
+{
+  "acceptance_checks": [
+    "scripts/shiki_provider.py defines dependency-free GitHub-compatible provider configuration for provider kind, host, remote protocol, repo slug, web/API base URLs, SSH host, repo API paths, canonical remote URL, and GH_HOST environment mapping.",
+    "shiki init, shiki start, shiki bootstrap-platform, and the deprecated shiki bootstrap-github expose --provider, --github-host, --github-api-url, and --remote-protocol flags while preserving GitHub.com HTTPS defaults.",
+    "scripts/shiki_git.py uses provider-aware canonical remote generation and remote matching while preserving existing-origin mismatch hard-fail unless --adopt-existing-repo is passed.",
+    "scripts/shiki_github.py keeps gh as the backend and injects GH_HOST for GitHub Enterprise-compatible provider configs without globally mutating the process environment.",
+    "Executed init writes provider fields into .shiki/repo.json, and legacy repo records without provider fields remain valid as GitHub.com HTTPS.",
+    "Dry-run output lists provider, host, remote protocol, canonical origin, API base URL, filesystem, git, GitHub repo, secret, branch protection, default-branch, commit, and push mutations.",
+    "scripts/validate_shiki.py validates provider config defaults, invalid provider/protocol/repo/host cases, repo.json provider fields, module inclusion, and provider test presence.",
+    "scripts/test_shiki_provider_config.sh covers provider config basics, GitHub.com/Enterprise HTTPS/SSH remotes, remote matching, legacy repo config, dry-run output, executed mocked init repo.json fields, GH_HOST injection, origin mismatch, and CLI help.",
+    "docs/agents/github-provider-config.md and related agent docs document GitHub.com defaults, SSH/HTTPS, GitHub Enterprise host/API URL, GH_HOST auth expectations, repo.json fields, legacy compatibility, and non-goals.",
+    "Verification bundle passes: validate_shiki, py_compile, scripts/test_shiki_*.sh, provider smoke, and git diff --check."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0042"
+  ],
+  "expected_branch": "shiki/t-0043-github-provider-config",
+  "expected_pr": 79,
+  "github_issue": 78,
+  "goal_id": "G-0012",
+  "id": "T-0043",
+  "ledger_evidence": [
+    "L-20260604T063600000000Z-a4f3c2d1"
+  ],
+  "locks": [
+    "shiki:contracts",
+    "shiki:state",
+    "path:scripts/shiki_provider.py",
+    "path:scripts/shiki_git.py",
+    "path:scripts/shiki_github.py",
+    "path:scripts/shiki_bootstrap.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/shiki_process.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_provider_config.sh",
+    "path:scripts/test_shiki_init.sh",
+    "path:scripts/test_shiki_module_boundaries.sh",
+    "path:docs/agents/**",
+    "path:.shiki/tasks/T-0043.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/goals/G-0012.json"
+  ],
+  "non_goals": [
+    "Do not implement P1.3.5 doctor checks.",
+    "Do not implement P1.3.6 migration framework.",
+    "Do not implement P1.4 governance or evidence model redesign.",
+    "Do not implement P2 packaging, release, or onboarding work.",
+    "Do not implement a new runtime adapter execution engine.",
+    "Do not implement a GitHub App, reviewer bot, or new Guardian policy.",
+    "Do not change CCA Review Bridge semantics.",
+    "Do not change branch protection policy beyond provider-aware gh/API path usage.",
+    "Do not change CODEOWNERS ownership rules.",
+    "Do not change P0.4 state, lock, ledger, or evidence semantics.",
+    "Do not change Node.js 20 / Node 24 workflow behavior.",
+    "Do not add non-GitHub provider support."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Make GitHub provider host, remote protocol, and GitHub Enterprise-compatible configuration explicit, validated, documented, and testable while preserving GitHub-first behavior.",
+  "status": "review",
+  "title": "Make GitHub host / protocol / provider configurable"
+}

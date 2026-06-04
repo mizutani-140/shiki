@@ -24,6 +24,9 @@ Each Agent Runtime still has its own login gate before it can invoke Shiki:
 - Codex App / Codex CLI must be signed in with ChatGPT/Codex auth.
 - Claude Code must be signed in before `/shiki` can run as a Claude slash command.
 - GitHub CLI must be authenticated before Shiki can create repositories, issues, PRs, secrets, or branch protection.
+  For GitHub Enterprise-compatible targets, Shiki injects `GH_HOST` from
+  `.shiki/repo.json` provider config or CLI flags, so `gh auth login -h HOST`
+  must be completed for that host.
 
 Run `shiki doctor` to see which entrypoints are currently usable. A Claude Code
 error such as `Please run /login` or `API Error: 401 Invalid authentication
@@ -65,6 +68,19 @@ that token is already available in the current process environment as
 runtime, but it does not by itself give Shiki a GitHub Actions token.
 
 Do not store OAuth tokens in repository files, `.env`, logs, prompts, or `.shiki/` artifacts. Shiki must not read local Claude OAuth credential files to populate GitHub secrets.
+
+## GitHub Provider Auth
+
+Provider configuration is host/protocol configuration for GitHub-compatible
+targets. It does not change Shiki's GitHub-first authority model. The GitHub CLI
+remains the command backend for repo creation, issues, PRs, secrets, and branch
+protection.
+
+For GitHub.com, Shiki uses the existing default `gh` host. For GitHub
+Enterprise-compatible hosts, Shiki passes `GH_HOST=HOST` to relevant `gh`
+commands and records the host, API base URL, remote protocol, and canonical
+remote URL in `.shiki/repo.json`. Legacy repo records without provider fields
+are treated as GitHub.com HTTPS.
 
 ## Optional API-Key Mode
 

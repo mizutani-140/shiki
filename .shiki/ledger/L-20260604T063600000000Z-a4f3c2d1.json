@@ -1,0 +1,31 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0043 covers Goal #30 P1.3.4 GitHub host / protocol / provider configuration only.",
+    "scripts/shiki_provider.py adds a dependency-free ProviderConfig contract for provider kind, host, remote protocol, repo slug, web base URL, API base URL, SSH host, canonical remote URL, repo API path, repo.json serialization, legacy repo.json loading, and GH_HOST mapping.",
+    "Default provider config remains provider=github, host=github.com, remote_protocol=https, web_base_url=https://github.com, api_base_url=https://api.github.com.",
+    "GitHub Enterprise-compatible configs derive https://HOST/api/v3 unless an explicit --github-api-url is provided.",
+    "scripts/shiki_cli.py adds --provider, --github-host, --github-api-url, and --remote-protocol to init, start, bootstrap-platform, and bootstrap-github.",
+    "scripts/shiki_git.py uses provider-aware remote URL generation and matching while preserving existing origin mismatch hard-fail unless --adopt-existing-repo is passed.",
+    "scripts/shiki_github.py keeps gh as the backend and uses provider-aware GH_HOST environment injection for GitHub Enterprise-compatible commands.",
+    "scripts/shiki_bootstrap.py prints provider details in dry-run output and writes provider fields to .shiki/repo.json during executed init/start.",
+    "scripts/validate_shiki.py validates provider config contracts, repo.json provider compatibility, module inclusion, and provider regression test presence.",
+    "scripts/test_shiki_provider_config.sh covers provider defaults, Enterprise API derivation, explicit API URL, invalid provider/protocol/repo, HTTPS/SSH canonical remotes, remote matching, legacy repo.json compatibility, dry-run output, executed mocked init provider fields, GH_HOST injection, origin mismatch, and CLI help.",
+    "docs/agents/github-provider-config.md documents GitHub.com defaults, SSH vs HTTPS, GitHub Enterprise host/API URL, GH_HOST auth expectations, .shiki/repo.json provider fields, legacy compatibility, and non-goals.",
+    "Required skill evidence: diagnose was used to isolate GitHub.com/HTTPS assumptions across shiki_git.py, shiki_github.py, shiki_bootstrap.py, shiki_cli.py, validator, tests, and docs.",
+    "Required skill evidence: tdd was used by adding scripts/test_shiki_provider_config.sh coverage for provider behavior and extending init/module-boundary tests.",
+    "Required skill evidence: improve-codebase-architecture was used to introduce a dependency-free provider module without replacing gh, changing Guardian/CCA/MergeGate behavior, or adding non-GitHub provider support.",
+    "GitHub Issue #78: https://github.com/mizutani-140/shiki/issues/78",
+    "Pull Request #79: https://github.com/mizutani-140/shiki/pull/79"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260604T063600000000Z-a4f3c2d1",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/78",
+    "https://github.com/mizutani-140/shiki/pull/79"
+  ],
+  "summary": "Recorded T-0043 GitHub provider configuration implementation evidence.",
+  "task_id": "T-0043",
+  "timestamp": "2026-06-04T06:36:00Z",
+  "type": "check"
+}

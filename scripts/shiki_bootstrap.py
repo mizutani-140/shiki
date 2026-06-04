@@ -13,6 +13,7 @@ from shiki_config import branch_protection_review_count
 from shiki_git import check_remote_adoption, commit_manifest, current_branch, ensure_git_repo, ensure_remote, github_origin, is_git_repo, push_branch
 from shiki_github import claude_secret_remediation, configure_claude_code_secret, create_github_issue_for_task, ensure_github_repo, github_secret_status, protect_branch, require_github_repo_slug, set_default_branch
 from shiki_installer import install_template
+from shiki_provider import ProviderConfig, ProviderConfigError, canonical_remote_url, github_env, provider_config_as_json, provider_from_values
 from shiki_process import ROOT, ShikiError, ensure_control_dirs, info, load_default_config
 from shiki_process import print_json, prompt_default, prompt_list, prompt_value, read_json, require_tool, resolve_engineering_skills_dir, run, save_default_config, shiki_path, start_target_value, target_path, utc_now, validate_local_shiki, write_json
 from shiki_tasks import append_ledger, load_task, next_control_id, orchestrate_plan, require_github_first_target, shiki_path as _unused_shiki_path, write_handoff
@@ -34,6 +35,19 @@ def execution_confirmed(args: argparse.Namespace) -> bool:
     return bool(getattr(args, "execute", False) or getattr(args, "i_understand", False))
 
 
+def provider_config_from_args(args: argparse.Namespace, repo: str) -> ProviderConfig:
+    try:
+        return provider_from_values(
+            repo=repo,
+            provider=getattr(args, "provider", None),
+            host=getattr(args, "github_host", None),
+            protocol=getattr(args, "remote_protocol", None),
+            api_base_url=getattr(args, "github_api_url", None),
+        )
+    except ProviderConfigError as error:
+        raise ShikiError(str(error)) from error
+
+
 def bootstrap_dry_run_lines(
     *,
     command: str,
@@ -46,6 +60,7 @@ def bootstrap_dry_run_lines(
     set_secret_enabled: bool,
     protect: bool,
     required_checks: list[str],
+    provider_config: ProviderConfig,
     platform: bool = False,
 ) -> list[str]:
     target_label = "platform repository" if platform else str(target)
@@ -66,8 +81,12 @@ def bootstrap_dry_run_lines(
         )
     lines.extend(
         [
+            f"provider: {provider_config.provider}",
+            f"github-host: {provider_config.host}",
+            f"remote-protocol: {provider_config.protocol}",
+            f"github-api: use {provider_config.api_base_url}",
             f"git: initialize repository on {branch}",
-            f"git: configure origin https://github.com/{repo}.git",
+            f"git: configure origin {canonical_remote_url(provider_config)}",
             f"github-repo: create or reuse {repo} as {visibility}",
         ]
     )
@@ -106,12 +125,13 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
     if not repo:
         raise ShikiError("missing --repo OWNER/NAME and no default repo configured")
     require_github_repo_slug(repo)
+    provider_config = provider_config_from_args(args, repo)
 
     branch = args.branch or config.get("default_branch") or "main"
     visibility = "private" if args.private else "public"
 
     if not execution_confirmed(args):
-        check_remote_adoption(repo, ROOT, adopt_existing_repo=args.adopt_existing_repo)
+        check_remote_adoption(repo, ROOT, adopt_existing_repo=args.adopt_existing_repo, provider_config=provider_config)
         print_bootstrap_dry_run(
             bootstrap_dry_run_lines(
                 command="bootstrap-platform",
@@ -124,16 +144,17 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
                 set_secret_enabled=args.set_secret,
                 protect=args.protect,
                 required_checks=args.required_check,
+                provider_config=provider_config,
                 platform=True,
             )
         )
         return 0
 
     validate_local_shiki()
-    run(["gh", "auth", "status"])
+    run(["gh", "auth", "status"], env=github_env(provider_config))
     ensure_git_repo(ROOT, branch)
-    ensure_github_repo(repo, visibility)
-    ensure_remote(repo, ROOT, adopt_existing_repo=args.adopt_existing_repo)
+    ensure_github_repo(repo, visibility, provider_config=provider_config)
+    ensure_remote(repo, ROOT, adopt_existing_repo=args.adopt_existing_repo, provider_config=provider_config)
 
     active_branch = current_branch(ROOT)
     if active_branch != branch:
@@ -144,25 +165,25 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
 
     if args.push:
         push_branch(ROOT, branch)
-        set_default_branch(repo, branch)
+        set_default_branch(repo, branch, provider_config=provider_config)
 
-    configure_claude_code_secret(repo, enabled=args.set_secret, secret_env=args.secret_env)
+    configure_claude_code_secret(repo, enabled=args.set_secret, secret_env=args.secret_env, provider_config=provider_config)
 
     if args.protect:
-        protect_branch(repo, branch, args.required_check, review_count=branch_protection_review_count(ROOT))
+        protect_branch(repo, branch, args.required_check, review_count=branch_protection_review_count(ROOT), provider_config=provider_config)
 
     save_default_config(repo, branch)
     info("bootstrap complete")
     return 0
 
 
-def write_target_repo_config(target: Path, repo: str, branch: str) -> None:
+def write_target_repo_config(target: Path, repo: str, branch: str, provider_config: ProviderConfig) -> None:
     payload = {
         "source_of_truth": "github",
-        "repo": repo,
         "default_branch": branch,
         "mirror": ".shiki",
     }
+    payload.update(provider_config_as_json(provider_config))
     path = target / ".shiki" / "repo.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -179,12 +200,13 @@ def cmd_init(args: argparse.Namespace) -> int:
         raise ShikiError("shiki init requires --repo OWNER/NAME because Shiki is GitHub-first")
     repo = args.repo
     require_github_repo_slug(repo)
+    provider_config = provider_config_from_args(args, repo)
 
     branch = args.branch
     visibility = "private" if args.private else "public"
 
     if not execution_confirmed(args):
-        check_remote_adoption(repo, target, adopt_existing_repo=args.adopt_existing_repo)
+        check_remote_adoption(repo, target, adopt_existing_repo=args.adopt_existing_repo, provider_config=provider_config)
         print_bootstrap_dry_run(
             bootstrap_dry_run_lines(
                 command="init",
@@ -197,17 +219,18 @@ def cmd_init(args: argparse.Namespace) -> int:
                 set_secret_enabled=args.set_secret,
                 protect=args.protect,
                 required_checks=args.required_check,
+                provider_config=provider_config,
             )
         )
         return 0
 
     target.mkdir(parents=True, exist_ok=True)
-    run(["gh", "auth", "status"])
+    run(["gh", "auth", "status"], env=github_env(provider_config))
     ensure_git_repo(target, branch)
-    ensure_github_repo(repo, visibility)
-    ensure_remote(repo, target, adopt_existing_repo=args.adopt_existing_repo)
+    ensure_github_repo(repo, visibility, provider_config=provider_config)
+    ensure_remote(repo, target, adopt_existing_repo=args.adopt_existing_repo, provider_config=provider_config)
     install_template(target, force=args.force, validate=args.validate)
-    write_target_repo_config(target, repo, branch)
+    write_target_repo_config(target, repo, branch, provider_config)
 
     active_branch = current_branch(target)
     if active_branch != branch:
@@ -218,12 +241,12 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     if args.push:
         push_branch(target, branch)
-        set_default_branch(repo, branch)
+        set_default_branch(repo, branch, provider_config=provider_config)
 
-    configure_claude_code_secret(repo, enabled=args.set_secret, secret_env=args.secret_env)
+    configure_claude_code_secret(repo, enabled=args.set_secret, secret_env=args.secret_env, provider_config=provider_config)
 
     if args.protect:
-        protect_branch(repo, branch, args.required_check, review_count=branch_protection_review_count(target))
+        protect_branch(repo, branch, args.required_check, review_count=branch_protection_review_count(target), provider_config=provider_config)
 
     info("GitHub-first init complete")
     return 0
@@ -369,6 +392,10 @@ def initialize_target_from_start(args: argparse.Namespace, target: Path, repo: s
         adopt_existing_repo=args.adopt_existing_repo,
         execute=args.execute,
         i_understand=args.i_understand,
+        provider=args.provider,
+        github_host=args.github_host,
+        github_api_url=args.github_api_url,
+        remote_protocol=args.remote_protocol,
     )
     cmd_init(init_args)
 
@@ -446,7 +473,8 @@ def cmd_start(args: argparse.Namespace) -> int:
 
     start_id = next_control_id(target, "START")
     start_file = shiki_path(target, "starts", f"{start_id}.json")
-    claude_secret = github_secret_status(answers["repo"], "CLAUDE_CODE_OAUTH_TOKEN")
+    provider_config = provider_config_from_args(args, answers["repo"])
+    claude_secret = github_secret_status(answers["repo"], "CLAUDE_CODE_OAUTH_TOKEN", provider_config=provider_config)
     if claude_secret.get("configured") is False:
         claude_secret["remediation"] = claude_secret_remediation(answers["repo"], args.secret_env)
     start_record = {

@@ -85,6 +85,11 @@ DRY_RUN="$TMP_ROOT/dry-run"
 python3 scripts/shiki.py init "$DRY_RUN" \
   --repo example/shiki-init-dry-run >/tmp/shiki-init-dry-run.out
 grep "dry-run: no bootstrap/init mutations were executed" /tmp/shiki-init-dry-run.out >/dev/null
+grep "provider: github" /tmp/shiki-init-dry-run.out >/dev/null
+grep "github-host: github.com" /tmp/shiki-init-dry-run.out >/dev/null
+grep "remote-protocol: https" /tmp/shiki-init-dry-run.out >/dev/null
+grep "git: configure origin https://github.com/example/shiki-init-dry-run.git" /tmp/shiki-init-dry-run.out >/dev/null
+grep "github-api: use https://api.github.com" /tmp/shiki-init-dry-run.out >/dev/null
 grep "filesystem: create target directory" /tmp/shiki-init-dry-run.out >/dev/null
 grep "git: initialize repository" /tmp/shiki-init-dry-run.out >/dev/null
 grep "github-repo: create or reuse example/shiki-init-dry-run" /tmp/shiki-init-dry-run.out >/dev/null
@@ -106,6 +111,7 @@ grep "dry-run: no bootstrap/init mutations were executed" /tmp/shiki-init-dry-ru
 python3 scripts/shiki.py bootstrap-platform \
   --repo mizutani-140/shiki >/tmp/shiki-bootstrap-platform-dry-run.out
 grep "dry-run: no bootstrap/init mutations were executed" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
+grep "provider: github" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
 grep "filesystem: validate local Shiki platform files" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
 grep "github-repo: create or reuse mizutani-140/shiki" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
 test -z "$(cat "$SHIKI_FAKE_GH_LOG")"

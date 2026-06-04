@@ -22,6 +22,7 @@ modules = [
     "shiki_github",
     "shiki_installer",
     "shiki_process",
+    "shiki_provider",
     "shiki_runtime",
     "shiki_runtime_registry",
     "shiki_tasks",
@@ -53,6 +54,7 @@ for required in [
     "scripts/shiki_git.py",
     "scripts/shiki_github.py",
     "scripts/shiki_installer.py",
+    "scripts/shiki_provider.py",
     "scripts/shiki_process.py",
     "scripts/shiki_runtime.py",
     "scripts/shiki_runtime_registry.py",
@@ -74,6 +76,10 @@ for flag in \
   "--execute" \
   "--i-understand" \
   "--adopt-existing-repo" \
+  "--provider" \
+  "--github-host" \
+  "--github-api-url" \
+  "--remote-protocol" \
   "--no-set-secret" \
   "--no-protect" \
   "--no-commit" \
@@ -84,9 +90,11 @@ done
 python3 scripts/shiki.py bootstrap-platform --help >/tmp/shiki-module-bootstrap-help.out
 grep -- "--execute" /tmp/shiki-module-bootstrap-help.out >/dev/null
 grep -- "--i-understand" /tmp/shiki-module-bootstrap-help.out >/dev/null
+grep -- "--github-host" /tmp/shiki-module-bootstrap-help.out >/dev/null
 
 python3 scripts/shiki.py bootstrap-github --help >/tmp/shiki-module-bootstrap-github-help.out
 grep -- "--execute" /tmp/shiki-module-bootstrap-github-help.out >/dev/null
+grep -- "--remote-protocol" /tmp/shiki-module-bootstrap-github-help.out >/dev/null
 
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
@@ -113,6 +121,7 @@ for path in \
   "scripts/shiki_git.py" \
   "scripts/shiki_github.py" \
   "scripts/shiki_installer.py" \
+  "scripts/shiki_provider.py" \
   "scripts/shiki_process.py" \
   "scripts/shiki_runtime.py" \
   "scripts/shiki_runtime_registry.py" \
