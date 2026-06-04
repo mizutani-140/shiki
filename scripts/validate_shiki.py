@@ -222,14 +222,22 @@ WORKFLOW_CONTRACTS = {
 NODE24_OFFICIAL_ACTIONS = {
     "actions/checkout": {"v5", "v6"},
     "actions/upload-artifact": {"v6", "v7"},
-    "actions/download-artifact": {"v7"},
+    "actions/download-artifact": {"v7", "v8"},
 }
 
-NODE24_DEFERRED_OFFICIAL_ACTIONS = {
+NODE24_DEFERRED_ACTIONS = {
     ("shiki-cca-completion.yml", "actions/checkout", "v4"),
     ("shiki-cca-completion.yml", "actions/upload-artifact", "v4"),
     ("shiki-cca-completion.yml", "actions/download-artifact", "v4"),
+    ("shiki-cca-completion.yml", "anthropics/claude-code-action", "v1"),
     ("shiki-claude-review.yml", "actions/checkout", "v4"),
+    ("shiki-claude-review.yml", "anthropics/claude-code-action", "v1"),
+}
+
+NODE24_FORCE_WORKFLOWS = {
+    "shiki-mergegate.yml",
+    "shiki-orchestrator.yml",
+    "shiki-validate.yml",
 }
 
 SHIKI_CLI_MODULE_FILES = (
@@ -1022,24 +1030,57 @@ def validate_required_check_names(models: dict[Path, dict[str, Any]]) -> None:
 
 
 def validate_node24_workflow_policy(models: dict[Path, dict[str, Any]]) -> None:
+    seen_deferred: set[tuple[str, str, str]] = set()
     for path, model in models.items():
         text = path.read_text(encoding="utf-8")
         if "ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION" in text:
             raise ValidationError(f"{path}: ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION is forbidden")
+        if path.name in NODE24_FORCE_WORKFLOWS and workflow_top_env(model).get("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24") != "true":
+            raise ValidationError(f"{path}: must set FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true")
         for action in workflow_uses_actions(model):
             if action.startswith("docker://"):
                 continue
             if "@" not in action:
                 raise ValidationError(f"{path}: action {action!r} must pin an explicit version")
             owner_repo, version = action.rsplit("@", 1)
+            if "*" in owner_repo or "*" in version:
+                raise ValidationError(f"{path}: action {action!r} must not use wildcard Node 24 defers")
+            if owner_repo == "anthropics/claude-code-action" and (path.name, owner_repo, version) not in NODE24_DEFERRED_ACTIONS:
+                raise ValidationError(
+                    f"{path}: {action!r} must match an explicit Node 24 deferred action exception"
+                )
             allowed_versions = NODE24_OFFICIAL_ACTIONS.get(owner_repo)
-            if (path.name, owner_repo, version) in NODE24_DEFERRED_OFFICIAL_ACTIONS:
+            if (path.name, owner_repo, version) in NODE24_DEFERRED_ACTIONS:
+                seen_deferred.add((path.name, owner_repo, version))
                 continue
             if allowed_versions is not None and version not in allowed_versions:
                 raise ValidationError(
                     f"{path}: {action!r} must use a Node 24-compatible official action version "
                     f"from {sorted(allowed_versions)}"
                 )
+    model_workflows = {path.name for path in models}
+    configured_for_models = {item for item in NODE24_DEFERRED_ACTIONS if item[0] in model_workflows}
+    missing_deferred = sorted(configured_for_models - seen_deferred)
+    if missing_deferred:
+        formatted = ", ".join(f"{workflow}:{action}@{version}" for workflow, action, version in missing_deferred)
+        raise ValidationError(f"Node 24 deferred action exceptions are not present in workflow inventory: {formatted}")
+    if seen_deferred:
+        validate_node24_deferred_action_docs(seen_deferred)
+
+
+def validate_node24_deferred_action_docs(deferred_actions: set[tuple[str, str, str]]) -> None:
+    docs_path = ROOT / "docs" / "agents" / "node24-workflow-compatibility.md"
+    if not docs_path.exists():
+        raise ValidationError(f"{docs_path}: Node 24 workflow compatibility inventory is missing")
+    text = docs_path.read_text(encoding="utf-8")
+    for workflow, action, version in sorted(deferred_actions):
+        pinned = f"{action}@{version}"
+        if workflow not in text or pinned not in text:
+            raise ValidationError(f"{docs_path}: missing deferred action inventory for {workflow} {pinned}")
+    for workflow, action, version in sorted(NODE24_DEFERRED_ACTIONS):
+        pinned = f"{action}@{version}"
+        if workflow not in text or pinned not in text:
+            raise ValidationError(f"{docs_path}: missing configured deferred action inventory for {workflow} {pinned}")
 
 
 def top_level_permissions_block(text: str) -> str:

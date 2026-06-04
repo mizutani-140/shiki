@@ -76,8 +76,11 @@ runtime semantics.
 Workflow files that execute `anthropics/claude-code-action` are a bounded
 exception during pull-request validation: the action requires the workflow file
 content to match the default branch before it can exchange its OIDC token. Node
-24 action upgrades for those workflow files must land through a dedicated
-Guardian-approved workflow migration path; the validator records only explicit
+24 action upgrades for official actions in those workflow files must land
+through a dedicated Guardian-approved workflow migration path. The inventory in
+`docs/agents/node24-workflow-compatibility.md` records exact two-phase official
+action defers for those workflow files and any remaining exact third-party
+workflow/action/version exception. The validator records only explicit
 workflow/action/version exceptions, not a general allowance for deprecated
 official actions.
 
