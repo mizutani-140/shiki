@@ -15,8 +15,8 @@
     "T-0039",
     "T-0040"
   ],
-  "expected_branch": "shiki/t-0041-node24-cca-claude-workflows",
-  "expected_pr": 73,
+  "expected_branch": "shiki/t-0041-post-merge-reconcile",
+  "expected_pr": 74,
   "github_issue": 72,
   "goal_id": "G-0012",
   "id": "T-0041",
