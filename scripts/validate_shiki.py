@@ -43,6 +43,14 @@ from shiki_manifest import (
     manifest_runtime_directories,
     render_manifest_layout,
 )
+from shiki_provider import (
+    DEFAULT_GITHUB_HOST,
+    ProviderConfigError,
+    api_base_url_for_host,
+    canonical_remote_url,
+    provider_from_repo_json,
+    provider_from_values,
+)
 from shiki_runtime_registry import (
     CONFIG_RUNTIME_ROLES,
     RuntimeRegistryError,
@@ -257,6 +265,7 @@ SHIKI_CLI_MODULE_FILES = (
     "scripts/shiki_git.py",
     "scripts/shiki_github.py",
     "scripts/shiki_installer.py",
+    "scripts/shiki_provider.py",
     "scripts/shiki_process.py",
     "scripts/shiki_runtime.py",
     "scripts/shiki_runtime_registry.py",
@@ -425,6 +434,10 @@ def validate_shiki_cli_module_boundaries(root: Path = ROOT) -> None:
         raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_module_boundaries.sh")
     if not (root / "scripts/test_shiki_module_boundaries.sh").is_file():
         raise ValidationError("scripts/test_shiki_module_boundaries.sh: module boundary regression test is missing")
+    if "scripts/test_shiki_provider_config.sh" not in template_paths:
+        raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_provider_config.sh")
+    if not (root / "scripts/test_shiki_provider_config.sh").is_file():
+        raise ValidationError("scripts/test_shiki_provider_config.sh: provider config regression test is missing")
 
     scripts_path = str(root / "scripts")
     inserted = False
@@ -442,6 +455,51 @@ def validate_shiki_cli_module_boundaries(root: Path = ROOT) -> None:
                 sys.path.remove(scripts_path)
             except ValueError:
                 pass
+
+
+def validate_provider_config_contracts(root: Path = ROOT) -> None:
+    try:
+        default = provider_from_values(repo="OWNER/REPO")
+        if default.provider != "github":
+            raise ValidationError("scripts/shiki_provider.py: default provider must be github")
+        if default.host != DEFAULT_GITHUB_HOST:
+            raise ValidationError("scripts/shiki_provider.py: default host must be github.com")
+        if default.protocol != "https":
+            raise ValidationError("scripts/shiki_provider.py: default remote protocol must be https")
+        if default.api_base_url != "https://api.github.com":
+            raise ValidationError("scripts/shiki_provider.py: github.com API URL must be https://api.github.com")
+        if canonical_remote_url(default) != "https://github.com/OWNER/REPO.git":
+            raise ValidationError("scripts/shiki_provider.py: default remote URL drifted")
+
+        enterprise = provider_from_values(repo="OWNER/REPO", host="github.example.com", protocol="ssh")
+        if enterprise.api_base_url != "https://github.example.com/api/v3":
+            raise ValidationError("scripts/shiki_provider.py: enterprise API URL must default to https://HOST/api/v3")
+        if api_base_url_for_host("github.example.com") != "https://github.example.com/api/v3":
+            raise ValidationError("scripts/shiki_provider.py: api_base_url_for_host drifted")
+
+        for kwargs in (
+            {"repo": "OWNER/REPO", "provider": "gitlab"},
+            {"repo": "OWNER/REPO", "protocol": "git"},
+            {"repo": "not-a-slug"},
+            {"repo": "OWNER/REPO", "host": "bad/host"},
+        ):
+            try:
+                provider_from_values(**kwargs)
+            except ProviderConfigError:
+                continue
+            raise ValidationError(f"scripts/shiki_provider.py: invalid provider config accepted: {kwargs}")
+    except ProviderConfigError as error:
+        raise ValidationError(f"scripts/shiki_provider.py: default provider config is invalid: {error}") from error
+
+    repo_config = root / ".shiki" / "repo.json"
+    if repo_config.exists():
+        data = load_json(repo_config)
+        if not isinstance(data, dict):
+            raise ValidationError(f"{repo_config}: repo config must be a JSON object")
+        try:
+            provider_from_repo_json(data)
+        except ProviderConfigError as error:
+            raise ValidationError(f"{repo_config}: invalid provider fields: {error}") from error
 
 
 def config_model() -> dict[str, Any]:
@@ -1371,6 +1429,7 @@ def main() -> int:
         validate_validate_workflow_coverage()
         validate_shiki_manifest()
         validate_shiki_cli_module_boundaries()
+        validate_provider_config_contracts()
         validate_runtime_contracts()
         validate_issue_forms()
         validate_codeowners_governance()

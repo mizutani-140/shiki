@@ -10,34 +10,41 @@ import re
 from typing import Any
 
 from shiki_git import github_origin
-from shiki_process import ShikiError, first_line, info, print_json, require_tool, run, warn, write_json, shiki_path, target_path
+from shiki_provider import ProviderConfig, ProviderConfigError, canonicalize_remote_url, default_provider_config, github_env, provider_from_repo_json, repo_api_path, validate_repo_slug
+from shiki_process import ShikiError, first_line, info, print_json, read_json, require_tool, run, warn, write_json, shiki_path, target_path
 from shiki_tasks import append_ledger, load_task, require_github_first_target, worktree_record
 
 GITHUB_REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 def require_github_repo_slug(repo: str) -> None:
-    if not GITHUB_REPO.match(repo):
-        raise ShikiError("repo must be a GitHub slug like OWNER/NAME")
+    try:
+        validate_repo_slug(repo)
+    except ValueError as error:
+        raise ShikiError("repo must be a GitHub slug like OWNER/NAME") from error
 
 
-def github_repo_exists(repo: str) -> bool:
-    return run(["gh", "repo", "view", repo, "--json", "name"], check=False).returncode == 0
+def github_repo_exists(repo: str, provider_config: ProviderConfig | None = None) -> bool:
+    config = provider_config or default_provider_config(repo)
+    return run(["gh", "repo", "view", config.repo, "--json", "name"], env=github_env(config), check=False).returncode == 0
 
 
-def ensure_github_repo(repo: str, visibility: str) -> None:
-    if github_repo_exists(repo):
-        info(f"GitHub repository already exists: {repo}")
+def ensure_github_repo(repo: str, visibility: str, provider_config: ProviderConfig | None = None) -> None:
+    config = provider_config or default_provider_config(repo)
+    if github_repo_exists(repo, provider_config=config):
+        info(f"GitHub repository already exists: {config.repo}")
         return
-    args = ["gh", "repo", "create", repo]
+    args = ["gh", "repo", "create", config.repo]
     args.append(f"--{visibility}")
     args.extend(["--confirm"])
-    run(args)
-    info(f"created GitHub repository: {repo}")
+    run(args, env=github_env(config))
+    info(f"created GitHub repository: {config.repo}")
 
 
-def set_default_branch(repo: str, branch: str) -> None:
+def set_default_branch(repo: str, branch: str, provider_config: ProviderConfig | None = None) -> None:
+    config = provider_config or default_provider_config(repo)
     result = run(
-        ["gh", "api", f"repos/{repo}", "-X", "PATCH", "-f", f"default_branch={branch}"],
+        ["gh", "api", repo_api_path(config), "-X", "PATCH", "-f", f"default_branch={branch}"],
+        env=github_env(config),
         check=False,
     )
     if result.returncode == 0:
@@ -46,8 +53,9 @@ def set_default_branch(repo: str, branch: str) -> None:
         warn(f"could not set default branch: {result.stderr.strip()}")
 
 
-def set_secret(repo: str, secret_name: str, value: str) -> None:
-    run(["gh", "secret", "set", secret_name, "--repo", repo], input_text=value)
+def set_secret(repo: str, secret_name: str, value: str, provider_config: ProviderConfig | None = None) -> None:
+    config = provider_config or default_provider_config(repo)
+    run(["gh", "secret", "set", secret_name, "--repo", config.repo], input_text=value, env=github_env(config))
     info(f"set GitHub secret: {secret_name}")
 
 
@@ -59,7 +67,13 @@ def claude_secret_remediation(repo: str, secret_env: str) -> str:
     )
 
 
-def configure_claude_code_secret(repo: str, *, enabled: bool, secret_env: str) -> dict[str, Any]:
+def configure_claude_code_secret(
+    repo: str,
+    *,
+    enabled: bool,
+    secret_env: str,
+    provider_config: ProviderConfig | None = None,
+) -> dict[str, Any]:
     status: dict[str, Any] = {
         "name": "CLAUDE_CODE_OAUTH_TOKEN",
         "enabled": enabled,
@@ -80,14 +94,15 @@ def configure_claude_code_secret(repo: str, *, enabled: bool, secret_env: str) -
             f"{status['remediation']}"
         )
 
-    set_secret(repo, "CLAUDE_CODE_OAUTH_TOKEN", secret_value)
+    set_secret(repo, "CLAUDE_CODE_OAUTH_TOKEN", secret_value, provider_config=provider_config)
     status["configured"] = True
     status["source"] = f"env:{secret_env}"
     return status
 
 
-def github_secret_status(repo: str, secret_name: str) -> dict[str, Any]:
-    result = run(["gh", "secret", "list", "--repo", repo], check=False)
+def github_secret_status(repo: str, secret_name: str, provider_config: ProviderConfig | None = None) -> dict[str, Any]:
+    config = provider_config or default_provider_config(repo)
+    result = run(["gh", "secret", "list", "--repo", config.repo], env=github_env(config), check=False)
     if result.returncode != 0:
         return {
             "name": secret_name,
@@ -103,7 +118,15 @@ def github_secret_status(repo: str, secret_name: str) -> dict[str, Any]:
     }
 
 
-def protect_branch(repo: str, branch: str, required_checks: list[str], *, review_count: int) -> None:
+def protect_branch(
+    repo: str,
+    branch: str,
+    required_checks: list[str],
+    *,
+    review_count: int,
+    provider_config: ProviderConfig | None = None,
+) -> None:
+    config = provider_config or default_provider_config(repo)
     payload = {
         "required_status_checks": {
             "strict": True,
@@ -125,13 +148,14 @@ def protect_branch(repo: str, branch: str, required_checks: list[str], *, review
         [
             "gh",
             "api",
-            f"repos/{repo}/branches/{branch}/protection",
+            repo_api_path(config, f"branches/{branch}/protection"),
             "-X",
             "PUT",
             "--input",
             "-",
         ],
         input_text=json.dumps(payload),
+        env=github_env(config),
         check=False,
     )
     if result.returncode == 0:
@@ -147,10 +171,11 @@ def github_repo_from_origin(target: Path) -> str | None:
     origin = github_origin(target)
     if not origin:
         return None
-    match = re.search(r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?$", origin)
-    if not match:
+    try:
+        canonical = canonicalize_remote_url(origin)
+    except ProviderConfigError:
         return None
-    return match.group(1)
+    return "/".join(canonical.removeprefix("https://").split("/", 1)[1:])
 
 
 def parse_github_number(value: str, kind: str) -> int:
@@ -159,6 +184,16 @@ def parse_github_number(value: str, kind: str) -> int:
     if not match:
         raise ShikiError(f"could not parse GitHub {kind} number from: {value}")
     return int(match.group(1))
+
+
+def target_provider_config(target: Path) -> ProviderConfig | None:
+    repo_config = target / ".shiki" / "repo.json"
+    if not repo_config.exists():
+        return None
+    try:
+        return provider_from_repo_json(read_json(repo_config))
+    except (ProviderConfigError, ShikiError) as error:
+        raise ShikiError(f"{repo_config}: invalid provider config: {error}") from error
 
 
 def github_issue_body(task: dict[str, Any]) -> str:
@@ -217,6 +252,7 @@ def github_pr_body(task: dict[str, Any]) -> str:
 def create_github_issue_for_task(target: Path, task_id: str) -> dict[str, Any]:
     require_tool("gh")
     task = load_task(target, task_id)
+    config = target_provider_config(target)
     result = run(
         [
             "gh",
@@ -228,6 +264,7 @@ def create_github_issue_for_task(target: Path, task_id: str) -> dict[str, Any]:
             github_issue_body(task),
         ],
         cwd=target,
+        env=github_env(config) if config else None,
     )
     url = result.stdout.strip().splitlines()[-1]
     issue_number = parse_github_number(url, "issues")
@@ -256,6 +293,7 @@ def cmd_github_issue(args: argparse.Namespace) -> int:
 def create_github_pr_for_task(target: Path, task_id: str, *, base: str, head: str | None = None) -> dict[str, Any]:
     require_tool("gh")
     task = load_task(target, task_id)
+    config = target_provider_config(target)
     result = run(
         [
             "gh",
@@ -271,6 +309,7 @@ def create_github_pr_for_task(target: Path, task_id: str, *, base: str, head: st
             github_pr_body(task),
         ],
         cwd=target,
+        env=github_env(config) if config else None,
     )
     url = result.stdout.strip().splitlines()[-1]
     pr_number = parse_github_number(url, "pull")

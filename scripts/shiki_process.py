@@ -45,14 +45,19 @@ def run(
     *,
     cwd: Path = ROOT,
     input_text: str | None = None,
+    env: dict[str, str] | None = None,
     check: bool = True,
 ) -> CommandResult:
+    process_env = os.environ.copy()
+    if env:
+        process_env.update(env)
     process = subprocess.run(
         args,
         cwd=str(cwd),
         input=input_text,
         text=True,
         capture_output=True,
+        env=process_env,
         check=False,
     )
     result = CommandResult(args, process.returncode, process.stdout, process.stderr)

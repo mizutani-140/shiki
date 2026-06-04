@@ -16,6 +16,7 @@ command execution work at import time.
 | `scripts/shiki_process.py` | Process execution, console output, common paths, JSON helpers, and dependency-free utility functions. |
 | `scripts/shiki_git.py` | Local git repository detection, remote adoption checks, manifest staging commits, branch pushes, and worktree branch probes. |
 | `scripts/shiki_github.py` | GitHub CLI/API interactions for repository creation, secrets, branch protection, issue/PR evidence, and GitHub origin parsing. |
+| `scripts/shiki_provider.py` | Dependency-free GitHub-compatible provider config, canonical remote URL generation, remote matching, repo API paths, and `GH_HOST` environment mapping. |
 | `scripts/shiki_config.py` | Dependency-free `.shiki/config.yaml` subset parsing and branch-protection review-count derivation. |
 | `scripts/shiki_installer.py` | Template path list, target installation, manifest commit exclusions, and local/global command installation. |
 | `scripts/shiki_bootstrap.py` | `init`, `bootstrap-platform`, `bootstrap-github`, `preflight`, and `start` orchestration, including dry-run / execute gating. |
@@ -26,6 +27,7 @@ Existing support modules remain canonical for their domains:
 
 - `scripts/shiki_state.py`
 - `scripts/shiki_manifest.py`
+- `scripts/shiki_provider.py`
 - `scripts/shiki_locks.py`
 - `scripts/shiki_workflows.py`
 - `scripts/shiki_jsonschema.py`

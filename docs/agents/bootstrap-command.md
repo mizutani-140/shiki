@@ -73,6 +73,38 @@ handoff evidence. By default, Shiki uses
 
 Do not use `install-target` for normal setup. Shiki is GitHub-first.
 
+## GitHub Host And Remote Protocol
+
+By default, Shiki targets GitHub.com with HTTPS remotes:
+
+```bash
+shiki init /path/to/target-repo --repo OWNER/REPO
+```
+
+Dry-run output includes the provider, GitHub host, remote protocol, canonical
+remote URL, and API base URL before any mutation is executed.
+
+Use SSH remotes with:
+
+```bash
+shiki init /path/to/target-repo --repo OWNER/REPO --remote-protocol ssh
+```
+
+For GitHub Enterprise-compatible hosts, pass the host and optional API URL:
+
+```bash
+shiki init /path/to/target-repo \
+  --repo OWNER/REPO \
+  --github-host github.example.com \
+  --github-api-url https://github.example.com/api/v3 \
+  --remote-protocol ssh
+```
+
+Shiki continues to use `gh`; enterprise commands receive `GH_HOST` for the
+configured host. Operators must authenticate GitHub CLI for that host. See
+`docs/agents/github-provider-config.md` for the full provider contract and
+legacy `.shiki/repo.json` compatibility.
+
 ### Claude Code Action Secret
 
 In execute mode, `shiki start`, `shiki init`, and `shiki bootstrap-platform` set

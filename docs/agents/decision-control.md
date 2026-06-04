@@ -139,6 +139,21 @@ flags. It is a validation and adapter-contract surface only; it does not yet
 grant a provider abstraction, doctor checks, migration framework, or
 registry-driven dispatch authority.
 
+### GitHub Provider Configuration Policy
+
+Shiki is GitHub-first, but GitHub host and remote protocol assumptions must be
+explicit. `scripts/shiki_provider.py` defines the dependency-free provider
+contract for GitHub-compatible targets, including provider kind, host, SSH/HTTPS
+remote protocol, web/API base URLs, canonical remote URL, repo API paths, and
+`GH_HOST` mapping for GitHub CLI commands.
+
+Only `provider=github` is supported. GitHub.com HTTPS is the compatibility
+default for legacy `.shiki/repo.json` records. GitHub Enterprise-compatible
+hosts may use custom host/API URL values, but this does not add non-GitHub
+providers, a provider plugin system, doctor checks, or a migration framework.
+Existing-origin mismatch remains a hard failure unless `--adopt-existing-repo`
+is explicitly passed.
+
 ### Workflow Runtime Compatibility Policy
 
 Workflow runtime compatibility is part of MergeGate evidence. Shiki workflow

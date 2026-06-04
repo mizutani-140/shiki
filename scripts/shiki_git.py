@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
 
 from shiki_installer import manifest_stage_paths
+from shiki_provider import ProviderConfig, ProviderConfigError, canonical_remote_url, canonicalize_remote_url, default_provider_config, provider_from_repo_json, remote_matches_provider
 from shiki_process import ROOT, ShikiError, info, run
 
 def is_git_repo(path: Path) -> bool:
@@ -37,22 +39,24 @@ def existing_origin_url(path: Path) -> str | None:
 
 
 def canonical_github_remote_url(url: str) -> str:
-    value = url.strip().removesuffix("/")
-    if value.endswith(".git"):
-        value = value[:-4]
-    if value.startswith("git@github.com:"):
-        value = "https://github.com/" + value.removeprefix("git@github.com:")
-    return value
+    return canonicalize_remote_url(url)
 
 
-def check_remote_adoption(repo: str, path: Path, *, adopt_existing_repo: bool = False) -> None:
+def check_remote_adoption(
+    repo: str,
+    path: Path,
+    *,
+    adopt_existing_repo: bool = False,
+    provider_config: ProviderConfig | None = None,
+) -> None:
     if not path.exists() or not is_git_repo(path):
         return
-    remote_url = f"https://github.com/{repo}.git"
+    config = provider_config or default_provider_config(repo)
+    remote_url = canonical_remote_url(config)
     current = existing_origin_url(path)
     if (
         current
-        and canonical_github_remote_url(current) != canonical_github_remote_url(remote_url)
+        and not remote_matches_provider(current, config)
         and not adopt_existing_repo
     ):
         raise ShikiError(
@@ -62,11 +66,18 @@ def check_remote_adoption(repo: str, path: Path, *, adopt_existing_repo: bool = 
         )
 
 
-def ensure_remote(repo: str, path: Path, *, adopt_existing_repo: bool = False) -> None:
-    remote_url = f"https://github.com/{repo}.git"
+def ensure_remote(
+    repo: str,
+    path: Path,
+    *,
+    adopt_existing_repo: bool = False,
+    provider_config: ProviderConfig | None = None,
+) -> None:
+    config = provider_config or default_provider_config(repo)
+    remote_url = canonical_remote_url(config)
     current = existing_origin_url(path)
     if current:
-        if canonical_github_remote_url(current) != canonical_github_remote_url(remote_url):
+        if not remote_matches_provider(current, config):
             if not adopt_existing_repo:
                 raise ShikiError(
                     "origin already points to "
@@ -110,7 +121,18 @@ def github_origin(path: Path) -> str | None:
     if result.returncode != 0:
         return None
     origin = result.stdout.strip()
-    if "github.com" not in origin:
+    repo_config = path / ".shiki" / "repo.json"
+    if repo_config.exists():
+        try:
+            config = provider_from_repo_json(json.loads(repo_config.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError, ProviderConfigError):
+            return None
+        return origin if remote_matches_provider(origin, config) else None
+    try:
+        canonical = canonicalize_remote_url(origin)
+    except ValueError:
+        return None
+    if not canonical.startswith("https://github.com/"):
         return None
     return origin
 

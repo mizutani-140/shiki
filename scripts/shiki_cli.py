@@ -15,6 +15,14 @@ from shiki_process import ShikiError
 from shiki_runtime import cmd_daemon_enqueue_plan, cmd_daemon_run, cmd_doctor, cmd_runner_codex, cmd_runner_execute, cmd_runner_next, cmd_smoke_live
 from shiki_tasks import cmd_dispatch_check, cmd_goal_complete, cmd_goal_create, cmd_handoff_repair, cmd_handoff_task, cmd_issue_plan, cmd_lock_acquire, cmd_plan_guide, cmd_plan_ingest, cmd_repair_packet, cmd_run, cmd_task_status, cmd_worktree_allocate
 
+
+def add_provider_arguments(command: argparse.ArgumentParser) -> None:
+    command.add_argument("--provider", default="github", help="Repository provider kind; only github is currently supported")
+    command.add_argument("--github-host", default="github.com", help="GitHub host, default github.com")
+    command.add_argument("--remote-protocol", choices=["https", "ssh"], default="https", help="Origin remote protocol, default https")
+    command.add_argument("--github-api-url", help="GitHub API base URL; defaults to https://api.github.com or https://HOST/api/v3")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="shiki")
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -22,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     init = subcommands.add_parser("init", help="Install Shiki into a target repo and publish it to GitHub")
     init.add_argument("target", help="Target repository path")
     init.add_argument("--repo", required=True, help="GitHub repository as OWNER/NAME")
+    add_provider_arguments(init)
     init.add_argument("--branch", default="main", help="Default branch, default main")
     init.add_argument("--private", action="store_true", help="Create a private repo")
     init.add_argument("--public", action="store_true", help=argparse.SUPPRESS)
@@ -46,6 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     github = subcommands.add_parser("bootstrap-platform", help="Initialize and publish the Shiki platform repo to GitHub")
     github.add_argument("--repo", help="GitHub repository as OWNER/NAME")
+    add_provider_arguments(github)
     github.add_argument("--branch", default=None, help="Default branch, default main")
     github.add_argument("--private", action="store_true", help="Create a private repo")
     github.add_argument("--public", action="store_true", help=argparse.SUPPRESS)
@@ -63,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     deprecated = subcommands.add_parser("bootstrap-github", help="Deprecated alias for bootstrap-platform")
     deprecated.add_argument("--repo", help="GitHub repository as OWNER/NAME")
+    add_provider_arguments(deprecated)
     deprecated.add_argument("--branch", default=None, help="Default branch, default main")
     deprecated.add_argument("--private", action="store_true", help="Create a private repo")
     deprecated.add_argument("--public", action="store_true", help=argparse.SUPPRESS)
@@ -109,6 +120,7 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("--target", default=".", help="Target repository path")
     start.add_argument("--answers-file", help="JSON answers for non-interactive start")
     start.add_argument("--repo", help="GitHub repository as OWNER/NAME")
+    add_provider_arguments(start)
     start.add_argument("--project-name")
     start.add_argument("--goal")
     start.add_argument("--outcome")
