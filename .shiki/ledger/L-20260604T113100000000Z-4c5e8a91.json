@@ -19,13 +19,15 @@
     "Issue #84 can be closed after this reconciliation merges.",
     "Goal #30 P1.3.6 is eligible to be marked complete after this reconciliation merges.",
     "P1.4 governance / evidence model hardening and P2 distribution / onboarding / release work remain open.",
-    "Goal #30 / G-0012 remains open because additional P1/P2 work remains open."
+    "Goal #30 / G-0012 remains open because additional P1/P2 work remains open.",
+    "Pull Request #86 records the T-0045 post-merge mirror reconciliation: https://github.com/mizutani-140/shiki/pull/86"
   ],
   "goal_id": "G-0012",
   "id": "L-20260604T113100000000Z-4c5e8a91",
   "links": [
     "https://github.com/mizutani-140/shiki/issues/84",
-    "https://github.com/mizutani-140/shiki/pull/85"
+    "https://github.com/mizutani-140/shiki/pull/85",
+    "https://github.com/mizutani-140/shiki/pull/86"
   ],
   "summary": "Recorded T-0045 post-merge mirror reconciliation evidence.",
   "task_id": "T-0045",
