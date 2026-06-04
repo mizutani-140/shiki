@@ -1,0 +1,34 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0045 post-merge reconciliation records PR #85 merge and mirror completion evidence.",
+    "PR #85 merged into main with guarded head 2a61ba7bd7324af06bdcab32f043d950ac265c0c.",
+    "PR #85 merge commit on main is a477657ea9cfc3ef35726046e9abc872c46c22c8.",
+    "Guardian approval evidence was recorded on PR #85 with guardian:approved label and approval comment.",
+    "Pre-merge hidden / bidirectional Unicode control character check passed for PR #85 changed files.",
+    "Pre-merge CCA verdict passed after Guardian approval.",
+    "Pre-merge CCA Review Bridge created or confirmed github-actions APPROVED review on PR #85.",
+    "Pre-merge MergeGate policy check passed after Guardian approval.",
+    "Pre-merge MergeGate metadata check passed.",
+    "Pre-merge Validate Shiki mirror passed.",
+    "Pre-merge Claude review passed.",
+    "T-0045 status is now done.",
+    "G-0012 ledger evidence includes implementation ledger L-20260604T103500000000Z-a9d4c1e2 and reconciliation ledger L-20260604T113100000000Z-4c5e8a91.",
+    "No active T-0045 lock was present on main after PR #85 merge.",
+    "Migration status JSON on main is valid, state_exists is true, valid is true, pending_count is 0, and baseline migration M-20260604-0001-baseline is applied.",
+    "Issue #84 can be closed after this reconciliation merges.",
+    "Goal #30 P1.3.6 is eligible to be marked complete after this reconciliation merges.",
+    "P1.4 governance / evidence model hardening and P2 distribution / onboarding / release work remain open.",
+    "Goal #30 / G-0012 remains open because additional P1/P2 work remains open."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260604T113100000000Z-4c5e8a91",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/84",
+    "https://github.com/mizutani-140/shiki/pull/85"
+  ],
+  "summary": "Recorded T-0045 post-merge mirror reconciliation evidence.",
+  "task_id": "T-0045",
+  "timestamp": "2026-06-04T11:31:00Z",
+  "type": "completion"
+}
