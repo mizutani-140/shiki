@@ -10,12 +10,15 @@
     "Updated scripts/shiki_cli.py, scripts/shiki_installer.py, scripts/test_shiki_module_boundaries.sh, and scripts/validate_shiki.py for doctor module wiring, staging, and validation.",
     "Added docs/agents/shiki-doctor.md and updated decision-control, checklists, runtime-auth-model, runtime-registry, and github-provider-config docs.",
     "Non-goals preserved: P1.3.6 migration framework, P1.4 governance/evidence model redesign, P2 packaging/release/onboarding, provider plugins, Guardian policy, CCA Review Bridge semantics, branch protection policy, CODEOWNERS ownership, P0.4 semantics, and Node workflow changes.",
-    "Local verification to be recorded in PR evidence before completion judgment."
+    "Local verification is recorded in Pull Request #82 evidence.",
+    "GitHub Issue #81: https://github.com/mizutani-140/shiki/issues/81",
+    "Pull Request #82: https://github.com/mizutani-140/shiki/pull/82"
   ],
   "goal_id": "G-0012",
   "id": "L-20260604T080956865573Z-cddc061a",
   "links": [
-    "https://github.com/mizutani-140/shiki/issues/81"
+    "https://github.com/mizutani-140/shiki/issues/81",
+    "https://github.com/mizutani-140/shiki/pull/82"
   ],
   "summary": "Recorded T-0044 shiki doctor implementation evidence.",
   "task_id": "T-0044",

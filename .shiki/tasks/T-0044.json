@@ -15,7 +15,7 @@
     "T-0043"
   ],
   "expected_branch": "shiki/t-0044-shiki-doctor-checks",
-  "expected_pr": null,
+  "expected_pr": 82,
   "github_issue": 81,
   "goal_id": "G-0012",
   "id": "T-0044",
