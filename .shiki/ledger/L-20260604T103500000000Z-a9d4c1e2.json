@@ -14,7 +14,11 @@
     "scripts/test_shiki_migrations.sh covers registry, state validation, CLI status/plan/apply, dry-run/execute/idempotence, destructive policy, doctor integration, and manifest staging.",
     "docs/agents/shiki-migrations.md documents purpose, state path, migration ID format, baseline migration, dry-run / execute behavior, destructive migration policy, doctor, validator, GitHub source-of-truth relation, and repair/ledger relation.",
     "Non-goals preserved: P1.4 governance/evidence redesign, P2 packaging/release/onboarding, runtime adapter execution engine, new provider support, Guardian policy, CCA Review Bridge semantics, branch protection, CODEOWNERS, P0.4 semantics, Node.js workflows, external migration services, and broad historical rewrites.",
-    "Pull Request #85 records the T-0045 .shiki migration framework implementation: https://github.com/mizutani-140/shiki/pull/85"
+    "Pull Request #85 records the T-0045 .shiki migration framework implementation: https://github.com/mizutani-140/shiki/pull/85",
+    "Required skill diagnose evidence: the implementation built a deterministic feedback loop with py_compile, validate_shiki, targeted migration tests, doctor/module-boundary tests, full scripts/test_shiki_*.sh, migration smoke commands, and git diff checks before PR creation.",
+    "Required skill tdd evidence: scripts/test_shiki_migrations.sh exercises public CLI, validator-facing migration state functions, doctor findings, dry-run/execute behavior, destructive policy, and manifest staging as behavior-level regression coverage.",
+    "Required skill improve-codebase-architecture evidence: scripts/shiki_migrations.py is a deep dependency-free module behind a small status/plan/apply interface, with shiki_cli.py, shiki_doctor.py, and validate_shiki.py depending on the same migration seam instead of duplicating migration state logic.",
+    "Bounded MergeGate metadata repair for PR #85 added only missing task locks for changed documentation/installer/module-boundary files and explicit required skill evidence; implementation behavior, workflow files, Guardian policy, CCA Review Bridge, branch protection, CODEOWNERS, P1.4, and P2 remain unchanged."
   ],
   "goal_id": "G-0012",
   "id": "L-20260604T103500000000Z-a9d4c1e2",

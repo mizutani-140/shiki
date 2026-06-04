@@ -35,7 +35,10 @@
     "path:docs/agents/**",
     "path:.shiki/tasks/T-0045.json",
     "path:.shiki/ledger/**",
-    "path:.shiki/goals/G-0012.json"
+    "path:.shiki/goals/G-0012.json",
+    "path:.shiki/README.md",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/test_shiki_module_boundaries.sh"
   ],
   "non_goals": [
     "Do not implement P1.4 governance or evidence model redesign.",
