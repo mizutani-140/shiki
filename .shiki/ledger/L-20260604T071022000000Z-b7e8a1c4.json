@@ -1,0 +1,30 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0043 post-merge reconciliation after implementation PR #79 merged.",
+    "Implementation Pull Request #79 merged at approved head 60fd48e89fc9a04bb279cab9a8810e9f87f688d3.",
+    "Implementation merge commit on main is 0356e8eac276efb9b772d723923738a38cc01c67.",
+    "T-0043 status is updated from review to done.",
+    "G-0012 ledger evidence includes implementation ledger L-20260604T063600000000Z-a4f3c2d1 and reconciliation ledger L-20260604T071022000000Z-b7e8a1c4.",
+    "No active .shiki/locks/T-0043.json lock was present on main after PR #79 merge.",
+    "Issue #78 can be closed after this reconciliation PR merges.",
+    "Goal #30 P1.3.4 can be marked complete after this reconciliation PR merges.",
+    "P1.3.5 doctor checks remain open.",
+    "P1.3.6 migration framework remains open.",
+    "Goal #30 remains open because P1.3.5, P1.3.6, P1.4, and P2 work remain incomplete.",
+    "GitHub Issue #78: https://github.com/mizutani-140/shiki/issues/78",
+    "Implementation Pull Request #79: https://github.com/mizutani-140/shiki/pull/79",
+    "Reconciliation Pull Request #80: https://github.com/mizutani-140/shiki/pull/80"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260604T071022000000Z-b7e8a1c4",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/78",
+    "https://github.com/mizutani-140/shiki/pull/79",
+    "https://github.com/mizutani-140/shiki/pull/80"
+  ],
+  "summary": "Recorded T-0043 post-merge mirror reconciliation evidence.",
+  "task_id": "T-0043",
+  "timestamp": "2026-06-04T07:10:22Z",
+  "type": "completion"
+}
