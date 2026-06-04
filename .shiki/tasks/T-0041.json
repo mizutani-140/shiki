@@ -1,12 +1,12 @@
 {
   "acceptance_checks": [
-    "CCA and Claude workflow official GitHub actions no longer rely on the T-0039 Node 24 deferred official-action exceptions.",
-    "Affected workflows set FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true and continue to forbid ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION.",
-    "Official GitHub actions use verified Node 24-compatible pinned versions: checkout v6, upload-artifact v7, and download-artifact v8 where applicable.",
+    "CCA and Claude workflow official GitHub actions are documented as exact two-phase defers because direct workflow changes break Anthropic OIDC/default-branch PR validation.",
+    "Unaffected Shiki workflows continue to set FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true and every workflow continues to forbid ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION.",
+    "Official GitHub action Node 24-compatible candidates were verified and recorded: checkout v6, upload-artifact v7, and download-artifact v8 where applicable.",
     "anthropics/claude-code-action@v1 remains a documented exact workflow/action/version defer for CCA and Claude review workflows only.",
-    "scripts/validate_shiki.py rejects unsafe Node opt-outs, deprecated official action versions, wildcard action versions, and changed Anthropic action versions that are not explicitly configured.",
-    "scripts/test_shiki_validator_hardening.sh covers exact defer acceptance, docs inventory coverage, changed-version rejection, wildcard rejection, and official action rejection.",
-    "docs/agents/node24-workflow-compatibility.md inventories every affected workflow action and records post-merge verification expectations.",
+    "scripts/validate_shiki.py rejects unsafe Node opt-outs, deprecated official action versions outside configured exact defers, wildcard action versions, and changed Anthropic action versions that are not explicitly configured.",
+    "scripts/test_shiki_validator_hardening.sh covers exact defer acceptance, docs inventory coverage, changed-version rejection, wildcard rejection, and official action rejection outside configured exact defers.",
+    "docs/agents/node24-workflow-compatibility.md inventories every affected workflow action and records the post-merge verification / follow-up repair expectations.",
     "Runtime auth, decision-control, and checklist docs distinguish Node runtime compatibility from Guardian approval, CCA Review Bridge, branch protection, CODEOWNERS, and other governance behavior.",
     "Verification bundle passes: validate_shiki, py_compile, scripts/test_shiki_*.sh, git diff --check, and local actionlint/shellcheck wrappers."
   ],
@@ -55,7 +55,7 @@
     "improve-codebase-architecture"
   ],
   "risk_level": "critical",
-  "scope": "Resolve the T-0039 deferred CCA / Claude workflow Node 24 compatibility surface by upgrading safe official GitHub actions, preserving exact Anthropic action defer semantics, strengthening validation and tests, and documenting post-merge verification.",
+  "scope": "Resolve the T-0039 deferred CCA / Claude workflow Node 24 compatibility planning surface by recording exact two-phase workflow/action/version defers, preserving default-branch-compatible CCA / Claude PR checks, strengthening validation and tests, and documenting post-merge verification / follow-up repair handling.",
   "status": "review",
   "title": "Resolve deferred CCA / Claude workflow Node 24 compatibility"
 }

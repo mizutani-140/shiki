@@ -130,7 +130,8 @@ JavaScript actions must pin explicit versions, forbid
 `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`, and set
 `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` on workflows that exercise JavaScript
 actions. Official GitHub actions must use validator-approved Node
-24-compatible majors.
+24-compatible majors, except for exact CCA / Claude workflow two-phase defers
+recorded in the compatibility inventory.
 
 The only accepted Node runtime defer is an exact workflow/action/version entry
 recorded in `docs/agents/node24-workflow-compatibility.md`. A broad defer for a

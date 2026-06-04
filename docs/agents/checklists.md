@@ -210,7 +210,7 @@ Blocking values:
 | VH-03 | Unsupported JSON Schema features fail closed with clear errors. | blocking |
 | VH-04 | `actionlint` and `shellcheck` run in CI; local scripts may skip only when the tools are unavailable. | blocking |
 | VH-05 | `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` is exercised and `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` is forbidden. | blocking |
-| VH-06 | Node runtime defers are exact workflow/action/version entries documented in `docs/agents/node24-workflow-compatibility.md`; official action defers are not accepted. | blocking |
+| VH-06 | Node runtime defers are exact workflow/action/version entries documented in `docs/agents/node24-workflow-compatibility.md`; broad or wildcard defers are not accepted. | blocking |
 
 ## MB — Module Boundary Checklist
 

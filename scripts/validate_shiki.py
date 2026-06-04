@@ -226,13 +226,15 @@ NODE24_OFFICIAL_ACTIONS = {
 }
 
 NODE24_DEFERRED_ACTIONS = {
+    ("shiki-cca-completion.yml", "actions/checkout", "v4"),
+    ("shiki-cca-completion.yml", "actions/upload-artifact", "v4"),
+    ("shiki-cca-completion.yml", "actions/download-artifact", "v4"),
     ("shiki-cca-completion.yml", "anthropics/claude-code-action", "v1"),
+    ("shiki-claude-review.yml", "actions/checkout", "v4"),
     ("shiki-claude-review.yml", "anthropics/claude-code-action", "v1"),
 }
 
 NODE24_FORCE_WORKFLOWS = {
-    "shiki-cca-completion.yml",
-    "shiki-claude-review.yml",
     "shiki-mergegate.yml",
     "shiki-orchestrator.yml",
     "shiki-validate.yml",

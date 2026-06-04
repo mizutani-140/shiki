@@ -91,12 +91,16 @@ def node24_inventory_doc(*, include_deferred: bool = True) -> str:
         "",
         "| Workflow | Job | Step / action | Current version | Node 20 warning status | Node 24-compatible candidate | Decision |",
         "| --- | --- | --- | --- | --- | --- | --- |",
-        "| shiki-cca-completion.yml | CCA verdict | actions/checkout | actions/checkout@v6 | resolved | actions/checkout@v6 | upgraded |",
     ]
     if include_deferred:
         rows.extend(
             [
+                "| shiki-cca-completion.yml | CCA verdict | actions/checkout | actions/checkout@v4 | deferred official action | actions/checkout@v6 | exact two-phase defer |",
                 "| shiki-cca-completion.yml | CCA verdict | anthropics/claude-code-action | anthropics/claude-code-action@v1 | deferred third-party action | none verified | exact defer |",
+                "| shiki-cca-completion.yml | CCA verdict | actions/upload-artifact | actions/upload-artifact@v4 | deferred official action | actions/upload-artifact@v7 | exact two-phase defer |",
+                "| shiki-cca-completion.yml | MergeGate policy check | actions/checkout | actions/checkout@v4 | deferred official action | actions/checkout@v6 | exact two-phase defer |",
+                "| shiki-cca-completion.yml | MergeGate policy check | actions/download-artifact | actions/download-artifact@v4 | deferred official action | actions/download-artifact@v8 | exact two-phase defer |",
+                "| shiki-claude-review.yml | Claude review | actions/checkout | actions/checkout@v4 | deferred official action | actions/checkout@v6 | exact two-phase defer |",
                 "| shiki-claude-review.yml | Claude review | anthropics/claude-code-action | anthropics/claude-code-action@v1 | deferred third-party action | none verified | exact defer |",
             ]
         )
@@ -323,8 +327,20 @@ jobs:
     name: CCA verdict
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Run CCA
         uses: anthropics/claude-code-action@v1
+      - name: Upload
+        uses: actions/upload-artifact@v4
+  mergegate:
+    name: MergeGate policy check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download
+        uses: actions/download-artifact@v4
 """,
                     )
                 }
@@ -356,8 +372,20 @@ jobs:
     name: CCA verdict
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Run CCA
         uses: anthropics/claude-code-action@v1
+      - name: Upload
+        uses: actions/upload-artifact@v4
+  mergegate:
+    name: MergeGate policy check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download
+        uses: actions/download-artifact@v4
 """,
                     )
                 }

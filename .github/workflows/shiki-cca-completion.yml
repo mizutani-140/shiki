@@ -22,9 +22,6 @@ permissions:
   checks: write
   id-token: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   cca:
     name: CCA verdict
@@ -32,7 +29,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -291,7 +288,7 @@ jobs:
 
       - name: Upload CCA evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: shiki-cca-evidence
           path: .shiki/gha
@@ -302,7 +299,7 @@ jobs:
     needs: cca
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -313,7 +310,7 @@ jobs:
           mkdir -p .shiki/gha
 
       - name: Download CCA evidence
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: shiki-cca-evidence
           path: .shiki/gha
