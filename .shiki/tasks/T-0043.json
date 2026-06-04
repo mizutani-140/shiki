@@ -15,13 +15,13 @@
   "dependencies": [
     "T-0042"
   ],
-  "expected_branch": "shiki/t-0043-github-provider-config",
-  "expected_pr": 79,
+  "expected_branch": "shiki/t-0043-post-merge-reconcile",
   "github_issue": 78,
   "goal_id": "G-0012",
   "id": "T-0043",
   "ledger_evidence": [
-    "L-20260604T063600000000Z-a4f3c2d1"
+    "L-20260604T063600000000Z-a4f3c2d1",
+    "L-20260604T071022000000Z-b7e8a1c4"
   ],
   "locks": [
     "shiki:contracts",
@@ -63,6 +63,6 @@
   ],
   "risk_level": "critical",
   "scope": "Make GitHub provider host, remote protocol, and GitHub Enterprise-compatible configuration explicit, validated, documented, and testable while preserving GitHub-first behavior.",
-  "status": "review",
+  "status": "done",
   "title": "Make GitHub host / protocol / provider configurable"
 }
