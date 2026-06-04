@@ -262,6 +262,7 @@ SHIKI_CLI_MODULE_FILES = (
     "scripts/shiki_bootstrap.py",
     "scripts/shiki_cli.py",
     "scripts/shiki_config.py",
+    "scripts/shiki_doctor.py",
     "scripts/shiki_git.py",
     "scripts/shiki_github.py",
     "scripts/shiki_installer.py",

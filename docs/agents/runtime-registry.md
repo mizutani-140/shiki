@@ -65,6 +65,12 @@ extension points, but `.shiki/config.yaml` must include an explicit role
 rationale such as `verifier_rationale` before assigning `other` to a required
 role.
 
+`shiki doctor` imports the registry, validates `.shiki/config.yaml` runtime role
+assignments, and checks task `assigned_runtime` values against the same runtime
+names. These doctor checks use the registry to decide which local auth checks
+matter; they do not require Claude or Codex local auth when those local runtimes
+are not configured for the target.
+
 ## Adapter Contract Boundary
 
 The registry describes the future adapter contract shape. A future adapter can
@@ -87,7 +93,6 @@ The following are intentionally not implemented by this registry task:
 - runtime provider abstraction;
 - GitHub host / protocol / provider configuration;
 - registry-driven dispatch;
-- doctor checks;
 - migration framework;
 - new runtime adapters;
 - reviewer bot or GitHub App behavior;

@@ -1,0 +1,66 @@
+{
+  "acceptance_checks": [
+    "scripts/shiki_doctor.py defines dependency-free DoctorFinding, stable JSON report output, overall pass/warn/fail/skip summary, human report rendering, --target, --online, and --strict behavior.",
+    "Existing shiki doctor and shiki doctor --json entrypoint/runtime auth output remains compatible while adding repository readiness findings.",
+    "Offline doctor checks cover provider config, git origin/current branch, required workflow files, required check names, CODEOWNERS coverage, manifest layout, runtime registry/config/task assignments, and validate_shiki contract drift.",
+    "Online doctor checks use gh only when --online is passed and cover GitHub auth, repository existence/default branch, required secret metadata, branch protection required checks/reviews/code-owner review, and workflow permissions for CCA Review Bridge.",
+    "Secret checks report only existence, missing, or unknown-permission status and do not print secret values.",
+    "scripts/test_shiki_doctor.sh covers JSON output, strict warning exit, valid fixture, missing repo.json warning, invalid provider config, origin mismatch, missing manifest, missing CODEOWNERS, invalid runtime assignment, missing workflow, fake-gh online checks, permission-denied warnings, secret redaction, and human remediation output.",
+    "docs/agents/shiki-doctor.md documents offline vs online mode, JSON contract, exit codes, pass/warn/fail/skip, GitHub permissions, secret safety, validate_shiki relation, and non-goals.",
+    "Target install/staging and module-boundary validation include scripts/shiki_doctor.py and scripts/test_shiki_doctor.sh.",
+    "Verification bundle passes: validate_shiki, py_compile, scripts/test_shiki_*.sh, doctor JSON/human smoke, and git diff --check."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0043"
+  ],
+  "expected_branch": "shiki/t-0044-shiki-doctor-checks",
+  "expected_pr": null,
+  "github_issue": 81,
+  "goal_id": "G-0012",
+  "id": "T-0044",
+  "ledger_evidence": [
+    "L-20260604T080956865573Z-cddc061a"
+  ],
+  "locks": [
+    "shiki:contracts",
+    "shiki:state",
+    "path:scripts/shiki_doctor.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/shiki_runtime.py",
+    "path:scripts/shiki_provider.py",
+    "path:scripts/shiki_github.py",
+    "path:scripts/shiki_git.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_doctor.sh",
+    "path:scripts/test_shiki_module_boundaries.sh",
+    "path:docs/agents/**",
+    "path:.shiki/tasks/T-0044.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/goals/G-0012.json"
+  ],
+  "non_goals": [
+    "Do not implement P1.3.6 migration framework.",
+    "Do not implement P1.4 governance or evidence model redesign.",
+    "Do not implement P2 packaging, release, or onboarding work.",
+    "Do not implement a new runtime adapter execution engine.",
+    "Do not add provider support beyond the existing GitHub-compatible provider config.",
+    "Do not change Guardian policy.",
+    "Do not change CCA Review Bridge semantics.",
+    "Do not change branch protection policy.",
+    "Do not change CODEOWNERS ownership rules.",
+    "Do not change P0.4 state, lock, ledger, or evidence semantics.",
+    "Do not change Node.js workflow behavior.",
+    "Do not auto-fix files, secrets, branch protection, labels, reviews, or GitHub settings from doctor."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Expand shiki doctor into a dependency-free readiness diagnostic for Shiki-managed repositories covering runtime auth, provider config, GitHub readiness, secrets, branch protection, workflows, required checks, CODEOWNERS, manifest layout, runtime registry assignments, and contract drift without mutating state.",
+  "status": "review",
+  "title": "Add shiki doctor checks"
+}

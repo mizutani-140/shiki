@@ -135,6 +135,14 @@ Blocking values:
 | V-05 | Verification evidence is durable. | blocking |
 | V-06 | Failing or flaky checks are classified. | blocking when applicable |
 
+`shiki doctor --json --target .` may be used as operator readiness evidence for
+runtime auth, provider config, git origin, required workflows/checks,
+CODEOWNERS, manifest layout, runtime assignments, and contract drift.
+`shiki doctor --online` may add live GitHub readiness evidence for repository
+existence, secrets, branch protection, required checks, code-owner review, and
+workflow permissions. Doctor evidence supplements validation, CCA, MergeGate,
+and Guardian approval; it does not replace them.
+
 ## CCA — Completion Judgment Checklist
 
 | ID | Item | Blocking |

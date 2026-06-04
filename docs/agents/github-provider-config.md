@@ -89,11 +89,17 @@ Executed `start` / `init` writes provider fields to `.shiki/repo.json`:
 Legacy records without provider fields remain valid and are interpreted as
 GitHub.com HTTPS.
 
+`shiki doctor --target .` reports missing `.shiki/repo.json` as a legacy
+provider warning and reports malformed provider metadata as a failure. When
+provider metadata exists, doctor checks that `origin` points to the configured
+host and repository. `shiki doctor --online` also injects `GH_HOST` for
+GitHub Enterprise-compatible checks against `gh`.
+
 ## Not Supported
 
 - Non-GitHub providers.
 - GitLab or Bitbucket.
 - Provider plugin loading.
 - A replacement for the GitHub CLI.
-- Full GitHub Enterprise policy discovery or doctor checks. Those belong to the
-  P1.3.5 doctor task.
+- Provider plugin validation beyond the current GitHub-compatible provider
+  config.

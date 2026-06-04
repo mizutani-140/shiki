@@ -9,10 +9,11 @@ from typing import Iterable
 
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_bootstrap import cmd_bootstrap_github, cmd_init, cmd_preflight, cmd_start
+from shiki_doctor import cmd_doctor
 from shiki_github import cmd_github_issue, cmd_github_pr
 from shiki_installer import DEFAULT_CLAUDE_COMMAND_PATH, DEFAULT_CODEX_SKILL_PATH, DEFAULT_GLOBAL_COMMAND_PATH, cmd_install_command, cmd_install_global, cmd_install_target, cmd_status
 from shiki_process import ShikiError
-from shiki_runtime import cmd_daemon_enqueue_plan, cmd_daemon_run, cmd_doctor, cmd_runner_codex, cmd_runner_execute, cmd_runner_next, cmd_smoke_live
+from shiki_runtime import cmd_daemon_enqueue_plan, cmd_daemon_run, cmd_runner_codex, cmd_runner_execute, cmd_runner_next, cmd_smoke_live
 from shiki_tasks import cmd_dispatch_check, cmd_goal_complete, cmd_goal_create, cmd_handoff_repair, cmd_handoff_task, cmd_issue_plan, cmd_lock_acquire, cmd_plan_guide, cmd_plan_ingest, cmd_repair_packet, cmd_run, cmd_task_status, cmd_worktree_allocate
 
 
@@ -111,8 +112,11 @@ def build_parser() -> argparse.ArgumentParser:
     status = subcommands.add_parser("status", help="Show local Shiki CLI configuration")
     status.set_defaults(func=cmd_status)
 
-    doctor = subcommands.add_parser("doctor", help="Check Shiki runtime auth and entrypoint readiness")
+    doctor = subcommands.add_parser("doctor", help="Check Shiki runtime, repository, and governance readiness")
     doctor.add_argument("--json", action="store_true", help="Print machine-readable status")
+    doctor.add_argument("--target", default=".", help="Target repository path, default current directory")
+    doctor.add_argument("--online", action="store_true", help="Run GitHub API checks that require network/auth")
+    doctor.add_argument("--strict", action="store_true", help="Exit non-zero on warnings as well as failures")
     doctor.set_defaults(func=cmd_doctor)
 
     start = subcommands.add_parser("start", help="One-command interactive Shiki project setup and first run")
