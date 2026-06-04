@@ -1,0 +1,66 @@
+{
+  "acceptance_checks": [
+    "scripts/shiki_runtime_registry.py defines a standard-library-only runtime registry and descriptor contract for supported Shiki runtimes.",
+    "Registry descriptors include runtime name, display name, allowed roles, execution mode, auth mode, required tools, required secrets, related workflows, capability flags, experimental/deprecated status, and description.",
+    "Known runtime inventory includes codex, codex-front, claude-code, claude-code-action, github-cca, github-actions, hermes-runner, human, and other without removing legacy names.",
+    "scripts/shiki_contracts.py RUNTIME_NAMES is derived from or validated against the runtime registry to prevent drift.",
+    "scripts/validate_shiki.py validates .shiki/config.yaml runtime role assignments for known runtime names, required roles, supported role/runtime pairs, and legacy other rationale.",
+    "scripts/validate_shiki.py validates task assigned_runtime values against the registry while preserving legacy task records.",
+    "scripts/shiki_runtime.py uses the registry only for low-risk runtime validation and deterministic status output without introducing registry-driven dispatch.",
+    "docs/agents/runtime-registry.md documents runtime identity, runtime role, descriptor fields, execution mode, auth mode, required tools/secrets, capability flags, and non-goals.",
+    "docs/agents/decision-control.md, docs/agents/checklists.md, and docs/agents/runtime-auth-model.md reference the runtime registry contract without marking P1.3.4-P1.3.6 complete.",
+    "Target install, manifest staging, validator module-boundary checks, and tests include scripts/shiki_runtime_registry.py.",
+    "Verification bundle passes: validate_shiki, py_compile, scripts/test_shiki_*.sh, registry import smoke, and git diff --check."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0040",
+    "T-0041"
+  ],
+  "expected_branch": "shiki/t-0042-runtime-registry",
+  "github_issue": 75,
+  "goal_id": "G-0012",
+  "id": "T-0042",
+  "ledger_evidence": [
+    "L-20260604T050506271390Z-506adf7a"
+  ],
+  "locks": [
+    "shiki:contracts",
+    "shiki:state",
+    "path:scripts/shiki_runtime_registry.py",
+    "path:scripts/shiki_runtime.py",
+    "path:scripts/shiki_contracts.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_runtime_registry.sh",
+    "path:scripts/test_shiki_module_boundaries.sh",
+    "path:scripts/shiki_installer.py",
+    "path:.shiki/config.yaml",
+    "path:.shiki/manifest.json",
+    "path:docs/agents/**",
+    "path:.shiki/tasks/T-0042.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/goals/G-0012.json"
+  ],
+  "non_goals": [
+    "Do not implement P1.3.4 GitHub host, protocol, or provider configuration.",
+    "Do not implement P1.3.5 doctor checks.",
+    "Do not implement P1.3.6 migration framework.",
+    "Do not implement new runtime adapters or external service integrations.",
+    "Do not implement a reviewer bot or GitHub App.",
+    "Do not change Guardian policy.",
+    "Do not change CCA Review Bridge behavior or semantics.",
+    "Do not change branch protection behavior or CODEOWNERS ownership rules.",
+    "Do not implement P1.4 governance or evidence model redesign.",
+    "Do not implement P2 packaging, release, or onboarding work.",
+    "Do not change Node.js 20 / Node 24 workflow compatibility policy."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Define a canonical runtime registry and adapter contract for Shiki runtime identities, roles, auth modes, execution modes, capabilities, config role validation, task assigned_runtime validation, docs, and install/test inclusion.",
+  "status": "review",
+  "title": "Define runtime registry / adapter contract"
+}

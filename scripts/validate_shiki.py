@@ -43,6 +43,15 @@ from shiki_manifest import (
     manifest_runtime_directories,
     render_manifest_layout,
 )
+from shiki_runtime_registry import (
+    CONFIG_RUNTIME_ROLES,
+    RuntimeRegistryError,
+    TASK_RUNTIME_ROLES,
+    get_runtime,
+    runtime_names,
+    runtime_registry,
+    validate_runtime_role_assignment,
+)
 from shiki_workflows import (
     WorkflowParseError,
     load_workflow_model,
@@ -137,7 +146,7 @@ START_REQUIRED = {
     "created_at",
 }
 
-RUNTIMES = set(RUNTIME_NAMES)
+RUNTIMES = set(runtime_names())
 RISK_LEVELS = {"low", "medium", "high", "critical"}
 GOAL_STATUSES = {"planned", "ready", "blocked", "complete", "archived", "historical"}
 TASK_STATUSES = {"planned", "ready", "running", "blocked", "review", "repair-needed", "done"}
@@ -250,6 +259,7 @@ SHIKI_CLI_MODULE_FILES = (
     "scripts/shiki_installer.py",
     "scripts/shiki_process.py",
     "scripts/shiki_runtime.py",
+    "scripts/shiki_runtime_registry.py",
     "scripts/shiki_tasks.py",
 )
 SHIKI_CLI_MODULE_NAMES = tuple(path.removeprefix("scripts/").removesuffix(".py") for path in SHIKI_CLI_MODULE_FILES)
@@ -434,6 +444,105 @@ def validate_shiki_cli_module_boundaries(root: Path = ROOT) -> None:
                 pass
 
 
+def config_model() -> dict[str, Any]:
+    config_path = ROOT / ".shiki" / "config.yaml"
+    try:
+        return load_yaml_model(config_path)
+    except WorkflowParseError as error:
+        raise ValidationError(f"{config_path}: {error}") from error
+
+
+def validate_runtime_contracts(root: Path = ROOT) -> None:
+    registry_names = runtime_names()
+    if tuple(RUNTIME_NAMES) != registry_names:
+        raise ValidationError("scripts/shiki_contracts.py: RUNTIME_NAMES must match shiki_runtime_registry.runtime_names()")
+
+    registry = runtime_registry()
+    if set(registry) != set(registry_names):
+        raise ValidationError("scripts/shiki_runtime_registry.py: registry keys must match runtime_names()")
+
+    for name in registry_names:
+        descriptor = registry[name]
+        if descriptor.name != name:
+            raise ValidationError(f"scripts/shiki_runtime_registry.py: descriptor key {name} must match descriptor.name")
+        if not descriptor.display_name:
+            raise ValidationError(f"scripts/shiki_runtime_registry.py: {name} must declare display_name")
+        if not descriptor.roles:
+            raise ValidationError(f"scripts/shiki_runtime_registry.py: {name} must declare roles")
+        if not descriptor.execution_mode:
+            raise ValidationError(f"scripts/shiki_runtime_registry.py: {name} must declare execution_mode")
+        if not descriptor.auth_mode:
+            raise ValidationError(f"scripts/shiki_runtime_registry.py: {name} must declare auth_mode")
+        for role in descriptor.roles:
+            if role not in CONFIG_RUNTIME_ROLES and role not in TASK_RUNTIME_ROLES:
+                raise ValidationError(f"scripts/shiki_runtime_registry.py: {name} declares unknown role {role!r}")
+
+    validate_config_runtime_assignments()
+    validate_runtime_registry_docs(root)
+
+
+def validate_config_runtime_assignments() -> None:
+    config_path = ROOT / ".shiki" / "config.yaml"
+    model = config_model()
+    runtimes = model.get("runtimes")
+    if not isinstance(runtimes, dict):
+        raise ValidationError(f"{config_path}: runtimes must be a mapping")
+
+    missing = sorted(set(CONFIG_RUNTIME_ROLES) - set(runtimes))
+    if missing:
+        raise ValidationError(f"{config_path}: runtimes missing required roles: {', '.join(missing)}")
+
+    for role in sorted(runtimes):
+        if role.endswith("_rationale"):
+            if not isinstance(runtimes[role], str) or not runtimes[role]:
+                raise ValidationError(f"{config_path}: runtimes.{role} must be a non-empty rationale string")
+            continue
+        runtime_name = runtimes[role]
+        if role not in CONFIG_RUNTIME_ROLES:
+            raise ValidationError(f"{config_path}: runtimes.{role} is not a supported config runtime role")
+        if not isinstance(runtime_name, str) or not runtime_name:
+            raise ValidationError(f"{config_path}: runtimes.{role} must be a non-empty runtime name")
+        try:
+            validate_runtime_role_assignment(role, runtime_name)
+        except RuntimeRegistryError as error:
+            raise ValidationError(f"{config_path}: runtimes.{role}: {error}") from error
+        descriptor = get_runtime(runtime_name)
+        if descriptor.requires_rationale and f"{role}_rationale" not in runtimes:
+            raise ValidationError(f"{config_path}: runtimes.{role} uses {runtime_name!r} and requires {role}_rationale")
+
+
+def validate_task_runtime_assignment(path: Path, runtime_name: str) -> None:
+    try:
+        descriptor = get_runtime(runtime_name)
+    except RuntimeRegistryError as error:
+        raise ValidationError(f"{path}: assigned_runtime: {error}") from error
+    if not set(descriptor.roles).intersection(TASK_RUNTIME_ROLES):
+        raise ValidationError(
+            f"{path}: assigned_runtime {runtime_name!r} must support one of {sorted(TASK_RUNTIME_ROLES)}"
+        )
+
+
+def validate_runtime_registry_docs(root: Path = ROOT) -> None:
+    doc_path = root / "docs" / "agents" / "runtime-registry.md"
+    if not doc_path.is_file():
+        raise ValidationError(f"{doc_path}: runtime registry contract documentation is missing")
+    text = doc_path.read_text(encoding="utf-8")
+    for name in runtime_names():
+        if f"`{name}`" not in text:
+            raise ValidationError(f"{doc_path}: missing runtime {name!r}")
+    for required in (
+        "runtime identity",
+        "runtime role",
+        "execution mode",
+        "auth mode",
+        "provider abstraction",
+        "doctor checks",
+        "migration framework",
+    ):
+        if required not in text:
+            raise ValidationError(f"{doc_path}: missing required topic {required!r}")
+
+
 def id_format_description(prefix: str) -> str:
     return f"{prefix}-0001 or {prefix}-YYYYMMDDTHHMMSSffffffZ-<8 hex>"
 
@@ -544,8 +653,7 @@ def validate_task(path: Path, data: dict[str, Any]) -> tuple[str, list[str]]:
     require_list(path, data, "ledger_evidence", non_empty=True)
 
     runtime = require_string(path, data, "assigned_runtime")
-    if runtime not in RUNTIMES:
-        raise ValidationError(f"{path}: assigned_runtime must be one of {sorted(RUNTIMES)}")
+    validate_task_runtime_assignment(path, runtime)
 
     risk_level = require_string(path, data, "risk_level")
     if risk_level not in RISK_LEVELS:
@@ -998,10 +1106,7 @@ def validate_workflow_contracts() -> None:
 
 def config_required_checks() -> list[str]:
     config_path = ROOT / ".shiki" / "config.yaml"
-    try:
-        model = load_yaml_model(config_path)
-    except WorkflowParseError as error:
-        raise ValidationError(f"{config_path}: {error}") from error
+    model = config_model()
     mergegate = model.get("mergegate")
     if not isinstance(mergegate, dict):
         raise ValidationError(f"{config_path}: mergegate must be a mapping")
@@ -1266,6 +1371,7 @@ def main() -> int:
         validate_validate_workflow_coverage()
         validate_shiki_manifest()
         validate_shiki_cli_module_boundaries()
+        validate_runtime_contracts()
         validate_issue_forms()
         validate_codeowners_governance()
         validate_orchestrator_security()

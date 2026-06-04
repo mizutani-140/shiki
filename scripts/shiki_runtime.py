@@ -15,7 +15,16 @@ from shiki_github import create_github_issue_for_task, create_github_pr_for_task
 from shiki_installer import DEFAULT_CLAUDE_COMMAND_PATH, DEFAULT_CODEX_SKILL_PATH
 from shiki_process import ROOT, ShikiError
 from shiki_process import ensure_control_dirs, first_line, load_default_config, print_json, read_json, require_tool, run, shiki_path, slugify, target_path, utc_now, write_json
+from shiki_runtime_registry import RuntimeRegistryError, get_runtime, runtime_registry_as_json
 from shiki_tasks import append_ledger, load_task, orchestrate_plan, require_github_first_target, require_grilled_plan, next_control_id, task_files, worktree_record
+
+
+def validate_task_runtime_for_execution(task: dict[str, Any]) -> None:
+    runtime = str(task.get("assigned_runtime", ""))
+    try:
+        get_runtime(runtime)
+    except RuntimeRegistryError as error:
+        raise ShikiError(f"task {task.get('id', '<unknown>')} has invalid assigned_runtime: {error}") from error
 
 def cmd_daemon_enqueue_plan(args: argparse.Namespace) -> int:
     target = target_path(args.target)
@@ -114,6 +123,7 @@ def cmd_runner_execute(args: argparse.Namespace) -> int:
     require_github_first_target(target)
     ensure_control_dirs(target)
     task = load_task(target, args.task_id)
+    validate_task_runtime_for_execution(task)
     if task.get("status") not in {"ready", "running"}:
         raise ShikiError(f"task {args.task_id} is not ready for runner execution")
     task["status"] = "running"
@@ -224,6 +234,7 @@ def cmd_runner_codex(args: argparse.Namespace) -> int:
     require_tool("codex")
 
     task = load_task(target, args.task_id)
+    validate_task_runtime_for_execution(task)
     runtime = str(task.get("assigned_runtime", "codex"))
     if runtime != "codex" and not args.force:
         raise ShikiError(f"task {args.task_id} is assigned to {runtime}, not codex")
@@ -510,6 +521,7 @@ def shiki_entrypoints_status() -> dict[str, Any]:
             "claude_code": claude,
             "github_cli": github,
         },
+        "runtime_registry": runtime_registry_as_json(),
         "usable_entrypoints": usable,
         "blocking_reasons": blockers,
         "note": "Claude Code supports `/shiki` through its command file. Codex uses the installed Shiki skill through natural language, not a `/shiki` slash command. Use `shiki start` from Codex or a terminal when a slash command is unavailable.",

@@ -187,6 +187,7 @@ Blocking values:
 | MG-16 | Workflow permissions, triggers, and Shiki job names match the validator contract. | blocking |
 | MG-17 | Workflow lint, shellcheck, and Node 24 compatibility validation pass or have an explicit bounded exception. | blocking |
 | MG-18 | `scripts/shiki.py` remains a thin executable shim and required `shiki_*` CLI modules import, install, and stage without side effects. | blocking |
+| MG-19 | Runtime registry names, config role assignments, task `assigned_runtime` values, docs, and install/staging coverage remain consistent. | blocking |
 
 ## GC — Goal Completion Checklist
 

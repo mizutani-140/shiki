@@ -6,6 +6,8 @@ import it before target repositories have project dependencies installed.
 
 from __future__ import annotations
 
+from shiki_runtime_registry import runtime_names
+
 
 CANONICAL_CCA_VERDICT_SCHEMA_PATH = ".shiki/schemas/cca-verdict.schema.json"
 OBSOLETE_CCA_VERDICT_SCHEMA_PATH = ".shiki/templates/cca-verdict.schema.json"
@@ -39,17 +41,7 @@ CODEOWNERS_CRITICAL_PATHS = (
     "/CLAUDE.md",
 )
 
-RUNTIME_NAMES = (
-    "codex",
-    "codex-front",
-    "claude-code",
-    "claude-code-action",
-    "github-cca",
-    "github-actions",
-    "hermes-runner",
-    "human",
-    "other",
-)
+RUNTIME_NAMES = runtime_names()
 
 TARGET_STATE_DIRECTORIES = (
     ".shiki/goals",

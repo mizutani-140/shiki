@@ -123,6 +123,22 @@ New Shiki CLI modules must not perform git, GitHub, filesystem mutation,
 network, or command execution work at import time. Target installation and
 manifest staging must include every module required by the shim.
 
+### Runtime Registry Policy
+
+Runtime assignment is validated against the canonical registry in
+`scripts/shiki_runtime_registry.py` and documented in
+`docs/agents/runtime-registry.md`. Runtime identity is distinct from runtime
+role: `.shiki/config.yaml` assigns roles such as `front`, `planner`,
+`implementer`, `completion_checker`, `reviewer`, and `verifier`, while task
+`assigned_runtime` records the concrete runtime identity that will receive the
+handoff.
+
+The registry defines the supported runtime names, allowed roles, execution
+mode, auth mode, required tools and secrets, related workflows, and capability
+flags. It is a validation and adapter-contract surface only; it does not yet
+grant a provider abstraction, doctor checks, migration framework, or
+registry-driven dispatch authority.
+
 ### Workflow Runtime Compatibility Policy
 
 Workflow runtime compatibility is part of MergeGate evidence. Shiki workflow
