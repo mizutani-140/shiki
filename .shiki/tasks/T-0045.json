@@ -14,13 +14,14 @@
   "dependencies": [
     "T-0044"
   ],
-  "expected_branch": "shiki/t-0045-shiki-migration-framework",
-  "expected_pr": 85,
+  "expected_branch": "shiki/t-0045-post-merge-reconcile",
+  "expected_pr": 86,
   "github_issue": 84,
   "goal_id": "G-0012",
   "id": "T-0045",
   "ledger_evidence": [
-    "L-20260604T103500000000Z-a9d4c1e2"
+    "L-20260604T103500000000Z-a9d4c1e2",
+    "L-20260604T113100000000Z-4c5e8a91"
   ],
   "locks": [
     "shiki:state",
@@ -61,6 +62,6 @@
   ],
   "risk_level": "critical",
   "scope": "Add a dependency-free migration framework for repository-local .shiki state changes with deterministic registry, baseline migration state, dry-run planning, explicit execute-gated apply behavior, doctor readiness findings, validator coverage, manifest/staging integration, tests, and documentation.",
-  "status": "review",
+  "status": "done",
   "title": "Add .shiki migration framework"
 }
