@@ -1035,11 +1035,10 @@ import sys
 
 target = pathlib.Path(sys.argv[1])
 task_id = sys.argv[2]
-head = "a" * 40
 pr_path = target / ".shiki" / "gha" / "pr.json"
 pr = json.loads(pr_path.read_text())
+head = pr["headRefOid"]
 pr["labels"] = [{"name": "guardian:approved"}]
-pr["headRefOid"] = head
 pr["author"] = {"login": "mizutani-140"}
 pr_path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
 
