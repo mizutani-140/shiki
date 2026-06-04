@@ -21,7 +21,8 @@
   "goal_id": "G-0012",
   "id": "T-0041",
   "ledger_evidence": [
-    "L-20260604T032222118996Z-7d033d14"
+    "L-20260604T032222118996Z-7d033d14",
+    "L-20260604T041523287792Z-6be0e47d"
   ],
   "locks": [
     "shiki:workflows",
@@ -56,6 +57,6 @@
   ],
   "risk_level": "critical",
   "scope": "Resolve the T-0039 deferred CCA / Claude workflow Node 24 compatibility planning surface by recording exact two-phase workflow/action/version defers, preserving default-branch-compatible CCA / Claude PR checks, strengthening validation and tests, and documenting post-merge verification / follow-up repair handling.",
-  "status": "review",
+  "status": "done",
   "title": "Resolve deferred CCA / Claude workflow Node 24 compatibility"
 }
