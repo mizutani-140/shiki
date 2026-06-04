@@ -23,6 +23,7 @@ modules = [
     "shiki_installer",
     "shiki_process",
     "shiki_runtime",
+    "shiki_runtime_registry",
     "shiki_tasks",
 ]
 for module in modules:
@@ -54,6 +55,7 @@ for required in [
     "scripts/shiki_installer.py",
     "scripts/shiki_process.py",
     "scripts/shiki_runtime.py",
+    "scripts/shiki_runtime_registry.py",
     "scripts/shiki_tasks.py",
     "scripts/test_shiki_module_boundaries.sh",
 ]:
@@ -113,6 +115,7 @@ for path in \
   "scripts/shiki_installer.py" \
   "scripts/shiki_process.py" \
   "scripts/shiki_runtime.py" \
+  "scripts/shiki_runtime_registry.py" \
   "scripts/shiki_tasks.py"; do
   if [ ! -f "$INSTALL_TARGET/$path" ]; then
     echo "install-target omitted $path" >&2

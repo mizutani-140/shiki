@@ -9,6 +9,12 @@ Shiki's default operator model is subscription-authenticated, not API-key-first.
 - **GitHub**: the durable coordination surface for Issues, PRs, Checks, Reviews, comments, and merge evidence.
 - **`.shiki/` mirror**: portable recovery and evidence mirror inside each target repo.
 
+`docs/agents/runtime-registry.md` defines the machine-readable runtime identity
+and runtime role contract used by `.shiki/config.yaml`, task
+`assigned_runtime`, validator checks, and runtime status output. Auth mode is a
+registry field, but the registry is not yet a doctor implementation or provider
+abstraction.
+
 ## What This Means
 
 Codex is not the default GitHub Actions backend in Shiki.
