@@ -1,0 +1,34 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0040 post-merge reconciliation is complete.",
+    "PR #70 merged T-0040 at approved head 60e4fea2384bc73d63269f49a5d7ace0cc011978.",
+    "PR #70 merge commit on main is 07419bc.",
+    "Guardian approval was recorded with guardian:approved label and PR approval comment.",
+    "Additional merge conditions passed before PR #70 merge: hidden / bidirectional Unicode control character check passed for 19 changed files, and import-boundary check confirmed low-level shiki_* modules do not import shiki_cli.",
+    "CCA verdict passed after Guardian approval.",
+    "CCA Review Bridge created or confirmed an APPROVED review from github-actions.",
+    "MergeGate policy check passed after Guardian approval.",
+    "MergeGate metadata check passed.",
+    "Validate Shiki mirror passed.",
+    "Claude review passed.",
+    "T-0040 status is now done.",
+    "No active T-0040 lock was present on main after PR #70 merge.",
+    "Pull Request #71 records the T-0040 post-merge mirror reconciliation: https://github.com/mizutani-140/shiki/pull/71",
+    "Bounded MergeGate repair for PR #71 added only this PR #71 ledger reference after MergeGate reported: Task ledger evidence does not reference PR #71.",
+    "Goal #30 P1.3.1 and P1.3.2 are eligible to be marked complete after this reconciliation merges.",
+    "Issue #69 can be closed after this reconciliation merges.",
+    "P1.3.3 through P1.3.6, P1.4, P2, runtime adapter redesign, provider abstraction, doctor, migration framework, and Node.js 20 follow-up remain open non-goals."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260603T134906051795Z-27ed4eb5",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/69",
+    "https://github.com/mizutani-140/shiki/pull/70",
+    "https://github.com/mizutani-140/shiki/pull/71"
+  ],
+  "summary": "Recorded T-0040 post-merge mirror reconciliation evidence.",
+  "task_id": "T-0040",
+  "timestamp": "2026-06-03T13:49:06Z",
+  "type": "check"
+}
