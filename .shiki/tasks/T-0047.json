@@ -14,13 +14,14 @@
   "dependencies": [
     "T-0046"
   ],
-  "expected_branch": "shiki/t-0047-cca-ledger-evidence-integrity",
-  "expected_pr": 91,
+  "expected_branch": "shiki/t-0047-post-merge-reconcile",
+  "expected_pr": null,
   "github_issue": 90,
   "goal_id": "G-0012",
   "id": "T-0047",
   "ledger_evidence": [
-    "L-20260605T020000000000Z-e2f41a77"
+    "L-20260605T020000000000Z-e2f41a77",
+    "L-20260605T033800000000Z-b5c7e9d2"
   ],
   "locks": [
     "shiki:governance",
@@ -63,6 +64,6 @@
   ],
   "risk_level": "critical",
   "scope": "Harden CCA verdict artifact integrity and ledger evidence cross-references for Goal #30 P1.4.3-P1.4.4 by adding workflow-generated CCA evidence manifests, digest validation, MergeGate enforcement, ledger evidence_refs, validator/doctor/docs/tests integration, and implementation ledger evidence.",
-  "status": "review",
+  "status": "done",
   "title": "Harden CCA verdict evidence and ledger cross-references"
 }
