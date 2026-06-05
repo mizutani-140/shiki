@@ -14,13 +14,14 @@
   "dependencies": [
     "T-0045"
   ],
-  "expected_branch": "shiki/t-0046-guardian-policy",
-  "expected_pr": 88,
+  "expected_branch": "shiki/t-0046-post-merge-reconcile",
+  "expected_pr": 89,
   "github_issue": 87,
   "goal_id": "G-0012",
   "id": "T-0046",
   "ledger_evidence": [
-    "L-20260604T123528000000Z-6f2a9c13"
+    "L-20260604T123528000000Z-6f2a9c13",
+    "L-20260604T132201000000Z-9c4d2e71"
   ],
   "locks": [
     "shiki:state",
@@ -70,6 +71,6 @@
   ],
   "risk_level": "critical",
   "scope": "Define machine-readable Guardian approvers and approval policy, then enforce it for high-risk and critical PRs through MergeGate, validator, doctor, workflow evidence fetches, tests, docs, manifest, and migration state.",
-  "status": "review",
+  "status": "done",
   "title": "Define Guardian approvers and approval policy"
 }

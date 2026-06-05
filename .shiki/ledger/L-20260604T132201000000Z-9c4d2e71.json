@@ -1,0 +1,36 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0046 post-merge reconciliation records PR #88 merge and mirror completion evidence.",
+    "PR #88 merged into main with guarded head d41d43800b5f9016fd804f9c0863c3ffdeca863c.",
+    "PR #88 merge commit on main is e8f45b5e5fbfbb94154afb9fa6c68e3dfa8f6d25.",
+    "Guardian approval evidence was recorded on PR #88 with guardian:approved label and a Guardian approval comment containing marker 'Guardian approval granted' and the approved head SHA.",
+    "Pre-merge hidden / bidirectional Unicode control character check passed for PR #88 changed files.",
+    "Pre-merge CCA verdict passed after Guardian approval.",
+    "Pre-merge CCA Review Bridge created or confirmed github-actions APPROVED review on PR #88.",
+    "Pre-merge MergeGate policy check passed under the new Guardian policy.",
+    "Pre-merge MergeGate metadata check passed.",
+    "Pre-merge Validate Shiki mirror passed.",
+    "Pre-merge Claude review passed.",
+    "T-0046 status is now done.",
+    "G-0012 ledger evidence includes implementation ledger L-20260604T123528000000Z-6f2a9c13 and reconciliation ledger L-20260604T132201000000Z-9c4d2e71.",
+    "No active T-0046 lock was present on main after PR #88 merge.",
+    ".shiki/guardian-policy.json exists and validates on main.",
+    "Pull Request #89 records the T-0046 post-merge mirror reconciliation: https://github.com/mizutani-140/shiki/pull/89",
+    "Issue #87 can be closed after this reconciliation merges.",
+    "Goal #30 P1.4.1 and P1.4.2 are eligible to be marked complete after this reconciliation merges.",
+    "P1.4.3, P1.4.4, P1.4.5, P1.4.6, and P2 remain open.",
+    "Goal #30 / G-0012 remains open because additional P1/P2 work remains open."
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260604T132201000000Z-9c4d2e71",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/87",
+    "https://github.com/mizutani-140/shiki/pull/88",
+    "https://github.com/mizutani-140/shiki/pull/89"
+  ],
+  "summary": "Recorded T-0046 post-merge mirror reconciliation evidence.",
+  "task_id": "T-0046",
+  "timestamp": "2026-06-04T13:22:01Z",
+  "type": "completion"
+}
