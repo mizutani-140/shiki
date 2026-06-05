@@ -12,7 +12,9 @@ from pathlib import Path
 from typing import Any
 
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
+from shiki_evidence import validate_cca_evidence_manifest
 from shiki_guardian import GuardianPolicyError, evaluate_guardian_approval, load_guardian_policy_file, risk_requires_guardian, validate_guardian_policy
+from shiki_jsonschema import JsonSchemaError, UnsupportedJsonSchemaError, validate_json_schema
 from shiki_locks import active_lock_conflicts, files_outside_locks
 from shiki_schema import SchemaValidationError, validate_instance
 
@@ -190,6 +192,53 @@ def validate_cca_contract(target: Path, cca: dict[str, Any]) -> list[str]:
         except (OSError, ValueError, SchemaValidationError) as error:
             errors.append(str(error))
 
+    return errors
+
+
+def validate_cca_evidence_contract(
+    *,
+    target: Path,
+    manifest_path: Path,
+    evidence_dir: Path,
+    pr: dict[str, Any],
+    task_id: str | None,
+    goal_id: str | None,
+    expected_repository: str,
+) -> list[str]:
+    errors: list[str] = []
+    if not manifest_path.exists():
+        return [f"CCA evidence manifest file not found at {manifest_path}"]
+    if not expected_repository:
+        return ["Expected repository is required for CCA evidence manifest validation"]
+    try:
+        manifest = load_json(manifest_path)
+        if not isinstance(manifest, dict):
+            return [f"{manifest_path}: CCA evidence manifest must be a JSON object"]
+        schema = load_schema(target / ".shiki" / "schemas" / "cca-evidence-manifest.schema.json")
+        validate_json_schema(manifest, schema)
+    except (OSError, ValueError, JsonSchemaError, UnsupportedJsonSchemaError) as error:
+        return [f"CCA evidence manifest schema violation: {error}"]
+
+    pr_number = pr.get("number")
+    head_sha = pr.get("headRefOid")
+    if not isinstance(pr_number, int):
+        errors.append("PR number is missing; cannot validate CCA evidence manifest")
+    if not isinstance(head_sha, str) or not head_sha:
+        errors.append("PR headRefOid is missing; cannot validate CCA evidence manifest")
+    if errors:
+        return errors
+
+    errors.extend(
+        validate_cca_evidence_manifest(
+            manifest=manifest,
+            evidence_dir=evidence_dir,
+            expected_repo=expected_repository,
+            expected_pr=pr_number,
+            expected_head_sha=head_sha,
+            expected_task_id=task_id,
+            expected_goal_id=goal_id,
+        )
+    )
     return errors
 
 
@@ -648,8 +697,10 @@ def main() -> int:
     parser.add_argument("--target", default=".", help="Target repository path")
     parser.add_argument("--pr-json", default=".shiki/gha/pr.json")
     parser.add_argument("--cca-verdict", default=".shiki/gha/cca-verdict.json")
+    parser.add_argument("--cca-evidence-manifest", default="")
     parser.add_argument("--changed-files", default=".shiki/gha/changed-files.txt")
     parser.add_argument("--changed-files-status", default=".shiki/gha/changed-files-status.txt")
+    parser.add_argument("--expected-repository", default="")
     parser.add_argument("--expected-head-sha")
     parser.add_argument("--base-shiki")
     parser.add_argument("--guardian-policy", default=".shiki/guardian-policy.json")
@@ -754,6 +805,23 @@ def main() -> int:
     if cca:
         for error in validate_cca_contract(target, cca):
             blocking.append(f"CCA verdict schema violation: {error}")
+        if pr and args.cca_evidence_manifest:
+            manifest_path = Path(args.cca_evidence_manifest)
+            if not manifest_path.is_absolute():
+                manifest_path = target / manifest_path
+            evidence_dir = manifest_path.parent if manifest_path.parent != Path("") else Path(".shiki/gha")
+            for error in validate_cca_evidence_contract(
+                target=target,
+                manifest_path=manifest_path,
+                evidence_dir=evidence_dir,
+                pr=pr,
+                task_id=resolved_task_id,
+                goal_id=resolved_goal_id,
+                expected_repository=args.expected_repository,
+            ):
+                blocking.append(error)
+        elif pr and args.expected_repository:
+            blocking.append("CCA evidence manifest path is required when expected repository is provided")
         if cca.get("verdict") != "complete":
             blocking.append(f"CCA verdict is not complete: {cca.get('verdict')!r}")
         if resolved_task_id and cca.get("task_id") != resolved_task_id:

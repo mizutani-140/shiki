@@ -1,0 +1,68 @@
+{
+  "acceptance_checks": [
+    ".shiki/schemas/cca-evidence-manifest.schema.json defines the workflow-generated CCA evidence manifest contract.",
+    ".github/workflows/shiki-cca-completion.yml builds .shiki/gha/cca-evidence-manifest.json before uploading shiki-cca-evidence.",
+    "scripts/shiki_evidence.py and scripts/build_cca_evidence_manifest.py generate and validate manifest file digests, workflow metadata, PR/head metadata, artifact metadata, and verdict metadata.",
+    "scripts/mergegate_check.py validates the downloaded CCA evidence manifest against live PR state, current task/Goal ids, and required evidence file digests.",
+    "Ledger entries accept legacy entries without evidence_refs and validate evidence_refs / ledger_integrity when present.",
+    "scripts/validate_shiki.py and scripts/shiki_doctor.py validate/report CCA evidence integrity wiring.",
+    "scripts/test_shiki_evidence_integrity.sh covers manifest generation, validation failures, MergeGate integration, ledger evidence_refs, digest checks, and workflow static wiring.",
+    "Docs explain workflow-generated CCA evidence, .shiki/gha distrust, manifest digest checks, ledger evidence_refs, and the non-signing boundary.",
+    "Verification bundle passes: validate_shiki, py_compile, scripts/test_shiki_*.sh, git diff --check, and shiki_evidence import smoke."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0046"
+  ],
+  "expected_branch": "shiki/t-0047-cca-ledger-evidence-integrity",
+  "expected_pr": null,
+  "github_issue": 90,
+  "goal_id": "G-0012",
+  "id": "T-0047",
+  "ledger_evidence": [
+    "L-20260605T020000000000Z-e2f41a77"
+  ],
+  "locks": [
+    "shiki:governance",
+    "shiki:state",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:.shiki/schemas/cca-evidence-manifest.schema.json",
+    "path:.shiki/schemas/ledger.schema.json",
+    "path:.shiki/manifest.json",
+    "path:.shiki/migrations/**",
+    "path:scripts/shiki_evidence.py",
+    "path:scripts/build_cca_evidence_manifest.py",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/enforce_cca_verdict.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/shiki_doctor.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/test_shiki_evidence_integrity.sh",
+    "path:scripts/test_shiki_guardian_policy.sh",
+    "path:docs/agents/**",
+    "path:.shiki/tasks/T-0047.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/goals/G-0012.json"
+  ],
+  "non_goals": [
+    "Do not implement P1.4.5 mirror/generated/cache/local-only state classification.",
+    "Do not implement P1.4.6 full forged/stale/missing governance evidence tests.",
+    "Do not add external signing, KMS, GPG, Sigstore, or a GitHub App.",
+    "Do not change Guardian policy semantics.",
+    "Do not change CCA Review Bridge semantics.",
+    "Do not change branch protection or CODEOWNERS.",
+    "Do not change runtime adapter behavior.",
+    "Do not redesign the migration framework.",
+    "Do not add Node workflow compatibility work.",
+    "Do not add P2 distribution, onboarding, packaging, or release work."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Harden CCA verdict artifact integrity and ledger evidence cross-references for Goal #30 P1.4.3-P1.4.4 by adding workflow-generated CCA evidence manifests, digest validation, MergeGate enforcement, ledger evidence_refs, validator/doctor/docs/tests integration, and implementation ledger evidence.",
+  "status": "review",
+  "title": "Harden CCA verdict evidence and ledger cross-references"
+}

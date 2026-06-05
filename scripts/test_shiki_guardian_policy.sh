@@ -235,9 +235,22 @@ cat >"$MG/.shiki/gha/cca-verdict.json" <<'JSON'
   "confidence": 1
 }
 JSON
+cp "$MG/.shiki/gha/live-pr.json" "$MG/.shiki/gha/pr.json"
 touch "$MG/.shiki/gha/live-changed-files.txt" "$MG/.shiki/gha/live-changed-files-status.txt"
+touch "$MG/.shiki/gha/changed-files.txt" "$MG/.shiki/gha/changed-files-status.txt"
+python3 scripts/build_cca_evidence_manifest.py \
+  --repo example/shiki \
+  --pr 99 \
+  --head-sha aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  --workflow-name "Shiki CCA Completion" \
+  --run-id 123 \
+  --run-attempt 1 \
+  --event-name pull_request \
+  --artifact-name shiki-cca-evidence \
+  --evidence-dir "$MG/.shiki/gha" \
+  --output "$MG/.shiki/gha/cca-evidence-manifest.json" >/dev/null
 
-if python3 scripts/mergegate_check.py --target "$MG" --pr-json "$MG/.shiki/gha/live-pr.json" --cca-verdict "$MG/.shiki/gha/cca-verdict.json" --changed-files "$MG/.shiki/gha/live-changed-files.txt" --changed-files-status "$MG/.shiki/gha/live-changed-files-status.txt" --result-file "$MG/.shiki/gha/mergegate-result.json" --guardian-policy .shiki/guardian-policy.json --guardian-comments .shiki/gha/missing-comments.json --guardian-events .shiki/gha/missing-events.json --guardian-timeline .shiki/gha/missing-timeline.json >/tmp/shiki-guardian-mergegate-missing.out 2>&1; then
+if python3 scripts/mergegate_check.py --target "$MG" --pr-json "$MG/.shiki/gha/live-pr.json" --cca-verdict "$MG/.shiki/gha/cca-verdict.json" --cca-evidence-manifest "$MG/.shiki/gha/cca-evidence-manifest.json" --expected-repository example/shiki --changed-files "$MG/.shiki/gha/live-changed-files.txt" --changed-files-status "$MG/.shiki/gha/live-changed-files-status.txt" --result-file "$MG/.shiki/gha/mergegate-result.json" --guardian-policy .shiki/guardian-policy.json --guardian-comments .shiki/gha/missing-comments.json --guardian-events .shiki/gha/missing-events.json --guardian-timeline .shiki/gha/missing-timeline.json >/tmp/shiki-guardian-mergegate-missing.out 2>&1; then
   echo "MergeGate should block high-risk PR when Guardian evidence files are missing" >&2
   exit 1
 fi
@@ -262,7 +275,7 @@ cat >"$MG/.shiki/gha/live-guardian-events.json" <<'JSON'
 JSON
 printf '[]\n' >"$MG/.shiki/gha/live-guardian-timeline.json"
 
-python3 scripts/mergegate_check.py --target "$MG" --pr-json "$MG/.shiki/gha/live-pr.json" --cca-verdict "$MG/.shiki/gha/cca-verdict.json" --changed-files "$MG/.shiki/gha/live-changed-files.txt" --changed-files-status "$MG/.shiki/gha/live-changed-files-status.txt" --result-file "$MG/.shiki/gha/mergegate-result.json" --guardian-policy .shiki/guardian-policy.json --guardian-comments .shiki/gha/live-guardian-comments.json --guardian-events .shiki/gha/live-guardian-events.json --guardian-timeline .shiki/gha/live-guardian-timeline.json >/tmp/shiki-guardian-mergegate-pass.out
+python3 scripts/mergegate_check.py --target "$MG" --pr-json "$MG/.shiki/gha/live-pr.json" --cca-verdict "$MG/.shiki/gha/cca-verdict.json" --cca-evidence-manifest "$MG/.shiki/gha/cca-evidence-manifest.json" --expected-repository example/shiki --changed-files "$MG/.shiki/gha/live-changed-files.txt" --changed-files-status "$MG/.shiki/gha/live-changed-files-status.txt" --result-file "$MG/.shiki/gha/mergegate-result.json" --guardian-policy .shiki/guardian-policy.json --guardian-comments .shiki/gha/live-guardian-comments.json --guardian-events .shiki/gha/live-guardian-events.json --guardian-timeline .shiki/gha/live-guardian-timeline.json >/tmp/shiki-guardian-mergegate-pass.out
 grep '"mergegate": "ready"' /tmp/shiki-guardian-mergegate-pass.out >/dev/null
 
 python3 scripts/shiki.py doctor --json --target . >/tmp/shiki-guardian-doctor.json

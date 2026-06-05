@@ -25,6 +25,13 @@ from shiki_contracts import (
     TARGET_STATE_DIRECTORIES,
     canonical_source_of_truth_markdown,
 )
+from shiki_evidence import (
+    CCA_EVIDENCE_ARTIFACT_NAME,
+    CCA_EVIDENCE_MANIFEST_PATH,
+    REQUIRED_CCA_EVIDENCE_FILES,
+    ledger_entry_digest,
+    validate_ledger_integrity,
+)
 from shiki_locks import known_shiki_semantic_locks, normalize_lock
 from shiki_jsonschema import UnsupportedJsonSchemaError, assert_supported_schema, validate_json_schema
 from shiki_installer import TEMPLATE_PATHS
@@ -456,6 +463,15 @@ def validate_shiki_cli_module_boundaries(root: Path = ROOT) -> None:
         raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_provider_config.sh")
     if not (root / "scripts/test_shiki_provider_config.sh").is_file():
         raise ValidationError("scripts/test_shiki_provider_config.sh: provider config regression test is missing")
+    for relative in (
+        "scripts/shiki_evidence.py",
+        "scripts/build_cca_evidence_manifest.py",
+        "scripts/test_shiki_evidence_integrity.sh",
+    ):
+        if relative not in template_paths:
+            raise ValidationError(f"scripts/shiki_installer.py: TEMPLATE_PATHS must include {relative}")
+        if not (root / relative).is_file():
+            raise ValidationError(f"{relative}: evidence integrity file is missing")
 
     scripts_path = str(root / "scripts")
     inserted = False
@@ -611,6 +627,110 @@ def validate_guardian_policy_contracts(root: Path = ROOT) -> None:
         for needle in needles:
             if needle not in text:
                 raise ValidationError(f"{relative}: missing Guardian policy documentation reference {needle!r}")
+
+
+def validate_evidence_integrity_contracts(root: Path = ROOT) -> None:
+    schema_path = root / ".shiki" / "schemas" / "cca-evidence-manifest.schema.json"
+    if not schema_path.is_file():
+        raise ValidationError(".shiki/schemas/cca-evidence-manifest.schema.json: schema is missing")
+    schema = load_json(schema_path)
+    if not isinstance(schema, dict):
+        raise ValidationError(f"{schema_path}: schema must be a JSON object")
+    required = set(schema.get("required", []))
+    for field in ("version", "kind", "repository", "pr", "head_sha", "workflow", "artifact", "files", "verdict", "created_at"):
+        if field not in required:
+            raise ValidationError(f"{schema_path}: {field} must be required")
+    fixture_manifest = {
+        "version": 1,
+        "kind": "shiki-cca-evidence-manifest",
+        "repository": "OWNER/REPO",
+        "pr": 1,
+        "head_sha": "a" * 40,
+        "workflow": {
+            "name": "Shiki CCA Completion",
+            "run_id": "123",
+            "run_attempt": "1",
+            "job": "CCA verdict",
+            "event_name": "pull_request",
+        },
+        "artifact": {
+            "name": CCA_EVIDENCE_ARTIFACT_NAME,
+            "path": ".shiki/gha",
+            "uploaded_by": "github-actions[bot]",
+        },
+        "files": [
+            {"path": relative, "sha256": "0" * 64, "required": True}
+            for relative in REQUIRED_CCA_EVIDENCE_FILES
+        ],
+        "verdict": {
+            "verdict": "complete",
+            "goal_id": "G-0012",
+            "task_id": "T-0047",
+            "pr": 1,
+            "head_sha": "a" * 40,
+        },
+        "created_at": "2026-06-05T00:00:00Z",
+    }
+    try:
+        validate_json_schema(fixture_manifest, schema)
+    except (UnsupportedJsonSchemaError, ValueError) as error:
+        raise ValidationError(f"{schema_path}: fixture validation failed: {error}") from error
+
+    workflow_path = root / ".github" / "workflows" / "shiki-cca-completion.yml"
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    for needle in (
+        "Build CCA evidence manifest",
+        "scripts/build_cca_evidence_manifest.py",
+        "--output .shiki/gha/cca-evidence-manifest.json",
+        "name: shiki-cca-evidence",
+        "--cca-evidence-manifest .shiki/gha/cca-evidence-manifest.json",
+        "--expected-repository",
+    ):
+        if needle not in workflow_text:
+            raise ValidationError(f"{workflow_path}: missing CCA evidence manifest wiring {needle!r}")
+
+    mergegate_text = (root / "scripts" / "mergegate_check.py").read_text(encoding="utf-8")
+    for needle in ("--cca-evidence-manifest", "validate_cca_evidence_manifest", "expected_repository"):
+        if needle not in mergegate_text:
+            raise ValidationError(f"scripts/mergegate_check.py: missing CCA evidence manifest enforcement {needle!r}")
+
+    docs = {
+        "docs/agents/evidence-integrity.md": [
+            CCA_EVIDENCE_MANIFEST_PATH,
+            "workflow-generated",
+            "evidence_refs",
+            "PR-authored `.shiki/gha` evidence is not trusted",
+        ],
+        "docs/agents/completion-check-agent.md": [CCA_EVIDENCE_MANIFEST_PATH],
+        "docs/agents/decision-control.md": ["evidence_refs"],
+        "docs/agents/checklists.md": ["CCA evidence manifest"],
+        "docs/agents/shiki-doctor.md": ["doctor.evidence_integrity.manifest"],
+    }
+    for relative, needles in docs.items():
+        path = root / relative
+        if not path.is_file():
+            raise ValidationError(f"{relative}: evidence integrity documentation is missing")
+        text = path.read_text(encoding="utf-8")
+        for needle in needles:
+            if needle not in text:
+                raise ValidationError(f"{relative}: missing evidence integrity documentation reference {needle!r}")
+
+    digest_fixture = {
+        "id": "L-20260605T000000000000Z-00000000",
+        "timestamp": "2026-06-05T00:00:00Z",
+        "goal_id": "G-0012",
+        "task_id": "T-0047",
+        "type": "check",
+        "actor": "fixture",
+        "summary": "fixture",
+        "evidence": ["fixture"],
+        "evidence_refs": [{"kind": "github-pr", "pr": 1, "head_sha": "a" * 40}],
+        "ledger_integrity": {"algorithm": "sha256"},
+    }
+    digest_fixture["ledger_integrity"]["canonical_digest"] = ledger_entry_digest(digest_fixture)
+    integrity_errors = validate_ledger_integrity(digest_fixture)
+    if integrity_errors:
+        raise ValidationError(f"scripts/shiki_evidence.py: valid ledger integrity fixture failed: {integrity_errors}")
 
 
 def validate_provider_config_contracts(root: Path = ROOT) -> None:
@@ -961,6 +1081,9 @@ def validate_ledger(path: Path, data: dict[str, Any], known_tasks: set[str], kno
     require_string(path, data, "actor")
     require_string(path, data, "summary")
     require_list(path, data, "evidence", non_empty=True)
+    integrity_errors = validate_ledger_integrity(data)
+    if integrity_errors:
+        raise ValidationError(f"{path}: {'; '.join(integrity_errors)}")
 
 
 def validate_worktree(path: Path, data: dict[str, Any], known_tasks: set[str]) -> None:
@@ -1587,6 +1710,7 @@ def main() -> int:
         validate_shiki_cli_module_boundaries()
         validate_shiki_migrations()
         validate_guardian_policy_contracts()
+        validate_evidence_integrity_contracts()
         validate_provider_config_contracts()
         validate_runtime_contracts()
         validate_issue_forms()

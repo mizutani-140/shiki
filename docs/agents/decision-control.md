@@ -101,6 +101,13 @@ Runtime CCA and MergeGate evidence under `.shiki/gha` is workflow-generated and
 must not be committed by PRs. PR-mutated `.shiki` mirror files are proposed
 state changes, not trusted authority.
 
+CCA artifact evidence is cross-checked with
+`.shiki/gha/cca-evidence-manifest.json`, which records the workflow run,
+artifact, PR/head metadata, and SHA-256 digests for required runtime evidence
+files. New ledger entries can add machine-readable `evidence_refs` for PRs,
+workflow runs, artifacts, and ledger digests so MergeGate does not rely only on
+loose evidence text.
+
 `.shiki/manifest.json` is the canonical repository-local layout contract for
 the mirror. It defines official directories, required files, runtime-only
 paths, install-time directory creation, and commit exclusions. `.shiki/README.md`

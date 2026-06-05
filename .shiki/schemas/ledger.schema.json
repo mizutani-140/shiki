@@ -34,6 +34,46 @@
     "links": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": {
+            "enum": [
+              "github-pr",
+              "github-issue",
+              "github-workflow-run",
+              "github-artifact",
+              "ledger-digest"
+            ]
+          },
+          "pr": { "type": "integer" },
+          "issue": { "type": "integer" },
+          "head_sha": { "type": "string" },
+          "workflow": { "type": "string" },
+          "run_id": { "type": "string" },
+          "run_attempt": { "type": "string" },
+          "name": { "type": "string" },
+          "manifest_path": { "type": "string" },
+          "manifest_sha256": { "type": "string" },
+          "algorithm": { "type": "string" },
+          "digest": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "ledger_integrity": {
+      "type": "object",
+      "properties": {
+        "algorithm": { "type": "string" },
+        "canonical_digest": { "type": "string" },
+        "previous_task_ledger": { "type": "string" },
+        "previous_task_ledger_digest": { "type": "string" }
+      },
+      "additionalProperties": true
     }
   },
   "additionalProperties": true
