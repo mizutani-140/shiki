@@ -1,0 +1,45 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0049 implements Goal #30 P1.4.6 only.",
+    "scripts/test_shiki_governance_evidence.sh adds adversarial governance evidence regression coverage for groups A-H.",
+    "Group A blocks forged Guardian evidence including label-only approval, negative text, stale head comments, wrong actors, Review Bridge-only approval, and advisory Claude review.",
+    "Group B blocks forged CCA verdict and CCA evidence manifest metadata, digest, PR, head, task, repository, artifact, and missing-file cases.",
+    "Group C validates evidence_refs and ledger_integrity and blocks mismatched ledger filename, unlisted ledger, unscoped ledger, malformed refs, and digest tampering.",
+    "Group D blocks stale mirror state for expected PR, branch, head SHA, required check head, and task status.",
+    "Group E blocks PR-authored workflow-runtime-evidence, cache, local-only, and unknown .shiki state mutations.",
+    "Group F blocks missing CCA, empty acceptance evidence, missing ledger evidence, missing required checks, and missing required review.",
+    "Group G requires exact Guardian approval marker and current live label evidence.",
+    "Group H checks workflow/static wiring for Guardian evidence, CCA evidence manifest, Review Bridge, MergeGate, and installer staging.",
+    "scripts/validate_shiki.py now requires the governance evidence regression suite, installer template inclusion, and docs markers.",
+    "docs/agents/evidence-integrity.md and docs/agents/guardian-policy.md document the adversarial evidence test boundary.",
+    "Non-goals preserved: no new Guardian policy semantics, no CCA Review Bridge behavior changes, no branch protection or CODEOWNERS changes, no state class model changes, no CCA evidence manifest redesign, no external signing/GitHub App/reviewer bot, no runtime/provider/migration/Node/P2 work.",
+    "PR #97: https://github.com/mizutani-140/shiki/pull/97",
+    "Required skill evidence: diagnose, tdd, and improve-codebase-architecture were used for T-0049 implementation and verification."
+  ],
+  "evidence_refs": [
+    {
+      "issue": 96,
+      "kind": "github-issue"
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "cbd4d18019c75ad8767c4d2f8fe501db482ef08092ea68e367a92b65b62f4b67",
+      "kind": "ledger-digest"
+    }
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260605T061500000000Z-6a4c9e31",
+  "ledger_integrity": {
+    "algorithm": "sha256",
+    "canonical_digest": "cbd4d18019c75ad8767c4d2f8fe501db482ef08092ea68e367a92b65b62f4b67"
+  },
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/96",
+    "https://github.com/mizutani-140/shiki/pull/97"
+  ],
+  "summary": "Implemented forged, stale, and missing governance evidence regression coverage for T-0049.",
+  "task_id": "T-0049",
+  "timestamp": "2026-06-05T06:15:00Z",
+  "type": "check"
+}

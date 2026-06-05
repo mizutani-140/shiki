@@ -42,3 +42,9 @@ To request Guardian approval, provide a review or comment that includes the
 approved PR head SHA, then add `guardian:approved`. Guardian approval comments
 use the exact marker `Guardian approval granted`. Re-run CCA so MergeGate uses
 fresh live evidence.
+
+`scripts/test_shiki_governance_evidence.sh` fixes the adversarial cases around
+this policy. It verifies that label-only approval, negative text such as
+"no Guardian approval evidence is present", stale-head comments, unconfigured
+actors, CCA Review Bridge reviews, advisory Claude reviews, and close-but-not
+exact approval phrases do not satisfy Guardian approval.

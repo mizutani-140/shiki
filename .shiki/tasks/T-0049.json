@@ -1,0 +1,60 @@
+{
+  "acceptance_checks": [
+    "scripts/test_shiki_governance_evidence.sh covers forged Guardian evidence, forged CCA evidence, forged ledger refs/integrity, stale mirror state, untrusted state-class mutation, missing evidence, exact Guardian evidence comments, and workflow static checks.",
+    "Guardian approval cannot be satisfied by label-only evidence, negative text, stale-head comments, unconfigured actors, CCA Review Bridge reviews, advisory Claude reviews, or close-but-not-exact approval phrases.",
+    "CCA completion cannot be satisfied by forged runtime verdict files or CCA evidence manifests with wrong repository, PR, head SHA, task/Goal, artifact, file entries, or digests.",
+    "Ledger evidence with malformed evidence_refs, mismatched ledger_integrity, wrong filename/id, unlisted ledger id, or wrong task/Goal scope is rejected.",
+    "Stale mirror state for expected PR, expected branch, expected head SHA, required check head SHA, or task status is blocked.",
+    "PR-authored workflow-runtime-evidence, cache, local-only, and unknown .shiki state paths are blocked by MergeGate state class policy.",
+    "Missing CCA, acceptance evidence, ledger evidence, required checks, required review, or Guardian live evidence remains blocking.",
+    "Workflow/static checks confirm Guardian evidence, CCA evidence manifest, CCA Review Bridge, MergeGate, and installer staging wiring stays present.",
+    "scripts/validate_shiki.py requires the governance evidence regression suite, docs markers, and template inclusion.",
+    "Verification bundle passes: validate_shiki, py_compile, FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 scripts/test_shiki_*.sh, targeted governance evidence test, git diff --check, and hidden/bidi check."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0048"
+  ],
+  "expected_branch": "shiki/t-0049-governance-evidence-tests",
+  "expected_pr": 97,
+  "github_issue": 96,
+  "goal_id": "G-0012",
+  "id": "T-0049",
+  "ledger_evidence": [
+    "L-20260605T061500000000Z-6a4c9e31"
+  ],
+  "locks": [
+    "shiki:governance",
+    "shiki:contracts",
+    "shiki:state",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/shiki_installer.py",
+    "path:docs/agents/evidence-integrity.md",
+    "path:docs/agents/guardian-policy.md",
+    "path:.shiki/tasks/T-0049.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/goals/G-0012.json"
+  ],
+  "non_goals": [
+    "Do not change Guardian policy semantics.",
+    "Do not change CCA Review Bridge semantics.",
+    "Do not change branch protection behavior.",
+    "Do not change CODEOWNERS rules.",
+    "Do not add a new state class model or change state class policies.",
+    "Do not redesign the CCA evidence manifest.",
+    "Do not add external signing, GitHub App, reviewer bot, KMS, GPG, or Sigstore support.",
+    "Do not broaden into P2 distribution, onboarding, packaging, or release work.",
+    "Do not add runtime adapter, provider, migration, or Node workflow compatibility work.",
+    "Do not close Goal #30."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Add adversarial forged, stale, and missing governance evidence regression coverage for Goal #30 P1.4.6 without changing Guardian, CCA Review Bridge, branch protection, CODEOWNERS, state class, CCA manifest, signing, runtime, provider, migration, Node, or P2 behavior.",
+  "status": "review",
+  "title": "Add forged / stale / missing governance evidence tests"
+}
