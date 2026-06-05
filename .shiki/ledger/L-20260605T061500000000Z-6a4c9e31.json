@@ -13,7 +13,8 @@
     "Group H checks workflow/static wiring for Guardian evidence, CCA evidence manifest, Review Bridge, MergeGate, and installer staging.",
     "scripts/validate_shiki.py now requires the governance evidence regression suite, installer template inclusion, and docs markers.",
     "docs/agents/evidence-integrity.md and docs/agents/guardian-policy.md document the adversarial evidence test boundary.",
-    "Non-goals preserved: no new Guardian policy semantics, no CCA Review Bridge behavior changes, no branch protection or CODEOWNERS changes, no state class model changes, no CCA evidence manifest redesign, no external signing/GitHub App/reviewer bot, no runtime/provider/migration/Node/P2 work."
+    "Non-goals preserved: no new Guardian policy semantics, no CCA Review Bridge behavior changes, no branch protection or CODEOWNERS changes, no state class model changes, no CCA evidence manifest redesign, no external signing/GitHub App/reviewer bot, no runtime/provider/migration/Node/P2 work.",
+    "PR #97: https://github.com/mizutani-140/shiki/pull/97"
   ],
   "evidence_refs": [
     {
@@ -22,7 +23,7 @@
     },
     {
       "algorithm": "sha256",
-      "digest": "e48bbe70ba59115fce2a8499a7a0e4989f0ca7fe2f74e444173dea30ae311664",
+      "digest": "0342c7d70bbb9416ba5ec30dd1510ad3dbf0e59cd5ef28d7c24d90a8650595b7",
       "kind": "ledger-digest"
     }
   ],
@@ -30,10 +31,11 @@
   "id": "L-20260605T061500000000Z-6a4c9e31",
   "ledger_integrity": {
     "algorithm": "sha256",
-    "canonical_digest": "e48bbe70ba59115fce2a8499a7a0e4989f0ca7fe2f74e444173dea30ae311664"
+    "canonical_digest": "0342c7d70bbb9416ba5ec30dd1510ad3dbf0e59cd5ef28d7c24d90a8650595b7"
   },
   "links": [
-    "https://github.com/mizutani-140/shiki/issues/96"
+    "https://github.com/mizutani-140/shiki/issues/96",
+    "https://github.com/mizutani-140/shiki/pull/97"
   ],
   "summary": "Implemented forged, stale, and missing governance evidence regression coverage for T-0049.",
   "task_id": "T-0049",
