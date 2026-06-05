@@ -114,6 +114,13 @@ paths, install-time directory creation, and commit exclusions. `.shiki/README.md
 is human-readable documentation validated against the manifest; it is not the
 source of truth.
 
+Manifest entries also define state classes. State classes distinguish
+repository-local mirrors, append-only evidence, governance policy, contracts,
+migration state, workflow-runtime-evidence, generated data, cache data,
+local-only data, and templates. MergeGate uses the class policy to block
+unknown `.shiki/**` paths and PR-authored `workflow-runtime-evidence` such as
+`.shiki/gha`.
+
 Required empty tracked state directories are represented with `.gitkeep` or
 created according to the manifest. Runtime-only directories such as
 `.shiki/gha` are generated on demand and must not be committed.

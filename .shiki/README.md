@@ -14,28 +14,48 @@ against it.
 ## Layout
 
 <!-- SHIKI_MANIFEST_LAYOUT_START -->
-| Path | Kind | Tracked | Required | Description |
-| --- | --- | --- | --- | --- |
-| `.shiki/dag` | mirror | yes | yes | Task dependency graphs mirrored from Goal planning. |
-| `.shiki/gha` | runtime-evidence | no | no | Workflow-generated GitHub Actions evidence. Must not be committed by PRs. |
-| `.shiki/goals` | mirror | yes | yes | Goal records mirrored from GitHub Goal Issues. |
-| `.shiki/handoffs` | mirror | yes | yes | Durable handoff records for runtime transitions. |
-| `.shiki/inbox` | mirror | yes | yes | Imported plans and intake artifacts waiting for Shiki processing. |
-| `.shiki/ledger` | append-only-evidence | yes | yes | Durable append-only evidence entries. |
-| `.shiki/locks` | lock-mirror | yes | no | Active lock files created on demand. Task lock intent is tracked in task records. |
-| `.shiki/migrations` | migration-state | yes | yes | Migration framework state and applied migration evidence. |
-| `.shiki/plans` | mirror | yes | yes | Goal Seek and Task DAG planning artifacts. |
-| `.shiki/repairs` | mirror | yes | yes | Bounded repair packets and repair coordination records. |
-| `.shiki/reports` | mirror | yes | yes | Completion, repair, and handoff reports. |
-| `.shiki/runner` | mirror | yes | yes | Runner execution records emitted by local or self-hosted runtimes. |
-| `.shiki/runs` | mirror | yes | yes | Plan run records and dispatch state. |
-| `.shiki/schemas` | contract | yes | yes | JSON Schemas for Shiki mirror artifacts. |
-| `.shiki/smoke` | mirror | yes | yes | Smoke-test run records. |
-| `.shiki/starts` | mirror | yes | yes | Shiki start/bootstrap records. |
-| `.shiki/tasks` | mirror | yes | yes | Executable task contracts mirrored from GitHub Task Issues. |
-| `.shiki/templates` | template | yes | yes | Starter templates for Shiki mirror artifacts. |
-| `.shiki/worktrees` | mirror | yes | yes | Registered local or self-hosted worktree records. |
+| Path | Kind | State Class | Tracked | Required | Description |
+| --- | --- | --- | --- | --- | --- |
+| `.shiki/dag` | mirror | mirror | yes | yes | Task dependency graphs mirrored from Goal planning. |
+| `.shiki/gha` | runtime-evidence | workflow-runtime-evidence | no | no | Workflow-generated GitHub Actions evidence. Must not be committed by PRs. |
+| `.shiki/goals` | mirror | mirror | yes | yes | Goal records mirrored from GitHub Goal Issues. |
+| `.shiki/handoffs` | mirror | mirror | yes | yes | Durable handoff records for runtime transitions. |
+| `.shiki/inbox` | mirror | mirror | yes | yes | Imported plans and intake artifacts waiting for Shiki processing. |
+| `.shiki/ledger` | append-only-evidence | append-only-evidence | yes | yes | Durable append-only evidence entries. |
+| `.shiki/locks` | lock-mirror | mirror | yes | no | Active lock files created on demand. Task lock intent is tracked in task records. |
+| `.shiki/migrations` | migration-state | migration-state | yes | yes | Migration framework state and applied migration evidence. |
+| `.shiki/plans` | mirror | mirror | yes | yes | Goal Seek and Task DAG planning artifacts. |
+| `.shiki/repairs` | mirror | mirror | yes | yes | Bounded repair packets and repair coordination records. |
+| `.shiki/reports` | mirror | mirror | yes | yes | Completion, repair, and handoff reports. |
+| `.shiki/runner` | mirror | mirror | yes | yes | Runner execution records emitted by local or self-hosted runtimes. |
+| `.shiki/runs` | mirror | mirror | yes | yes | Plan run records and dispatch state. |
+| `.shiki/schemas` | contract | contract | yes | yes | JSON Schemas for Shiki mirror artifacts. |
+| `.shiki/smoke` | mirror | mirror | yes | yes | Smoke-test run records. |
+| `.shiki/starts` | mirror | mirror | yes | yes | Shiki start/bootstrap records. |
+| `.shiki/tasks` | mirror | mirror | yes | yes | Executable task contracts mirrored from GitHub Task Issues. |
+| `.shiki/templates` | template | template | yes | yes | Starter templates for Shiki mirror artifacts. |
+| `.shiki/worktrees` | mirror | mirror | yes | yes | Registered local or self-hosted worktree records. |
 <!-- SHIKI_MANIFEST_LAYOUT_END -->
+
+## State Classes
+
+Every manifest directory and file entry declares a `state_class`. `kind`
+describes the artifact; `state_class` controls trust and PR mutation policy.
+
+- `github-operational-source`: live GitHub state, authoritative and not stored
+  under `.shiki`.
+- `mirror`: repository-local mirrors of GitHub operational state.
+- `append-only-evidence`: ledger evidence; PRs may append current-task entries
+  but must not modify or delete existing entries.
+- `governance-policy`: machine-readable governance config.
+- `contract`: schemas, prompts, docs, and runtime contracts.
+- `migration-state`: repository-local migration records.
+- `workflow-runtime-evidence`: workflow-generated evidence such as
+  `.shiki/gha`; must not be committed.
+- `generated`: generated artifacts that must not be trusted as durable proof.
+- `cache`: cache data that must not be committed or trusted.
+- `local-only`: local runtime data that must not be committed.
+- `template`: template files copied into targets.
 
 ## Runtime Evidence
 

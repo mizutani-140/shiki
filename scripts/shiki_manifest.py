@@ -97,14 +97,15 @@ def manifest_exclude_from_commit(manifest: dict[str, Any]) -> list[str]:
 def render_manifest_layout(manifest: dict[str, Any]) -> str:
     rows = [
         README_LAYOUT_START,
-        "| Path | Kind | Tracked | Required | Description |",
-        "| --- | --- | --- | --- | --- |",
+        "| Path | Kind | State Class | Tracked | Required | Description |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for path, metadata in sorted(manifest_directories(manifest).items()):
         kind = str(metadata.get("kind", "unknown"))
+        state_class = str(metadata.get("state_class", "unknown"))
         tracked = "yes" if metadata.get("tracked") is True else "no"
         required = "yes" if metadata.get("required") is True else "no"
         description = str(metadata.get("description", "")).replace("\n", " ")
-        rows.append(f"| `{path}` | {kind} | {tracked} | {required} | {description} |")
+        rows.append(f"| `{path}` | {kind} | {state_class} | {tracked} | {required} | {description} |")
     rows.append(README_LAYOUT_END)
     return "\n".join(rows)

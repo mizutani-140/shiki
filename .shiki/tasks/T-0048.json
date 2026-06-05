@@ -1,0 +1,69 @@
+{
+  "acceptance_checks": [
+    ".shiki/manifest.json defines state_classes and state_class_policies.",
+    "Every manifest directory and file entry declares state_class.",
+    "scripts/shiki_state_classes.py classifies .shiki paths by exact file entry and longest directory prefix.",
+    "scripts/mergegate_check.py classifies changed .shiki paths and blocks unknown, workflow-runtime-evidence, cache, local-only, and non-append ledger mutations.",
+    "scripts/validate_shiki.py validates manifest state class definitions, policies, tracked/runtime consistency, unknown tracked .shiki paths, and docs coverage.",
+    "scripts/shiki_doctor.py reports state class manifest, unknown path, runtime-only, and append-only findings.",
+    ".shiki/migrations/state.json records M-20260605-0002-state-classes with no historical state rewrite.",
+    "docs/agents/state-classes.md and related docs explain class trust, tracking, mutation, MergeGate, doctor, and migration semantics.",
+    "scripts/test_shiki_state_classes.sh covers classification, validator, MergeGate, doctor, and migration behavior.",
+    "Verification bundle passes: validate_shiki, py_compile, scripts/test_shiki_*.sh, git diff --check, and state-class smoke."
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [
+    "T-0047"
+  ],
+  "expected_branch": "shiki/t-0048-state-classes",
+  "expected_pr": 94,
+  "github_issue": 93,
+  "goal_id": "G-0012",
+  "id": "T-0048",
+  "ledger_evidence": [
+    "L-20260605T041500000000Z-3a9f2c10"
+  ],
+  "locks": [
+    "shiki:state",
+    "shiki:governance",
+    "shiki:contracts",
+    "path:.shiki/manifest.json",
+    "path:.shiki/README.md",
+    "path:.shiki/migrations/**",
+    "path:scripts/shiki_state_classes.py",
+    "path:scripts/shiki_manifest.py",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/shiki_doctor.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/shiki_migrations.py",
+    "path:scripts/test_shiki_adversarial_state.sh",
+    "path:scripts/test_shiki_evidence_integrity.sh",
+    "path:scripts/test_shiki_guardian_policy.sh",
+    "path:scripts/test_shiki_manifest.sh",
+    "path:scripts/test_shiki_migrations.sh",
+    "path:scripts/test_shiki_state_classes.sh",
+    "path:docs/agents/**",
+    "path:.shiki/tasks/T-0048.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/goals/G-0012.json"
+  ],
+  "non_goals": [
+    "Do not implement P1.4.6 full forged, stale, or missing governance evidence adversarial tests.",
+    "Do not add P2 distribution, onboarding, packaging, or release work.",
+    "Do not change Guardian policy semantics.",
+    "Do not change CCA Review Bridge behavior.",
+    "Do not change branch protection or CODEOWNERS ownership.",
+    "Do not change P0.4 ID, lock, or evidence mutation semantics beyond narrow state class enforcement.",
+    "Do not add runtime adapter behavior, provider behavior, migration framework redesign, Node workflow changes, external signing, GitHub App, or reviewer bot."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "critical",
+  "scope": "Define and enforce machine-readable .shiki state classes for Goal #30 P1.4.5 by extending the manifest, adding a helper module, wiring validator, MergeGate, doctor, migration state, docs, tests, and implementation ledger evidence.",
+  "status": "review",
+  "title": "Define Shiki state classes"
+}

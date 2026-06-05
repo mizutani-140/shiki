@@ -54,10 +54,20 @@ from shiki_manifest import (
 from shiki_migrations import (
     BASELINE_MIGRATION_ID,
     MIGRATION_STATE_PATH,
+    STATE_CLASSES_MIGRATION_ID,
     load_migration_state,
     migration_status,
     validate_migration_registry,
     validate_migration_state_data,
+)
+from shiki_state_classes import (
+    UNKNOWN_STATE_CLASS,
+    class_policy,
+    classify_shiki_path,
+    manifest_state_class_policies,
+    manifest_state_classes,
+    state_class_summary,
+    unknown_tracked_shiki_paths,
 )
 from shiki_provider import (
     DEFAULT_GITHUB_HOST,
@@ -288,6 +298,7 @@ SHIKI_CLI_MODULE_FILES = (
     "scripts/shiki_process.py",
     "scripts/shiki_runtime.py",
     "scripts/shiki_runtime_registry.py",
+    "scripts/shiki_state_classes.py",
     "scripts/shiki_tasks.py",
 )
 SHIKI_CLI_MODULE_NAMES = tuple(path.removeprefix("scripts/").removesuffix(".py") for path in SHIKI_CLI_MODULE_FILES)
@@ -339,6 +350,88 @@ def validate_readme_manifest_layout(root: Path, manifest: dict[str, Any]) -> Non
         raise ValidationError(f"{readme_path}: manifest layout block is out of sync with {MANIFEST_PATH}")
 
 
+def validate_shiki_state_classes(root: Path, manifest: dict[str, Any], directories: dict[str, dict[str, Any]]) -> None:
+    state_classes = manifest_state_classes(manifest)
+    if not state_classes:
+        raise ValidationError(f"{MANIFEST_PATH}: state_classes must be defined")
+    policies = manifest_state_class_policies(manifest)
+    if not policies:
+        raise ValidationError(f"{MANIFEST_PATH}: state_class_policies must be defined")
+
+    for state_class, metadata in state_classes.items():
+        if not isinstance(metadata, dict) or not isinstance(metadata.get("description"), str) or not metadata["description"].strip():
+            raise ValidationError(f"{MANIFEST_PATH}: state_classes.{state_class} must declare description")
+        if state_class not in policies:
+            raise ValidationError(f"{MANIFEST_PATH}: state_class {state_class} must have a policy")
+        policy = class_policy(state_class, manifest)
+        if not isinstance(policy.get("tracked"), bool):
+            raise ValidationError(f"{MANIFEST_PATH}: state_class_policies.{state_class}.tracked must be a boolean")
+        for field in ("pr_mutation", "trusted_authority"):
+            if not isinstance(policy.get(field), str) or not policy[field].strip():
+                raise ValidationError(f"{MANIFEST_PATH}: state_class_policies.{state_class}.{field} must be a non-empty string")
+
+    for state_class in policies:
+        if state_class not in state_classes:
+            raise ValidationError(f"{MANIFEST_PATH}: state_class_policies.{state_class} has no matching state_classes entry")
+
+    for section_name, entries in (("directory", directories), ("file", manifest.get("files") or {})):
+        for relative, metadata in entries.items():
+            if not isinstance(metadata, dict):
+                continue
+            state_class = metadata.get("state_class")
+            if not isinstance(state_class, str) or not state_class.strip():
+                raise ValidationError(f"{MANIFEST_PATH}: {section_name} {relative} must declare state_class")
+            if state_class not in state_classes:
+                raise ValidationError(f"{MANIFEST_PATH}: {section_name} {relative} uses unknown state_class {state_class!r}")
+            policy = class_policy(state_class, manifest)
+            if metadata.get("tracked") is True and policy.get("tracked") is False:
+                raise ValidationError(f"{MANIFEST_PATH}: {relative} state_class {state_class} must not be tracked")
+
+    expected = {
+        ".shiki/gha": "workflow-runtime-evidence",
+        ".shiki/ledger": "append-only-evidence",
+        ".shiki/goals": "mirror",
+        ".shiki/tasks": "mirror",
+        ".shiki/locks": "mirror",
+        ".shiki/repairs": "mirror",
+        ".shiki/reports": "mirror",
+        ".shiki/runs": "mirror",
+        ".shiki/worktrees": "mirror",
+        ".shiki/guardian-policy.json": "governance-policy",
+        ".shiki/migrations/state.json": "migration-state",
+    }
+    for relative, expected_class in expected.items():
+        actual = classify_shiki_path(relative, manifest)
+        if actual != expected_class:
+            raise ValidationError(f"{MANIFEST_PATH}: {relative} must classify as {expected_class}, got {actual}")
+
+    if UNKNOWN_STATE_CLASS in state_class_summary(manifest):
+        raise ValidationError(f"{MANIFEST_PATH}: manifest entries must not classify as {UNKNOWN_STATE_CLASS}")
+
+    tracked = git_tracked_paths(root, ".shiki")
+    unknown = unknown_tracked_shiki_paths(root, manifest, tracked)
+    if unknown:
+        raise ValidationError(f"{MANIFEST_PATH}: unknown tracked .shiki paths: {', '.join(unknown)}")
+
+    docs = {
+        ".shiki/README.md": list(state_classes),
+        "docs/agents/state-classes.md": list(state_classes) + ["workflow-runtime-evidence", "append-only-evidence", "MergeGate"],
+        "docs/agents/decision-control.md": ["state classes", "workflow-runtime-evidence"],
+        "docs/agents/checklists.md": ["state classes", "append-only-evidence"],
+        "docs/agents/shiki-doctor.md": ["doctor.state_classes.manifest", "doctor.state_classes.unknown_paths"],
+        "docs/agents/evidence-integrity.md": ["state classes", "append-only-evidence"],
+        "docs/agents/shiki-migrations.md": ["M-20260605-0002-state-classes", "state classes"],
+    }
+    for relative, needles in docs.items():
+        path = root / relative
+        if not path.is_file():
+            raise ValidationError(f"{relative}: state class documentation is missing")
+        text = path.read_text(encoding="utf-8")
+        for needle in needles:
+            if needle not in text:
+                raise ValidationError(f"{relative}: missing state class documentation marker {needle!r}")
+
+
 def validate_shiki_manifest(root: Path = ROOT) -> None:
     try:
         manifest = load_manifest(root)
@@ -384,6 +477,10 @@ def validate_shiki_manifest(root: Path = ROOT) -> None:
         require_manifest_path(relative, field="file")
         if not isinstance(metadata, dict):
             raise ValidationError(f"{MANIFEST_PATH}: file entry {relative} must be an object")
+        if not isinstance(metadata.get("tracked"), bool):
+            raise ValidationError(f"{MANIFEST_PATH}: {relative}.tracked must be a boolean")
+        if not isinstance(metadata.get("required"), bool):
+            raise ValidationError(f"{MANIFEST_PATH}: {relative}.required must be a boolean")
     for relative in manifest_required_files(manifest):
         if not (root / relative).is_file():
             raise ValidationError(f"{MANIFEST_PATH}: required file {relative} is missing")
@@ -427,6 +524,7 @@ def validate_shiki_manifest(root: Path = ROOT) -> None:
     for relative in excluded:
         require_manifest_path(relative.removesuffix("/**"), field="install.exclude_from_commit")
 
+    validate_shiki_state_classes(root, manifest, directories)
     validate_readme_manifest_layout(root, manifest)
 
 
@@ -453,12 +551,16 @@ def validate_shiki_cli_module_boundaries(root: Path = ROOT) -> None:
         raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_module_boundaries.sh")
     if "scripts/test_shiki_migrations.sh" not in template_paths:
         raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_migrations.sh")
+    if "scripts/test_shiki_state_classes.sh" not in template_paths:
+        raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_state_classes.sh")
     if "scripts/test_shiki_guardian_policy.sh" not in template_paths:
         raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_guardian_policy.sh")
     if not (root / "scripts/test_shiki_module_boundaries.sh").is_file():
         raise ValidationError("scripts/test_shiki_module_boundaries.sh: module boundary regression test is missing")
     if not (root / "scripts/test_shiki_migrations.sh").is_file():
         raise ValidationError("scripts/test_shiki_migrations.sh: migration regression test is missing")
+    if not (root / "scripts/test_shiki_state_classes.sh").is_file():
+        raise ValidationError("scripts/test_shiki_state_classes.sh: state class regression test is missing")
     if "scripts/test_shiki_provider_config.sh" not in template_paths:
         raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_provider_config.sh")
     if not (root / "scripts/test_shiki_provider_config.sh").is_file():
@@ -511,6 +613,8 @@ def validate_shiki_migrations(root: Path = ROOT) -> None:
     applied_ids = {record.get("id") for record in state.get("applied", []) if isinstance(record, dict)}
     if BASELINE_MIGRATION_ID not in applied_ids:
         raise ValidationError(f"{MIGRATION_STATE_PATH}: baseline migration {BASELINE_MIGRATION_ID} must be applied")
+    if STATE_CLASSES_MIGRATION_ID not in applied_ids:
+        raise ValidationError(f"{MIGRATION_STATE_PATH}: state class migration {STATE_CLASSES_MIGRATION_ID} must be applied")
 
     manifest = load_manifest(root)
     directories = manifest_directories(manifest)
@@ -525,7 +629,7 @@ def validate_shiki_migrations(root: Path = ROOT) -> None:
         raise ValidationError(f"{MANIFEST_PATH}: {MIGRATION_STATE_PATH} must be included for install")
 
     docs = {
-        "docs/agents/shiki-migrations.md": ["M-20260604-0001-baseline", MIGRATION_STATE_PATH, "shiki migrate apply"],
+        "docs/agents/shiki-migrations.md": ["M-20260604-0001-baseline", STATE_CLASSES_MIGRATION_ID, MIGRATION_STATE_PATH, "shiki migrate apply"],
         "docs/agents/shiki-doctor.md": ["doctor.migrations.state", "doctor.migrations.pending"],
         "docs/agents/shiki-cli-architecture.md": ["scripts/shiki_migrations.py"],
         "docs/agents/decision-control.md": [MIGRATION_STATE_PATH],

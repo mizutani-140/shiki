@@ -171,6 +171,7 @@ grep -- "--guardian-events .shiki/gha/live-guardian-events.json" .github/workflo
 MG="$TMP_ROOT/mergegate"
 mkdir -p "$MG/.shiki/tasks" "$MG/.shiki/goals" "$MG/.shiki/ledger" "$MG/.shiki/gha" "$MG/.github/workflows"
 cp .shiki/config.yaml "$MG/.shiki/config.yaml"
+cp .shiki/manifest.json "$MG/.shiki/manifest.json"
 cp .shiki/guardian-policy.json "$MG/.shiki/guardian-policy.json"
 cp -R .shiki/schemas "$MG/.shiki/schemas"
 cp .github/workflows/shiki-validate.yml "$MG/.github/workflows/shiki-validate.yml"

@@ -54,6 +54,17 @@ M-20260604-0002-guardian-policy
 It records `.shiki/guardian-policy.json` as tracked governance state after the
 baseline migration.
 
+The state classes migration is:
+
+```text
+M-20260605-0002-state-classes
+```
+
+It records explicit `.shiki` state classes in `.shiki/manifest.json`,
+including mirror, append-only evidence, governance policy, contract,
+migration-state, workflow-runtime-evidence, generated, cache, local-only, and
+template classes. It does not rewrite historical state.
+
 ## Commands
 
 ```bash

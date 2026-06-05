@@ -17,6 +17,12 @@ from shiki_evidence import CCA_EVIDENCE_MANIFEST_PATH
 from shiki_guardian import GUARDIAN_POLICY_PATH, GuardianPolicyError, load_guardian_policy, validate_guardian_policy
 from shiki_manifest import ManifestError, load_manifest, manifest_required_directories, manifest_required_files, manifest_runtime_directories
 from shiki_migrations import MIGRATION_STATE_PATH, migration_status
+from shiki_state_classes import (
+    class_policy,
+    manifest_state_classes,
+    state_class_summary,
+    unknown_tracked_shiki_paths,
+)
 from shiki_process import ROOT, first_line, print_json, run
 from shiki_provider import ProviderConfig, ProviderConfigError, github_env, provider_from_repo_json, remote_matches_provider
 from shiki_runtime import claude_auth_status, codex_auth_status, github_auth_status, shiki_entrypoints_status
@@ -398,6 +404,82 @@ def _manifest_findings(target: Path) -> list[DoctorFinding]:
             {"missing_directories": missing_dirs, "missing_files": missing_files, "runtime_directories_with_files": tracked_runtime},
         )
     ]
+
+
+def _state_class_findings(target: Path) -> list[DoctorFinding]:
+    try:
+        manifest = load_manifest(target)
+    except ManifestError as error:
+        return [_finding("doctor.state_classes.manifest", "fail", "Shiki state classes", str(error), "Restore .shiki/manifest.json.")]
+
+    state_classes = manifest_state_classes(manifest)
+    summary = state_class_summary(manifest)
+    missing_required = [
+        state_class
+        for state_class in ("append-only-evidence", "governance-policy", "migration-state", "workflow-runtime-evidence")
+        if state_class not in state_classes
+    ]
+    manifest_ok = bool(state_classes) and not missing_required
+    findings = [
+        _finding(
+            "doctor.state_classes.manifest",
+            "pass" if manifest_ok else "fail",
+            "Shiki state class manifest",
+            "State classes are loaded and required trust classes exist." if manifest_ok else "State class manifest is incomplete.",
+            "Run `python3 scripts/validate_shiki.py` and repair .shiki/manifest.json." if not manifest_ok else "",
+            {"state_classes": sorted(state_classes), "missing_required": missing_required, "summary": summary},
+        )
+    ]
+
+    tracked = subprocess.run(["git", "ls-files", "-z", "--", ".shiki"], cwd=str(target), text=True, capture_output=True, check=False)
+    tracked_paths = [path for path in tracked.stdout.split("\0") if path] if tracked.returncode == 0 else []
+    unknown = unknown_tracked_shiki_paths(target, manifest, tracked_paths)
+    findings.append(
+        _finding(
+            "doctor.state_classes.unknown_paths",
+            "pass" if not unknown else "fail",
+            "Unknown tracked .shiki paths",
+            "Tracked .shiki paths are represented by the manifest." if not unknown else "Tracked .shiki paths are missing manifest state classes.",
+            "Add manifest entries or remove untrusted tracked paths." if unknown else "",
+            {"unknown_paths": unknown},
+        )
+    )
+
+    runtime_classes = {"workflow-runtime-evidence", "cache", "local-only"}
+    runtime_failures = [
+        state_class
+        for state_class in runtime_classes
+        if class_policy(state_class, manifest).get("tracked") is True
+    ]
+    runtime_committed: list[str] = []
+    for relative in manifest_runtime_directories(manifest):
+        result = subprocess.run(["git", "ls-files", "--", relative], cwd=str(target), text=True, capture_output=True, check=False)
+        if result.returncode == 0 and result.stdout.strip():
+            runtime_committed.append(relative)
+    runtime_ok = not runtime_failures and not runtime_committed
+    findings.append(
+        _finding(
+            "doctor.state_classes.runtime_only",
+            "pass" if runtime_ok else "fail",
+            "Runtime-only state classes",
+            "Runtime-only/cache/local-only classes are not committed." if runtime_ok else "Runtime-only state class policy is violated.",
+            "Remove committed runtime/cache/local-only files and repair manifest policies." if not runtime_ok else "",
+            {"runtime_policy_failures": runtime_failures, "runtime_directories_with_files": runtime_committed},
+        )
+    )
+
+    append_ok = "append-only-evidence" in state_classes and ".shiki/ledger" in summary.get("append-only-evidence", [])
+    findings.append(
+        _finding(
+            "doctor.state_classes.append_only",
+            "pass" if append_ok else "fail",
+            "Append-only evidence state class",
+            ".shiki/ledger is classified as append-only-evidence." if append_ok else ".shiki/ledger append-only classification is missing.",
+            "Repair .shiki/manifest.json state_class for .shiki/ledger." if not append_ok else "",
+            {"append_only_paths": summary.get("append-only-evidence", [])},
+        )
+    )
+    return findings
 
 
 def _migration_findings(target: Path) -> list[DoctorFinding]:
@@ -800,6 +882,7 @@ def doctor_findings(target: Path, *, online: bool = False) -> list[DoctorFinding
     findings.extend(_workflow_findings(target, config))
     findings.extend(_codeowners_findings(target))
     findings.extend(_manifest_findings(target))
+    findings.extend(_state_class_findings(target))
     findings.extend(_migration_findings(target))
     findings.extend(_guardian_findings(target))
     findings.extend(_evidence_integrity_findings(target))

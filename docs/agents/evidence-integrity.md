@@ -34,6 +34,18 @@ Historical ledger entries without `evidence_refs` remain valid. When
 `evidence_refs` or `ledger_integrity` are present, validation checks their shape
 and digest consistency.
 
+## State Classes
+
+`.shiki/manifest.json` classifies `.shiki/ledger/**` as
+`append-only-evidence`. New current-task ledger entries may be appended, but
+existing ledger files must not be modified or deleted by PRs. Runtime CCA and
+MergeGate files under `.shiki/gha/**` classify as `workflow-runtime-evidence`
+and must come from GitHub Actions artifacts, not committed PR files.
+
+Cache, generated, and local-only state classes must not be trusted as durable
+evidence. Mirror state is useful context, but GitHub operational state remains
+authoritative when live GitHub state and `.shiki` disagree.
+
 ## Boundary
 
 This digest model is not external signing. It does not use KMS, GPG, Sigstore,

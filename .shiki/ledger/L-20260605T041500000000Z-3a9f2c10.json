@@ -1,0 +1,33 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0048 implements Goal #30 P1.4.5 only.",
+    ".shiki/manifest.json defines explicit state_classes and state_class_policies.",
+    "Manifest directories and files declare state_class while preserving descriptive kind fields.",
+    "scripts/shiki_state_classes.py implements exact file classification, longest directory prefix classification, policy lookup, runtime-only checks, and summary helpers.",
+    "scripts/mergegate_check.py classifies changed .shiki paths and blocks unknown, workflow-runtime-evidence, cache, local-only, and non-append ledger mutations while preserving existing task, goal, lock, repair, and base ledger protections.",
+    "scripts/validate_shiki.py validates state class definitions, policies, manifest entries, tracked/runtime consistency, unknown tracked .shiki paths, and docs coverage.",
+    "scripts/shiki_doctor.py reports doctor.state_classes.manifest, doctor.state_classes.unknown_paths, doctor.state_classes.runtime_only, and doctor.state_classes.append_only.",
+    ".shiki/migrations/state.json records M-20260605-0002-state-classes as applied with no historical state rewrite.",
+    "docs/agents/state-classes.md and related docs explain trusted/untrusted classes, tracked/runtime-only rules, PR mutation rules, GitHub source-of-truth relationship, MergeGate, doctor, and migrations.",
+    "scripts/test_shiki_state_classes.sh covers classification, validator failures, MergeGate state-class blocking, doctor findings, and migration status.",
+    "Required skills were used: diagnose, tdd, improve-codebase-architecture.",
+    "Non-goals preserved: P1.4.6 adversarial forged/stale/missing governance evidence tests, P2, Guardian policy changes, CCA Review Bridge changes, branch protection, CODEOWNERS, runtime adapter behavior, provider behavior, migration framework redesign, Node workflow changes, external signing, GitHub App, and reviewer bot."
+  ],
+  "evidence_refs": [
+    {
+      "issue": 93,
+      "kind": "github-issue"
+    }
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260605T041500000000Z-3a9f2c10",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/93",
+    "https://github.com/mizutani-140/shiki/pull/94"
+  ],
+  "summary": "Implemented explicit Shiki state class classification and enforcement for T-0048.",
+  "task_id": "T-0048",
+  "timestamp": "2026-06-05T04:15:00Z",
+  "type": "check"
+}
