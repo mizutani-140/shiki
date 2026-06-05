@@ -1,0 +1,44 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0048 post-merge reconciliation records PR #94 merge and mirror completion evidence.",
+    "PR #94 merged into main with guarded head 770ffd76ac3979461e74d6c81bd0841a92269ed5.",
+    "PR #94 merge commit on main is 150ceec9def0e98074291da6a6396f70f2556a57.",
+    "Guardian approval evidence was recorded on PR #94 with guardian:approved label and a Guardian approval comment containing marker 'Guardian approval granted' and the approved head SHA.",
+    "Pre-merge hidden / bidirectional Unicode control character check passed for PR #94 changed files.",
+    "Pre-merge CCA verdict passed after Guardian approval metadata was visible to CCA.",
+    "Pre-merge CCA Review Bridge created or confirmed github-actions APPROVED review on PR #94.",
+    "Pre-merge MergeGate policy check passed under the Guardian policy.",
+    "Pre-merge MergeGate metadata check passed.",
+    "Pre-merge Validate Shiki mirror passed.",
+    "Pre-merge Claude review passed.",
+    "Main mirror validation passed after PR #94 merge.",
+    "State class smoke passed on main after PR #94 merge.",
+    "T-0048 status is now done.",
+    "G-0012 ledger evidence includes implementation ledger L-20260605T041500000000Z-3a9f2c10 and reconciliation ledger L-20260605T045900000000Z-8f4a2c71.",
+    "No active T-0048 lock was present on main after PR #94 merge.",
+    "Pull Request #95 records the T-0048 post-merge mirror reconciliation: https://github.com/mizutani-140/shiki/pull/95",
+    "Issue #93 can be closed after this reconciliation merges.",
+    "Goal #30 P1.4.5 is eligible to be marked complete after this reconciliation merges.",
+    "P1.4.6 and P2 remain open.",
+    "Goal #30 / G-0012 remains open because additional P1/P2 work remains open."
+  ],
+  "evidence_refs": [
+    {
+      "head_sha": "770ffd76ac3979461e74d6c81bd0841a92269ed5",
+      "kind": "github-pr",
+      "pr": 94
+    }
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260605T045900000000Z-8f4a2c71",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/93",
+    "https://github.com/mizutani-140/shiki/pull/94",
+    "https://github.com/mizutani-140/shiki/pull/95"
+  ],
+  "summary": "Recorded T-0048 post-merge mirror reconciliation evidence.",
+  "task_id": "T-0048",
+  "timestamp": "2026-06-05T04:59:00Z",
+  "type": "completion"
+}
