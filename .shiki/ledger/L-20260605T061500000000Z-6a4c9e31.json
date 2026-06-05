@@ -14,7 +14,8 @@
     "scripts/validate_shiki.py now requires the governance evidence regression suite, installer template inclusion, and docs markers.",
     "docs/agents/evidence-integrity.md and docs/agents/guardian-policy.md document the adversarial evidence test boundary.",
     "Non-goals preserved: no new Guardian policy semantics, no CCA Review Bridge behavior changes, no branch protection or CODEOWNERS changes, no state class model changes, no CCA evidence manifest redesign, no external signing/GitHub App/reviewer bot, no runtime/provider/migration/Node/P2 work.",
-    "PR #97: https://github.com/mizutani-140/shiki/pull/97"
+    "PR #97: https://github.com/mizutani-140/shiki/pull/97",
+    "Required skill evidence: diagnose, tdd, and improve-codebase-architecture were used for T-0049 implementation and verification."
   ],
   "evidence_refs": [
     {
@@ -23,7 +24,7 @@
     },
     {
       "algorithm": "sha256",
-      "digest": "0342c7d70bbb9416ba5ec30dd1510ad3dbf0e59cd5ef28d7c24d90a8650595b7",
+      "digest": "cbd4d18019c75ad8767c4d2f8fe501db482ef08092ea68e367a92b65b62f4b67",
       "kind": "ledger-digest"
     }
   ],
@@ -31,7 +32,7 @@
   "id": "L-20260605T061500000000Z-6a4c9e31",
   "ledger_integrity": {
     "algorithm": "sha256",
-    "canonical_digest": "0342c7d70bbb9416ba5ec30dd1510ad3dbf0e59cd5ef28d7c24d90a8650595b7"
+    "canonical_digest": "cbd4d18019c75ad8767c4d2f8fe501db482ef08092ea68e367a92b65b62f4b67"
   },
   "links": [
     "https://github.com/mizutani-140/shiki/issues/96",
