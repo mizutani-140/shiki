@@ -15,13 +15,14 @@
   "dependencies": [
     "T-0048"
   ],
-  "expected_branch": "shiki/t-0049-governance-evidence-tests",
-  "expected_pr": 97,
+  "expected_branch": "shiki/t-0049-post-merge-reconcile",
+  "expected_pr": 98,
   "github_issue": 96,
   "goal_id": "G-0012",
   "id": "T-0049",
   "ledger_evidence": [
-    "L-20260605T061500000000Z-6a4c9e31"
+    "L-20260605T061500000000Z-6a4c9e31",
+    "L-20260605T063724634732Z-d650d207"
   ],
   "locks": [
     "shiki:governance",
@@ -55,6 +56,6 @@
   ],
   "risk_level": "critical",
   "scope": "Add adversarial forged, stale, and missing governance evidence regression coverage for Goal #30 P1.4.6 without changing Guardian, CCA Review Bridge, branch protection, CODEOWNERS, state class, CCA manifest, signing, runtime, provider, migration, Node, or P2 behavior.",
-  "status": "review",
+  "status": "done",
   "title": "Add forged / stale / missing governance evidence tests"
 }
