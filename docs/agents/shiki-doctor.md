@@ -28,6 +28,9 @@ auth probes used by Shiki entrypoint status. They cover:
 - CODEOWNERS coverage for critical Shiki paths.
 - `.shiki/manifest.json` layout, required files/directories, and tracked
   runtime-only evidence.
+- `.shiki/manifest.json` state class health through
+  `doctor.state_classes.manifest`, `doctor.state_classes.unknown_paths`,
+  `doctor.state_classes.runtime_only`, and `doctor.state_classes.append_only`.
 - `.shiki/migrations/state.json` state validity, migration registry validity,
   and pending migration count through `doctor.migrations.state`,
   `doctor.migrations.registry`, and `doctor.migrations.pending`.

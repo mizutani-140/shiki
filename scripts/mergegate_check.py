@@ -16,7 +16,9 @@ from shiki_evidence import validate_cca_evidence_manifest
 from shiki_guardian import GuardianPolicyError, evaluate_guardian_approval, load_guardian_policy_file, risk_requires_guardian, validate_guardian_policy
 from shiki_jsonschema import JsonSchemaError, UnsupportedJsonSchemaError, validate_json_schema
 from shiki_locks import active_lock_conflicts, files_outside_locks
+from shiki_manifest import ManifestError, load_manifest
 from shiki_schema import SchemaValidationError, validate_instance
+from shiki_state_classes import UNKNOWN_STATE_CLASS, class_policy, classify_shiki_path
 
 
 ID_SUFFIX = r"(?:[0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})"
@@ -589,6 +591,7 @@ def ledger_entry_allowed_for_task(entry: dict[str, Any], *, task_id: str, goal_i
 def enforce_untrusted_shiki_mutations(
     *,
     target: Path,
+    manifest: dict[str, Any] | None,
     base_shiki: Path | None,
     changed_files_status: list[ChangedFile],
     task: dict[str, Any],
@@ -611,44 +614,59 @@ def enforce_untrusted_shiki_mutations(
         paths_to_check = [candidate for candidate in [path, old_path] if candidate]
 
         for candidate in paths_to_check:
-            if runtime_evidence_path(candidate):
+            state_class = classify_shiki_path(candidate, manifest or {}) if candidate.startswith(".shiki/") else ""
+            policy = class_policy(state_class, manifest or {}) if state_class else {}
+            is_runtime_evidence = runtime_evidence_path(candidate)
+            if is_runtime_evidence:
                 blocking.append(
-                    f"Runtime CCA/MergeGate evidence path {candidate} must come from workflow artifacts, not PR files"
+                    f"Runtime CCA/MergeGate evidence path {candidate} must come from workflow artifacts, not PR files; state_class={state_class or 'workflow-runtime-evidence'}"
                 )
+            if candidate.startswith(".shiki/") and state_class == UNKNOWN_STATE_CLASS:
+                blocking.append(f"Unknown Shiki state path {candidate}; state_class={state_class}")
+                continue
+            if state_class in {"workflow-runtime-evidence", "cache", "local-only"} or policy.get("pr_mutation") == "forbidden":
+                blocking.append(f"PR must not change {candidate}; state_class={state_class}")
 
         if path.startswith(".shiki/tasks/") and path.endswith(".json"):
+            state_class = classify_shiki_path(path, manifest or {})
             if entry.status == "D":
-                blocking.append(f"PR must not delete Shiki task file {path}")
+                blocking.append(f"PR must not delete Shiki task file {path}; state_class={state_class}")
             elif path != task_file:
-                blocking.append(f"PR changes unrelated Shiki task file {path}; expected only {task_file}")
+                blocking.append(f"PR changes unrelated Shiki task file {path}; expected only {task_file}; state_class={state_class}")
 
         if path.startswith(".shiki/goals/") and path.endswith(".json"):
+            state_class = classify_shiki_path(path, manifest or {})
             if entry.status == "D":
-                blocking.append(f"PR must not delete Shiki goal file {path}")
+                blocking.append(f"PR must not delete Shiki goal file {path}; state_class={state_class}")
             elif path != goal_file:
-                blocking.append(f"PR changes unrelated Shiki goal file {path}; expected only {goal_file}")
+                blocking.append(f"PR changes unrelated Shiki goal file {path}; expected only {goal_file}; state_class={state_class}")
 
         if path.startswith(".shiki/locks/") and path.endswith(".json"):
+            state_class = classify_shiki_path(path, manifest or {})
             if path != lock_file:
-                blocking.append(f"PR changes unrelated Shiki lock file {path}; expected only {lock_file}")
+                blocking.append(f"PR changes unrelated Shiki lock file {path}; expected only {lock_file}; state_class={state_class}")
 
         if path.startswith(".shiki/ledger/") and path.endswith(".json"):
+            state_class = classify_shiki_path(path, manifest or {})
             ledger_id = Path(path).stem
             ledger_path = target / path
             if entry.status == "D":
-                blocking.append(f"PR must not delete Shiki ledger file {path}")
+                blocking.append(f"PR must not delete Shiki ledger file {path}; state_class={state_class}")
+                continue
+            if entry.status != "A":
+                blocking.append(f"PR must append new Shiki ledger evidence instead of modifying {path}; state_class={state_class}")
                 continue
             if ledger_id not in allowed_ledger_ids:
-                blocking.append(f"PR changes ledger {ledger_id} not listed in current task ledger_evidence")
+                blocking.append(f"PR changes ledger {ledger_id} not listed in current task ledger_evidence; state_class={state_class}")
                 continue
             ledger = load_json(ledger_path)
             if ledger is None:
-                blocking.append(f"Changed ledger file {path} is not readable")
+                blocking.append(f"Changed ledger file {path} is not readable; state_class={state_class}")
                 continue
             if str(ledger.get("id") or "") != ledger_id:
-                blocking.append(f"Ledger filename {path} does not match JSON id {ledger.get('id')!r}")
+                blocking.append(f"Ledger filename {path} does not match JSON id {ledger.get('id')!r}; state_class={state_class}")
             if not ledger_entry_allowed_for_task(ledger, task_id=task_id, goal_id=goal_id):
-                blocking.append(f"Ledger {ledger_id} is not scoped to task {task_id} or goal {goal_id}")
+                blocking.append(f"Ledger {ledger_id} is not scoped to task {task_id} or goal {goal_id}; state_class={state_class}")
 
         if path.startswith(".shiki/repairs/") and path.endswith(".json"):
             repair_path = target / path
@@ -673,23 +691,26 @@ def enforce_untrusted_shiki_mutations(
         return
 
     for base_path, source_path in protected_base_files(base_shiki, "ledger").items():
+        state_class = classify_shiki_path(base_path, manifest or {})
         target_path = target / base_path
         if not target_path.exists():
-            blocking.append(f"PR must not delete base ledger file {base_path}")
+            blocking.append(f"PR must not delete base ledger file {base_path}; state_class={state_class}")
             continue
         if file_bytes(source_path) != file_bytes(target_path):
-            blocking.append(f"PR must not modify existing base ledger file {base_path}")
+            blocking.append(f"PR must not modify existing base ledger file {base_path}; state_class={state_class}")
 
     for subdir in ["tasks", "goals"]:
         for base_path in protected_base_files(base_shiki, subdir):
+            state_class = classify_shiki_path(base_path, manifest or {})
             if not (target / base_path).exists():
-                blocking.append(f"PR must not delete base Shiki {subdir[:-1]} file {base_path}")
+                blocking.append(f"PR must not delete base Shiki {subdir[:-1]} file {base_path}; state_class={state_class}")
 
     for base_path in protected_base_files(base_shiki, "locks"):
         if base_path == lock_file:
             continue
         if not (target / base_path).exists():
-            blocking.append(f"PR must not delete unrelated base Shiki lock file {base_path}")
+            state_class = classify_shiki_path(base_path, manifest or {})
+            blocking.append(f"PR must not delete unrelated base Shiki lock file {base_path}; state_class={state_class}")
 
 
 def main() -> int:
@@ -716,6 +737,11 @@ def main() -> int:
     warnings: list[str] = []
     resolved_task_id: str | None = None
     resolved_goal_id: str | None = None
+    manifest: dict[str, Any] | None = None
+    try:
+        manifest = load_manifest(target)
+    except ManifestError as error:
+        blocking.append(str(error))
 
     pr = load_json(Path(args.pr_json))
     body = ""
@@ -786,6 +812,7 @@ def main() -> int:
             if pr:
                 enforce_untrusted_shiki_mutations(
                     target=target,
+                    manifest=manifest,
                     base_shiki=Path(args.base_shiki) if args.base_shiki else None,
                     changed_files_status=files_status,
                     task=task,

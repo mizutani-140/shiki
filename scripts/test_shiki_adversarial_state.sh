@@ -241,6 +241,8 @@ LEDGER_ID = "L-20260603T010203000000Z-a1b2c3d4"
 
 
 def copy_base_support(target: pathlib.Path) -> None:
+    (target / ".shiki").mkdir(parents=True, exist_ok=True)
+    shutil.copy2(root / ".shiki" / "manifest.json", target / ".shiki" / "manifest.json")
     shutil.copytree(root / ".shiki" / "schemas", target / ".shiki" / "schemas")
     shutil.copy2(root / ".shiki" / "config.yaml", target / ".shiki" / "config.yaml")
     shutil.copytree(root / ".github" / "workflows", target / ".github" / "workflows")
@@ -524,6 +526,7 @@ expect_ready(
         "new-listed-ledger",
         locks=["shiki:state"],
         changed=[f".shiki/ledger/{new_ledger}.json"],
+        status_entries=[f"A\t.shiki/ledger/{new_ledger}.json"],
         task=task_payload(locks=["shiki:state"], ledger_ids=[LEDGER_ID, new_ledger]),
         ledger_entries={LEDGER_ID: ledger_payload(LEDGER_ID), new_ledger: ledger_payload(new_ledger)},
     )
@@ -533,6 +536,7 @@ expect_block(
         "new-unlisted-ledger",
         locks=["shiki:state"],
         changed=[f".shiki/ledger/{new_ledger}.json"],
+        status_entries=[f"A\t.shiki/ledger/{new_ledger}.json"],
         ledger_entries={LEDGER_ID: ledger_payload(LEDGER_ID), new_ledger: ledger_payload(new_ledger)},
     ),
     f"PR changes ledger {new_ledger} not listed in current task ledger_evidence",
@@ -572,6 +576,7 @@ expect_block(
         "ledger-id-mismatch",
         locks=["shiki:state"],
         changed=[f".shiki/ledger/{mismatch}.json"],
+        status_entries=[f"A\t.shiki/ledger/{mismatch}.json"],
         task=task_payload(locks=["shiki:state"], ledger_ids=[LEDGER_ID, mismatch]),
         ledger_entries={LEDGER_ID: ledger_payload(LEDGER_ID), mismatch: mismatch_payload},
     ),
@@ -584,6 +589,7 @@ expect_block(
         "ledger-task-mismatch",
         locks=["shiki:state"],
         changed=[f".shiki/ledger/{wrong_task_ledger}.json"],
+        status_entries=[f"A\t.shiki/ledger/{wrong_task_ledger}.json"],
         task=task_payload(locks=["shiki:state"], ledger_ids=[LEDGER_ID, wrong_task_ledger]),
         ledger_entries={LEDGER_ID: ledger_payload(LEDGER_ID), wrong_task_ledger: ledger_payload(wrong_task_ledger, task_id="T-9999")},
     ),
@@ -596,6 +602,7 @@ expect_ready(
         "goal-ledger-no-task",
         locks=["shiki:state"],
         changed=[f".shiki/ledger/{goal_ledger}.json"],
+        status_entries=[f"A\t.shiki/ledger/{goal_ledger}.json"],
         task=task_payload(locks=["shiki:state"], ledger_ids=[LEDGER_ID, goal_ledger]),
         ledger_entries={LEDGER_ID: ledger_payload(LEDGER_ID), goal_ledger: ledger_payload(goal_ledger, task_id=None)},
     )
@@ -605,6 +612,7 @@ expect_block(
         "goal-ledger-conflicting-task",
         locks=["shiki:state"],
         changed=[f".shiki/ledger/{goal_ledger}.json"],
+        status_entries=[f"A\t.shiki/ledger/{goal_ledger}.json"],
         task=task_payload(locks=["shiki:state"], ledger_ids=[LEDGER_ID, goal_ledger]),
         ledger_entries={LEDGER_ID: ledger_payload(LEDGER_ID), goal_ledger: ledger_payload(goal_ledger, task_id="T-9999")},
     ),

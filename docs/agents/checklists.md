@@ -153,6 +153,11 @@ include the migration registry status, `.shiki/migrations/state.json`, pending
 migration count, and whether `shiki migrate apply` was dry-run or executed with
 the explicit execute gate.
 
+When `.shiki` state classes are in scope, verification must include
+`.shiki/manifest.json` state class validation, MergeGate classification for
+unknown and forbidden `.shiki/**` paths, and append-only-evidence coverage for
+ledger entries.
+
 ## CCA — Completion Judgment Checklist
 
 | ID | Item | Blocking |
@@ -207,6 +212,7 @@ the explicit execute gate.
 | MG-18 | `scripts/shiki.py` remains a thin executable shim and required `shiki_*` CLI modules import, install, and stage without side effects. | blocking |
 | MG-19 | Runtime registry names, config role assignments, task `assigned_runtime` values, docs, and install/staging coverage remain consistent. | blocking |
 | MG-20 | GitHub provider configuration validates provider kind, host, remote protocol, repo slug, canonical remote URL, API base URL, and legacy `.shiki/repo.json` compatibility. | blocking |
+| MG-21 | `.shiki` state classes classify changed paths, block unknown/runtime/cache/local-only paths, and preserve append-only-evidence rules. | blocking |
 
 ## GC — Goal Completion Checklist
 

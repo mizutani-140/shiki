@@ -2,45 +2,144 @@
   "version": 1,
   "description": "Canonical Shiki mirror layout manifest.",
   "source_of_truth": "GitHub operational state is authoritative; .shiki is a repository-local mirror.",
+  "state_classes": {
+    "github-operational-source": {
+      "description": "Live GitHub Issues, PRs, labels, reviews, comments, checks, artifacts, and branch protection. This is authoritative operational state and is not stored directly under .shiki."
+    },
+    "mirror": {
+      "description": "Repository-local mirror of GitHub operational state. PR changes are proposed mirror updates and must be checked against live/base state."
+    },
+    "append-only-evidence": {
+      "description": "Durable ledger evidence. New entries may be appended; existing entries must not be modified or deleted by PRs."
+    },
+    "governance-policy": {
+      "description": "Machine-readable repository governance contracts."
+    },
+    "contract": {
+      "description": "Schemas, prompts, templates, and runtime contracts."
+    },
+    "migration-state": {
+      "description": "Repository-local migration state."
+    },
+    "workflow-runtime-evidence": {
+      "description": "Workflow-generated runtime evidence such as .shiki/gha. Must not be committed by PRs."
+    },
+    "generated": {
+      "description": "Generated repository artifacts that may be regenerated from canonical inputs."
+    },
+    "cache": {
+      "description": "Cache data. Must not be trusted as durable evidence."
+    },
+    "local-only": {
+      "description": "Local runtime data that must not be committed."
+    },
+    "template": {
+      "description": "Template files copied into target repositories."
+    }
+  },
+  "state_class_policies": {
+    "github-operational-source": {
+      "tracked": false,
+      "pr_mutation": "not-repository-state",
+      "trusted_authority": "github-live-state"
+    },
+    "mirror": {
+      "tracked": true,
+      "pr_mutation": "current-task-or-current-goal-only",
+      "trusted_authority": "github-live-state"
+    },
+    "append-only-evidence": {
+      "tracked": true,
+      "pr_mutation": "append-only-current-task-ledger",
+      "trusted_authority": "ledger-with-evidence-refs"
+    },
+    "governance-policy": {
+      "tracked": true,
+      "pr_mutation": "declared-locks-and-guardian-required",
+      "trusted_authority": "github-live-state-and-policy"
+    },
+    "contract": {
+      "tracked": true,
+      "pr_mutation": "declared-locks-required",
+      "trusted_authority": "repository-contract"
+    },
+    "migration-state": {
+      "tracked": true,
+      "pr_mutation": "current-task-migration-evidence-required",
+      "trusted_authority": "repository-migration-state"
+    },
+    "workflow-runtime-evidence": {
+      "tracked": false,
+      "pr_mutation": "forbidden",
+      "trusted_authority": "github-actions-artifact"
+    },
+    "generated": {
+      "tracked": false,
+      "pr_mutation": "forbidden",
+      "trusted_authority": "canonical-inputs"
+    },
+    "cache": {
+      "tracked": false,
+      "pr_mutation": "forbidden",
+      "trusted_authority": "none"
+    },
+    "local-only": {
+      "tracked": false,
+      "pr_mutation": "forbidden",
+      "trusted_authority": "local"
+    },
+    "template": {
+      "tracked": true,
+      "pr_mutation": "declared-locks-required",
+      "trusted_authority": "repository-template"
+    }
+  },
   "directories": {
     ".shiki/dag": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Task dependency graphs mirrored from Goal planning."
     },
     ".shiki/goals": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Goal records mirrored from GitHub Goal Issues."
     },
     ".shiki/handoffs": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Durable handoff records for runtime transitions."
     },
     ".shiki/inbox": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Imported plans and intake artifacts waiting for Shiki processing."
     },
     ".shiki/ledger": {
       "kind": "append-only-evidence",
+      "state_class": "append-only-evidence",
       "tracked": true,
       "required": true,
       "description": "Durable append-only evidence entries."
     },
     ".shiki/migrations": {
       "kind": "migration-state",
+      "state_class": "migration-state",
       "tracked": true,
       "required": true,
       "description": "Migration framework state and applied migration evidence."
     },
     ".shiki/locks": {
       "kind": "lock-mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": false,
       "create_on_demand": true,
@@ -48,66 +147,77 @@
     },
     ".shiki/plans": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Goal Seek and Task DAG planning artifacts."
     },
     ".shiki/repairs": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Bounded repair packets and repair coordination records."
     },
     ".shiki/reports": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Completion, repair, and handoff reports."
     },
     ".shiki/runner": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Runner execution records emitted by local or self-hosted runtimes."
     },
     ".shiki/runs": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Plan run records and dispatch state."
     },
     ".shiki/schemas": {
       "kind": "contract",
+      "state_class": "contract",
       "tracked": true,
       "required": true,
       "description": "JSON Schemas for Shiki mirror artifacts."
     },
     ".shiki/smoke": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Smoke-test run records."
     },
     ".shiki/starts": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Shiki start/bootstrap records."
     },
     ".shiki/tasks": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Executable task contracts mirrored from GitHub Task Issues."
     },
     ".shiki/templates": {
       "kind": "template",
+      "state_class": "template",
       "tracked": true,
       "required": true,
       "description": "Starter templates for Shiki mirror artifacts."
     },
     ".shiki/worktrees": {
       "kind": "mirror",
+      "state_class": "mirror",
       "tracked": true,
       "required": true,
       "description": "Registered local or self-hosted worktree records."
@@ -116,6 +226,7 @@
   "runtime_directories": {
     ".shiki/gha": {
       "kind": "runtime-evidence",
+      "state_class": "workflow-runtime-evidence",
       "tracked": false,
       "required": false,
       "description": "Workflow-generated GitHub Actions evidence. Must not be committed by PRs."
@@ -124,35 +235,48 @@
   "files": {
     ".shiki/config.yaml": {
       "kind": "config",
+      "state_class": "governance-policy",
       "tracked": true,
       "required": true
     },
     ".shiki/guardian-policy.json": {
       "kind": "governance-policy",
+      "state_class": "governance-policy",
       "tracked": true,
       "required": true,
       "description": "Machine-readable Guardian approver and approval-source policy."
     },
     ".shiki/manifest.json": {
       "kind": "layout-contract",
+      "state_class": "contract",
       "tracked": true,
       "required": true
     },
     ".shiki/migrations/state.json": {
       "kind": "migration-state",
+      "state_class": "migration-state",
       "tracked": true,
       "required": true,
       "description": "Repository-local applied migration records."
     },
     ".shiki/policy.example.yaml": {
       "kind": "example-policy",
+      "state_class": "template",
       "tracked": true,
       "required": true
     },
     ".shiki/README.md": {
       "kind": "validated-doc",
+      "state_class": "contract",
       "tracked": true,
       "required": true
+    },
+    ".shiki/repo.json": {
+      "kind": "provider-config",
+      "state_class": "governance-policy",
+      "tracked": true,
+      "required": false,
+      "description": "Target repository provider metadata created by Shiki init/start."
     }
   },
   "install": {

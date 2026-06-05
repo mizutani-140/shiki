@@ -20,6 +20,7 @@ MIGRATION_STATE_PATH = ".shiki/migrations/state.json"
 MIGRATION_STATE_VERSION = 1
 BASELINE_MIGRATION_ID = "M-20260604-0001-baseline"
 GUARDIAN_POLICY_MIGRATION_ID = "M-20260604-0002-guardian-policy"
+STATE_CLASSES_MIGRATION_ID = "M-20260605-0002-state-classes"
 MIGRATION_ID_RE = re.compile(r"^M-[0-9]{8}-[0-9]{4}-[a-z0-9][a-z0-9-]*$")
 MIGRATION_SOURCE_OF_TRUTH = "Repository-local Shiki migration state. GitHub operational state remains authoritative."
 
@@ -96,6 +97,35 @@ def _guardian_policy_apply(root: Path, dry_run: bool) -> dict[str, Any]:
     }
 
 
+def _state_classes_apply(root: Path, dry_run: bool) -> dict[str, Any]:
+    required = [
+        ".shiki/manifest.json",
+    ]
+    missing = [relative for relative in required if not (root / relative).exists()]
+    if missing:
+        raise MigrationError(f"{STATE_CLASSES_MIGRATION_ID}: state class prerequisites are missing: {', '.join(missing)}")
+    manifest = json.loads((root / ".shiki/manifest.json").read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("state_classes"), dict):
+        raise MigrationError(f"{STATE_CLASSES_MIGRATION_ID}: manifest state_classes are missing")
+    for section in ("directories", "runtime_directories", "files"):
+        entries = manifest.get(section)
+        if not isinstance(entries, dict):
+            raise MigrationError(f"{STATE_CLASSES_MIGRATION_ID}: manifest {section} is missing")
+        for relative, metadata in entries.items():
+            if not isinstance(metadata, dict) or not isinstance(metadata.get("state_class"), str):
+                raise MigrationError(f"{STATE_CLASSES_MIGRATION_ID}: {relative} is missing state_class")
+    return {
+        "summary": "Accepted explicit .shiki state class classification without rewriting historical state.",
+        "evidence": [
+            ".shiki/manifest.json defines state_classes and state_class_policies.",
+            "Manifest directories and files declare state_class.",
+            "State class validation is enforced by scripts/validate_shiki.py.",
+            "No historical Shiki state rewrite was performed.",
+        ],
+        "dry_run": dry_run,
+    }
+
+
 def migration_registry() -> tuple[Migration, ...]:
     return (
         Migration(
@@ -126,6 +156,20 @@ def migration_registry() -> tuple[Migration, ...]:
             ),
             destructive=False,
             apply=_guardian_policy_apply,
+        ),
+        Migration(
+            id=STATE_CLASSES_MIGRATION_ID,
+            title="Define Shiki state classes",
+            description="Record explicit .shiki state class classification for mirror, evidence, governance, runtime, cache, local-only, template, contract, and migration state.",
+            introduced_in="T-0048",
+            requires=(GUARDIAN_POLICY_MIGRATION_ID,),
+            affected_paths=(
+                ".shiki/manifest.json",
+                ".shiki/migrations/state.json",
+                MIGRATION_STATE_PATH,
+            ),
+            destructive=False,
+            apply=_state_classes_apply,
         ),
     )
 

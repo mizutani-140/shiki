@@ -58,14 +58,22 @@ def write_fixture(root: Path, manifest: dict[str, object] | None = None) -> None
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
         if relative == ".shiki/README.md":
+            classes = "\n".join(f"- `{state_class}`" for state_class in manifest.get("state_classes", {}))
             path.write_text(
                 "# .shiki Mirror\n\n"
                 "## Layout\n\n"
-                f"{render_manifest_layout(manifest)}\n",
+                f"{render_manifest_layout(manifest)}\n\n"
+                "## State Classes\n\n"
+                f"{classes}\n",
                 encoding="utf-8",
             )
         else:
             path.write_text("fixture\n", encoding="utf-8")
+
+    docs = root / "docs" / "agents"
+    docs.mkdir(parents=True, exist_ok=True)
+    for source in (ROOT / "docs" / "agents").glob("*.md"):
+        shutil.copy2(source, docs / source.name)
 
     run(["git", "init", "-b", "main"], root)
 
