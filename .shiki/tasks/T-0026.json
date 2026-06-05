@@ -15,7 +15,8 @@
   "goal_id": "G-0012",
   "id": "T-0026",
   "ledger_evidence": [
-    "L-0082"
+    "L-0082",
+    "L-20260605T120000000000Z-f7de3691"
   ],
   "locks": [
     "path:scripts/validate_shiki.py",
@@ -26,6 +27,12 @@
   "non_goals": [
     "Do not add heavyweight dependencies to the bootstrap shim unless isolated."
   ],
+  "reconciliation": {
+    "basis": "Goal #30 checklist section P1.2 is fully complete; coarse slice superseded by re-decomposed finer tasks in the T-0031..T-0049 range.",
+    "goal_checklist_section": "P1.2",
+    "reconciled_by": "L-20260605T120000000000Z-f7de3691",
+    "superseding_task_range": "T-0031..T-0049"
+  },
   "required_skills": [
     "diagnose",
     "tdd",
@@ -33,6 +40,6 @@
   ],
   "risk_level": "high",
   "scope": "Move brittle string checks toward structured validation, add schema/workflow validation tests, and add actionlint/shellcheck or document why not.",
-  "status": "planned",
+  "status": "done",
   "title": "Harden validators and workflow checks"
 }

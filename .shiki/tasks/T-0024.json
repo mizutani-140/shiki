@@ -16,7 +16,8 @@
   "goal_id": "G-0012",
   "id": "T-0024",
   "ledger_evidence": [
-    "L-0080"
+    "L-0080",
+    "L-20260605T120000000000Z-f7de3691"
   ],
   "locks": [
     "path:scripts/shiki.py",
@@ -29,6 +30,12 @@
   "non_goals": [
     "Do not introduce an external database unless justified by ADR."
   ],
+  "reconciliation": {
+    "basis": "Goal #30 checklist section P0.4 is fully complete; coarse slice superseded by re-decomposed finer tasks in the T-0031..T-0049 range.",
+    "goal_checklist_section": "P0.4",
+    "reconciled_by": "L-20260605T120000000000Z-f7de3691",
+    "superseding_task_range": "T-0031..T-0049"
+  },
   "required_skills": [
     "diagnose",
     "tdd",
@@ -36,6 +43,6 @@
   ],
   "risk_level": "critical",
   "scope": "Replace race-prone ID allocation, add safe state write semantics, unify lock matching, and prevent forged PR-local evidence from satisfying MergeGate.",
-  "status": "planned",
+  "status": "done",
   "title": "Fix state concurrency, IDs, locks, and evidence integrity"
 }

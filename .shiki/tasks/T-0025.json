@@ -15,7 +15,8 @@
   "goal_id": "G-0012",
   "id": "T-0025",
   "ledger_evidence": [
-    "L-0081"
+    "L-0081",
+    "L-20260605T120000000000Z-f7de3691"
   ],
   "locks": [
     "path:.shiki/**",
@@ -26,12 +27,18 @@
   "non_goals": [
     "Do not redesign the entire state model in this task."
   ],
+  "reconciliation": {
+    "basis": "Goal #30 checklist section P1.1 is fully complete; coarse slice superseded by re-decomposed finer tasks in the T-0031..T-0049 range.",
+    "goal_checklist_section": "P1.1",
+    "reconciled_by": "L-20260605T120000000000Z-f7de3691",
+    "superseding_task_range": "T-0031..T-0049"
+  },
   "required_skills": [
     "tdd",
     "improve-codebase-architecture"
   ],
   "risk_level": "high",
   "scope": "Define Shiki-owned files, generated files, state directories, commit behavior, and local-only runtime files through a manifest and align README, code, and validators.",
-  "status": "planned",
+  "status": "done",
   "title": "Add manifest and align .shiki layout"
 }

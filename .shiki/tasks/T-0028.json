@@ -17,7 +17,8 @@
   "goal_id": "G-0012",
   "id": "T-0028",
   "ledger_evidence": [
-    "L-0084"
+    "L-0084",
+    "L-20260605T120000000000Z-f7de3691"
   ],
   "locks": [
     "path:.shiki/config.yaml",
@@ -29,6 +30,12 @@
   "non_goals": [
     "Do not require a paid external service."
   ],
+  "reconciliation": {
+    "basis": "Goal #30 checklist section P1.4 is fully complete; coarse slice superseded by re-decomposed finer tasks in the T-0031..T-0049 range.",
+    "goal_checklist_section": "P1.4",
+    "reconciled_by": "L-20260605T120000000000Z-f7de3691",
+    "superseding_task_range": "T-0031..T-0049"
+  },
   "required_skills": [
     "grill-with-docs",
     "tdd",
@@ -36,6 +43,6 @@
   ],
   "risk_level": "critical",
   "scope": "Make Guardian approval, CCA verdict evidence, ledger integrity, and mirror/generated/cache distinctions machine-checkable.",
-  "status": "planned",
+  "status": "done",
   "title": "Strengthen governance and evidence model"
 }

@@ -17,7 +17,8 @@
   "goal_id": "G-0012",
   "id": "T-0027",
   "ledger_evidence": [
-    "L-0083"
+    "L-0083",
+    "L-20260605T120000000000Z-f7de3691"
   ],
   "locks": [
     "path:scripts/shiki.py",
@@ -28,6 +29,12 @@
   "non_goals": [
     "Do not change user-facing commands unless compatibility is preserved or migration is documented."
   ],
+  "reconciliation": {
+    "basis": "Goal #30 checklist section P1.3 is fully complete; coarse slice superseded by re-decomposed finer tasks in the T-0031..T-0049 range.",
+    "goal_checklist_section": "P1.3",
+    "reconciled_by": "L-20260605T120000000000Z-f7de3691",
+    "superseding_task_range": "T-0031..T-0049"
+  },
   "required_skills": [
     "zoom-out",
     "tdd",
@@ -35,6 +42,6 @@
   ],
   "risk_level": "high",
   "scope": "Refactor the monolithic CLI/control-plane script into maintainable modules while preserving bootstrap behavior and defining runtime/provider extension points.",
-  "status": "planned",
+  "status": "done",
   "title": "Split architecture and define runtime/provider adapters"
 }

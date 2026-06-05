@@ -1,0 +1,33 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "Coarse Goal #30 / G-0012 task slices T-0024..T-0028 were never executed as single units; their L-008x ledger entries are 'task-registered' only.",
+    "The Goal #30 master checklist marks sections P0.4, P1.1, P1.2, P1.3, and P1.4 fully complete with durable merged evidence.",
+    "Those sections were implemented by the re-decomposed finer tasks in the T-0031..T-0049 range (merged PRs #69-#97).",
+    "T-0026 (P1.2 validators) matches stale open Issue #34; validator + Node24 work merged (T-0041 / #72; docs/agents/node24-workflow-compatibility.md).",
+    "Coarse tasks T-0029 (P2.1/P2.2) and T-0030 (P2.3) remain status=planned because that P2 work is genuinely incomplete.",
+    "This reconciliation changes only .shiki mirror task status metadata; no implementation, workflow, schema, governance, or P0.4 state/lock behavior changed.",
+    "scripts/validate_shiki.py passes after reconciliation."
+  ],
+  "evidence_refs": [
+    {
+      "algorithm": "sha256",
+      "digest": "67afa3a23a9b9c2ac858ad2a8cc9166aabe6e4830d233b11eace2cb683fb9c70",
+      "kind": "ledger-digest"
+    }
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260605T120000000000Z-f7de3691",
+  "ledger_integrity": {
+    "algorithm": "sha256",
+    "canonical_digest": "67afa3a23a9b9c2ac858ad2a8cc9166aabe6e4830d233b11eace2cb683fb9c70"
+  },
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/30",
+    "https://github.com/mizutani-140/shiki/issues/34",
+    "https://github.com/mizutani-140/shiki/issues/37"
+  ],
+  "summary": "Reconciled coarse G-0012 slices T-0024..T-0028 to done; superseded by re-decomposed finer tasks whose checklist sections P0.4 and P1.1-P1.4 are complete.",
+  "timestamp": "2026-06-05T12:00:00Z",
+  "type": "completion"
+}
