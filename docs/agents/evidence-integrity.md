@@ -46,6 +46,21 @@ Cache, generated, and local-only state classes must not be trusted as durable
 evidence. Mirror state is useful context, but GitHub operational state remains
 authoritative when live GitHub state and `.shiki` disagree.
 
+## Adversarial Evidence Tests
+
+`scripts/test_shiki_governance_evidence.sh` is the regression suite for forged,
+stale, and missing governance evidence. It covers forged Guardian evidence,
+forged CCA verdicts and manifests, malformed ledger references and integrity
+digests, stale PR head/check/task mirror state, forbidden state-class mutations,
+missing required evidence, exact Guardian approval markers, and workflow static
+wiring.
+
+These fixtures intentionally exercise both direct evidence helper APIs and
+MergeGate fixture runs. They protect the existing trust boundary: PR-authored
+runtime evidence, loose ledger text, stale head SHA data, malformed
+`evidence_refs`, and cache/local-only state must not satisfy CCA, MergeGate, or
+Guardian gates.
+
 ## Boundary
 
 This digest model is not external signing. It does not use KMS, GPG, Sigstore,

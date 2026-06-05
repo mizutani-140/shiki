@@ -569,6 +569,7 @@ def validate_shiki_cli_module_boundaries(root: Path = ROOT) -> None:
         "scripts/shiki_evidence.py",
         "scripts/build_cca_evidence_manifest.py",
         "scripts/test_shiki_evidence_integrity.sh",
+        "scripts/test_shiki_governance_evidence.sh",
     ):
         if relative not in template_paths:
             raise ValidationError(f"scripts/shiki_installer.py: TEMPLATE_PATHS must include {relative}")
@@ -835,6 +836,55 @@ def validate_evidence_integrity_contracts(root: Path = ROOT) -> None:
     integrity_errors = validate_ledger_integrity(digest_fixture)
     if integrity_errors:
         raise ValidationError(f"scripts/shiki_evidence.py: valid ledger integrity fixture failed: {integrity_errors}")
+
+
+def validate_governance_evidence_regression_contracts(root: Path = ROOT) -> None:
+    test_path = root / "scripts" / "test_shiki_governance_evidence.sh"
+    if not test_path.is_file():
+        raise ValidationError("scripts/test_shiki_governance_evidence.sh: governance evidence regression test is missing")
+    template_paths = set(TEMPLATE_PATHS)
+    if "scripts/test_shiki_governance_evidence.sh" not in template_paths:
+        raise ValidationError("scripts/shiki_installer.py: TEMPLATE_PATHS must include scripts/test_shiki_governance_evidence.sh")
+    text = test_path.read_text(encoding="utf-8")
+    for needle in (
+        "Group A: forged Guardian evidence",
+        "Group B: forged CCA verdict or manifest evidence",
+        "Group C: forged ledger refs and integrity",
+        "Group D: stale mirror state",
+        "Group E: untrusted PR mutations",
+        "Group F: missing evidence",
+        "Group G: exact Guardian evidence comments",
+        "Group H: workflow and static contract checks",
+        "no Guardian approval evidence is present",
+        "validate_cca_evidence_manifest",
+        "validate_ledger_integrity",
+        "workflow-runtime-evidence",
+    ):
+        if needle not in text:
+            raise ValidationError(f"scripts/test_shiki_governance_evidence.sh: missing regression marker {needle!r}")
+
+    docs = {
+        "docs/agents/evidence-integrity.md": [
+            "Adversarial Evidence Tests",
+            "scripts/test_shiki_governance_evidence.sh",
+            "forged",
+            "stale",
+            "missing",
+        ],
+        "docs/agents/guardian-policy.md": [
+            "scripts/test_shiki_governance_evidence.sh",
+            "no Guardian approval evidence is present",
+            "stale-head comments",
+        ],
+    }
+    for relative, needles in docs.items():
+        path = root / relative
+        if not path.is_file():
+            raise ValidationError(f"{relative}: governance evidence regression documentation is missing")
+        doc_text = path.read_text(encoding="utf-8")
+        for needle in needles:
+            if needle not in doc_text:
+                raise ValidationError(f"{relative}: missing governance evidence regression reference {needle!r}")
 
 
 def validate_provider_config_contracts(root: Path = ROOT) -> None:
@@ -1815,6 +1865,7 @@ def main() -> int:
         validate_shiki_migrations()
         validate_guardian_policy_contracts()
         validate_evidence_integrity_contracts()
+        validate_governance_evidence_regression_contracts()
         validate_provider_config_contracts()
         validate_runtime_contracts()
         validate_issue_forms()

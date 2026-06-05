@@ -71,6 +71,7 @@ TEMPLATE_PATHS = [
     "scripts/test_shiki_provider_config.sh",
     "scripts/test_shiki_guardian_policy.sh",
     "scripts/test_shiki_evidence_integrity.sh",
+    "scripts/test_shiki_governance_evidence.sh",
     "scripts/test_shiki_doctor.sh",
     "scripts/test_shiki_migrations.sh",
     "scripts/test_shiki_module_boundaries.sh",
