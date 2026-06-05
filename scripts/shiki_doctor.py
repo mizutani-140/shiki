@@ -13,6 +13,7 @@ import subprocess
 from typing import Any, Literal
 
 from shiki_git import current_branch, existing_origin_url, is_git_repo
+from shiki_evidence import CCA_EVIDENCE_MANIFEST_PATH
 from shiki_guardian import GUARDIAN_POLICY_PATH, GuardianPolicyError, load_guardian_policy, validate_guardian_policy
 from shiki_manifest import ManifestError, load_manifest, manifest_required_directories, manifest_required_files, manifest_runtime_directories
 from shiki_migrations import MIGRATION_STATE_PATH, migration_status
@@ -502,6 +503,35 @@ def _guardian_findings(target: Path) -> list[DoctorFinding]:
     return findings
 
 
+def _evidence_integrity_findings(target: Path) -> list[DoctorFinding]:
+    schema = target / ".shiki" / "schemas" / "cca-evidence-manifest.schema.json"
+    workflow = target / ".github" / "workflows" / "shiki-cca-completion.yml"
+    mergegate = target / "scripts" / "mergegate_check.py"
+    workflow_text = workflow.read_text(encoding="utf-8") if workflow.is_file() else ""
+    mergegate_text = mergegate.read_text(encoding="utf-8") if mergegate.is_file() else ""
+    failures = []
+    if not schema.is_file():
+        failures.append("CCA evidence manifest schema is missing")
+    if "Build CCA evidence manifest" not in workflow_text or CCA_EVIDENCE_MANIFEST_PATH not in workflow_text:
+        failures.append("CCA workflow does not build the evidence manifest before artifact upload")
+    if "--cca-evidence-manifest" not in workflow_text or "--expected-repository" not in workflow_text:
+        failures.append("CCA workflow does not pass manifest inputs to MergeGate")
+    if "validate_cca_evidence_manifest" not in mergegate_text or "--cca-evidence-manifest" not in mergegate_text:
+        failures.append("MergeGate does not validate the CCA evidence manifest")
+    return [
+        _finding(
+            "doctor.evidence_integrity.manifest",
+            "pass" if not failures else "fail",
+            "CCA evidence manifest",
+            "CCA evidence manifest schema and workflow/MergeGate wiring are present."
+            if not failures
+            else "CCA evidence manifest wiring is incomplete.",
+            "Run `python3 scripts/validate_shiki.py` and repair evidence-integrity wiring." if failures else "",
+            {"manifest_path": CCA_EVIDENCE_MANIFEST_PATH, "failures": failures},
+        )
+    ]
+
+
 def _runtime_findings(target: Path, config: dict[str, Any]) -> list[DoctorFinding]:
     findings = [
         _finding(
@@ -772,6 +802,7 @@ def doctor_findings(target: Path, *, online: bool = False) -> list[DoctorFinding
     findings.extend(_manifest_findings(target))
     findings.extend(_migration_findings(target))
     findings.extend(_guardian_findings(target))
+    findings.extend(_evidence_integrity_findings(target))
     findings.extend(_runtime_findings(target, config))
     findings.append(_contract_finding(target))
     if online:

@@ -286,6 +286,20 @@ jobs:
 
           echo "::endgroup::"
 
+      - name: Build CCA evidence manifest
+        run: |
+          python3 scripts/build_cca_evidence_manifest.py \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number || inputs.pr_number }}" \
+            --head-sha "${{ github.event.pull_request.head.sha || github.sha }}" \
+            --workflow-name "Shiki CCA Completion" \
+            --run-id "${{ github.run_id }}" \
+            --run-attempt "${{ github.run_attempt }}" \
+            --event-name "${{ github.event_name }}" \
+            --artifact-name "shiki-cca-evidence" \
+            --evidence-dir .shiki/gha \
+            --output .shiki/gha/cca-evidence-manifest.json
+
       - name: Upload CCA evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -373,6 +387,8 @@ jobs:
             --changed-files .shiki/gha/live-changed-files.txt \
             --changed-files-status .shiki/gha/live-changed-files-status.txt \
             --cca-verdict .shiki/gha/cca-verdict.json \
+            --cca-evidence-manifest .shiki/gha/cca-evidence-manifest.json \
+            --expected-repository "${{ github.repository }}" \
             --expected-head-sha "$EXPECTED_HEAD_SHA" \
             --base-shiki .shiki/gha/base-shiki/.shiki \
             --guardian-policy .shiki/guardian-policy.json \

@@ -31,6 +31,7 @@ auth probes used by Shiki entrypoint status. They cover:
 - `.shiki/migrations/state.json` state validity, migration registry validity,
   and pending migration count through `doctor.migrations.state`,
   `doctor.migrations.registry`, and `doctor.migrations.pending`.
+- CCA evidence manifest wiring through `doctor.evidence_integrity.manifest`.
 - runtime registry import and config/task runtime assignments.
 - `scripts/validate_shiki.py` contract drift status when available.
 

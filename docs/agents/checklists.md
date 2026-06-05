@@ -143,6 +143,11 @@ existence, secrets, branch protection, required checks, code-owner review, and
 workflow permissions. Doctor evidence supplements validation, CCA, MergeGate,
 and Guardian approval; it does not replace them.
 
+When CCA artifact evidence is in scope, verification must include the CCA
+evidence manifest. The `CCA evidence manifest` records workflow run metadata,
+artifact metadata, PR/head identity, and required file digests for
+`shiki-cca-evidence`.
+
 When `.shiki` layout or schema changes are in scope, migration evidence must
 include the migration registry status, `.shiki/migrations/state.json`, pending
 migration count, and whether `shiki migrate apply` was dry-run or executed with

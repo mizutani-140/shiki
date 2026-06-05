@@ -1,0 +1,43 @@
+{
+  "actor": "codex-front",
+  "evidence": [
+    "T-0047 implements Goal #30 P1.4.3 and P1.4.4 only.",
+    ".shiki/schemas/cca-evidence-manifest.schema.json defines the workflow-generated CCA evidence manifest contract.",
+    ".github/workflows/shiki-cca-completion.yml builds .shiki/gha/cca-evidence-manifest.json after CCA verdict enforcement and CCA Review Bridge, before uploading shiki-cca-evidence.",
+    "scripts/shiki_evidence.py and scripts/build_cca_evidence_manifest.py generate manifest metadata and SHA-256 digests for required CCA evidence files.",
+    "scripts/mergegate_check.py validates the downloaded manifest against live PR repository, PR number, head SHA, task id, goal id, verdict metadata, and required evidence file digests.",
+    "Ledger evidence_refs and ledger_integrity are validated when present while historical ledger entries without evidence_refs remain valid.",
+    "scripts/validate_shiki.py validates evidence integrity wiring, manifest schema, docs, template coverage, ledger refs, and digest fixtures.",
+    "scripts/shiki_doctor.py reports evidence manifest wiring as doctor.evidence_integrity.manifest.",
+    "scripts/test_shiki_evidence_integrity.sh covers manifest generation, mismatch failures, digest mismatch, missing manifest, MergeGate integration, workflow static checks, and ledger evidence_refs.",
+    "docs/agents/evidence-integrity.md documents workflow-generated CCA evidence, PR-authored .shiki/gha distrust, ledger evidence_refs, and the non-signing boundary.",
+    "PR #91 records T-0047 implementation review and CCA/MergeGate evidence.",
+    "Required skills were used: diagnose, tdd, improve-codebase-architecture.",
+    "Non-goals preserved: P1.4.5, P1.4.6, P2, external signing, Guardian policy changes, CCA Review Bridge changes, branch protection, CODEOWNERS, runtime adapter, migration redesign, and Node workflow compatibility work."
+  ],
+  "evidence_refs": [
+    {
+      "head_sha": "999bfb8c0d282006be863afd6fe89d9eb7807e1b",
+      "kind": "github-pr",
+      "pr": 91
+    },
+    {
+      "issue": 90,
+      "kind": "github-issue"
+    }
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260605T020000000000Z-e2f41a77",
+  "ledger_integrity": {
+    "algorithm": "sha256",
+    "canonical_digest": "6941942f077e2a2aed0eb0184f3daf863f4083d91c66517aaedb3c4422eaaa49"
+  },
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/90",
+    "https://github.com/mizutani-140/shiki/pull/91"
+  ],
+  "summary": "Implemented CCA evidence manifest and ledger evidence reference hardening for T-0047.",
+  "task_id": "T-0047",
+  "timestamp": "2026-06-05T02:00:00Z",
+  "type": "check"
+}
