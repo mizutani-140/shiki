@@ -11,10 +11,16 @@
     "scripts/shiki_doctor.py reports evidence manifest wiring as doctor.evidence_integrity.manifest.",
     "scripts/test_shiki_evidence_integrity.sh covers manifest generation, mismatch failures, digest mismatch, missing manifest, MergeGate integration, workflow static checks, and ledger evidence_refs.",
     "docs/agents/evidence-integrity.md documents workflow-generated CCA evidence, PR-authored .shiki/gha distrust, ledger evidence_refs, and the non-signing boundary.",
+    "PR #91 records T-0047 implementation review and CCA/MergeGate evidence.",
     "Required skills were used: diagnose, tdd, improve-codebase-architecture.",
     "Non-goals preserved: P1.4.5, P1.4.6, P2, external signing, Guardian policy changes, CCA Review Bridge changes, branch protection, CODEOWNERS, runtime adapter, migration redesign, and Node workflow compatibility work."
   ],
   "evidence_refs": [
+    {
+      "head_sha": "999bfb8c0d282006be863afd6fe89d9eb7807e1b",
+      "kind": "github-pr",
+      "pr": 91
+    },
     {
       "issue": 90,
       "kind": "github-issue"
@@ -24,10 +30,11 @@
   "id": "L-20260605T020000000000Z-e2f41a77",
   "ledger_integrity": {
     "algorithm": "sha256",
-    "canonical_digest": "750edb27656f9322dca162839f48769886042dbf4c2f9cf76ece0160914e1f76"
+    "canonical_digest": "6941942f077e2a2aed0eb0184f3daf863f4083d91c66517aaedb3c4422eaaa49"
   },
   "links": [
-    "https://github.com/mizutani-140/shiki/issues/90"
+    "https://github.com/mizutani-140/shiki/issues/90",
+    "https://github.com/mizutani-140/shiki/pull/91"
   ],
   "summary": "Implemented CCA evidence manifest and ledger evidence reference hardening for T-0047.",
   "task_id": "T-0047",
