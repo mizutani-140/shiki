@@ -19,6 +19,7 @@
     "G-0012 ledger evidence includes implementation ledger L-20260605T061500000000Z-6a4c9e31 and reconciliation ledger L-20260605T063724634732Z-d650d207.",
     "No active T-0049 lock was present on main after PR #97 merge.",
     "Pull Request #97 records the T-0049 implementation: https://github.com/mizutani-140/shiki/pull/97",
+    "Pull Request #98 records the T-0049 post-merge mirror reconciliation: https://github.com/mizutani-140/shiki/pull/98",
     "Issue #96 can be closed after this reconciliation merges.",
     "Goal #30 P1.4.6 is eligible to be marked complete after this reconciliation merges.",
     "P2 remains open.",
@@ -36,7 +37,7 @@
     },
     {
       "algorithm": "sha256",
-      "digest": "e1212b4e4a98c13a579d63551d410162364b1e3b8ab8f1cb58705c14c6f1487b",
+      "digest": "741026752e58b991ebfdeff098190366b9910772573622fdd7f963d9f367ee0e",
       "kind": "ledger-digest"
     }
   ],
@@ -44,11 +45,12 @@
   "id": "L-20260605T063724634732Z-d650d207",
   "ledger_integrity": {
     "algorithm": "sha256",
-    "canonical_digest": "e1212b4e4a98c13a579d63551d410162364b1e3b8ab8f1cb58705c14c6f1487b"
+    "canonical_digest": "741026752e58b991ebfdeff098190366b9910772573622fdd7f963d9f367ee0e"
   },
   "links": [
     "https://github.com/mizutani-140/shiki/issues/96",
-    "https://github.com/mizutani-140/shiki/pull/97"
+    "https://github.com/mizutani-140/shiki/pull/97",
+    "https://github.com/mizutani-140/shiki/pull/98"
   ],
   "summary": "Recorded T-0049 post-merge mirror reconciliation evidence.",
   "task_id": "T-0049",
