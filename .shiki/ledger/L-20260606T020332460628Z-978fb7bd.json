@@ -1,0 +1,16 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "required skills: tdd, diagnose",
+    "blocking: files_outside_locks, ledger_evidence linkage, skill evidence"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T020332460628Z-978fb7bd",
+  "links": [
+    "#105"
+  ],
+  "summary": "Repair: recorded required skills tdd, diagnose applied for G-0012 tests slice; linked task evidence and lock scope for MergeGate.",
+  "task_id": "T-20260606T012335591461Z-c9039bb5",
+  "timestamp": "2026-06-06T02:03:32Z",
+  "type": "repair"
+}
