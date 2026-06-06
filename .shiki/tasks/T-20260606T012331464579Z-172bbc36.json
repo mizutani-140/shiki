@@ -8,21 +8,31 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/G-0012/packaging-release",
-  "expected_pr": null,
+  "expected_pr": 103,
   "github_issue": 101,
   "goal_id": "G-0012",
   "id": "T-20260606T012331464579Z-172bbc36",
   "ledger_evidence": [
     "L-20260606T012331464773Z-c6e9c4a3",
     "L-20260606T012343881176Z-7886cef3",
-    "L-20260606T012343948414Z-92705ebe"
+    "L-20260606T012343948414Z-92705ebe",
+    "L-20260606T012851050702Z-09016e15",
+    "L-20260606T020346867576Z-d40d9a27"
   ],
   "locks": [
     "path:pyproject.toml",
     "path:VERSION",
     "path:.github/workflows/release.yml",
     "path:docs/releasing.md",
-    "path:docs/adr/0007-packaging-and-release.md"
+    "path:docs/adr/0007-packaging-and-release.md",
+    "path:.shiki/tasks/T-20260606T012331464579Z-172bbc36.json",
+    "path:.shiki/locks/T-20260606T012331464579Z-172bbc36.json",
+    "path:.shiki/worktrees/T-20260606T012331464579Z-172bbc36.json",
+    "path:.shiki/ledger/L-20260606T012331464773Z-c6e9c4a3.json",
+    "path:.shiki/ledger/L-20260606T012343881176Z-7886cef3.json",
+    "path:.shiki/ledger/L-20260606T012343948414Z-92705ebe.json",
+    "path:.shiki/ledger/L-20260606T012851050702Z-09016e15.json",
+    "path:.shiki/ledger/L-20260606T020346867576Z-d40d9a27.json"
   ],
   "non_goals": [],
   "required_skills": [
