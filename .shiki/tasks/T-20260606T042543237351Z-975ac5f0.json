@@ -5,6 +5,7 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/G-0012/reconcile-final",
+  "expected_pr": 109,
   "goal_id": "G-0012",
   "id": "T-20260606T042543237351Z-975ac5f0",
   "ledger_evidence": [
