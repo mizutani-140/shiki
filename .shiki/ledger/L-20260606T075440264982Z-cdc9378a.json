@@ -4,7 +4,8 @@
     "all P0/P1/P2 checklist items checked on Issue #30",
     "final Goal Completion Judgment posted (issuecomment-4637775515)",
     "P0.3.2 impl #113 merged",
-    "P0.3.2 reconcile #114 merged"
+    "P0.3.2 reconcile #114 merged",
+    "https://github.com/mizutani-140/shiki/pull/115"
   ],
   "goal_id": "G-0012",
   "id": "L-20260606T075440264982Z-cdc9378a",
@@ -12,7 +13,8 @@
     "#30",
     "#113",
     "#114",
-    "https://github.com/mizutani-140/shiki/issues/30#issuecomment-4637775515"
+    "https://github.com/mizutani-140/shiki/issues/30#issuecomment-4637775515",
+    "https://github.com/mizutani-140/shiki/pull/115"
   ],
   "summary": "G-0012 mirror status reconciled to complete after all P0/P1/P2 checklist items were checked and the final Goal Completion Judgment was posted on Issue #30. P0.3.2 implementation merged in #113; P0.3.2 reconcile merged in #114. #106 remains a separate non-checklist required_review governance follow-up.",
   "task_id": "T-20260606T075440264806Z-f5677e28",
