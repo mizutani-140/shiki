@@ -1,0 +1,29 @@
+{
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py passes"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/G-0012/reconcile-goaldag",
+  "goal_id": "G-0012",
+  "id": "T-20260606T042944018193Z-a8638ebf",
+  "ledger_evidence": [
+    "L-20260606T042944018355Z-80bc6eb9"
+  ],
+  "locks": [
+    "path:.shiki/goals/G-0012.json",
+    "path:.shiki/dag/G-0012.json",
+    "path:.shiki/tasks/T-20260606T042944018193Z-a8638ebf.json",
+    "path:.shiki/ledger/L-20260606T042944018355Z-80bc6eb9.json"
+  ],
+  "non_goals": [
+    "No source changes",
+    "No #103 task/lock edits (handled under #103 id)",
+    "No P0.3.2 work (deferred)"
+  ],
+  "required_skills": [],
+  "risk_level": "low",
+  "scope": "Add real P2 task nodes to the DAG and append goal ledger evidence after P2 merges.",
+  "status": "done",
+  "title": "G-0012 P2 reconcile (goal + DAG)"
+}
