@@ -3,12 +3,14 @@
   "evidence": [
     "PR #113 merged",
     "Guardian approval bound to head acb1a50",
-    "required skills diagnose tdd improve-codebase-architecture"
+    "required skills diagnose tdd improve-codebase-architecture",
+    "https://github.com/mizutani-140/shiki/pull/114"
   ],
   "goal_id": "G-0012",
   "id": "L-20260606T065241530543Z-b319dafd",
   "links": [
-    "#113"
+    "#113",
+    "https://github.com/mizutani-140/shiki/pull/114"
   ],
   "summary": "Post-merge reconcile for P0.3.2 (PR #113 merged after Guardian approval at head acb1a50): released task lock and marked task done.",
   "task_id": "T-20260606T062652655666Z-2b63a06f",
