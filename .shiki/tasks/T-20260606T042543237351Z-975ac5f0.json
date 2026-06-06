@@ -12,8 +12,6 @@
     "L-20260606T042543237519Z-87a8c717"
   ],
   "locks": [
-    "path:.shiki/locks/T-20260606T012331464579Z-172bbc36.json",
-    "path:.shiki/tasks/T-20260606T012331464579Z-172bbc36.json",
     "path:.shiki/goals/G-0012.json",
     "path:.shiki/dag/G-0012.json",
     "path:.shiki/tasks/T-20260606T042543237351Z-975ac5f0.json",
@@ -25,7 +23,7 @@
   ],
   "required_skills": [],
   "risk_level": "low",
-  "scope": "Release #103 lock, mark #103 done, add real P2 task nodes to DAG, update goal ledger evidence.",
+  "scope": "Add real P2 task nodes to DAG and append goal ledger evidence after P2 merges.",
   "status": "done",
   "title": "G-0012 P2 post-merge reconcile (goal + DAG + #103 lock)"
 }
