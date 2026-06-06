@@ -1,0 +1,28 @@
+# Shiki packaging metadata.
+#
+# Shiki is a GitHub-first agentic engineering control plane distributed as a
+# repository template plus a dependency-free standard-library CLI (scripts/).
+# This file records project metadata and the canonical version. The Shiki CLI is
+# intentionally NOT exposed as a build-backend [project.scripts] console entry
+# because the CLI ships as the dependency-free `scripts/shiki.py` shim and the
+# `scripts/` directory is not packaged as an importable distribution. The
+# supported install paths (pipx from git, or running the shim directly) are
+# documented in docs/releasing.md. See docs/adr/0007-packaging-and-release.md.
+#
+# The version below is kept in sync with the canonical ./VERSION file. When
+# bumping the release, update both ./VERSION and the `version` field here.
+
+[project]
+name = "shiki"
+version = "0.1.0"
+description = "Shiki: a GitHub-first agentic engineering control plane with a repository-local .shiki/ mirror for recovery, audit, and portable agent context."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "mizutani-140" }]
+keywords = ["shiki", "agentic", "engineering", "control-plane", "github", "mergegate", "cca"]
+
+[project.urls]
+Homepage = "https://github.com/mizutani-140/shiki"
+Repository = "https://github.com/mizutani-140/shiki"
+Releasing = "https://github.com/mizutani-140/shiki/blob/main/docs/releasing.md"

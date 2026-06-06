@@ -1,0 +1,29 @@
+{
+  "id": "L-20260606T012851050702Z-09016e15",
+  "timestamp": "2026-06-06T01:28:51Z",
+  "type": "check",
+  "actor": "codex",
+  "goal_id": "G-0012",
+  "task_id": "T-20260606T012331464579Z-172bbc36",
+  "summary": "Implementation + verification evidence for G-0012 P2.2 (#101): added VERSION (0.1.0), pyproject.toml (metadata-only, no console entry to preserve the dependency-free scripts/shiki.py shim), .github/workflows/release.yml (tag-triggered, GITHUB_TOKEN-only GitHub Release), docs/releasing.md (versioning/release/install/platform-vs-template/upgrade/rollback), and docs/adr/0007-packaging-and-release.md. Note: ledger type recorded as 'check' because validate_shiki.py enforces the ledger type enum which does not include 'implementation'; this entry is the implementation+verification record.",
+  "evidence": [
+    "Added VERSION = 0.1.0 (SemVer, canonical version source). [P2.2.1]",
+    "Added pyproject.toml: project metadata, version 0.1.0 (synced with VERSION), requires-python >=3.11, urls. Intentionally metadata-only (no [project.scripts] console entry) to avoid restructuring scripts/ and to keep the dependency-free scripts/shiki.py shim intact. [P2.2.3, P2.2.4]",
+    "Added .github/workflows/release.yml: triggered on push tags v*, plus workflow_dispatch; verifies tag matches VERSION, runs validate_shiki.py, and publishes a GitHub Release via 'gh release create --generate-notes --verify-tag'. Permissions: contents: write. Uses actions/checkout@v5 (Node 24 policy compliant). Uses only secrets.GITHUB_TOKEN; no extra secrets. [P2.2.2]",
+    "Added docs/releasing.md: versioning policy [P2.2.1], release process [P2.2.2], install paths incl. 'pipx install git+https://github.com/mizutani-140/shiki@v0.1.0' and running the shim directly [P2.2.3], platform-runtime vs target-template boundary referencing .shiki/manifest.json install.include (manifest NOT edited) [P2.2.4], upgrade via 'shiki migrate {status,plan,apply}' [P2.2.5], and rollback guidance [P2.2.6].",
+    "Added docs/adr/0007-packaging-and-release.md recording the versioning + release + packaging decision and alternatives (console entry, third-party release action, PyPI, dynamic version).",
+    "Acceptance: 'python3 scripts/validate_shiki.py' -> exit 0 ('Shiki validation passed').",
+    "Acceptance: 'python3 -m py_compile scripts/*.py' -> exit 0.",
+    "Acceptance: 'python3 -c \\\"import tomllib; tomllib.load(open(\\'pyproject.toml\\',\\'rb\\'))\\\"' -> exit 0 (version=0.1.0, requires-python=>=3.11).",
+    "Acceptance: release.yml is valid YAML (parsed via scripts/shiki_workflows.load_workflow_model) and references only secrets.GITHUB_TOKEN; node24 workflow policy passes for all workflows including release.yml -> exit 0.",
+    "Full contract suite: all 21 scripts/test_shiki_*.sh tests passed (PASS=21 FAIL=0).",
+    "Dispatch check reported guardian_required for high risk (expected, advisory); Guardian approval is requested in the PR MergeGate section. No self-approval performed."
+  ],
+  "evidence_refs": [
+    {
+      "kind": "github-issue",
+      "issue": 101
+    }
+  ],
+  "links": ["#101"]
+}

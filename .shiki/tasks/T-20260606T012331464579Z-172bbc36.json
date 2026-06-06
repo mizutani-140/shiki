@@ -1,0 +1,36 @@
+{
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py passes",
+    "python3 -m py_compile scripts/*.py passes",
+    "python3 -c \"import tomllib; tomllib.load(open('pyproject.toml','rb'))\" succeeds",
+    "release.yml is valid YAML and uses only GITHUB_TOKEN (no extra secrets)"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/G-0012/packaging-release",
+  "expected_pr": null,
+  "github_issue": 101,
+  "goal_id": "G-0012",
+  "id": "T-20260606T012331464579Z-172bbc36",
+  "ledger_evidence": [
+    "L-20260606T012331464773Z-c6e9c4a3",
+    "L-20260606T012343881176Z-7886cef3",
+    "L-20260606T012343948414Z-92705ebe"
+  ],
+  "locks": [
+    "path:pyproject.toml",
+    "path:VERSION",
+    "path:.github/workflows/release.yml",
+    "path:docs/releasing.md",
+    "path:docs/adr/0007-packaging-and-release.md"
+  ],
+  "non_goals": [],
+  "required_skills": [
+    "improve-codebase-architecture",
+    "grill-with-docs"
+  ],
+  "risk_level": "high",
+  "scope": "Add VERSION + pyproject.toml (packaging/version + console entry for the dependency-free shiki shim), .github/workflows/release.yml (tag-triggered release), docs/releasing.md (versioning/install/upgrade/rollback/platform-vs-template), docs/adr/0007-packaging-and-release.md.",
+  "status": "ready",
+  "title": "P2.2 \u2014 Add versioning, release workflow & packaging path"
+}

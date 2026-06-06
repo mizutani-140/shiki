@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260606T012331464579Z-172bbc36.json"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T012331464773Z-c6e9c4a3",
+  "links": [],
+  "summary": "Task registered: P2.2 \u2014 Add versioning, release workflow & packaging path",
+  "task_id": "T-20260606T012331464579Z-172bbc36",
+  "timestamp": "2026-06-06T01:23:31+00:00",
+  "type": "task-registered"
+}
