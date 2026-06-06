@@ -8,7 +8,7 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/G-0012/packaging-release",
-  "expected_pr": 103,
+  "expected_pr": 111,
   "github_issue": 101,
   "goal_id": "G-0012",
   "id": "T-20260606T012331464579Z-172bbc36",
