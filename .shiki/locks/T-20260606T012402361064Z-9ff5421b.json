@@ -9,7 +9,15 @@
     "path:docs/adr/README.md",
     "path:docs/adr/template.md",
     "path:docs/usage.md",
-    "path:docs/operations.md"
+    "path:docs/operations.md",
+    "path:.shiki/tasks/T-20260606T012402361064Z-9ff5421b.json",
+    "path:.shiki/locks/T-20260606T012402361064Z-9ff5421b.json",
+    "path:.shiki/worktrees/T-20260606T012402361064Z-9ff5421b.json",
+    "path:.shiki/ledger/L-20260606T012402361235Z-d70ac158.json",
+    "path:.shiki/ledger/L-20260606T012421388074Z-394bacec.json",
+    "path:.shiki/ledger/L-20260606T012421455380Z-b31d3877.json",
+    "path:.shiki/ledger/L-20260606T012834441706Z-a9df6c68.json",
+    "path:.shiki/ledger/L-20260606T020341911724Z-e7548dfa.json"
   ],
   "owner": "codex",
   "state": "active",

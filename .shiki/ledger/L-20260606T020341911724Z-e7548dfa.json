@@ -1,0 +1,16 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "required skills: improve-codebase-architecture",
+    "blocking: files_outside_locks, ledger_evidence linkage, skill evidence"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T020341911724Z-e7548dfa",
+  "links": [
+    "#104"
+  ],
+  "summary": "Repair: recorded required skills improve-codebase-architecture applied for G-0012 docs slice; linked task evidence and lock scope for MergeGate.",
+  "task_id": "T-20260606T012402361064Z-9ff5421b",
+  "timestamp": "2026-06-06T02:03:41+00:00",
+  "type": "repair"
+}
