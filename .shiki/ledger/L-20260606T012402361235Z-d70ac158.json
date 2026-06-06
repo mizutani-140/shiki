@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260606T012402361064Z-9ff5421b.json"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T012402361235Z-d70ac158",
+  "links": [],
+  "summary": "Task registered: P2.1 \u2014 Add distribution & onboarding documentation",
+  "task_id": "T-20260606T012402361064Z-9ff5421b",
+  "timestamp": "2026-06-06T01:24:02+00:00",
+  "type": "task-registered"
+}

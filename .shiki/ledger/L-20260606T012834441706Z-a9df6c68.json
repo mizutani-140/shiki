@@ -1,0 +1,27 @@
+{
+  "id": "L-20260606T012834441706Z-a9df6c68",
+  "timestamp": "2026-06-06T01:28:34Z",
+  "type": "check",
+  "actor": "codex",
+  "goal_id": "G-0012",
+  "task_id": "T-20260606T012402361064Z-9ff5421b",
+  "summary": "P2.1 docs slice implementation + verification: added distribution and onboarding documentation (README.md, LICENSE MIT, SECURITY.md, CONTRIBUTING.md, docs/adr/README.md ADR index, docs/adr/template.md, docs/usage.md, docs/operations.md) within declared locks. Shared DAG change dropped for post-merge reconciliation. Verification baseline and slice acceptance checks pass.",
+  "evidence": [
+    "README.md: what Shiki is, the operating loop, source of truth, repo layout, quick start pointing to docs/usage.md and docs/operations.md",
+    "LICENSE: MIT License, copyright 2026 mizutani-140",
+    "SECURITY.md: private vulnerability reporting, no-secrets policy, Guardian role",
+    "CONTRIBUTING.md: Goal -> grill -> PRD -> issues -> task -> PR -> CCA -> MergeGate flow, branch naming, PR template requirements, verification baseline",
+    "docs/adr/README.md: ADR index; snapshot lists 0001..0006, canonical source is docs/adr/*.md glob so new ADRs need not edit this file",
+    "docs/adr/template.md: short ADR template (status/context/decision/consequences/alternatives)",
+    "docs/usage.md: when to use shiki start vs init vs install-target vs bootstrap-platform vs /shiki; derived from shiki.py --help and bootstrap-command.md",
+    "docs/operations.md: install, upgrade, rollback, and migration narrative referencing shiki start/init and shiki migrate",
+    "command: python3 scripts/validate_shiki.py -> Shiki validation passed (exit 0)",
+    "command: python3 -m py_compile scripts/*.py -> compiled clean (exit 0)",
+    "command: for sh in scripts/test_shiki_*.sh; do bash \"$sh\"; done -> all script tests passed (exit 0); shellcheck and actionlint skipped (not installed)",
+    "command: file existence check -> README.md, LICENSE, SECURITY.md, CONTRIBUTING.md, docs/adr/README.md, docs/adr/template.md, docs/usage.md, docs/operations.md all present (exit 0)",
+    "command: shiki dispatch check -> dispatchable=true, guardian_approval_required=false (low risk)"
+  ],
+  "links": [
+    "#100"
+  ]
+}

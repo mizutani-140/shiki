@@ -27,6 +27,9 @@ jobs:
       - name: Compile Shiki Python files
         run: python3 -m py_compile scripts/*.py
 
+      - name: Run Shiki Python regression tests
+        run: python3 -m unittest discover -s tests
+
       - name: Run all Shiki contract tests
         shell: bash
         run: |

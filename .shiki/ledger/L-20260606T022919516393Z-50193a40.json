@@ -1,0 +1,16 @@
+{
+  "actor": "codex",
+  "evidence": [
+    ".shiki/worktrees/T-20260606T012335591461Z-c9039bb5.json",
+    ".shiki/tasks/T-20260606T012335591461Z-c9039bb5.json"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T022919516393Z-50193a40",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/105"
+  ],
+  "summary": "Repair (review findings) for PR #105: replaced the absolute worktree path with a repo-relative value and set pr=105 in .shiki/worktrees/T-20260606T012335591461Z-c9039bb5.json. Packaging-contract regression tests were deliberately not added because they would reference release.yml/pyproject.toml that exist only on the #103 branch; the version-sync gate is enforced in #103's release.yml and a unit test will follow once #103 merges. This ledger entry references the PR to clear the ledger-PR-reference policy blocker.",
+  "task_id": "T-20260606T012335591461Z-c9039bb5",
+  "timestamp": "2026-06-06T02:29:19+00:00",
+  "type": "repair"
+}

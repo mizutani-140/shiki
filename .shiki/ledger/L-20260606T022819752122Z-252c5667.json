@@ -1,0 +1,19 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "SECURITY.md",
+    "README.md",
+    "docs/usage.md",
+    ".shiki/worktrees/T-20260606T012402361064Z-9ff5421b.json",
+    ".shiki/tasks/T-20260606T012402361064Z-9ff5421b.json"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T022819752122Z-252c5667",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/104"
+  ],
+  "summary": "Bounded repair for PR #104 Guardian review findings: confirmed README repository-layout and docs/usage At-A-Glance render as proper Markdown tables; strengthened SECURITY.md private-reporting guidance with an explicit repo-settings enablement note and a concrete Guardian fallback contact; replaced the absolute worktree record path with a repo-relative value and set pr=104. This ledger entry references PR #104 (https://github.com/mizutani-140/shiki/pull/104), clearing the prior policy-check blocker that task ledger evidence did not reference PR #104.",
+  "task_id": "T-20260606T012402361064Z-9ff5421b",
+  "timestamp": "2026-06-06T02:28:19+00:00",
+  "type": "repair"
+}
