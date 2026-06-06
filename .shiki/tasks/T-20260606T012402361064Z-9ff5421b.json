@@ -7,7 +7,7 @@
   ],
   "assigned_runtime": "codex",
   "dependencies": [],
-  "expected_branch": "shiki/G-0012/docs-onboarding",
+  "expected_branch": "shiki/G-0012/reconcile-postmerge",
   "expected_pr": 104,
   "github_issue": 100,
   "goal_id": "G-0012",
@@ -46,6 +46,6 @@
   ],
   "risk_level": "low",
   "scope": "Create root README.md, LICENSE (MIT), SECURITY.md, CONTRIBUTING.md, docs/adr/README.md (ADR index), docs/adr/template.md, docs/usage.md (command guide), docs/operations.md (install/upgrade/rollback/migration narrative).",
-  "status": "review",
+  "status": "done",
   "title": "P2.1 \u2014 Add distribution & onboarding documentation"
 }
