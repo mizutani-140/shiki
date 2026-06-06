@@ -53,9 +53,16 @@ as an ADR.
 - Do **not** declare a `[project.scripts]` console entry point. `scripts/` is not
   packaged as an importable distribution and `scripts/shiki.py` is a
   dependency-free shim; a console entry would require restructuring scripts into
-  an installable package and risk breaking the shim. The supported invocation
-  paths are documented instead (pipx-from-git for a pinned checkout, or running
-  the shim directly with `python3 scripts/shiki.py`).
+  an installable package and risk breaking the shim.
+- **Adopt the script-install path as the official install path; reject `pipx` for
+  now.** Because no console entry is declared and `scripts/` is not a packaged
+  importable distribution, `pipx install git+https://…` would not expose a usable
+  `shiki` command, so advertising it would be misleading. The supported
+  invocation paths are instead the script install
+  (`python3 scripts/shiki.py install-global`, verified to exist) and running the
+  shim directly with `python3 scripts/shiki.py`. `pipx`/PyPI installs are
+  explicitly unsupported until a future packaging restructure adds a real entry
+  point.
 
 ### Release workflow
 
@@ -84,6 +91,12 @@ as an ADR.
    import targets, which is out of scope, risks the dependency-free shim, and
    pulls in build-backend complexity. Revisit if/when the CLI is restructured
    into a proper package.
+5. **`pipx install git+…` as a supported install path.** Rejected: with no
+   `[project.scripts]` console entry and `scripts/` not packaged as an importable
+   distribution, a pipx install produces no usable `shiki` command, so it would
+   mislead users. The script install (`python3 scripts/shiki.py install-global`)
+   is adopted instead. Reconsider only after a packaging restructure adds a real
+   entry point.
 2. **Third-party release action (e.g. `softprops/action-gh-release`).**
    Rejected: `gh release create` with the built-in `GITHUB_TOKEN` keeps the
    workflow dependency-free and avoids pinning/maintaining an extra third-party
@@ -103,8 +116,9 @@ as an ADR.
   and documented install/upgrade/rollback paths.
 - Bumping a release requires editing two files (`VERSION` and `pyproject.toml`);
   the release workflow enforces they agree with the tag.
-- The CLI remains dependency-free and is invoked via the shim or pipx-from-git;
-  no console entry point is provided yet.
+- The CLI remains dependency-free and is invoked via the script install
+  (`python3 scripts/shiki.py install-global`) or by running the shim directly; no
+  console entry point is provided yet and `pipx`/PyPI installs are unsupported.
 - The target-template surface remains governed solely by `.shiki/manifest.json`;
   releasing versions the whole platform but ships only `install.include` to
   targets.

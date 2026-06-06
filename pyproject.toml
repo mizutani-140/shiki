@@ -5,9 +5,11 @@
 # This file records project metadata and the canonical version. The Shiki CLI is
 # intentionally NOT exposed as a build-backend [project.scripts] console entry
 # because the CLI ships as the dependency-free `scripts/shiki.py` shim and the
-# `scripts/` directory is not packaged as an importable distribution. The
-# supported install paths (pipx from git, or running the shim directly) are
-# documented in docs/releasing.md. See docs/adr/0007-packaging-and-release.md.
+# `scripts/` directory is not packaged as an importable distribution. pipx/PyPI
+# installs are therefore NOT supported; the official install path is the script
+# install (`python3 scripts/shiki.py install-global`) or running the shim
+# directly, as documented in docs/releasing.md. See
+# docs/adr/0007-packaging-and-release.md.
 #
 # The version below is kept in sync with the canonical ./VERSION file. When
 # bumping the release, update both ./VERSION and the `version` field here.

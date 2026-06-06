@@ -1,0 +1,20 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "finding 1: docs/releasing.md + ADR 0007 + pyproject.toml now adopt the script-install path (python3 scripts/shiki.py install-global, verified) and mark pipx/PyPI explicitly NOT supported in install/upgrade/rollback",
+    "finding 2: release.yml now verifies pyproject.toml [project].version == VERSION == tag (0.1.0)",
+    "finding 3: release.yml checkout now uses ref for workflow_dispatch tag input with fetch-depth 0",
+    "finding 4: .shiki/worktrees record now repo-relative path and pr=103",
+    "finding 5: task scope reworded to metadata-only pyproject without console entry"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T022858466302Z-18ad3f1e",
+  "links": [
+    "#103",
+    "https://github.com/mizutani-140/shiki/pull/103"
+  ],
+  "summary": "Repair (Guardian review findings) for G-0012 pkg slice PR #103: dropped pipx as the recommended install path and adopted the script-install path across docs/releasing.md, ADR 0007, and pyproject.toml; extended release.yml version gate to check pyproject==VERSION==tag and added checkout ref for workflow_dispatch; fixed worktree record path/pr and task scope wording. PR https://github.com/mizutani-140/shiki/pull/103.",
+  "task_id": "T-20260606T012331464579Z-172bbc36",
+  "timestamp": "2026-06-06T02:28:58+00:00",
+  "type": "repair"
+}

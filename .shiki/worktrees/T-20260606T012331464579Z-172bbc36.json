@@ -10,8 +10,8 @@
     "path:docs/releasing.md",
     "path:docs/adr/0007-packaging-and-release.md"
   ],
-  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-g-0012-packaging-release",
-  "pr": null,
+  "path": ".worktrees/shiki-g-0012-packaging-release",
+  "pr": 103,
   "runtime": "codex",
   "state": "registered",
   "task_id": "T-20260606T012331464579Z-172bbc36"

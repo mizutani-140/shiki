@@ -71,26 +71,38 @@ packaged as an importable distribution (see the ADR for the rationale).
 
 Supported install paths:
 
-- **pipx from git (recommended for a pinned, isolated checkout):**
+- **Script install (official, recommended):** clone the repository (pinned to a
+  release tag) and run the dependency-free shim's global install subcommand:
 
   ```bash
-  pipx install git+https://github.com/mizutani-140/shiki@v0.1.0
+  git clone https://github.com/mizutani-140/shiki
+  cd shiki
+  git checkout v0.1.0
+  python3 scripts/shiki.py install-global
   ```
 
-  This installs the project metadata from `pyproject.toml`. Because no console
-  script is declared, invoke the CLI through the checked-out shim (see below) or
-  via `python3 -m`.
+  Run `python3 scripts/shiki.py install-global --help` to see the available
+  options. This is the supported way to expose Shiki for global use; it does not
+  rely on a packaged console entry point.
 
 - **Run the dependency-free shim directly (no install required):**
 
   ```bash
   git clone https://github.com/mizutani-140/shiki
   cd shiki
+  git checkout v0.1.0
   python3 scripts/shiki.py --help
   ```
 
   Requires Python `>=3.11` (matching `pyproject.toml`). No `pip install` step is
   needed to run the CLI.
+
+- **`pipx` is NOT supported.** Because `pyproject.toml` declares no
+  `[project.scripts]` console entry and `scripts/` is not packaged as an
+  importable distribution, `pipx install git+https://…` would not expose a usable
+  `shiki` command. Use the script-install path above instead. A `pipx`/PyPI
+  install path may be reconsidered only after a future packaging restructure
+  (see [docs/adr/0007-packaging-and-release.md](adr/0007-packaging-and-release.md)).
 
 - **Install into a target repository:** use the bootstrap path documented in
   [docs/agents/bootstrap-command.md](agents/bootstrap-command.md) (`bin/shiki`)
@@ -153,12 +165,12 @@ layout change), the release notes must call out the required migration steps.
 
 If a release introduces a regression:
 
-1. **Pin/downgrade the install** to the last known-good tag:
+1. **Pin/downgrade the install** to the last known-good tag by checking out that
+   tag and re-running the script install:
 
    ```bash
-   pipx install --force git+https://github.com/mizutani-140/shiki@v0.0.0
-   # or for the shim checkout:
    git checkout v0.0.0
+   python3 scripts/shiki.py install-global   # re-install the prior version globally
    ```
 
 2. **Roll back repository-local state** if a migration was applied: inspect

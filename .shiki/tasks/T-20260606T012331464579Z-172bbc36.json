@@ -17,7 +17,8 @@
     "L-20260606T012343881176Z-7886cef3",
     "L-20260606T012343948414Z-92705ebe",
     "L-20260606T012851050702Z-09016e15",
-    "L-20260606T020346867576Z-d40d9a27"
+    "L-20260606T020346867576Z-d40d9a27",
+    "L-20260606T022858466302Z-18ad3f1e"
   ],
   "locks": [
     "path:pyproject.toml",
@@ -32,7 +33,8 @@
     "path:.shiki/ledger/L-20260606T012343881176Z-7886cef3.json",
     "path:.shiki/ledger/L-20260606T012343948414Z-92705ebe.json",
     "path:.shiki/ledger/L-20260606T012851050702Z-09016e15.json",
-    "path:.shiki/ledger/L-20260606T020346867576Z-d40d9a27.json"
+    "path:.shiki/ledger/L-20260606T020346867576Z-d40d9a27.json",
+    "path:.shiki/ledger/L-20260606T022858466302Z-18ad3f1e.json"
   ],
   "non_goals": [],
   "required_skills": [
@@ -40,7 +42,7 @@
     "grill-with-docs"
   ],
   "risk_level": "high",
-  "scope": "Add VERSION + pyproject.toml (packaging/version + console entry for the dependency-free shiki shim), .github/workflows/release.yml (tag-triggered release), docs/releasing.md (versioning/install/upgrade/rollback/platform-vs-template), docs/adr/0007-packaging-and-release.md.",
+  "scope": "Add VERSION + metadata-only pyproject.toml without console entry, .github/workflows/release.yml, docs/releasing.md, and ADR 0007.",
   "status": "ready",
   "title": "P2.2 \u2014 Add versioning, release workflow & packaging path"
 }
