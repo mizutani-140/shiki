@@ -47,11 +47,7 @@ jobs:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           VERSION_FILE="$(tr -d '[:space:]' < VERSION)"
-          PY_VER="$(python3 - <<'PY'
-import tomllib
-print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])
-PY
-)"
+          PY_VER="$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
           if [ "${PY_VER}" != "${VERSION_FILE}" ]; then
             echo "pyproject version ${PY_VER} != VERSION ${VERSION_FILE}" >&2
             echo "Bump ./VERSION and pyproject.toml together. See docs/releasing.md." >&2
