@@ -7,8 +7,8 @@
   ],
   "assigned_runtime": "codex",
   "dependencies": [],
-  "expected_branch": "shiki/G-0012/packaging-release",
-  "expected_pr": 103,
+  "expected_branch": "shiki/G-0012/reconcile-103",
+  "expected_pr": 111,
   "github_issue": 101,
   "goal_id": "G-0012",
   "id": "T-20260606T012331464579Z-172bbc36",
@@ -18,7 +18,8 @@
     "L-20260606T012343948414Z-92705ebe",
     "L-20260606T012851050702Z-09016e15",
     "L-20260606T020346867576Z-d40d9a27",
-    "L-20260606T022858466302Z-18ad3f1e"
+    "L-20260606T022858466302Z-18ad3f1e",
+    "L-20260606T044048619159Z-3c388bc6"
   ],
   "locks": [
     "path:pyproject.toml",
@@ -34,7 +35,8 @@
     "path:.shiki/ledger/L-20260606T012343948414Z-92705ebe.json",
     "path:.shiki/ledger/L-20260606T012851050702Z-09016e15.json",
     "path:.shiki/ledger/L-20260606T020346867576Z-d40d9a27.json",
-    "path:.shiki/ledger/L-20260606T022858466302Z-18ad3f1e.json"
+    "path:.shiki/ledger/L-20260606T022858466302Z-18ad3f1e.json",
+    "path:.shiki/ledger/L-20260606T044048619159Z-3c388bc6.json"
   ],
   "non_goals": [],
   "required_skills": [
@@ -43,6 +45,6 @@
   ],
   "risk_level": "high",
   "scope": "Add VERSION + metadata-only pyproject.toml without console entry, .github/workflows/release.yml, docs/releasing.md, and ADR 0007.",
-  "status": "review",
+  "status": "done",
   "title": "P2.2 \u2014 Add versioning, release workflow & packaging path"
 }
