@@ -7,7 +7,7 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/G-0012/p0-3-2-required-checks",
-  "expected_pr": null,
+  "expected_pr": 113,
   "github_issue": 112,
   "goal_id": "G-0012",
   "id": "T-20260606T062652655666Z-2b63a06f",

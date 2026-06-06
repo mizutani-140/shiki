@@ -4,12 +4,14 @@
     "python3 scripts/validate_shiki.py passed",
     "python3 -m unittest discover -s tests: 50 tests OK (8 new in test_required_checks_derivation.py)",
     "all 28 scripts/test_shiki_*.sh passed",
-    "skills: diagnose tdd improve-codebase-architecture"
+    "skills: diagnose tdd improve-codebase-architecture",
+    "https://github.com/mizutani-140/shiki/pull/113"
   ],
   "goal_id": "G-0012",
   "id": "L-20260606T063303695736Z-bd5d7d29",
   "links": [
-    "#112"
+    "#112",
+    "https://github.com/mizutani-140/shiki/pull/113"
   ],
   "summary": "P0.3.2 implemented and verified. Required checks now derive from .shiki/config.yaml via shiki_config.configured_required_checks; DEFAULT_REQUIRED_CHECKS kept only as documented fallback; shiki_cli --required-check defaults set to None; shiki_bootstrap resolves config-derived checks. Skills applied: diagnose, tdd, improve-codebase-architecture.",
   "task_id": "T-20260606T062652655666Z-2b63a06f",
