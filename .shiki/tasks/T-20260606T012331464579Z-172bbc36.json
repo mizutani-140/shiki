@@ -7,7 +7,7 @@
   ],
   "assigned_runtime": "codex",
   "dependencies": [],
-  "expected_branch": "shiki/G-0012/packaging-release",
+  "expected_branch": "shiki/G-0012/reconcile-103",
   "expected_pr": 111,
   "github_issue": 101,
   "goal_id": "G-0012",
