@@ -1,0 +1,51 @@
+{
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py passes",
+    "python3 -m py_compile scripts/*.py passes",
+    "README.md, LICENSE, SECURITY.md, CONTRIBUTING.md exist at repo root",
+    "docs/adr/README.md indexes existing ADRs; docs/usage.md and docs/operations.md exist"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/G-0012/docs-onboarding",
+  "expected_pr": 104,
+  "github_issue": 100,
+  "goal_id": "G-0012",
+  "id": "T-20260606T012402361064Z-9ff5421b",
+  "ledger_evidence": [
+    "L-20260606T012402361235Z-d70ac158",
+    "L-20260606T012421388074Z-394bacec",
+    "L-20260606T012421455380Z-b31d3877",
+    "L-20260606T012834441706Z-a9df6c68",
+    "L-20260606T020341911724Z-e7548dfa",
+    "L-20260606T021350598525Z-75988c75",
+    "L-20260606T022819752122Z-252c5667"
+  ],
+  "locks": [
+    "path:README.md",
+    "path:LICENSE",
+    "path:SECURITY.md",
+    "path:CONTRIBUTING.md",
+    "path:docs/adr/README.md",
+    "path:docs/adr/template.md",
+    "path:docs/usage.md",
+    "path:docs/operations.md",
+    "path:.shiki/tasks/T-20260606T012402361064Z-9ff5421b.json",
+    "path:.shiki/locks/T-20260606T012402361064Z-9ff5421b.json",
+    "path:.shiki/worktrees/T-20260606T012402361064Z-9ff5421b.json",
+    "path:.shiki/ledger/**",
+    "path:.shiki/ledger/L-20260606T012402361235Z-d70ac158.json",
+    "path:.shiki/ledger/L-20260606T012421388074Z-394bacec.json",
+    "path:.shiki/ledger/L-20260606T012421455380Z-b31d3877.json",
+    "path:.shiki/ledger/L-20260606T012834441706Z-a9df6c68.json",
+    "path:.shiki/ledger/L-20260606T020341911724Z-e7548dfa.json"
+  ],
+  "non_goals": [],
+  "required_skills": [
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "low",
+  "scope": "Create root README.md, LICENSE (MIT), SECURITY.md, CONTRIBUTING.md, docs/adr/README.md (ADR index), docs/adr/template.md, docs/usage.md (command guide), docs/operations.md (install/upgrade/rollback/migration narrative).",
+  "status": "review",
+  "title": "P2.1 \u2014 Add distribution & onboarding documentation"
+}
