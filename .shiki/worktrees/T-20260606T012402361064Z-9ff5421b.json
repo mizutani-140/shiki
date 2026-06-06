@@ -13,8 +13,8 @@
     "path:docs/usage.md",
     "path:docs/operations.md"
   ],
-  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-g-0012-docs-onboarding",
-  "pr": null,
+  "path": ".worktrees/shiki-g-0012-docs-onboarding",
+  "pr": 104,
   "runtime": "codex",
   "state": "registered",
   "task_id": "T-20260606T012402361064Z-9ff5421b"

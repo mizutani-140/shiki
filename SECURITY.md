@@ -10,9 +10,13 @@ Please report security vulnerabilities **privately**. Do not open a public
 GitHub issue or pull request for an unpatched vulnerability.
 
 - Preferred: use GitHub's **private vulnerability reporting** (Security tab ->
-  "Report a vulnerability") on this repository.
-- Alternatively: contact the repository Guardian (`mizutani-140`) directly
-  through a private channel.
+  "Report a vulnerability") on this repository. This requires that private
+  vulnerability reporting is enabled in the repository settings
+  (Settings -> Code security and analysis -> "Private vulnerability reporting").
+- Fallback: if private vulnerability reporting is not enabled, or you cannot use
+  it, contact the repository Guardian directly through a private channel — open a
+  GitHub Security Advisory draft, or reach the Guardian (`@mizutani-140`) via a
+  private GitHub message rather than a public issue or pull request.
 
 When reporting, include:
 
