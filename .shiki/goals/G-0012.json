@@ -69,7 +69,8 @@
     "L-20260605T045900000000Z-8f4a2c71",
     "L-20260605T061500000000Z-6a4c9e31",
     "L-20260605T063724634732Z-d650d207",
-    "L-20260606T042944018355Z-80bc6eb9"
+    "L-20260606T042944018355Z-80bc6eb9",
+    "L-20260606T075440264982Z-cdc9378a"
   ],
   "non_goals": [
     "Do not add unrelated product features.",
@@ -91,6 +92,6 @@
   ],
   "risk_level": "critical",
   "source_plan": "P-0001",
-  "status": "planned",
+  "status": "complete",
   "title": "Harden Shiki for safe self-hosted / team / production repository use"
 }

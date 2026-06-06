@@ -1,0 +1,28 @@
+{
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py passes"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/G-0012/closeout",
+  "goal_id": "G-0012",
+  "id": "T-20260606T075440264806Z-f5677e28",
+  "ledger_evidence": [
+    "L-20260606T075440264982Z-cdc9378a"
+  ],
+  "locks": [
+    "path:.shiki/goals/G-0012.json",
+    "path:.shiki/tasks/T-20260606T075440264806Z-f5677e28.json",
+    "path:.shiki/ledger/L-20260606T075440264982Z-cdc9378a.json"
+  ],
+  "non_goals": [
+    "No source/workflow/MergeGate/Guardian/required_review changes",
+    "Do not touch #106",
+    "Do not reopen P2 or P0.3.2 evidence"
+  ],
+  "required_skills": [],
+  "risk_level": "low",
+  "scope": "Reconcile .shiki/goals/G-0012.json status to complete and append final Goal Completion Judgment ledger evidence.",
+  "status": "done",
+  "title": "G-0012 mirror closeout (status complete)"
+}
