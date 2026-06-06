@@ -8,8 +8,8 @@
     "path:scripts/test_shiki_p2_*.sh",
     "path:.github/workflows/shiki-validate.yml"
   ],
-  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-g-0012-regression-tests",
-  "pr": null,
+  "path": ".claude/worktrees/.worktrees/shiki-g-0012-regression-tests",
+  "pr": 105,
   "runtime": "codex",
   "state": "registered",
   "task_id": "T-20260606T012335591461Z-c9039bb5"
