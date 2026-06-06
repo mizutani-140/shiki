@@ -64,3 +64,16 @@ def configured_required_review(target: Path) -> bool:
 
 def branch_protection_review_count(target: Path) -> int:
     return 1 if configured_required_review(target) else 0
+
+
+def configured_required_checks(target: Path, default: "list[str] | tuple[str, ...]") -> list[str]:
+    """Required status-check contexts derived from .shiki/config.yaml.
+
+    Canonical, config-first source for branch-protection setup. ``default`` is the
+    documented fallback (DEFAULT_REQUIRED_CHECKS), used only when the target has no
+    ``mergegate.required_checks`` entries (e.g. before config is installed).
+    """
+    mergegate = load_shiki_config(target).get("mergegate", {})
+    raw = mergegate.get("required_checks") if isinstance(mergegate, dict) else None
+    checks = [str(check) for check in raw or [] if str(check).strip()]
+    return checks or list(default)

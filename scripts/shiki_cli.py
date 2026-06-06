@@ -7,7 +7,6 @@ import argparse
 import sys
 from typing import Iterable
 
-from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_bootstrap import cmd_bootstrap_github, cmd_init, cmd_preflight, cmd_start
 from shiki_doctor import cmd_doctor
 from shiki_github import cmd_github_issue, cmd_github_pr
@@ -47,7 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin to the requested GitHub repo")
     init.add_argument("--execute", action="store_true", help="Execute bootstrap/init mutations; default is dry-run")
     init.add_argument("--i-understand", action="store_true", help="Alias for --execute")
-    init.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
+    init.add_argument("--required-check", action="append", default=None, help="Required status-check context; repeatable. Default derives from .shiki/config.yaml mergegate.required_checks (documented fallback when config is absent).")
     init.set_defaults(func=cmd_init)
 
     preflight = subcommands.add_parser("preflight", help="Check whether a target repo is ready for Shiki")
@@ -70,7 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
     github.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin to the requested GitHub repo")
     github.add_argument("--execute", action="store_true", help="Execute bootstrap mutations; default is dry-run")
     github.add_argument("--i-understand", action="store_true", help="Alias for --execute")
-    github.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
+    github.add_argument("--required-check", action="append", default=None, help="Required status-check context; repeatable. Default derives from .shiki/config.yaml mergegate.required_checks (documented fallback when config is absent).")
     github.set_defaults(func=cmd_bootstrap_github)
 
     deprecated = subcommands.add_parser("bootstrap-github", help="Deprecated alias for bootstrap-platform")
@@ -88,7 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
     deprecated.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin to the requested GitHub repo")
     deprecated.add_argument("--execute", action="store_true", help="Execute bootstrap mutations; default is dry-run")
     deprecated.add_argument("--i-understand", action="store_true", help="Alias for --execute")
-    deprecated.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
+    deprecated.add_argument("--required-check", action="append", default=None, help="Required status-check context; repeatable. Default derives from .shiki/config.yaml mergegate.required_checks (documented fallback when config is absent).")
     deprecated.set_defaults(func=cmd_bootstrap_github)
 
     target = subcommands.add_parser("install-target", help="Install Shiki template files only; GitHub-first setup uses init")
@@ -171,7 +170,7 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("--adopt-existing-repo", action="store_true", help="Explicitly rewrite an existing origin during init")
     start.add_argument("--execute", action="store_true", help="Execute bootstrap/init mutations; default is dry-run for uninitialized targets")
     start.add_argument("--i-understand", action="store_true", help="Alias for --execute")
-    start.add_argument("--required-check", action="append", default=list(DEFAULT_REQUIRED_CHECKS))
+    start.add_argument("--required-check", action="append", default=None, help="Required status-check context; repeatable. Default derives from .shiki/config.yaml mergegate.required_checks (documented fallback when config is absent).")
     start.add_argument("--create-issues", action=argparse.BooleanOptionalAction, default=True)
     start.add_argument("--create-handoffs", action=argparse.BooleanOptionalAction, default=True)
     start.set_defaults(func=cmd_start)

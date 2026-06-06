@@ -1,0 +1,48 @@
+{
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py passes",
+    "python3 -m unittest discover -s tests passes",
+    "config change alters branch-protection payload contexts; fallback used only when config absent"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/G-0012/p0-3-2-required-checks",
+  "expected_pr": null,
+  "github_issue": 112,
+  "goal_id": "G-0012",
+  "id": "T-20260606T062652655666Z-2b63a06f",
+  "ledger_evidence": [
+    "L-20260606T062652655831Z-cda0ae28",
+    "L-20260606T062704546588Z-e02c1e58",
+    "L-20260606T062704611731Z-a1be2db3",
+    "L-20260606T063303695736Z-bd5d7d29"
+  ],
+  "locks": [
+    "path:scripts/shiki_config.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/shiki_bootstrap.py",
+    "path:tests/test_required_checks_derivation.py",
+    "path:.shiki/tasks/T-20260606T062652655666Z-2b63a06f.json",
+    "path:.shiki/locks/T-20260606T062652655666Z-2b63a06f.json",
+    "path:.shiki/worktrees/T-20260606T062652655666Z-2b63a06f.json",
+    "path:.shiki/ledger/L-20260606T062652655831Z-cda0ae28.json",
+    "path:.shiki/ledger/L-20260606T062704546588Z-e02c1e58.json",
+    "path:.shiki/ledger/L-20260606T062704611731Z-a1be2db3.json",
+    "path:.shiki/ledger/L-20260606T063303695736Z-bd5d7d29.json"
+  ],
+  "non_goals": [
+    "Do not change required_review policy (#106)",
+    "Do not change Guardian/CODEOWNERS",
+    "Do not rewrite MergeGate broadly",
+    "Do not change workflow job names"
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "high",
+  "scope": "Derive --required-check from .shiki/config.yaml via a canonical shiki_config helper; keep DEFAULT_REQUIRED_CHECKS as documented fallback; change shiki_cli defaults to None; resolve in shiki_bootstrap handlers; add regression tests.",
+  "status": "review",
+  "title": "P0.3.2 \u2014 Derive required checks from config (remove hard-coded CLI defaults)"
+}

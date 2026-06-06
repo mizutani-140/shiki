@@ -9,7 +9,8 @@ from pathlib import Path
 import sys
 from typing import Any
 
-from shiki_config import branch_protection_review_count
+from shiki_config import branch_protection_review_count, configured_required_checks
+from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_git import check_remote_adoption, commit_manifest, current_branch, ensure_git_repo, ensure_remote, github_origin, is_git_repo, push_branch
 from shiki_github import claude_secret_remediation, configure_claude_code_secret, create_github_issue_for_task, ensure_github_repo, github_secret_status, protect_branch, require_github_repo_slug, set_default_branch
 from shiki_installer import install_template
@@ -143,7 +144,7 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
                 push=args.push,
                 set_secret_enabled=args.set_secret,
                 protect=args.protect,
-                required_checks=args.required_check,
+                required_checks=args.required_check or configured_required_checks(ROOT, DEFAULT_REQUIRED_CHECKS),
                 provider_config=provider_config,
                 platform=True,
             )
@@ -170,7 +171,8 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
     configure_claude_code_secret(repo, enabled=args.set_secret, secret_env=args.secret_env, provider_config=provider_config)
 
     if args.protect:
-        protect_branch(repo, branch, args.required_check, review_count=branch_protection_review_count(ROOT), provider_config=provider_config)
+        required_checks = args.required_check or configured_required_checks(ROOT, DEFAULT_REQUIRED_CHECKS)
+        protect_branch(repo, branch, required_checks, review_count=branch_protection_review_count(ROOT), provider_config=provider_config)
 
     save_default_config(repo, branch)
     info("bootstrap complete")
@@ -218,7 +220,7 @@ def cmd_init(args: argparse.Namespace) -> int:
                 push=args.push,
                 set_secret_enabled=args.set_secret,
                 protect=args.protect,
-                required_checks=args.required_check,
+                required_checks=args.required_check or configured_required_checks(target, DEFAULT_REQUIRED_CHECKS),
                 provider_config=provider_config,
             )
         )
@@ -246,7 +248,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     configure_claude_code_secret(repo, enabled=args.set_secret, secret_env=args.secret_env, provider_config=provider_config)
 
     if args.protect:
-        protect_branch(repo, branch, args.required_check, review_count=branch_protection_review_count(target), provider_config=provider_config)
+        required_checks = args.required_check or configured_required_checks(target, DEFAULT_REQUIRED_CHECKS)
+        protect_branch(repo, branch, required_checks, review_count=branch_protection_review_count(target), provider_config=provider_config)
 
     info("GitHub-first init complete")
     return 0
