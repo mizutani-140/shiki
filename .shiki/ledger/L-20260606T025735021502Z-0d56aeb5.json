@@ -1,0 +1,19 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/107",
+    "lock state released",
+    "task status done",
+    "required skill improve-codebase-architecture"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T025735021502Z-0d56aeb5",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/107",
+    "#104"
+  ],
+  "summary": "Post-merge reconcile for docs slice PR #104: released task lock and marked done. Recorded in PR #107.",
+  "task_id": "T-20260606T012402361064Z-9ff5421b",
+  "timestamp": "2026-06-06T02:57:35Z",
+  "type": "mergegate"
+}

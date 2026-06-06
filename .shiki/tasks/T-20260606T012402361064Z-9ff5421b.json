@@ -8,7 +8,7 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/G-0012/reconcile-postmerge",
-  "expected_pr": 104,
+  "expected_pr": 107,
   "github_issue": 100,
   "goal_id": "G-0012",
   "id": "T-20260606T012402361064Z-9ff5421b",
@@ -19,7 +19,8 @@
     "L-20260606T012834441706Z-a9df6c68",
     "L-20260606T020341911724Z-e7548dfa",
     "L-20260606T021350598525Z-75988c75",
-    "L-20260606T022819752122Z-252c5667"
+    "L-20260606T022819752122Z-252c5667",
+    "L-20260606T025735021502Z-0d56aeb5"
   ],
   "locks": [
     "path:README.md",
