@@ -1,0 +1,21 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "PR #104 merged",
+    "PR #103 merged at head 2ea9c48 after Guardian approval",
+    "PR #105 merged",
+    "https://github.com/mizutani-140/shiki/pull/110"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T042944018355Z-80bc6eb9",
+  "links": [
+    "#104",
+    "#103",
+    "#105",
+    "https://github.com/mizutani-140/shiki/pull/110"
+  ],
+  "summary": "G-0012 P2 reconcile: P2.1 (#104), P2.2 (#103), P2.3 (#105) merged and reconciled; added real P2 task nodes to the DAG.",
+  "task_id": "T-20260606T042944018193Z-a8638ebf",
+  "timestamp": "2026-06-06T04:29:44Z",
+  "type": "completion"
+}
