@@ -1,0 +1,19 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/108",
+    "lock released",
+    "status done",
+    "required skills tdd diagnose"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T030824595728Z-40826351",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/108",
+    "#105"
+  ],
+  "summary": "Post-merge reconcile for tests slice PR #105: released task lock and marked done. Recorded in PR #108.",
+  "task_id": "T-20260606T012335591461Z-c9039bb5",
+  "timestamp": "2026-06-06T03:08:24Z",
+  "type": "mergegate"
+}

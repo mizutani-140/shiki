@@ -8,7 +8,7 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/G-0012/reconcile-tests",
-  "expected_pr": 105,
+  "expected_pr": 108,
   "github_issue": 102,
   "goal_id": "G-0012",
   "id": "T-20260606T012335591461Z-c9039bb5",
@@ -19,7 +19,8 @@
     "L-20260606T013344676013Z-08eb3301",
     "L-20260606T020332460628Z-978fb7bd",
     "L-20260606T021330919231Z-35137f95",
-    "L-20260606T022919516393Z-50193a40"
+    "L-20260606T022919516393Z-50193a40",
+    "L-20260606T030824595728Z-40826351"
   ],
   "locks": [
     "path:tests/**",
