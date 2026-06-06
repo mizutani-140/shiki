@@ -1,0 +1,34 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "tests/test_config_loading.py",
+    "tests/test_id_allocation.py",
+    "tests/test_lock_matching.py",
+    "tests/test_manifest_staging.py",
+    "tests/test_branch_protection_payload.py",
+    "tests/shiki_test_support.py",
+    "scripts/test_shiki_p2_malicious_pr.sh",
+    "scripts/test_shiki_p2_fork_pr_limitation.sh",
+    "scripts/test_shiki_p2_missing_cca_token.sh",
+    "scripts/test_shiki_p2_schema_drift.sh",
+    "scripts/test_shiki_p2_check_name_drift.sh",
+    "scripts/test_shiki_p2_branch_protection_failure.sh",
+    "scripts/test_shiki_p2_repair_limit.sh",
+    ".github/workflows/shiki-validate.yml",
+    "python3 -m unittest discover -s tests => OK, 42 tests, exit 0",
+    "python3 scripts/validate_shiki.py => Shiki validation passed, exit 0",
+    "python3 -m py_compile scripts/*.py => exit 0",
+    "for sh in scripts/test_shiki_*.sh; do bash $sh; done => 28/28 PASS",
+    "bash scripts/test_shiki_shellcheck.sh --strict => passed",
+    "bash scripts/test_shiki_workflow_lint.sh --strict => passed"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T013344676013Z-08eb3301",
+  "links": [
+    "#102"
+  ],
+  "summary": "Implemented and verified the P2.3 adversarial and regression test suite: added a dependency-free Python unittest suite under tests/ (config loading, ID allocation, lock matching/overlap, manifest staging, branch-protection payload) and seven adversarial scripts/test_shiki_p2_*.sh (malicious protected-path PR, fork PR limitation, missing CCA token, CCA schema path drift, required-check name drift, branch-protection enforcement failure, repair attempt limit + packet content). Registered python3 -m unittest discover -s tests in .github/workflows/shiki-validate.yml; the existing scripts/test_shiki_*.sh loop already runs the new shell tests. All acceptance checks pass: unittest (42), validate_shiki, py_compile, every shell test, shellcheck --strict, and actionlint --strict.",
+  "task_id": "T-20260606T012335591461Z-c9039bb5",
+  "timestamp": "2026-06-06T01:33:44Z",
+  "type": "check"
+}
