@@ -1,0 +1,20 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "PR #104 merged",
+    "PR #103 merged",
+    "PR #105 merged",
+    "reconciles #107/#108 merged"
+  ],
+  "goal_id": "G-0012",
+  "id": "L-20260606T042543237519Z-87a8c717",
+  "links": [
+    "#104",
+    "#103",
+    "#105"
+  ],
+  "summary": "G-0012 P2 reconcile: P2.1 (PR #104), P2.2 (PR #103), P2.3 (PR #105) merged; released #103 lock, marked #103 done, added real P2 task nodes to the DAG.",
+  "task_id": "T-20260606T042543237351Z-975ac5f0",
+  "timestamp": "2026-06-06T04:25:43Z",
+  "type": "completion"
+}
