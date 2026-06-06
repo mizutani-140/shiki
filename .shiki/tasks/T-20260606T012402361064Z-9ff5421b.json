@@ -17,7 +17,8 @@
     "L-20260606T012421388074Z-394bacec",
     "L-20260606T012421455380Z-b31d3877",
     "L-20260606T012834441706Z-a9df6c68",
-    "L-20260606T020341911724Z-e7548dfa"
+    "L-20260606T020341911724Z-e7548dfa",
+    "L-20260606T021350598525Z-75988c75"
   ],
   "locks": [
     "path:README.md",
@@ -31,6 +32,7 @@
     "path:.shiki/tasks/T-20260606T012402361064Z-9ff5421b.json",
     "path:.shiki/locks/T-20260606T012402361064Z-9ff5421b.json",
     "path:.shiki/worktrees/T-20260606T012402361064Z-9ff5421b.json",
+    "path:.shiki/ledger/**",
     "path:.shiki/ledger/L-20260606T012402361235Z-d70ac158.json",
     "path:.shiki/ledger/L-20260606T012421388074Z-394bacec.json",
     "path:.shiki/ledger/L-20260606T012421455380Z-b31d3877.json",
@@ -43,6 +45,6 @@
   ],
   "risk_level": "low",
   "scope": "Create root README.md, LICENSE (MIT), SECURITY.md, CONTRIBUTING.md, docs/adr/README.md (ADR index), docs/adr/template.md, docs/usage.md (command guide), docs/operations.md (install/upgrade/rollback/migration narrative).",
-  "status": "ready",
+  "status": "review",
   "title": "P2.1 \u2014 Add distribution & onboarding documentation"
 }
