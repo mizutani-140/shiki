@@ -1,0 +1,38 @@
+{
+  "acceptance_checks": [
+    "python3 scripts/validate_shiki.py passes",
+    "python3 -m py_compile scripts/*.py passes",
+    "README.md, LICENSE, SECURITY.md, CONTRIBUTING.md exist at repo root",
+    "docs/adr/README.md indexes existing ADRs; docs/usage.md and docs/operations.md exist"
+  ],
+  "assigned_runtime": "codex",
+  "dependencies": [],
+  "expected_branch": "shiki/G-0012/docs-onboarding",
+  "expected_pr": null,
+  "github_issue": 100,
+  "goal_id": "G-0012",
+  "id": "T-20260606T012402361064Z-9ff5421b",
+  "ledger_evidence": [
+    "L-20260606T012402361235Z-d70ac158",
+    "L-20260606T012421388074Z-394bacec",
+    "L-20260606T012421455380Z-b31d3877"
+  ],
+  "locks": [
+    "path:README.md",
+    "path:LICENSE",
+    "path:SECURITY.md",
+    "path:CONTRIBUTING.md",
+    "path:docs/adr/README.md",
+    "path:docs/adr/template.md",
+    "path:docs/usage.md",
+    "path:docs/operations.md"
+  ],
+  "non_goals": [],
+  "required_skills": [
+    "improve-codebase-architecture"
+  ],
+  "risk_level": "low",
+  "scope": "Create root README.md, LICENSE (MIT), SECURITY.md, CONTRIBUTING.md, docs/adr/README.md (ADR index), docs/adr/template.md, docs/usage.md (command guide), docs/operations.md (install/upgrade/rollback/migration narrative).",
+  "status": "ready",
+  "title": "P2.1 \u2014 Add distribution & onboarding documentation"
+}
