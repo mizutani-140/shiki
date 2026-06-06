@@ -8,7 +8,7 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/G-0012/regression-tests",
-  "expected_pr": null,
+  "expected_pr": 105,
   "github_issue": 102,
   "goal_id": "G-0012",
   "id": "T-20260606T012335591461Z-c9039bb5",
@@ -16,12 +16,21 @@
     "L-20260606T012335591680Z-bc77c4e4",
     "L-20260606T012350556299Z-a0f59d7e",
     "L-20260606T012350622447Z-6f40d87b",
-    "L-20260606T013344676013Z-08eb3301"
+    "L-20260606T013344676013Z-08eb3301",
+    "L-20260606T020332460628Z-978fb7bd"
   ],
   "locks": [
     "path:tests/**",
     "path:scripts/test_shiki_p2_*.sh",
-    "path:.github/workflows/shiki-validate.yml"
+    "path:.github/workflows/shiki-validate.yml",
+    "path:.shiki/tasks/T-20260606T012335591461Z-c9039bb5.json",
+    "path:.shiki/locks/T-20260606T012335591461Z-c9039bb5.json",
+    "path:.shiki/worktrees/T-20260606T012335591461Z-c9039bb5.json",
+    "path:.shiki/ledger/L-20260606T012335591680Z-bc77c4e4.json",
+    "path:.shiki/ledger/L-20260606T012350556299Z-a0f59d7e.json",
+    "path:.shiki/ledger/L-20260606T012350622447Z-6f40d87b.json",
+    "path:.shiki/ledger/L-20260606T013344676013Z-08eb3301.json",
+    "path:.shiki/ledger/L-20260606T020332460628Z-978fb7bd.json"
   ],
   "non_goals": [],
   "required_skills": [
