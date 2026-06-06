@@ -12,9 +12,10 @@
     "path:.shiki/ledger/L-20260606T062652655831Z-cda0ae28.json",
     "path:.shiki/ledger/L-20260606T062704546588Z-e02c1e58.json",
     "path:.shiki/ledger/L-20260606T062704611731Z-a1be2db3.json",
-    "path:.shiki/ledger/L-20260606T063303695736Z-bd5d7d29.json"
+    "path:.shiki/ledger/L-20260606T063303695736Z-bd5d7d29.json",
+    "path:.shiki/ledger/L-20260606T065241530543Z-b319dafd.json"
   ],
   "owner": "codex",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260606T062652655666Z-2b63a06f"
 }
