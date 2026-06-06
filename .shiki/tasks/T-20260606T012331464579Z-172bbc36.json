@@ -43,6 +43,6 @@
   ],
   "risk_level": "high",
   "scope": "Add VERSION + metadata-only pyproject.toml without console entry, .github/workflows/release.yml, docs/releasing.md, and ADR 0007.",
-  "status": "ready",
+  "status": "review",
   "title": "P2.2 \u2014 Add versioning, release workflow & packaging path"
 }
