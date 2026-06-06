@@ -17,7 +17,8 @@
     "L-20260606T012350556299Z-a0f59d7e",
     "L-20260606T012350622447Z-6f40d87b",
     "L-20260606T013344676013Z-08eb3301",
-    "L-20260606T020332460628Z-978fb7bd"
+    "L-20260606T020332460628Z-978fb7bd",
+    "L-20260606T021330919231Z-35137f95"
   ],
   "locks": [
     "path:tests/**",
@@ -26,6 +27,7 @@
     "path:.shiki/tasks/T-20260606T012335591461Z-c9039bb5.json",
     "path:.shiki/locks/T-20260606T012335591461Z-c9039bb5.json",
     "path:.shiki/worktrees/T-20260606T012335591461Z-c9039bb5.json",
+    "path:.shiki/ledger/**",
     "path:.shiki/ledger/L-20260606T012335591680Z-bc77c4e4.json",
     "path:.shiki/ledger/L-20260606T012350556299Z-a0f59d7e.json",
     "path:.shiki/ledger/L-20260606T012350622447Z-6f40d87b.json",
@@ -39,6 +41,6 @@
   ],
   "risk_level": "medium",
   "scope": "Add Python unittest suite under tests/, new adversarial shell tests scripts/test_shiki_p2_*.sh, and register both in .github/workflows/shiki-validate.yml. Read scripts/*.py modules; do NOT edit them.",
-  "status": "ready",
+  "status": "review",
   "title": "P2.3 \u2014 Add adversarial & regression test suite"
 }
