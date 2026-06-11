@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260611T045725689114Z-1dfd170d.json"
+  ],
+  "goal_id": "G-20260611T043922564748Z-67c7b569",
+  "id": "L-20260611T050501628655Z-c92ab5b2",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/118"
+  ],
+  "summary": "PR #118 evidence link: mirror-only post-merge reconcile (task done, lock released, goal G-20260611T043922564748Z-67c7b569 complete with report R-20260611T045725689114Z-1dfd170d) delivered via PR 118",
+  "task_id": "T-20260611T043946185231Z-7b8ae3da",
+  "timestamp": "2026-06-11T05:05:01+00:00",
+  "type": "check"
+}
