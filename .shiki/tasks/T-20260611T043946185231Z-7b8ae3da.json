@@ -9,7 +9,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260611t043946185231z-7b8ae3da-ci-5-installer-init-cca",
-  "expected_pr": null,
+  "expected_pr": 117,
   "github_issue": 116,
   "goal_id": "G-20260611T043922564748Z-67c7b569",
   "id": "T-20260611T043946185231Z-7b8ae3da",
@@ -20,7 +20,9 @@
     "L-20260611T043956920133Z-2fce55d3",
     "L-20260611T044245642397Z-cf7d0053",
     "L-20260611T044655401852Z-62a7706f",
-    "L-20260611T044717388210Z-bd153a3c"
+    "L-20260611T044717388210Z-bd153a3c",
+    "L-20260611T044748010397Z-455d620d",
+    "L-20260611T044803287864Z-a9f92bad"
   ],
   "locks": [
     "path:scripts/shiki_installer.py",
