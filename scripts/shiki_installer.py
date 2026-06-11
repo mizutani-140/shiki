@@ -145,6 +145,10 @@ def should_skip(path: Path, *, target_install: bool = False) -> bool:
         manifest = load_manifest(ROOT)
         if relative_text in manifest_install_include(manifest):
             return False
+        # Provider metadata is created per-target by shiki init/start; copying it
+        # into a new target would point that target at this repository's origin.
+        if relative_text == ".shiki/repo.json":
+            return True
         state_prefixes = tuple(f"{directory}/" for directory in manifest_create_directories(manifest))
         if relative_text.startswith(state_prefixes):
             return True

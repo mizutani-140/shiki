@@ -229,6 +229,7 @@ WORKFLOW_CONTRACTS = {
             "pull-requests": "write",
             "issues": "write",
             "checks": "write",
+            "actions": "read",
             "id-token": "write",
         },
         "jobs": {"cca": "CCA verdict", "mergegate": "MergeGate policy check"},
@@ -236,7 +237,13 @@ WORKFLOW_CONTRACTS = {
     "shiki-mergegate.yml": {
         "name": "Shiki MergeGate",
         "triggers": {"pull_request", "workflow_dispatch"},
-        "permissions": {"contents": "read", "pull-requests": "read", "issues": "read"},
+        "permissions": {
+            "contents": "read",
+            "pull-requests": "read",
+            "issues": "read",
+            "checks": "read",
+            "actions": "read",
+        },
         "jobs": {"mergegate": "MergeGate metadata check"},
     },
     "shiki-claude-review.yml": {

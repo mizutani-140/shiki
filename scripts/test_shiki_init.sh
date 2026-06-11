@@ -108,12 +108,18 @@ python3 scripts/shiki.py init "$DRY_RUN_NO_SECRET" \
 grep "dry-run: no bootstrap/init mutations were executed" /tmp/shiki-init-dry-run-no-secret.out >/dev/null
 
 : >"$SHIKI_FAKE_GH_LOG"
+# In a bootstrapped target the checkout's origin is the target repo, not the
+# platform repo; check_remote_adoption would refuse the hardcoded platform slug.
+PLATFORM_REPO="mizutani-140/shiki"
+if [ -f .shiki/repo.json ]; then
+  PLATFORM_REPO="$(python3 -c 'import json; print(json.load(open(".shiki/repo.json"))["repo"])')"
+fi
 python3 scripts/shiki.py bootstrap-platform \
-  --repo mizutani-140/shiki >/tmp/shiki-bootstrap-platform-dry-run.out
+  --repo "$PLATFORM_REPO" >/tmp/shiki-bootstrap-platform-dry-run.out
 grep "dry-run: no bootstrap/init mutations were executed" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
 grep "provider: github" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
 grep "filesystem: validate local Shiki platform files" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
-grep "github-repo: create or reuse mizutani-140/shiki" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
+grep "github-repo: create or reuse $PLATFORM_REPO" /tmp/shiki-bootstrap-platform-dry-run.out >/dev/null
 test -z "$(cat "$SHIKI_FAKE_GH_LOG")"
 
 I_UNDERSTAND="$TMP_ROOT/i-understand"
