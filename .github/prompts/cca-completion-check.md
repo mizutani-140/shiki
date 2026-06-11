@@ -97,3 +97,13 @@ Example acceptance item:
   "evidence": ["Validate Shiki mirror passed for PR head."]
 }
 ```
+
+When the verdict is `repair_required`, the `repair_packet` object must match
+`.shiki/schemas/repair-packet.schema.json` exactly. In particular the id field
+is named `repair_id` (not `id`) and must look like
+`RP-YYYYMMDDTHHMMSSffffffZ-<8 hex>`, for example
+`RP-20260610T073000000000Z-ab12cd34`. The required fields are `repair_id`,
+`goal_id`, `task_id`, `pr`, `attempt`, `failing_checklist_items`,
+`failing_acceptance_criteria`, `minimal_required_changes`,
+`prohibited_changes`, `required_skill`, `verification_commands`,
+`evidence_required` (not `evidence_to_produce`), and `stop_condition`.

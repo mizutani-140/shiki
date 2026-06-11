@@ -108,8 +108,14 @@ import threading
 
 root = pathlib.Path(sys.argv[1])
 sys.path.insert(0, str(root / "scripts"))
+import shiki_installer
 import shiki_locks
 import shiki_state
+
+# Provider metadata must never be templated into a new target; a copied
+# repo.json would point the target at this repository's origin.
+assert shiki_installer.should_skip(shiki_installer.ROOT / ".shiki" / "repo.json", target_install=True)
+assert not shiki_installer.should_skip(shiki_installer.ROOT / ".shiki" / "manifest.json", target_install=True)
 
 assert shiki_locks.path_matches_lock("src/audit/query.py", "path:src/audit/*")
 assert shiki_locks.path_matches_lock("src/audit/deep/query.py", "path:src/audit/")

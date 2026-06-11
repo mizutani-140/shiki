@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/issues/116"
+  ],
+  "goal_id": "G-20260611T043922564748Z-67c7b569",
+  "id": "L-20260611T043956553271Z-82871130",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/116"
+  ],
+  "summary": "GitHub Issue #116 created for T-20260611T043946185231Z-7b8ae3da",
+  "task_id": "T-20260611T043946185231Z-7b8ae3da",
+  "timestamp": "2026-06-11T04:39:56+00:00",
+  "type": "handoff"
+}

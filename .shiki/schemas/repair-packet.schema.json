@@ -19,9 +19,9 @@
     "stop_condition"
   ],
   "properties": {
-    "repair_id": { "type": "string", "pattern": "^RP-[0-9]{4,}$" },
-    "goal_id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
-    "task_id": { "type": "string", "pattern": "^T-[0-9]{4,}$" },
+    "repair_id": { "type": "string", "pattern": "^RP-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
+    "goal_id": { "type": "string", "pattern": "^G-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
+    "task_id": { "type": "string", "pattern": "^T-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
     "pr": { "type": "integer", "minimum": 1 },
     "attempt": { "type": "integer", "minimum": 1, "maximum": 3 },
     "failing_checklist_items": {

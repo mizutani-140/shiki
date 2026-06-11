@@ -1,0 +1,46 @@
+{
+  "acceptance_checks": [
+    "install-target --local-only \u3067\u4f5c\u3063\u305f\u30bf\u30fc\u30b2\u30c3\u30c8\u306b .shiki/repo.json \u304c\u30b3\u30d4\u30fc\u3055\u308c\u306a\u3044",
+    "bash scripts/test_shiki_init.sh \u3068 bash scripts/test_shiki_control_plane.sh \u304c\u30d1\u30b9\u3059\u308b",
+    "python3 scripts/validate_shiki.py \u304c\u30d1\u30b9\u3057\u3001\u30ef\u30fc\u30af\u30d5\u30ed\u30fc\u6a29\u9650\u3068\u30b3\u30f3\u30c8\u30e9\u30af\u30c8\u304c\u4e00\u81f4\u3059\u308b",
+    "\u65b0\u65e7\u4e21\u5f62\u5f0f\u306e ID \u3092\u542b\u3080\u4fee\u5fa9\u30d1\u30b1\u30c3\u30c8\u304c\u30b9\u30ad\u30fc\u30de\u691c\u8a3c\u3092\u901a\u308b",
+    "\u5168 scripts/test_shiki_*.sh \u3068 CI(Validate / Claude review / CCA / MergeGate)\u304c\u30d1\u30b9\u3059\u308b"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260611t043946185231z-7b8ae3da-ci-5-installer-init-cca",
+  "expected_pr": 117,
+  "github_issue": 116,
+  "goal_id": "G-20260611T043922564748Z-67c7b569",
+  "id": "T-20260611T043946185231Z-7b8ae3da",
+  "ledger_evidence": [
+    "L-20260611T043946185600Z-7760ba3f",
+    "L-20260611T043956553271Z-82871130",
+    "L-20260611T043956740722Z-09929af5",
+    "L-20260611T043956920133Z-2fce55d3",
+    "L-20260611T044245642397Z-cf7d0053",
+    "L-20260611T044655401852Z-62a7706f",
+    "L-20260611T044717388210Z-bd153a3c",
+    "L-20260611T044748010397Z-455d620d",
+    "L-20260611T044803287864Z-a9f92bad",
+    "L-20260611T043922565661Z-0d5d871b",
+    "L-20260611T043956651892Z-884990ca"
+  ],
+  "locks": [
+    "path:scripts/shiki_installer.py",
+    "path:scripts/test_shiki_init.sh",
+    "path:scripts/validate_shiki.py",
+    "path:.github/workflows/*",
+    "path:.github/prompts/*",
+    "path:.shiki/**",
+    "path:scripts/test_shiki_control_plane.sh"
+  ],
+  "non_goals": [],
+  "required_skills": [
+    "tdd"
+  ],
+  "risk_level": "medium",
+  "scope": "mizutani-140/Shopify_Create \u3067\u691c\u8a3c\u6e08\u307f\u306e\u4fee\u6b63\u3092\u540c\u4e00\u5185\u5bb9\u3067\u79fb\u690d\u3059\u308b: (1) shiki_installer.py should_skip \u306b .shiki/repo.json \u9664\u5916(provider metadata \u306f init/start \u304c\u4f5c\u308b\u305f\u3081\u30c6\u30f3\u30d7\u30ec\u30fc\u30c8\u914d\u5e03\u3057\u306a\u3044) (2) test_shiki_init.sh \u306e bootstrap-platform \u30c9\u30e9\u30a4\u30e9\u30f3\u3067 PLATFORM_REPO \u3092 .shiki/repo.json \u304b\u3089\u5c0e\u51fa(\u7121\u3051\u308c\u3070 mizutani-140/shiki) (3) shiki-mergegate.yml permissions \u306b checks:read + actions:read\u3001shiki-cca-completion.yml \u306b actions:read \u3092\u8ffd\u52a0\u3057 validate_shiki.py \u306e WORKFLOW_CONTRACTS \u3092\u540c\u671f(private \u30bf\u30fc\u30b2\u30c3\u30c8\u3067 statusCheckRollup/checkSuite.workflowRun \u304c Resource not accessible \u306b\u306a\u308b\u305f\u3081) (4) repair-packet.schema.json \u306e repair_id/goal_id/task_id \u30d1\u30bf\u30fc\u30f3\u3092 ^X-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$ \u5f62\u5f0f\u306b\u62e1\u5f35 (5) cca-completion-check.md \u306b repair_packet \u306e\u5fc5\u9808\u30d5\u30a3\u30fc\u30eb\u30c9\u540d(repair_id\u3001evidence_required \u7b49)\u3092\u660e\u8a18\u3002Guardian \u627f\u8a8d\u306b\u3088\u308a\u5b9f\u88c5\u306f Claude Code \u304c\u884c\u3046\u3002",
+  "status": "review",
+  "title": "\u30bf\u30fc\u30b2\u30c3\u30c8 CI \u30b3\u30f3\u30c8\u30e9\u30af\u30c8\u4fee\u6b63 5 \u4ef6\u306e\u79fb\u690d(installer / init \u30c6\u30b9\u30c8 / \u30ef\u30fc\u30af\u30d5\u30ed\u30fc\u6a29\u9650 / \u4fee\u5fa9\u30d1\u30b1\u30c3\u30c8\u30b9\u30ad\u30fc\u30de / CCA \u30d7\u30ed\u30f3\u30d7\u30c8)"
+}

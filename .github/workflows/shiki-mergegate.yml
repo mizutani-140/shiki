@@ -19,6 +19,8 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+  checks: read
+  actions: read
 
 jobs:
   mergegate:

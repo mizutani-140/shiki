@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/runner/EXEC-20260611T044655400818Z-87dfe8e8.json",
+    "scripts/test_shiki_control_plane.sh"
+  ],
+  "goal_id": "G-20260611T043922564748Z-67c7b569",
+  "id": "L-20260611T044803287864Z-a9f92bad",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/117"
+  ],
+  "summary": "PR #117 evidence link: five target CI contract fixes ported from mizutani-140/Shopify_Create; tdd evidence: red-green proven regression assert for installer repo.json skip (should_skip False before fix, True after) plus full scripts/test_shiki_*.sh loop pass (EXEC-20260611T044655400818Z-87dfe8e8)",
+  "task_id": "T-20260611T043946185231Z-7b8ae3da",
+  "timestamp": "2026-06-11T04:48:03+00:00",
+  "type": "check"
+}

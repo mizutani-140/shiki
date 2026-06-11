@@ -1,0 +1,10 @@
+{
+  "command": "python3 scripts/validate_shiki.py && for s in scripts/test_shiki_*.sh; do bash \"$s\" || exit 1; done && echo ALL_TESTS_PASS",
+  "created_at": "2026-06-11T04:46:55+00:00",
+  "goal_id": "G-20260611T043922564748Z-67c7b569",
+  "id": "EXEC-20260611T044655400818Z-87dfe8e8",
+  "returncode": 0,
+  "stderr": "",
+  "stdout": "Shiki validation passed\nadversarial state/evidence/lock regression suite passed\nShiki validation passed\nShiki validation passed\nShiki validation passed\nshiki control-plane tests passed\nShiki validation passed\nShiki validation passed\nshiki daemon runner tests passed\nshiki doctor tests passed\nevidence manifest and ledger helper fixtures passed\nshiki evidence integrity tests passed\ngovernance evidence adversarial fixtures passed\nguardian policy evaluator fixtures passed\nshiki guardian policy tests passed\nShiki validation passed\nShiki validation passed\n[shiki] configured branch protection for main\nshiki init tests passed\nShiki manifest tests passed\nshiki migration tests passed\nmodule import and staging smoke passed\nshiki module boundary tests passed\nP2.3.8 branch protection failure handling passed\nP2.3.7 required check name drift detection passed\nP2.3.4 fork PR limitation handling passed\nP2.3.3 malicious protected-path PR rejection passed\nP2.3.5 missing CCA token handling passed\nrepair packet content satisfies schema\nP2.3.9 repair attempt-limit and packet content passed\nP2.3.6 CCA schema path drift detection passed\nprovider config basics passed\nshiki provider config tests passed\nShiki validation passed\nShiki validation passed\nshiki run orchestrator tests passed\nShiki validation passed\nshiki runner codex tests passed\nShiki validation passed\nshiki runtime auth tests passed\nshiki runtime registry tests passed\nShiki shellcheck passed\nShiki validation passed\nShiki validation passed\nshiki start tests passed\nshiki state class tests passed\nShiki validator hardening tests passed\nShiki workflow actionlint passed\nALL_TESTS_PASS\n",
+  "task_id": "T-20260611T043946185231Z-7b8ae3da"
+}
