@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260611T043922564748Z-67c7b569.json"
+  ],
+  "goal_id": "G-20260611T043922564748Z-67c7b569",
+  "id": "L-20260611T043922565661Z-0d5d871b",
+  "links": [],
+  "summary": "Goal registered: Shopify_Create \u3067\u5b9f\u8a3c\u6e08\u307f\u306e\u30bf\u30fc\u30b2\u30c3\u30c8 CI \u30b3\u30f3\u30c8\u30e9\u30af\u30c8\u4fee\u6b63 5 \u4ef6\u3092\u30d7\u30e9\u30c3\u30c8\u30d5\u30a9\u30fc\u30e0\u3078\u9084\u5143",
+  "task_id": null,
+  "timestamp": "2026-06-11T04:39:22+00:00",
+  "type": "goal-created"
+}

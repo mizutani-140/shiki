@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-06-11T04:39:56+00:00",
+  "goal_id": "G-20260611T043922564748Z-67c7b569",
+  "locks": [
+    "path:scripts/shiki_installer.py",
+    "path:scripts/test_shiki_init.sh",
+    "path:scripts/validate_shiki.py",
+    "path:.github/workflows/*",
+    "path:.github/prompts/*",
+    "path:.shiki/**"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260611T043946185231Z-7b8ae3da"
+}

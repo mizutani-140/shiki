@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260611T043946185231Z-7b8ae3da.json"
+  ],
+  "goal_id": "G-20260611T043922564748Z-67c7b569",
+  "id": "L-20260611T043946185600Z-7760ba3f",
+  "links": [],
+  "summary": "Task registered: \u30bf\u30fc\u30b2\u30c3\u30c8 CI \u30b3\u30f3\u30c8\u30e9\u30af\u30c8\u4fee\u6b63 5 \u4ef6\u306e\u79fb\u690d(installer / init \u30c6\u30b9\u30c8 / \u30ef\u30fc\u30af\u30d5\u30ed\u30fc\u6a29\u9650 / \u4fee\u5fa9\u30d1\u30b1\u30c3\u30c8\u30b9\u30ad\u30fc\u30de / CCA \u30d7\u30ed\u30f3\u30d7\u30c8)",
+  "task_id": "T-20260611T043946185231Z-7b8ae3da",
+  "timestamp": "2026-06-11T04:39:46+00:00",
+  "type": "task-registered"
+}
