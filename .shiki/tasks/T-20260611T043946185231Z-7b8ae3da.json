@@ -22,7 +22,9 @@
     "L-20260611T044655401852Z-62a7706f",
     "L-20260611T044717388210Z-bd153a3c",
     "L-20260611T044748010397Z-455d620d",
-    "L-20260611T044803287864Z-a9f92bad"
+    "L-20260611T044803287864Z-a9f92bad",
+    "L-20260611T043922565661Z-0d5d871b",
+    "L-20260611T043956651892Z-884990ca"
   ],
   "locks": [
     "path:scripts/shiki_installer.py",
@@ -30,7 +32,8 @@
     "path:scripts/validate_shiki.py",
     "path:.github/workflows/*",
     "path:.github/prompts/*",
-    "path:.shiki/**"
+    "path:.shiki/**",
+    "path:scripts/test_shiki_control_plane.sh"
   ],
   "non_goals": [],
   "required_skills": [

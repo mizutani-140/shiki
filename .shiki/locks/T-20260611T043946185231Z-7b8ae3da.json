@@ -7,7 +7,8 @@
     "path:scripts/validate_shiki.py",
     "path:.github/workflows/*",
     "path:.github/prompts/*",
-    "path:.shiki/**"
+    "path:.shiki/**",
+    "path:scripts/test_shiki_control_plane.sh"
   ],
   "owner": "shiki-cli",
   "state": "active",
