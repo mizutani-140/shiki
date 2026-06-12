@@ -9,7 +9,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/g-266eceff-spec-freeze",
-  "expected_pr": null,
+  "expected_pr": 124,
   "github_issue": 119,
   "goal_id": "G-20260612T062701078809Z-266eceff",
   "id": "T-20260612T062731178333Z-36e9bdc7",
@@ -22,7 +22,8 @@
     "L-20260612T085336892327Z-8c33599b",
     "L-20260612T085336893090Z-2cd013f9",
     "L-20260612T085336893451Z-7cb6ac98",
-    "L-20260612T085336982902Z-2a14a61a"
+    "L-20260612T085336982902Z-2a14a61a",
+    "L-20260612T085442717273Z-ed76f0f2"
   ],
   "locks": [
     "path:scripts/shiki_tasks.py",
