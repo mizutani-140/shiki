@@ -1,0 +1,19 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-12T05:44:43+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260612T045948146790Z-a27bcfa2.json"
+  ],
+  "goal_id": "G-20260612T045923586452Z-8f7011ec",
+  "id": "R-20260612T054443778171Z-879f72d2",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "medium"
+  },
+  "status": "complete",
+  "summary": "G-A complete: claude-code is the default implementer runtime; shiki runner claude dispatches via the runtime adapter boundary; ADR 0008/0009 and CONTEXT.md glossary recorded; merged as PR #120"
+}

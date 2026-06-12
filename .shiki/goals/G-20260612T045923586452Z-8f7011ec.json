@@ -13,6 +13,9 @@
   "created_at": "2026-06-12T04:59:23+00:00",
   "github_issue": 119,
   "id": "G-20260612T045923586452Z-8f7011ec",
+  "ledger_evidence": [
+    "L-20260612T054443779008Z-a798112a"
+  ],
   "non_goals": [
     "No spec_freeze plan contract changes (G-C scope)",
     "No autonomous loop, auto-merge, or repair auto-dispatch (G-D scope)",
@@ -25,6 +28,6 @@
     "tdd"
   ],
   "risk_level": "medium",
-  "status": "planned",
+  "status": "complete",
   "title": "G-A: Claude Code as default implementer runtime with shiki runner claude adapter"
 }

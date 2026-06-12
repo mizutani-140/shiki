@@ -9,8 +9,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/g-8f7011ec-claude-default-runner",
-  "expected_pr": 120,
+  "expected_branch": "shiki/t-a27bcfa2-post-merge-reconcile",
+  "expected_pr": 121,
   "github_issue": 119,
   "goal_id": "G-20260612T045923586452Z-8f7011ec",
   "id": "T-20260612T045948146790Z-a27bcfa2",
@@ -23,7 +23,10 @@
     "L-20260612T053259839357Z-a2d2be2c",
     "L-20260612T053349378376Z-3d70c7ec",
     "L-20260612T053540157300Z-b0df682e",
-    "L-20260612T053540158176Z-1e1a7626"
+    "L-20260612T053540158176Z-1e1a7626",
+    "L-20260612T054443696606Z-7ecda253",
+    "L-20260612T054443779008Z-a798112a",
+    "L-20260612T054500706823Z-82551799"
   ],
   "locks": [
     "path:scripts/shiki_runtime.py",
@@ -57,6 +60,6 @@
   ],
   "risk_level": "medium",
   "scope": "Grant claude-code the implementer and runner roles in scripts/shiki_runtime_registry.py and set implementer: claude-code in .shiki/config.yaml. Extract the shared runner machinery from cmd_runner_codex into a runtime adapter boundary (new module scripts/shiki_runtime_adapters.py: ExecResult, RunnerAdapter, adapter registry, auth probes) and add shiki runner claude (headless claude -p in the registered worktree, EXEC + ledger evidence, review/repair-needed transition). Default task runtime becomes claude-code. Sync installer TEMPLATE_PATHS, validator SHIKI_CLI_MODULE_FILES, module-boundary/staging/registry tests; add scripts/test_shiki_runner_claude.sh and tests/test_runner_adapters.py. Update runtime-split docs (AGENTS.md, CLAUDE.md, docs/agents/runtime-registry.md, runtime-auth-model.md, implementation-policy.md, control-commands.md, codex-handoff.md, bootstrap-command.md, .claude/commands/shiki.md, .codex/skills/shiki/SKILL.md). Commit decision records: ADR 0008, ADR 0009, CONTEXT.md glossary (Requirements Definition, Spec Freeze, Spec Amendment, Assumption Log). Guardian-approved implementation by Claude Code in this assigned task.",
-  "status": "review",
+  "status": "done",
   "title": "Establish claude-code as default implementer: registry roles, runtime adapter boundary, shiki runner claude, tests, docs, ADR 0008"
 }
