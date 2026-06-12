@@ -1,0 +1,49 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "validate_memory enforces status-specific fields, strict transitions (no skipping), local-evidence requirement, and the operator-approval boundary, fail-closed",
+    "Four capture points (repair, loop stop, CCA fail, runner fail) write redacted raw memories without ever breaking the loop",
+    "write_task_handoff regenerates on dispatch and injects active distilled rules with MEM ids in deterministic order, with an always-present Distilled Rules section (H-12)",
+    "goal complete emits the scorecard schema computed from ledger only, with suggestions that never change memory status",
+    "All 12 operator acceptance checks from proposal 0001 v2 pass in tests"
+  ],
+  "created_at": "2026-06-12T15:23:57+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "Target is the mizutani-140/shiki platform (name collision with shikijs/shiki resolved explicitly)",
+      ".shiki/memories/ as mirror-class current-state documents; audit trail via memory_transition ledger events",
+      "Three-stage promotion separation: raw auto-capture, verified machine-validated, distilled operator-approved",
+      "Consult: deterministic handoff injection with MEM ids (H-12) plus session-start reading; CCA independence unchanged",
+      "Scorecard and distillation suggestions at goal completion, ledger-only sources"
+    ],
+    "source": "Requirements Definition session 2026-06-12/13 (/shiki Goal mode); proposal docs/proposals/0001-memory-loop-spec-freeze-review.md v2; operator review applied (B1-B10, M1-M5)",
+    "status": "complete"
+  },
+  "id": "G-20260612T152357704854Z-8a5508cf",
+  "ledger_evidence": [
+    "L-20260612T152357705670Z-448aa8b2",
+    "L-20260612T152456078460Z-be384f60"
+  ],
+  "non_goals": [
+    "No CCA core prompt or independence changes",
+    "No work on shikijs/shiki (the OSS highlighter)",
+    "No retroactive scorecards for past goals",
+    "No bypassPermissions bounding (separate goal)",
+    "No application to existing targets (separate goal)"
+  ],
+  "outcome": "The platform learns across Goals: failures are captured automatically as raw memories with redaction, promotion to verified requires machine-checked local evidence, distilled rules require operator approval and are revocable, handoffs deterministically inject active rules with MEM ids, and goal completion emits a ledger-derived scorecard with distillation suggestions",
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260612T152357625042Z-b25b41ec",
+  "status": "planned",
+  "title": "Memory Loop: capture, promotion, consult, and scorecard for the Shiki platform"
+}

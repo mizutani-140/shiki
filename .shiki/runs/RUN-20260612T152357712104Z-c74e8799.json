@@ -1,0 +1,26 @@
+{
+  "blocked_task_ids": {
+    "T-20260612T152357707056Z-90925f53": [
+      "dependencies are not complete"
+    ],
+    "T-20260612T152357707653Z-e200274d": [
+      "dependencies are not complete"
+    ]
+  },
+  "created_at": "2026-06-12T15:23:57+00:00",
+  "dag": ".shiki/dag/G-20260612T152357704854Z-8a5508cf.json",
+  "dispatchable_task_ids": [
+    "T-20260612T152357706392Z-75f529da"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "RUN-20260612T152357712104Z-c74e8799",
+  "plan_id": "P-20260612T152357625042Z-b25b41ec",
+  "task_ids": [
+    "T-20260612T152357706392Z-75f529da",
+    "T-20260612T152357707056Z-90925f53",
+    "T-20260612T152357707653Z-e200274d"
+  ],
+  "worktrees": [
+    ".shiki/worktrees/T-20260612T152357706392Z-75f529da.json"
+  ]
+}

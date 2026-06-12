@@ -1,0 +1,150 @@
+{
+  "completion_conditions": [
+    "validate_memory enforces status-specific fields, strict transitions (no skipping), local-evidence requirement, and the operator-approval boundary, fail-closed",
+    "Four capture points (repair, loop stop, CCA fail, runner fail) write redacted raw memories without ever breaking the loop",
+    "write_task_handoff regenerates on dispatch and injects active distilled rules with MEM ids in deterministic order, with an always-present Distilled Rules section (H-12)",
+    "goal complete emits the scorecard schema computed from ledger only, with suggestions that never change memory status",
+    "All 12 operator acceptance checks from proposal 0001 v2 pass in tests"
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "Target is the mizutani-140/shiki platform (name collision with shikijs/shiki resolved explicitly)",
+      ".shiki/memories/ as mirror-class current-state documents; audit trail via memory_transition ledger events",
+      "Three-stage promotion separation: raw auto-capture, verified machine-validated, distilled operator-approved",
+      "Consult: deterministic handoff injection with MEM ids (H-12) plus session-start reading; CCA independence unchanged",
+      "Scorecard and distillation suggestions at goal completion, ledger-only sources"
+    ],
+    "source": "Requirements Definition session 2026-06-12/13 (/shiki Goal mode); proposal docs/proposals/0001-memory-loop-spec-freeze-review.md v2; operator review applied (B1-B10, M1-M5)",
+    "status": "complete"
+  },
+  "id": "P-20260612T152357625042Z-b25b41ec",
+  "ingested_at": "2026-06-12T15:23:57+00:00",
+  "non_goals": [
+    "No CCA core prompt or independence changes",
+    "No work on shikijs/shiki (the OSS highlighter)",
+    "No retroactive scorecards for past goals",
+    "No bypassPermissions bounding (separate goal)",
+    "No application to existing targets (separate goal)"
+  ],
+  "outcome": "The platform learns across Goals: failures are captured automatically as raw memories with redaction, promotion to verified requires machine-checked local evidence, distilled rules require operator approval and are revocable, handoffs deterministically inject active rules with MEM ids, and goal completion emits a ledger-derived scorecard with distillation suggestions",
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_file": "/private/tmp/memory-loop-plan.json",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": "docs/proposals/0001-memory-loop-spec-freeze-review.md",
+    "source": "Operator approval of proposal 0001 v2: https://github.com/mizutani-140/shiki/pull/128#issuecomment-4692632117 (SF-01); scope inventory in proposal section 4 (SF-02)",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "raw->verified and raw->distilled direct promotion rejected; verified with zero local evidence rejected; distilled without approval_ledger rejected; distill --approve refused in autonomous context (tests prove all five)",
+        "python3 scripts/validate_shiki.py passes with the new directory, schema, migration applied, and ledger enum extended",
+        "bash scripts/test_shiki_memory_loop.sh and python3 -m unittest discover -s tests pass; all existing contract tests stay green",
+        "CI (Validate / Claude review / CCA / MergeGate) green; PR carries PR-12 code-review evidence"
+      ],
+      "locks": [
+        "path:.shiki/**",
+        "path:scripts/shiki_memory.py",
+        "path:scripts/shiki_tasks.py",
+        "path:scripts/shiki_contracts.py",
+        "path:scripts/validate_shiki.py",
+        "path:scripts/shiki_migrations.py",
+        "path:scripts/shiki_cli.py",
+        "path:scripts/shiki_installer.py",
+        "path:scripts/test_shiki_*.sh",
+        "path:tests/*",
+        "path:docs/**"
+      ],
+      "non_goals": [
+        "No capture hooks yet (T2)",
+        "No handoff injection yet (T3)",
+        "No workflow YAML changes"
+      ],
+      "required_skills": [
+        "tdd",
+        "code-review"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Implement proposal 0001 v2 sections 3.1, 3.2, 3.4: .shiki/memories mirror directory (manifest directories + install.create_directories AND shiki_contracts.TARGET_STATE_DIRECTORIES in identical order, .shiki/README.md layout block regenerated, migration M-20260613-0001-memories registered AND applied in the same PR); memory_transition added to LEDGER_TYPES and ledger.schema.json enum together; MEM prefix in shiki_tasks scan_ids/next_control_id dicts; .shiki/schemas/memory-entry.schema.json; validate_memory in validate_shiki.py enforcing status-specific required/prohibited fields, strict transitions raw->investigated->verified->distilled with no skipping, structured evidence with at least one local evidence (ledger/report/exec) for verified, approval_ledger+approved_by for distilled, active/supersede/revoke lifecycle fields, filename==id, fail-closed; new module scripts/shiki_memory.py with CLI subcommands memory capture/list/investigate/promote/distill/revoke/supersede where distill/revoke/supersede require operator context (refused when the SHIKI autonomous-execution context variable set by runner/loop is present) and write memory_transition ledger events plus operator approval ledger events; sync TEMPLATE_PATHS, SHIKI_CLI_MODULE_FILES, module-boundaries/staging lists; tests tests/test_memory_promotion.py (state machine unit tests incl. the 5 rejection acceptance checks) and scripts/test_shiki_memory_loop.sh part 1 (CLI + validator contract). Also commit docs/proposals/0001-memory-loop-spec-freeze-review.md as the frozen archive on this branch.",
+      "title": "Memory state foundation"
+    },
+    {
+      "acceptance_checks": [
+        "Capture writes valid redacted raw memories at all four points in the goal-loop contract test; invalid capture writes nothing and warns; runner stdout/stderr bodies never appear in memory files",
+        "goal complete report contains the scorecard schema from proposal 3.6 computed from ledger with dedup; suggestions present; memory statuses unchanged; loop stdout stays json_get_last compatible",
+        "python3 scripts/validate_shiki.py and the full contract suite pass; CI green; PR carries PR-12 evidence"
+      ],
+      "dependencies": [
+        "Memory state foundation"
+      ],
+      "locks": [
+        "path:.shiki/**",
+        "path:scripts/shiki_memory.py",
+        "path:scripts/shiki_loop.py",
+        "path:scripts/shiki_runtime.py",
+        "path:scripts/shiki_tasks.py",
+        "path:scripts/test_shiki_*.sh",
+        "path:tests/*",
+        "path:docs/**"
+      ],
+      "non_goals": [
+        "No promotion logic changes (T1)",
+        "No handoff changes (T3)"
+      ],
+      "required_skills": [
+        "tdd",
+        "code-review"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Implement proposal 0001 v2 sections 3.3 and 3.6: redacting capture helpers in shiki_memory.py (no stdout/stderr bodies, structured evidence refs plus short claim, skip-with-warning when unredactable, schema-validate before write, never raise into callers); hook the four capture points (create_repair_packet after guards, shiki_loop execute_action on the post-execution result including synthesized stop conversions, CCA-fail observation from the structured checks snapshot, record_runner_result on non-zero returncode); scorecard in cmd_goal_complete reports computed only from ledger/task/report state with ledger-id dedup, zeros plus warnings for missing sources, per-goal repair filtering by packet goal_id, duration window, and suggestions array that never changes memory status; keep loop stdout json_get_last compatible; failure-tolerant generation.",
+      "title": "Capture hooks and scorecard"
+    },
+    {
+      "acceptance_checks": [
+        "Active distilled rules are injected with MEM ids in deterministic order; revoked/superseded rules are never injected; none applicable is emitted when no rule matches (tests prove all three)",
+        "Handoffs regenerate on every dispatch; H-12 present in checklists.md with section-presence-only wording; session-start reads documented; glossary entries added",
+        "python3 scripts/validate_shiki.py and the full contract suite pass; CI green; PR carries PR-12 evidence"
+      ],
+      "dependencies": [
+        "Memory state foundation"
+      ],
+      "locks": [
+        "path:.shiki/**",
+        "path:scripts/shiki_memory.py",
+        "path:scripts/shiki_tasks.py",
+        "path:scripts/shiki_loop.py",
+        "path:scripts/shiki_runtime.py",
+        "path:scripts/test_shiki_*.sh",
+        "path:tests/*",
+        "path:docs/**",
+        "path:CONTEXT.md",
+        "path:CLAUDE.md",
+        "path:.claude/commands/shiki.md",
+        "path:.codex/skills/shiki/SKILL.md"
+      ],
+      "non_goals": [
+        "No CCA prompt changes",
+        "No capture changes (T2)"
+      ],
+      "required_skills": [
+        "tdd",
+        "code-review"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Implement proposal 0001 v2 sections 3.5 and 3.7: write_task_handoff always emits a Distilled Rules section (none applicable explicit) selecting only active, non-superseded, non-revoked distilled rules matched on task.area/goal.area/applies_to/tags, stable-sorted last_verified desc then id asc, each with its MEM id; dispatch regenerates the handoff every time (remove the write-if-missing cache in shiki_loop and runner paths); add H-12 to docs/agents/checklists.md as blocking-when-applicable with the section-presence-only CCA wording from proposal 3.5; add session-start memory reading to .claude/commands/shiki.md and CLAUDE.md without touching the source-of-truth blocks; add CONTEXT.md glossary entries Memory, Distilled Rule, Scorecard; add a docs/agents memory document following ledger/state-classes conventions; update docs/agents/shiki-cli-architecture.md module table.",
+      "title": "Consult injection and docs"
+    }
+  ],
+  "title": "Memory Loop: capture, promotion, consult, and scorecard for the Shiki platform"
+}
