@@ -123,6 +123,7 @@ When assigning work to Codex Front, provide a self-contained handoff:
 - Relevant docs, ADRs, modules, and tests.
 - Required skill invocations.
 - TDD expectations.
+- Pre-PR `code-review` gate expectations.
 - Acceptance criteria.
 - Verification commands.
 - CCA checklist profile.
@@ -187,7 +188,7 @@ Local command execution by Claude is diagnostic unless recorded as durable evide
 When checks fail, CCA rejects completion, or review finds blockers:
 
 1. Identify the exact failing evidence.
-2. Decide whether `diagnose`, `tdd`, `grill-with-docs`, or `improve-codebase-architecture` is required.
+2. Decide whether `diagnose`, `tdd`, `code-review`, `grill-with-docs`, or `improve-codebase-architecture` is required.
 3. Create a bounded repair packet.
 4. Assign source repair to the assigned implementer runtime (Claude Code by default).
 5. Keep the fix scoped to the failure.

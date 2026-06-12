@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260612T055133628076Z-d76238aa.json"
+  ],
+  "goal_id": "G-20260612T055133628076Z-d76238aa",
+  "id": "L-20260612T055133628737Z-55b7d606",
+  "links": [],
+  "summary": "Goal registered: G-B: mandatory pre-PR code-review gate via Skill Gate and skill-evidence enforcement",
+  "task_id": null,
+  "timestamp": "2026-06-12T05:51:33+00:00",
+  "type": "goal-created"
+}

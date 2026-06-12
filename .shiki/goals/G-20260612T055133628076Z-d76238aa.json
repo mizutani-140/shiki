@@ -1,0 +1,29 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "validate_shiki.py accepts code-review in required_skills and repair packets; KNOWN_SKILLS, repair-packet schema enum, and CLI choices are extended together",
+    "register_task_from_plan and shiki start default required_skills include code-review, making the gate mandatory through existing MergeGate skill-evidence enforcement",
+    "skill-gate.md, AGENTS.md skill table, checklists.md PR family, triage labels, and implementation-policy.md record the TDD -> code-review -> PR contract",
+    "scripts/test_shiki_code_review_gate.sh proves the contract and all existing tests stay green"
+  ],
+  "created_at": "2026-06-12T05:51:33+00:00",
+  "github_issue": 119,
+  "id": "G-20260612T055133628076Z-d76238aa",
+  "non_goals": [
+    "No spec_freeze or /shiki Goal mode changes (G-C)",
+    "No autonomous loop changes (G-D)",
+    "No new required CI checks or workflow YAML changes"
+  ],
+  "outcome": "code-review is a registered Skill Gate skill backed by skills/engineering/code-review/SKILL.md; new tasks require it by default so MergeGate's skill-evidence rule enforces the pre-PR gate; repair packets can route through code-review; checklists and docs record the contract",
+  "required_skills": [
+    "grill-with-docs",
+    "tdd"
+  ],
+  "risk_level": "medium",
+  "status": "planned",
+  "title": "G-B: mandatory pre-PR code-review gate via Skill Gate and skill-evidence enforcement"
+}

@@ -213,6 +213,7 @@ Use the engineering skills under the configured skills directory when their trig
 | `to-issues` | A Goal, PRD, or plan must become independently grabbable vertical-slice issues. |
 | `triage` | Issue state, readiness, labels, or AFK-agent preparation must be managed. |
 | `tdd` | Feature work or bug fixes can be specified by observable behavior. |
+| `code-review` | The TDD loop is green and the implementer is about to create or update a PR; default for every implementation task. |
 | `diagnose` | Hard bugs, regressions, failing checks, flaky behavior, or performance problems occur. |
 | `improve-codebase-architecture` | Architecture, testability, AI-navigability, deep modules, or structural friction are in scope. |
 | `prototype` | A throwaway logic or UI prototype is needed to answer a design question. |
@@ -232,6 +233,7 @@ Codex must:
 - Use public interfaces and observable behavior.
 - Write minimal code to pass the current test.
 - Refactor only after green.
+- Run the `code-review` pre-PR gate after green and record its evidence before creating or updating the PR.
 - Keep changes scoped to the task.
 - Update PR and ledger evidence.
 
@@ -312,7 +314,7 @@ Repair packets must include:
 - Prohibited changes.
 - Verification commands.
 - Evidence the implementer must produce.
-- Whether `diagnose`, `tdd`, `grill-with-docs`, or `improve-codebase-architecture` is required.
+- Whether `diagnose`, `tdd`, `code-review`, `grill-with-docs`, or `improve-codebase-architecture` is required.
 
 ## Architecture Gate
 

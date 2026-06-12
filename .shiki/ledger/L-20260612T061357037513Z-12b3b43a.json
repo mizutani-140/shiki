@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "scripts/test_shiki_code_review_gate.sh"
+  ],
+  "goal_id": "G-20260612T055133628076Z-d76238aa",
+  "id": "L-20260612T061357037513Z-12b3b43a",
+  "links": [],
+  "summary": "Skill tdd evidence: scripts/test_shiki_code_review_gate.sh written with the change (default-skill assertion, explicit-skill task, repair packet routing, installed-target validation); full suite of 29 contract tests + unittests green",
+  "task_id": "T-20260612T055157606542Z-5205e0bd",
+  "timestamp": "2026-06-12T06:13:57+00:00",
+  "type": "check"
+}

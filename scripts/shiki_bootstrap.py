@@ -329,7 +329,7 @@ def load_start_answers(args: argparse.Namespace) -> dict[str, Any]:
                 "scope": task_scope,
                 "acceptance_checks": acceptance_checks,
                 "locks": locks,
-                "required_skills": ["tdd"],
+                "required_skills": ["tdd", "code-review"],
             }
         ]
 

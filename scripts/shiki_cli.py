@@ -316,7 +316,7 @@ def build_parser() -> argparse.ArgumentParser:
     repair_packet.add_argument(
         "--required-skill",
         default="tdd",
-        choices=["tdd", "diagnose", "grill-with-docs", "improve-codebase-architecture", "evidence-only", "none"],
+        choices=["tdd", "code-review", "diagnose", "grill-with-docs", "improve-codebase-architecture", "evidence-only", "none"],
     )
     repair_packet.add_argument("--verification-command", action="append", required=True)
     repair_packet.add_argument("--evidence-required", action="append", default=[])

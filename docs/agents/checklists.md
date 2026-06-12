@@ -123,6 +123,7 @@ Blocking values:
 | PR-09 | PR states CCA checklist profile. | blocking |
 | PR-10 | PR links ledger entries or evidence artifacts. | blocking |
 | PR-11 | PR discloses skipped checks or manual verification needs. | blocking when applicable |
+| PR-12 | PR includes pre-PR code-review evidence (ledger entry naming the skill plus a `## Pre-PR code review` body section) or a justified, recorded exception per the exception classes in `skills/engineering/code-review/SKILL.md`. | blocking |
 
 ## V — Verification Checklist
 

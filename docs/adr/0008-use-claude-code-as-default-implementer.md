@@ -41,7 +41,9 @@ We will make `claude-code` the default implementer runtime:
   codex`, the Codex handoff templates, and the ChatGPT OAuth auth model from
   ADR 0005 remain supported for tasks explicitly assigned to `codex`.
 - Commit to mandating two Claude-native capabilities as loop contract in
-  follow-up Goals (they are NOT yet part of the constitution or checklists):
+  follow-up Goals (status: the code-review gate was delivered by Goal G-B —
+  skill registry, checklists item PR-12, default required_skills — while the
+  Context & Impact sweep remains pending for Goal G-C):
   - the implementer will run the `code-review` skill as a pre-PR self-review
     gate (TDD, then code review with fixes applied, then PR), recorded in the
     ledger and the PR body and judged by a new CCA checklist item — to be

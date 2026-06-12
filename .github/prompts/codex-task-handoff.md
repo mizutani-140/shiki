@@ -9,6 +9,7 @@ Rules:
 - Implement only the assigned task.
 - Use TDD for behavior work.
 - One failing test, minimal implementation, pass, repeat.
+- Run the `code-review` pre-PR gate after green and record ledger + PR body evidence before creating or updating the PR.
 - Use public interfaces and observable behavior.
 - Do not add speculative features.
 - Do not refactor unrelated code.

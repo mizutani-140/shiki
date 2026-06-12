@@ -1,0 +1,22 @@
+{
+  "created_at": "2026-06-12T05:51:57+00:00",
+  "goal_id": "G-20260612T055133628076Z-d76238aa",
+  "locks": [
+    "path:scripts/validate_shiki.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/shiki_bootstrap.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:.shiki/**",
+    "path:skills/engineering/**",
+    "path:docs/**",
+    "path:AGENTS.md",
+    "path:CLAUDE.md",
+    "path:CONTEXT.md",
+    "path:.github/prompts/*"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260612T055157606542Z-5205e0bd"
+}
