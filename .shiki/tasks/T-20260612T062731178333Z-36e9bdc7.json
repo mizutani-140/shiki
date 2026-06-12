@@ -9,7 +9,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-36e9bdc7-post-merge-reconcile",
-  "expected_pr": 124,
+  "expected_pr": 125,
   "github_issue": 119,
   "goal_id": "G-20260612T062701078809Z-266eceff",
   "id": "T-20260612T062731178333Z-36e9bdc7",
@@ -25,7 +25,8 @@
     "L-20260612T085336982902Z-2a14a61a",
     "L-20260612T085442717273Z-ed76f0f2",
     "L-20260612T090124589251Z-cf23a26f",
-    "L-20260612T090124680754Z-abe55ea0"
+    "L-20260612T090124680754Z-abe55ea0",
+    "L-20260612T090150154492Z-845948d7"
   ],
   "locks": [
     "path:scripts/shiki_tasks.py",
