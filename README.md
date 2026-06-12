@@ -46,7 +46,7 @@ Every non-trivial change follows this loop:
 6. **Triage** — label readiness, risk, runtime, skills, and MergeGate state.
 7. **Plan** — decompose into a Task DAG with explicit dependencies and locks.
 8. **Preflight** — confirm tools, repo state, auth, and verification commands.
-9. **Execute** — Codex implements on an isolated branch/worktree using TDD.
+9. **Execute** — the assigned implementer (Claude Code by default, Codex when assigned) implements on an isolated branch/worktree using TDD.
 10. **Verify** — run required checks and record durable evidence.
 11. **CCA Judgment** — GitHub CCA emits a structured completion verdict.
 12. **Review** — record findings as PR comments, check output, or ledger entries.

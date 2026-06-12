@@ -215,17 +215,18 @@ shiki doctor
 shiki start /path/to/target-repo --repo OWNER/REPO
 ```
 
-After `shiki start` creates a ready Codex task, the coordinator should continue
-autonomously:
+After `shiki start` creates a ready task, the coordinator should continue
+autonomously with the runner matching the task's assigned runtime:
 
 ```bash
+shiki runner claude --target /path/to/target-repo --task-id T-0001
 shiki runner codex --target /path/to/target-repo --task-id T-0001
 ```
 
 Do not present this as a manual next step for the user during the normal Shiki
 flow. Run it from the coordinator/runtime that is driving Shiki. Stop for user
-input only when Codex auth/tooling is unavailable, dispatch is blocked, or
-Guardian approval is required.
+input only when the assigned runtime's auth/tooling is unavailable, dispatch is
+blocked, or Guardian approval is required.
 
 ## Control Plane Commands
 
@@ -240,6 +241,7 @@ shiki daemon enqueue-plan --plan-file PLAN.json
 shiki daemon run --once
 shiki runner next
 shiki runner execute --task-id T-0001 --command "..."
+shiki runner claude --task-id T-0001
 shiki runner codex --task-id T-0001
 shiki smoke live --plan-file PLAN.json --dry-run
 shiki smoke live --plan-file PLAN.json --execute-github

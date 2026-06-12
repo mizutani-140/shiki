@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -15,6 +14,15 @@ from shiki_github import create_github_issue_for_task, create_github_pr_for_task
 from shiki_installer import DEFAULT_CLAUDE_COMMAND_PATH, DEFAULT_CODEX_SKILL_PATH
 from shiki_process import ROOT, ShikiError
 from shiki_process import ensure_control_dirs, first_line, load_default_config, print_json, read_json, require_tool, run, shiki_path, slugify, target_path, utc_now, write_json
+from shiki_runtime_adapters import (
+    RunnerAdapter,
+    claude_auth_status,
+    codex_auth_status,
+    combined_output,
+    command_exists,
+    command_probe,
+    get_runner_adapter,
+)
 from shiki_runtime_registry import RuntimeRegistryError, get_runtime, runtime_registry_as_json
 from shiki_tasks import append_ledger, load_task, orchestrate_plan, require_github_first_target, require_grilled_plan, next_control_id, task_files, worktree_record
 
@@ -227,23 +235,23 @@ def record_runner_result(target: Path, task: dict[str, Any], command: str, retur
     return record_file, ledger_id
 
 
-def cmd_runner_codex(args: argparse.Namespace) -> int:
+def dispatch_runner_task(args: argparse.Namespace, adapter: RunnerAdapter) -> int:
     target = target_path(args.target)
     require_github_first_target(target)
     ensure_control_dirs(target)
-    require_tool("codex")
 
     task = load_task(target, args.task_id)
     validate_task_runtime_for_execution(task)
-    runtime = str(task.get("assigned_runtime", "codex"))
-    if runtime != "codex" and not args.force:
-        raise ShikiError(f"task {args.task_id} is assigned to {runtime}, not codex")
+    runtime = str(task.get("assigned_runtime", adapter.name))
+    if runtime != adapter.name and not args.force:
+        raise ShikiError(f"task {args.task_id} is assigned to {runtime}, not {adapter.name}")
     if task.get("status") not in {"ready", "running"}:
-        raise ShikiError(f"task {args.task_id} is not ready for Codex execution")
+        raise ShikiError(f"task {args.task_id} is not ready for {adapter.display_name} execution")
 
-    codex = codex_auth_status()
-    if not codex["ready"]:
-        raise ShikiError("Codex CLI is not ready. Run `codex login` or sign in to Codex App before dispatch.")
+    require_tool(adapter.required_tool)
+    auth = adapter.auth_status()
+    if not auth["ready"]:
+        raise ShikiError(f"{adapter.display_name} is not ready. {adapter.auth_remediation}")
 
     handoff_file = shiki_path(target, "handoffs", f"{args.task_id}-task.md")
     if not handoff_file.exists():
@@ -251,7 +259,12 @@ def cmd_runner_codex(args: argparse.Namespace) -> int:
 
     worktree = ensure_physical_worktree(target, task)
     worktree_path = Path(worktree["path"]).expanduser().resolve()
-    command_label = f"codex exec <{handoff_file.relative_to(target)}>"
+    if worktree_path == target.resolve():
+        raise ShikiError(
+            f"task {args.task_id} worktree record points at the target checkout itself; "
+            "headless dispatch requires an isolated worktree. Re-run `shiki worktree allocate` with a dedicated path."
+        )
+    command_label = adapter.command_label(str(handoff_file.relative_to(target)))
 
     if args.dry_run:
         print_json(
@@ -267,37 +280,38 @@ def cmd_runner_codex(args: argparse.Namespace) -> int:
     task["status"] = "running"
     write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
     prompt = handoff_file.read_text()
-    process = subprocess.run(
-        ["codex", "exec", "-"],
-        cwd=str(worktree_path),
-        input=prompt,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    result = adapter.execute(worktree_path, prompt)
     record_file, ledger_id = record_runner_result(
         target,
         task,
         command_label,
-        process.returncode,
-        process.stdout,
-        process.stderr,
+        result.returncode,
+        result.stdout,
+        result.stderr,
     )
     task = load_task(target, args.task_id)
     task.setdefault("ledger_evidence", []).append(ledger_id)
-    task["status"] = "review" if process.returncode == 0 else "repair-needed"
+    task["status"] = "review" if result.returncode == 0 else "repair-needed"
     write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
     print_json(
         {
             "task_id": args.task_id,
-            "returncode": process.returncode,
+            "returncode": result.returncode,
             "runner_record": str(record_file),
             "ledger_id": ledger_id,
             "worktree": str(worktree_path),
             "status": task["status"],
         }
     )
-    return process.returncode
+    return result.returncode
+
+
+def cmd_runner_codex(args: argparse.Namespace) -> int:
+    return dispatch_runner_task(args, get_runner_adapter("codex"))
+
+
+def cmd_runner_claude(args: argparse.Namespace) -> int:
+    return dispatch_runner_task(args, get_runner_adapter("claude-code"))
 
 
 def cmd_smoke_live(args: argparse.Namespace) -> int:
@@ -361,93 +375,6 @@ def cmd_smoke_live(args: argparse.Namespace) -> int:
     output = {"smoke_id": smoke_id, "smoke_file": str(smoke_file), **result, "github": github_result}
     print_json(output)
     return 0
-
-
-def command_exists(name: str) -> bool:
-    return shutil.which(name) is not None
-
-
-def combined_output(probe: dict[str, Any]) -> str:
-    return "\n".join(
-        part
-        for part in [str(probe.get("stdout", "")).strip(), str(probe.get("stderr", "")).strip()]
-        if part
-    )
-
-
-def command_probe(name: str, args: list[str]) -> dict[str, Any]:
-    if not command_exists(name):
-        return {
-            "installed": False,
-            "returncode": None,
-            "stdout": "",
-            "stderr": "",
-        }
-    result = run([name, *args], cwd=ROOT, check=False)
-    return {
-        "installed": True,
-        "returncode": result.returncode,
-        "stdout": result.stdout.strip(),
-        "stderr": result.stderr.strip(),
-    }
-
-
-def claude_auth_status() -> dict[str, Any]:
-    version = command_probe("claude", ["--version"])
-    auth = command_probe("claude", ["auth", "status"])
-    logged_in = False
-    auth_method = "unknown"
-    api_provider = "unknown"
-
-    if auth["stdout"]:
-        try:
-            data = json.loads(auth["stdout"])
-            logged_in = bool(data.get("loggedIn"))
-            auth_method = str(data.get("authMethod", "unknown"))
-            api_provider = str(data.get("apiProvider", "unknown"))
-        except json.JSONDecodeError:
-            logged_in = auth["returncode"] == 0
-    elif auth["returncode"] == 0:
-        logged_in = True
-
-    ready = bool(version["installed"] and logged_in)
-    blocking = []
-    if not version["installed"]:
-        blocking.append("Claude Code CLI is not installed.")
-    elif not logged_in:
-        blocking.append("Claude Code is not authenticated; /shiki cannot run inside Claude Code until Claude Code login succeeds.")
-
-    return {
-        "installed": version["installed"],
-        "version": first_line(version["stdout"]),
-        "logged_in": logged_in,
-        "auth_method": auth_method,
-        "api_provider": api_provider,
-        "ready": ready,
-        "blocking_reasons": blocking,
-        "remediation": "Run `claude auth login` in a terminal or `/login` inside Claude Code, then rerun `/shiki`." if blocking else "",
-    }
-
-
-def codex_auth_status() -> dict[str, Any]:
-    version = command_probe("codex", ["--version"])
-    auth = command_probe("codex", ["login", "status"])
-    logged_in = auth["returncode"] == 0 and "logged in" in combined_output(auth).lower()
-    ready = bool(version["installed"] and logged_in)
-    blocking = []
-    if not version["installed"]:
-        blocking.append("Codex CLI is not installed.")
-    elif not logged_in:
-        blocking.append("Codex CLI is not authenticated.")
-
-    return {
-        "installed": version["installed"],
-        "version": first_line(combined_output(version)),
-        "logged_in": logged_in,
-        "ready": ready,
-        "blocking_reasons": blocking,
-        "remediation": "Run `codex login` or sign in to Codex App before using the Codex entrypoint." if blocking else "",
-    }
 
 
 def github_auth_status() -> dict[str, Any]:

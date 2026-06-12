@@ -22,7 +22,8 @@ command execution work at import time.
 | `scripts/shiki_migrations.py` | Dependency-free `.shiki` migration registry, state loading, status/plan/apply behavior, dry-run / execute gate, and migration CLI command implementation. |
 | `scripts/shiki_bootstrap.py` | `init`, `bootstrap-platform`, `bootstrap-github`, `preflight`, and `start` orchestration, including dry-run / execute gating. |
 | `scripts/shiki_tasks.py` | Goal, task, DAG, ledger, lock, worktree-record, repair-packet, and handoff lifecycle helpers. |
-| `scripts/shiki_runtime.py` | Current daemon, runner, Codex dispatch, smoke, runtime auth, and doctor helpers. |
+| `scripts/shiki_runtime.py` | Current daemon, runtime-agnostic runner dispatch (`runner claude` / `runner codex`), smoke, and entrypoint status helpers. |
+| `scripts/shiki_runtime_adapters.py` | Runner adapter boundary: per-runtime tool/auth probes and headless execution commands bound to registry runtime names (ADR 0008). |
 
 Existing support modules remain canonical for their domains:
 

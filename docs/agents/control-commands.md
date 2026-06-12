@@ -101,18 +101,21 @@ Headless runners pick up dispatchable tasks and record command evidence:
 ```bash
 shiki runner next
 shiki runner execute --task-id T-0001 --command "your-agent-command"
+shiki runner claude --task-id T-0001
 shiki runner codex --task-id T-0001
 ```
 
-Use the runner command as the adapter boundary for Codex headless, Hermes
-Runner, or another runtime. For Codex-assigned tasks, prefer
-`shiki runner codex`: Shiki materializes the registered worktree, sends the task
-handoff to `codex exec`, records stdout/stderr/return code, and moves the task
-to `review` on a zero exit. Do not turn this into a user instruction unless
-Codex auth/tooling is missing, dispatch is blocked, or Guardian approval is
-required.
+Use the runner command as the adapter boundary for Claude Code headless, Codex
+headless, Hermes Runner, or another runtime. For claude-code-assigned tasks
+(the default), use `shiki runner claude`; for Codex-assigned tasks, use
+`shiki runner codex`. Both share the same adapter machinery: Shiki materializes
+the registered worktree, sends the task handoff to the headless runtime
+(`claude -p` or `codex exec`), records stdout/stderr/return code, and moves the
+task to `review` on a zero exit. Do not turn this into a user instruction
+unless the assigned runtime's auth/tooling is missing, dispatch is blocked, or
+Guardian approval is required.
 
-`shiki runner execute` remains the generic adapter for non-Codex commands. It is
+`shiki runner execute` remains the generic adapter for other commands. It is
 intentionally explicit: Shiki records the task, command, stdout, stderr, return
 code, and Ledger evidence, but the runtime command itself is supplied by the
 operator.
@@ -168,8 +171,9 @@ shiki handoff task T-0001
 shiki github pr --task-id T-0001
 ```
 
-Codex then implements only the assigned task scope. If CCA rejects the PR, the
-bounded repair loop starts with a repair packet:
+The assigned implementer (Claude Code by default, Codex when assigned) then
+implements only the assigned task scope. If CCA rejects the PR, the bounded
+repair loop starts with a repair packet:
 
 ```bash
 shiki repair packet \
@@ -200,7 +204,7 @@ shiki goal complete G-0001
 - `.shiki/repairs/*.json` records bounded repair packets.
 - `.shiki/reports/*.json` records goal completion judgments.
 - `.shiki/runs/*.json` records orchestrator runs.
-- `.shiki/handoffs/*.md` records Codex task and repair handoffs.
+- `.shiki/handoffs/*.md` records implementer task and repair handoffs.
 - `.shiki/inbox/*.json` records queued daemon work.
 - `.shiki/runner/*.json` records headless runner command evidence.
 - `.shiki/smoke/*.json` records live smoke results.
@@ -208,6 +212,7 @@ shiki goal complete G-0001
 
 ## Authority Boundary
 
-Codex may implement and repair only after `dispatch check` is green. CCA judges
+The assigned implementer runtime may implement and repair only after
+`dispatch check` is green. CCA judges
 completion from PR evidence. MergeGate authorizes state transitions and merge
 readiness. GitHub branch protection remains the hard gate.

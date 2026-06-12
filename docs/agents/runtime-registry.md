@@ -33,7 +33,7 @@ Each runtime descriptor records:
 
 | Runtime | Roles | execution mode | auth mode | Notes |
 | --- | --- | --- | --- | --- |
-| `claude-code` | planner, reviewer | local_cli | claude_subscription_oauth | Local Claude Code planning, review, and human-assisted use. |
+| `claude-code` | planner, implementer, runner, reviewer | local_cli | claude_subscription_oauth | Local Claude Code planning, review, and the default implementer/runner runtime (ADR 0008), dispatched with `shiki runner claude`. |
 | `claude-code-action` | reviewer | github_action | github_secret | GitHub Actions reviewer using `CLAUDE_CODE_OAUTH_TOKEN`. |
 | `codex` | implementer, runner | local_cli | chatgpt_oauth | Local Codex implementation and runner execution. |
 | `codex-front` | front, implementer | local_cli | chatgpt_oauth | Operator-facing Codex front entrypoint used by `.shiki/config.yaml`. |
@@ -73,28 +73,30 @@ are not configured for the target.
 
 ## Adapter Contract Boundary
 
-The registry describes the future adapter contract shape. A future adapter can
-bind a runtime descriptor to:
+Runner adapters are implemented in `scripts/shiki_runtime_adapters.py`. Each
+`RunnerAdapter` binds a registry runtime name to:
 
-- a capability check;
-- an auth check;
-- a handoff format;
-- an execution function;
-- a result or evidence writer.
+- the required local tool;
+- an auth check (`claude auth status` / `codex login status` probes);
+- the headless execution command (`claude -p` / `codex exec -`) fed by the
+  task handoff on stdin;
+- a command label recorded in the EXEC runner record and Ledger evidence.
 
-T-0042 intentionally does not implement registry-driven dispatch. Existing
-runner and daemon behavior remains in `scripts/shiki_runtime.py`; it only uses
-the registry for safe name validation and deterministic status output.
+The shared runner machinery in `scripts/shiki_runtime.py` (worktree
+materialization, evidence recording, task status transitions) is
+runtime-agnostic: `shiki runner claude` and `shiki runner codex` dispatch
+through the same `dispatch_runner_task` flow. Adding a runtime means adding
+one adapter plus a registry role grant. The registry itself remains the
+contract for safe name validation and deterministic status output.
 
 ## Out Of Scope
 
-The following are intentionally not implemented by this registry task:
+The following are intentionally not implemented by the registry and adapter
+layer:
 
 - runtime provider abstraction;
 - GitHub host / protocol / provider configuration;
-- registry-driven dispatch;
-- migration framework;
-- new runtime adapters;
+- migration framework changes;
 - reviewer bot or GitHub App behavior;
 - Guardian policy changes;
 - CCA Review Bridge changes;

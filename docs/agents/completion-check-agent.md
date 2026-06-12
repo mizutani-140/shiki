@@ -88,7 +88,7 @@ alongside text evidence.
 | Verdict | Meaning | MergeGate impact |
 | --- | --- | --- |
 | `complete` | Durable evidence proves the task contract is satisfied. | May proceed. |
-| `repair_required` | A bounded implementation or test repair is needed. | Block; return repair packet to Codex. |
+| `repair_required` | A bounded implementation or test repair is needed. | Block; return repair packet to the assigned implementer runtime. |
 | `blocked` | External dependency, lock, missing prerequisite, unavailable checks, or task contract issue prevents judgment. | Block; do not assign blind repair. |
 | `needs_guardian` | Human approval is required. | Block until Guardian decision. |
 | `insufficient_evidence` | Work may be complete, but durable proof is missing. | Block; request evidence rather than code changes. |
@@ -149,10 +149,10 @@ When verdict is `repair_required`, CCA must provide a repair packet containing:
 - Prohibited changes.
 - Required skill: `tdd`, `diagnose`, `grill-with-docs`, or `improve-codebase-architecture` when applicable.
 - Verification commands or checks.
-- Evidence Codex must add.
+- Evidence the implementer must add.
 - Stop condition.
 
-When verdict is `insufficient_evidence`, request evidence first. Do not ask Codex to change code unless evidence implies code is wrong.
+When verdict is `insufficient_evidence`, request evidence first. Do not ask the implementer to change code unless evidence implies code is wrong.
 
 ## CCA Output Schema
 
@@ -200,7 +200,7 @@ Minimum fields:
 - Be strict on completion, precise on repair.
 - Separate missing proof from wrong implementation.
 - Prefer bounded repair over broad rewrite.
-- Never let Codex infer unresolved product decisions.
+- Never let the implementer infer unresolved product decisions.
 - Stop and require Guardian approval for high-risk changes.
 - Treat required checks as workflow job display names from structured workflow
   extraction. Do not accept comments, advisory review text, or arbitrary strings

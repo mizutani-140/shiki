@@ -133,7 +133,7 @@ python3 - "$INVALID_RUNTIME/.shiki/config.yaml" <<'PY'
 import sys
 path = sys.argv[1]
 text = open(path, encoding="utf-8").read()
-text = text.replace("  implementer: codex-front", "  implementer: unknown-runtime")
+text = text.replace("  implementer: claude-code", "  implementer: unknown-runtime")
 open(path, "w", encoding="utf-8").write(text)
 PY
 expect_fail python3 scripts/shiki.py doctor --json --target "$INVALID_RUNTIME"

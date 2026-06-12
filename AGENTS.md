@@ -18,7 +18,8 @@ Shiki is runtime-agnostic. Codex Front, Claude Code, GitHub CCA, Hermes Runner, 
 
 The default runtime split is subscription-authenticated:
 
-- **Codex Front** is the operator-facing implementation surface through Codex App, Codex CLI, Codex IDE extension, or Codex Web signed in with ChatGPT OAuth/subscription auth.
+- **Claude Code** is the default implementer and runner runtime (ADR 0008): assigned tasks are dispatched into their registered worktree as a headless Claude Code session through `shiki runner claude`, authenticated by the operator's Claude subscription.
+- **Codex Front** is an optional implementer through Codex App, Codex CLI, Codex IDE extension, or Codex Web signed in with ChatGPT OAuth/subscription auth, dispatched with `shiki runner codex` when a task is explicitly assigned to `codex`.
 - **GitHub CCA** is implemented by Claude Code Action by default, using `CLAUDE_CODE_OAUTH_TOKEN`.
 
 Do not assume `openai/codex-action`, `OPENAI_API_KEY`, or API-key based Codex automation in the default Shiki path. API-key runners are explicit target-repo extensions and require their own ADR.
@@ -81,7 +82,7 @@ Every non-trivial change follows this loop:
 6. **Triage**: label issues for readiness, risk, runtime, skills, and MergeGate state.
 7. **Plan**: decompose into a Task DAG with explicit dependencies, locks, acceptance checks, checklist profile, and runtime assignment.
 8. **Preflight**: confirm required tools, repo state, auth, issue/PR context, and verification commands before execution.
-9. **Execute**: Codex implements on an isolated branch or worktree using TDD when behavior is involved. Do not edit outside task scope.
+9. **Execute**: the assigned implementer runtime (Claude Code by default, Codex when assigned) implements on an isolated branch or worktree using TDD when behavior is involved. Do not edit outside task scope.
 10. **Verify**: run required checks and record durable evidence.
 11. **CCA Judgment**: GitHub CCA checks whether the PR truly satisfies the task contract and emits a structured verdict.
 12. **Review**: record findings through PR review, comments, check output, or ledger entries.
@@ -101,7 +102,7 @@ Clarifies Goals, runs `grill-with-docs`, writes plans, updates `.shiki/`, propos
 
 ### Implementer
 
-Writes code in a scoped branch or worktree and verifies acceptance checks. Codex Front is the preferred default implementer for source changes and repair commits.
+Writes code in a scoped branch or worktree and verifies acceptance checks. Claude Code is the default implementer for source changes and repair commits, dispatched through `shiki runner claude`; Codex Front remains an optional implementer for tasks explicitly assigned to `codex` (ADR 0008).
 
 ### Completion Check Agent
 
@@ -121,8 +122,8 @@ Human or explicitly authorized governance role for secrets, production, policy, 
 
 ### Default Assignment
 
-- Claude Code / Claude Code Action: planner, reviewer, coordinator, final judgment assistant, documentation, CCA implementation, and governance reasoning.
-- Codex Front: implementation, tests, repair commits, deterministic command execution, and assigned adversarial implementation review through the user's authenticated Codex session.
+- Claude Code / Claude Code Action: planner, default implementer and repairer (dispatched through `shiki runner claude`), reviewer, coordinator, final judgment assistant, documentation, CCA implementation, and governance reasoning.
+- Codex Front: optional implementer for explicitly assigned tasks — implementation, tests, repair commits, deterministic command execution, and assigned adversarial implementation review through the user's authenticated Codex session.
 - GitHub CCA: completion judgment and structured repair packet generation, implemented with Claude Code Action by default.
 - GitHub Actions / CI: durable verification evidence.
 - Guardian: high-risk approval and exceptions.
@@ -297,7 +298,7 @@ Rules:
 
 - Diagnose before editing.
 - Create bounded repair work.
-- Return source repair to Codex by default.
+- Return source repair to the assigned implementer runtime (Claude Code by default).
 - Keep scope narrow.
 - Do not rewrite unrelated code.
 - Record cause, change, checks, CCA verdict, and result.
@@ -310,7 +311,7 @@ Repair packets must include:
 - Minimal required change.
 - Prohibited changes.
 - Verification commands.
-- Evidence Codex must produce.
+- Evidence the implementer must produce.
 - Whether `diagnose`, `tdd`, `grill-with-docs`, or `improve-codebase-architecture` is required.
 
 ## Architecture Gate

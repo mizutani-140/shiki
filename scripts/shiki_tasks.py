@@ -238,7 +238,7 @@ def register_task_from_plan(
         "non_goals": task_plan.get("non_goals") or [],
         "dependencies": dependencies,
         "locks": task_plan.get("locks") or [],
-        "assigned_runtime": task_plan.get("runtime", "codex"),
+        "assigned_runtime": task_plan.get("runtime", "claude-code"),
         "risk_level": task_plan.get("risk_level", "low"),
         "required_skills": task_plan.get("required_skills") or ["tdd"],
         "acceptance_checks": task_plan["acceptance_checks"],

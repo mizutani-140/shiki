@@ -85,13 +85,13 @@ the selected skills directory in the start record, plan, and handoff evidence.
 
 ## Operating Rules
 
-- Treat Codex as implementer, CCA as completion judge, and MergeGate as merge authorization.
+- Treat the assigned implementer runtime (Claude Code by default, Codex when assigned) as implementer, CCA as completion judge, and MergeGate as merge authorization.
 - Treat `/shiki` as a guided one-command entrypoint. Do not ask the user to run multiple setup commands.
 - For non-trivial goals, use `grill-with-docs`, then Context and Impact, then PRD/issues/triage.
 - After `grill-with-docs` is settled, prefer `shiki plan ingest` and `shiki run` over manually calling each lower-level command.
 - For unattended execution, queue settled plans with `shiki daemon enqueue-plan` and process them with `shiki daemon run`.
 - For headless runner integration, use `shiki runner next` and `shiki runner execute` so execution evidence lands in `.shiki/runner` and the Ledger.
-- When a ready task is assigned to Codex, do not stop after showing the user a `codex` command. Run the implementation adapter yourself with `shiki runner codex --target TARGET --task-id T-XXXX`. This materializes the task worktree, feeds the handoff to `codex exec`, and records runner evidence. Ask the user only when Codex auth/tooling is missing, the task is not dispatchable, or Guardian approval is required.
+- When a ready task is assigned to claude-code (the default), run the implementation adapter yourself with `shiki runner claude --target TARGET --task-id T-XXXX`. When it is assigned to Codex, run `shiki runner codex --target TARGET --task-id T-XXXX` instead of showing the user a manual command. Both materialize the task worktree, feed the handoff to the headless runtime (`claude -p` or `codex exec`), and record runner evidence. Ask the user only when the assigned runtime's auth/tooling is missing, the task is not dispatchable, or Guardian approval is required.
 - Register durable state through Shiki commands: `goal create`, `issue plan`, `lock acquire`, `dispatch check`, `worktree allocate`, `repair packet`, `task status`, and `goal complete`.
 - Use `shiki github issue`, `shiki github pr`, and `shiki handoff` to create durable GitHub and Codex evidence instead of free-form handoff text.
 - Do not claim completion from local work alone. Completion requires PR evidence, CCA, and MergeGate.

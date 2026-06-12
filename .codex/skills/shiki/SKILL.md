@@ -69,7 +69,7 @@ start record, plan, and handoff must preserve the selected skills directory.
 
 ## Responsibilities
 
-- Codex implements and repairs.
+- Claude Code implements and repairs by default (`shiki runner claude`, ADR 0008); Codex implements and repairs tasks explicitly assigned to `codex`.
 - Claude Code Action can act as GitHub-side CCA or reviewer.
 - CCA judges completion.
 - MergeGate authorizes state transitions and merge readiness.
@@ -82,7 +82,7 @@ start record, plan, and handoff must preserve the selected skills directory.
 - Convert the settled `grill-with-docs` result into a machine-readable plan and run it with `shiki plan ingest` followed by `shiki run`.
 - For unattended execution, queue the plan with `shiki daemon enqueue-plan` and process it with `shiki daemon run`.
 - For headless runtime integration, use `shiki runner next` and `shiki runner execute` to pick up ready tasks and record execution evidence.
-- When a ready task is assigned to Codex, do not hand the user a manual `codex` command and wait. Run the implementation adapter with `shiki runner codex --target TARGET --task-id T-XXXX`. This creates or reuses the task worktree, invokes `codex exec` with the handoff, and records runner evidence. Stop for user input only when Codex auth/tooling is missing, dispatch is blocked, or Guardian approval is required.
+- When a ready task is assigned to claude-code (the default), run the implementation adapter with `shiki runner claude --target TARGET --task-id T-XXXX`. When it is assigned to Codex, run `shiki runner codex --target TARGET --task-id T-XXXX` instead of handing the user a manual command. Both create or reuse the task worktree, invoke the headless runtime (`claude -p` or `codex exec`) with the handoff, and record runner evidence. Stop for user input only when the assigned runtime's auth/tooling is missing, dispatch is blocked, or Guardian approval is required.
 - Use Context and Impact before implementation.
 - Keep tasks as vertical slices with explicit locks and verification.
 - Use TDD for implementation work when behavior changes.
@@ -104,6 +104,7 @@ start record, plan, and handoff must preserve the selected skills directory.
 - `shiki daemon run --once`
 - `shiki runner next`
 - `shiki runner execute --task-id T-0001 --command "..."`
+- `shiki runner claude --task-id T-0001`
 - `shiki runner codex --task-id T-0001`
 - `shiki smoke live --plan-file PLAN.json --dry-run`
 - `shiki smoke live --plan-file PLAN.json --execute-github`

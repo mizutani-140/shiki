@@ -19,7 +19,7 @@ Default assignment:
 | --- | --- | --- |
 | Recommender | Claude Planner / Coordinator | Goal shaping, grill-with-docs, Context & Impact, CI profile suggestion, risk classification, worktree need, runtime suggestion. |
 | Authorizer | MergeGate / Orchestrator / Guardian | Dispatch, locks, branch/worktree allocation, CCA readiness, merge readiness, high-risk approvals, CD approvals. |
-| Executor | Codex Front / GitHub Actions / CD runner | TDD implementation, repair, tests, build, deploy job execution. |
+| Executor | Claude Code (default implementer) / Codex Front / GitHub Actions / CD runner | TDD implementation, repair, tests, build, deploy job execution. |
 | Verifier | CI, CCA, CODEOWNERS, reviewers, MergeGate | Test/check evidence, completion judgment, scope/risk review, merge gate enforcement. |
 
 Codex may recommend fixes during repair, but it does not authorize scope changes, skip checks, select production deployment, self-approve, or judge completion.
@@ -58,8 +58,8 @@ A state transition is valid only when the required evidence for the previous sta
 | Need PRD | Planner | Planner policy / Guardian if disputed | After grill-with-docs | Goal issue, `.shiki/prds/` | PRD link and acceptance model |
 | Issue slicing | Planner | MergeGate / triage | After PRD | `to-issues`, labels | Vertical-slice issues, Task DAG |
 | Runtime assignment | Planner | Orchestrator / MergeGate | During triage | labels: `runtime:*`, `.shiki/tasks/*.json` | task handoff |
-| Worktree needed | Planner / Orchestrator | Orchestrator / MergeGate | Before Codex dispatch | `.shiki/worktrees/*.json`, locks | registered worktree record |
-| Branch name | Orchestrator | Orchestrator | Before Codex dispatch | branch policy | branch ref in task/ledger |
+| Worktree needed | Planner / Orchestrator | Orchestrator / MergeGate | Before implementer dispatch | `.shiki/worktrees/*.json`, locks | registered worktree record |
+| Branch name | Orchestrator | Orchestrator | Before implementer dispatch | branch policy | branch ref in task/ledger |
 | Lock reservation | Context & Impact | MergeGate | Before dispatch and before merge | `.shiki/locks/`, labels, PR metadata | lock id, owner, scope |
 | CI profile | Planner | MergeGate | During issue triage, rechecked at PR | labels, `.shiki/policy.yaml`, workflow matrix | required check list |
 | Required status checks | Repo maintainer / Guardian | GitHub branch protection / rulesets | Repository setup, updated via ADR | GitHub settings | branch/ruleset config, ADR |
@@ -119,7 +119,7 @@ Required worktree record:
   "goal_id": "G-0001",
   "branch": "shiki/T-0001-short-slug",
   "path": "../.worktrees/T-0001-short-slug",
-  "runtime": "codex",
+  "runtime": "claude-code",
   "state": "active",
   "locks": ["path:src/auth/*"],
   "created_by": "shiki-orchestrator",

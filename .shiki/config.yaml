@@ -17,7 +17,7 @@ guardian:
 runtimes:
   front: codex
   planner: claude-code
-  implementer: codex-front
+  implementer: claude-code
   completion_checker: github-cca
   reviewer: claude-code-action
   verifier: github-actions
