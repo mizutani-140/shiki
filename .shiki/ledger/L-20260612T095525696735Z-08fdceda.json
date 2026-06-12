@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "docs/adr/0008-use-claude-code-as-default-implementer.md",
+    "docs/adr/0009-requirements-definition-and-spec-freeze.md"
+  ],
+  "goal_id": "G-20260612T091302245408Z-d0c43361",
+  "id": "L-20260612T095525696735Z-08fdceda",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/119"
+  ],
+  "summary": "Skill grill-with-docs completed for this Goal: the autonomy design (pure loop engine, risk-gated auto-merge low/medium, bounded repair dispatch, CCA rerun-after-green, stop conditions) was settled in the 2026-06-12 grill session recorded in ADR 0008/0009 and PRD issue #119",
+  "task_id": "T-20260612T091329543362Z-778e0c2f",
+  "timestamp": "2026-06-12T09:55:25+00:00",
+  "type": "check"
+}

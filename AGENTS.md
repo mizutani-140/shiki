@@ -295,6 +295,8 @@ MergeGate must block when any of these are true:
 
 MergeGate may allow progress only when dependency state, locks, checks, CCA, review, risk approval, and evidence completeness all satisfy the task contract.
 
+When every MergeGate condition is satisfied, the goal loop (`shiki loop`) may merge risk low/medium PRs autonomously (ADR 0008/0009). High and critical risk always require Guardian approval before merge.
+
 ## Repair Loop
 
 A Repair Loop handles failed checks, CCA findings, review findings, missing evidence, or blocked dependencies.

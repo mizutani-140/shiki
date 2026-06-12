@@ -270,7 +270,53 @@ def _git_findings(target: Path, provider_config: ProviderConfig | None) -> list[
                 {"origin": origin, "repo": provider_config.repo, "host": provider_config.host},
             )
         )
+    findings.append(_worktree_registry_finding(target))
     return findings
+
+
+def _worktree_registry_finding(target: Path) -> DoctorFinding:
+    """Unregistered git worktrees are a non-negotiable MergeGate block.
+
+    Every physical worktree of the target (other than the main checkout) must
+    have a record in .shiki/worktrees. Orchestration residue (e.g. session
+    worktrees) must be removed or registered before dispatch.
+    """
+    result = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=str(target),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return _finding("doctor.worktrees.unregistered", "warn", "Worktree registry", "Could not list git worktrees.")
+    physical = []
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            physical.append(Path(line.split(" ", 1)[1]).resolve())
+    main_checkout = target.resolve()
+    registered = {main_checkout}
+    registry = target / ".shiki" / "worktrees"
+    if registry.exists():
+        for record_path in registry.glob("*.json"):
+            try:
+                record = json.loads(record_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            recorded = record.get("path")
+            if recorded:
+                registered.add(Path(recorded).expanduser().resolve())
+    unregistered = sorted(str(path) for path in physical if path not in registered)
+    return _finding(
+        "doctor.worktrees.unregistered",
+        "pass" if not unregistered else "fail",
+        "Worktree registry",
+        "All git worktrees are registered in .shiki/worktrees."
+        if not unregistered
+        else f"Unregistered git worktrees: {', '.join(unregistered)}.",
+        "Remove the worktree (`git worktree remove`) or register it with `shiki worktree allocate`." if unregistered else "",
+        {"unregistered": unregistered},
+    )
 
 
 def _workflow_findings(target: Path, config: dict[str, Any]) -> list[DoctorFinding]:

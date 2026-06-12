@@ -707,29 +707,43 @@ def cmd_worktree_allocate(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_repair_packet(args: argparse.Namespace) -> int:
-    target = target_path(args.target)
-    require_github_first_target(target)
+def create_repair_packet(
+    target: Path,
+    *,
+    task_id: str,
+    pr: int,
+    attempt: int,
+    failing_items: list[str],
+    failing_acceptance_criteria: list[str],
+    minimal_changes: list[str],
+    prohibited_changes: list[str],
+    required_skill: str,
+    verification_commands: list[str],
+    evidence_required: list[str],
+    stop_condition: str,
+) -> tuple[str, Path, str]:
     ensure_control_dirs(target)
-    task = load_task(target, args.task_id)
-    if args.attempt > 3:
+    task = load_task(target, task_id)
+    if attempt > 3:
         raise ShikiError("repair attempt limit is 3")
+    if int(pr) < 1:
+        raise ShikiError("repair packets require an existing PR (pr >= 1)")
 
     repair_id = next_control_id(target, "RP")
     packet = {
         "repair_id": repair_id,
         "goal_id": task["goal_id"],
-        "task_id": args.task_id,
-        "pr": args.pr,
-        "attempt": args.attempt,
-        "failing_checklist_items": args.failing_item or [],
-        "failing_acceptance_criteria": args.failing_acceptance_criteria or [],
-        "minimal_required_changes": args.minimal_change,
-        "prohibited_changes": args.prohibited_change or [],
-        "required_skill": args.required_skill,
-        "verification_commands": args.verification_command,
-        "evidence_required": args.evidence_required or ["Attach verification output to the PR."],
-        "stop_condition": args.stop_condition,
+        "task_id": task_id,
+        "pr": pr,
+        "attempt": attempt,
+        "failing_checklist_items": failing_items or [],
+        "failing_acceptance_criteria": failing_acceptance_criteria or [],
+        "minimal_required_changes": minimal_changes,
+        "prohibited_changes": prohibited_changes or [],
+        "required_skill": required_skill,
+        "verification_commands": verification_commands,
+        "evidence_required": evidence_required or ["Attach verification output to the PR."],
+        "stop_condition": stop_condition,
         "created_at": utc_now(),
     }
     repair_file = shiki_path(target, "repairs", f"{repair_id}.json")
@@ -737,14 +751,34 @@ def cmd_repair_packet(args: argparse.Namespace) -> int:
     ledger_id = append_ledger(
         target,
         goal_id=task["goal_id"],
-        task_id=args.task_id,
+        task_id=task_id,
         ledger_type="repair",
-        summary=f"Repair packet {repair_id} created for PR #{args.pr}",
+        summary=f"Repair packet {repair_id} created for PR #{pr}",
         evidence=[str(repair_file.relative_to(target))],
     )
     task["status"] = "repair-needed"
     task.setdefault("ledger_evidence", []).append(ledger_id)
-    write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
+    write_json(shiki_path(target, "tasks", f"{task_id}.json"), task)
+    return repair_id, repair_file, ledger_id
+
+
+def cmd_repair_packet(args: argparse.Namespace) -> int:
+    target = target_path(args.target)
+    require_github_first_target(target)
+    repair_id, repair_file, ledger_id = create_repair_packet(
+        target,
+        task_id=args.task_id,
+        pr=args.pr,
+        attempt=args.attempt,
+        failing_items=args.failing_item or [],
+        failing_acceptance_criteria=args.failing_acceptance_criteria or [],
+        minimal_changes=args.minimal_change,
+        prohibited_changes=args.prohibited_change or [],
+        required_skill=args.required_skill,
+        verification_commands=args.verification_command,
+        evidence_required=args.evidence_required or [],
+        stop_condition=args.stop_condition,
+    )
     print_json({"repair_id": repair_id, "repair_file": str(repair_file), "ledger_id": ledger_id})
     return 0
 
@@ -823,10 +857,8 @@ def write_handoff(target: Path, name: str, body: str) -> Path:
     return path
 
 
-def cmd_handoff_task(args: argparse.Namespace) -> int:
-    target = target_path(args.target)
-    require_github_first_target(target)
-    task = load_task(target, args.task_id)
+def write_task_handoff(target: Path, task_id: str) -> tuple[Path, str]:
+    task = load_task(target, task_id)
     body = "\n".join(
         [
             f"# Codex Task Handoff: {task['id']}",
@@ -858,7 +890,14 @@ def cmd_handoff_task(args: argparse.Namespace) -> int:
         summary=f"Task handoff written for {task['id']}",
         evidence=[str(handoff_file.relative_to(target))],
     )
-    print_json({"task_id": task["id"], "handoff_file": str(handoff_file), "ledger_id": ledger_id})
+    return handoff_file, ledger_id
+
+
+def cmd_handoff_task(args: argparse.Namespace) -> int:
+    target = target_path(args.target)
+    require_github_first_target(target)
+    handoff_file, ledger_id = write_task_handoff(target, args.task_id)
+    print_json({"task_id": args.task_id, "handoff_file": str(handoff_file), "ledger_id": ledger_id})
     return 0
 
 

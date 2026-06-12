@@ -85,6 +85,7 @@ test "$(finding_status /tmp/shiki-doctor-valid.json doctor.workflows.required_fi
 test "$(finding_status /tmp/shiki-doctor-valid.json doctor.codeowners.coverage)" = "pass"
 test "$(finding_status /tmp/shiki-doctor-valid.json doctor.guardian.policy)" = "pass"
 test "$(finding_status /tmp/shiki-doctor-valid.json doctor.guardian.approvers)" = "pass"
+test "$(finding_status /tmp/shiki-doctor-valid.json doctor.worktrees.unregistered)" = "pass"
 grep '"id": "doctor.contract.validate_shiki"' /tmp/shiki-doctor-valid.json >/dev/null
 
 NO_REPO="$TMP_ROOT/no-repo"
@@ -258,5 +259,14 @@ test "$(finding_status /tmp/shiki-doctor-online-permission.json doctor.guardian.
 python3 scripts/shiki.py doctor --target "$NO_REPO" >/tmp/shiki-doctor-human.out
 grep "provider:" /tmp/shiki-doctor-human.out >/dev/null
 grep "remediation:" /tmp/shiki-doctor-human.out >/dev/null
+
+# An unregistered git worktree is a governance violation and must be flagged.
+UNREGISTERED_WT="$TMP_ROOT/unregistered-worktree"
+make_target "$UNREGISTERED_WT"
+git -C "$UNREGISTERED_WT" add .
+git -C "$UNREGISTERED_WT" -c user.name="Shiki Test" -c user.email="shiki@example.test" commit -m "init" >/tmp/shiki-doctor-wt-commit.out
+git -C "$UNREGISTERED_WT" worktree add "$TMP_ROOT/stray-worktree" -b stray-branch >/tmp/shiki-doctor-wt-add.out 2>&1
+expect_fail python3 scripts/shiki.py doctor --json --target "$UNREGISTERED_WT"
+test "$(finding_status /tmp/shiki-doctor-expected-fail.out doctor.worktrees.unregistered)" = "fail"
 
 echo "shiki doctor tests passed"

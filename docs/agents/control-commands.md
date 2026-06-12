@@ -120,6 +120,21 @@ task to `review` on a zero exit. Do not turn this into a user instruction
 unless the assigned runtime's auth/tooling is missing, dispatch is blocked, or
 Guardian approval is required.
 
+For a frozen Goal, the goal loop drives the whole post-freeze lifecycle —
+dispatch, PR creation, CCA rerun-after-green, risk-gated auto-merge
+(low/medium), bounded repair dispatch, dependent unblocking, and Goal
+completion — stopping only for the repair limit, Guardian gates, blocked
+evidence, or completion (a Spec Amendment is operator-initiated: interrupt
+the loop, re-grill, re-stamp the freeze, restart):
+
+```bash
+shiki loop step --goal-id G-0001
+shiki loop run --goal-id G-0001 --max-cycles 50 --interval 30
+```
+
+Every loop transition lands as ledger evidence; the engine decision is pure
+and the executed action is exactly one per step.
+
 `shiki runner execute` remains the generic adapter for other commands. It is
 intentionally explicit: Shiki records the task, command, stdout, stderr, return
 code, and Ledger evidence, but the runtime command itself is supplied by the

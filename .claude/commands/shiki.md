@@ -67,9 +67,14 @@ For a non-trivial Goal in a bootstrapped repository:
    `approved_by`, `source`). Enumerate required external scopes/permissions
    (scope inventory, SF-02) BEFORE asking for the freeze.
 3. **Execute**: `shiki plan ingest --plan-file PLAN.json`, then
-   `shiki run --plan P-XXXX`, then dispatch ready tasks with
-   `shiki runner claude --task-id T-XXXX` (or `runner codex` when assigned).
-   Plans without `spec_freeze.status=frozen` are rejected by design.
+   `shiki run --plan P-XXXX`, then drive the Goal autonomously with
+   `shiki loop run --goal-id G-XXXX` (per-task dispatch via
+   `shiki runner claude --task-id T-XXXX` remains available for manual
+   control). Plans without `spec_freeze.status=frozen` are rejected by
+   design. The loop auto-merges risk low/medium PRs when all required
+   checks and CCA are green, and stops for the repair limit, Guardian
+   gates, blocked evidence, or completion. Raise a Spec Amendment by
+   interrupting the loop, re-grilling, and re-stamping the freeze.
 4. **After freeze**: scope-moving discoveries pause the affected task and come
    back to the operator as a Spec Amendment (scoped re-grill, re-stamped
    freeze). Record the amendment durably: append an entry to the plan's

@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "tests/test_loop_engine.py",
+    "scripts/test_shiki_goal_loop.sh",
+    "scripts/test_shiki_doctor.sh"
+  ],
+  "goal_id": "G-20260612T091302245408Z-d0c43361",
+  "id": "L-20260612T095525697560Z-30ef1878",
+  "links": [],
+  "summary": "Skill tdd evidence: tests/test_loop_engine.py (23 fixture tests over every decision branch incl. fail-closed risk, pre-PR repair stop, PR-state error wait) and scripts/test_shiki_goal_loop.sh (fake gh+claude end-to-end: 2-task auto-merge goal completion, guardian stop, repair dispatch with --repair-id, repair-limit stop); doctor unregistered-worktree case; full suite of 30 contract tests green",
+  "task_id": "T-20260612T091329543362Z-778e0c2f",
+  "timestamp": "2026-06-12T09:55:25+00:00",
+  "type": "check"
+}

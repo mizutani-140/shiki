@@ -1,0 +1,32 @@
+{
+  "branch": "shiki/g-d0c43361-goal-loop",
+  "created_at": "2026-06-12T09:13:29+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260612T091302245408Z-d0c43361",
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:scripts/shiki_runtime.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/shiki_doctor.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*",
+    "path:.shiki/**",
+    "path:docs/**",
+    "path:AGENTS.md",
+    "path:CLAUDE.md",
+    "path:README.md",
+    "path:SYSTEM_PROMPT.md",
+    "path:CONTRIBUTING.md",
+    "path:.claude/commands/shiki.md",
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:VERSION",
+    "path:pyproject.toml"
+  ],
+  "path": "/Users/kio.mizutani/shiki",
+  "pr": 126,
+  "runtime": "claude-code",
+  "state": "registered",
+  "task_id": "T-20260612T091329543362Z-778e0c2f"
+}
