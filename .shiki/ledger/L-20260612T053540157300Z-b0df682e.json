@@ -1,0 +1,17 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "docs/adr/0008-use-claude-code-as-default-implementer.md",
+    "docs/adr/0009-requirements-definition-and-spec-freeze.md",
+    "CONTEXT.md"
+  ],
+  "goal_id": "G-20260612T045923586452Z-8f7011ec",
+  "id": "L-20260612T053540157300Z-b0df682e",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/119"
+  ],
+  "summary": "Skill grill-with-docs completed for this Goal: nine resolved design decisions from the 2026-06-12 Requirements Definition session, recorded in ADR 0008, ADR 0009, CONTEXT.md glossary, and PRD issue #119",
+  "task_id": "T-20260612T045948146790Z-a27bcfa2",
+  "timestamp": "2026-06-12T05:35:40+00:00",
+  "type": "check"
+}

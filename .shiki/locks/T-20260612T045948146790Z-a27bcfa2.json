@@ -17,7 +17,9 @@
     "path:CLAUDE.md",
     "path:CONTEXT.md",
     "path:.claude/commands/shiki.md",
-    "path:.codex/skills/shiki/SKILL.md"
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:README.md",
+    "path:SYSTEM_PROMPT.md"
   ],
   "owner": "shiki-cli",
   "state": "active",

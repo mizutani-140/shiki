@@ -21,7 +21,9 @@
     "L-20260612T045958694223Z-f313daa5",
     "L-20260612T045958766095Z-1e97b822",
     "L-20260612T053259839357Z-a2d2be2c",
-    "L-20260612T053349378376Z-3d70c7ec"
+    "L-20260612T053349378376Z-3d70c7ec",
+    "L-20260612T053540157300Z-b0df682e",
+    "L-20260612T053540158176Z-1e1a7626"
   ],
   "locks": [
     "path:scripts/shiki_runtime.py",
@@ -39,7 +41,9 @@
     "path:CLAUDE.md",
     "path:CONTEXT.md",
     "path:.claude/commands/shiki.md",
-    "path:.codex/skills/shiki/SKILL.md"
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:README.md",
+    "path:SYSTEM_PROMPT.md"
   ],
   "non_goals": [
     "No spec_freeze plan contract changes (G-C)",

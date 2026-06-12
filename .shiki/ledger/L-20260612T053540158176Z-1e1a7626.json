@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "scripts/test_shiki_runner_claude.sh",
+    "tests/test_runner_adapters.py",
+    ".shiki/runner"
+  ],
+  "goal_id": "G-20260612T045923586452Z-8f7011ec",
+  "id": "L-20260612T053540158176Z-1e1a7626",
+  "links": [],
+  "summary": "Skill tdd evidence: scripts/test_shiki_runner_claude.sh (contract test with fake claude binary, wrong-runtime rejection) and tests/test_runner_adapters.py (7 adapter contract tests) written with the adapter implementation; full suite of 28 contract tests + 64 unittests green",
+  "task_id": "T-20260612T045948146790Z-a27bcfa2",
+  "timestamp": "2026-06-12T05:35:40+00:00",
+  "type": "check"
+}
