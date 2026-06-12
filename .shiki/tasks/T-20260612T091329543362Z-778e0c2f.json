@@ -9,7 +9,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/g-d0c43361-goal-loop",
+  "expected_branch": "shiki/t-778e0c2f-post-merge-reconcile",
   "expected_pr": 126,
   "github_issue": 119,
   "goal_id": "G-20260612T091302245408Z-d0c43361",
@@ -24,7 +24,9 @@
     "L-20260612T095525697560Z-30ef1878",
     "L-20260612T095525697968Z-18241955",
     "L-20260612T095525778113Z-e465f399",
-    "L-20260612T095549373205Z-b4b28a6d"
+    "L-20260612T095549373205Z-b4b28a6d",
+    "L-20260612T100954725469Z-59967af1",
+    "L-20260612T100954807006Z-97dd6399"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -61,6 +63,6 @@
   ],
   "risk_level": "medium",
   "scope": "New module scripts/shiki_loop.py: pure decision engine decide_task_action(snapshot)->action covering dispatch / create_pr / wait_checks / rerun_cca (CCA failed while other required checks passed or pending->green) / merge (all required checks green AND risk low|medium) / stop_guardian (risk high|critical at merge time, or repair attempts exhausted) / dispatch_repair (required check failed, bounded by automatic_repair_limit) / unblock_dependents and goal_complete; effectors separated (gh pr checks/view/merge via run(), runner dispatch, repair packet + handoff creation, task status + ledger evidence). CLI: shiki loop step --goal-id and shiki loop run --goal-id --max-cycles --interval wired in shiki_cli.py. Runner: dispatch_runner_task accepts --repair-id (handoffs/RP-x-repair.md). Doctor: new finding doctor.worktrees.unregistered comparing git worktree list against .shiki/worktrees registry. Version: VERSION and pyproject.toml to 0.2.0. Sync: installer TEMPLATE_PATHS, validator SHIKI_CLI_MODULE_FILES, module-boundary/staging lists; tests tests/test_loop_engine.py (fixture unit tests for every action branch) and scripts/test_shiki_goal_loop.sh (fake gh + fake claude end-to-end: dispatch -> PR -> checks green -> auto-merge -> dependent unblock -> goal complete; plus high-risk stop and repair-limit stop). Docs: control-commands loop section, implementation-policy coordinator loop, /shiki Goal mode step references shiki loop run, AGENTS.md MergeGate auto-merge sentence (risk low/medium with full evidence; high/critical stays Guardian-gated). Guardian-approved implementation by Claude Code in this assigned task.",
-  "status": "review",
+  "status": "done",
   "title": "Goal loop engine, repair dispatch via runner --repair-id, doctor unregistered-worktree check, version 0.2.0"
 }
