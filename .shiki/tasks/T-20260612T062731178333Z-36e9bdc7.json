@@ -40,7 +40,9 @@
     "path:SYSTEM_PROMPT.md",
     "path:CONTEXT.md",
     "path:.claude/commands/shiki.md",
-    "path:.codex/skills/shiki/SKILL.md"
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:CONTRIBUTING.md",
+    "path:scripts/shiki_cli.py"
   ],
   "non_goals": [
     "No autonomous loop (G-D)",
