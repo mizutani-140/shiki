@@ -10,7 +10,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/g-d0c43361-goal-loop",
-  "expected_pr": null,
+  "expected_pr": 126,
   "github_issue": 119,
   "goal_id": "G-20260612T091302245408Z-d0c43361",
   "id": "T-20260612T091329543362Z-778e0c2f",
@@ -23,7 +23,8 @@
     "L-20260612T095525696735Z-08fdceda",
     "L-20260612T095525697560Z-30ef1878",
     "L-20260612T095525697968Z-18241955",
-    "L-20260612T095525778113Z-e465f399"
+    "L-20260612T095525778113Z-e465f399",
+    "L-20260612T095549373205Z-b4b28a6d"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
