@@ -58,6 +58,7 @@ Do not claim completion. Produce implementation and evidence for GitHub CCA and 
 
 ## Required skills
 - [ ] tdd
+- [ ] code-review
 - [ ] diagnose
 - [ ] zoom-out
 - [ ] improve-codebase-architecture
@@ -120,7 +121,7 @@ Fix only the failures listed here. Do not broaden scope.
 - ...
 
 ## Required skill
-- tdd | diagnose | grill-with-docs | improve-codebase-architecture | evidence-only
+- tdd | code-review | diagnose | grill-with-docs | improve-codebase-architecture | evidence-only
 
 ## Minimal required change
 - ...

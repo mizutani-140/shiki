@@ -15,6 +15,7 @@ Skills are execution controls, not writing style preferences. Missing a required
 | `to-issues` | Goal, PRD, or plan must become implementation tickets. | Vertical-slice issues with acceptance criteria, dependencies, and AFK/HITL classification. |
 | `triage` | Issue readiness, labels, workflow state, or AFK-agent preparation is needed. | Triage recommendation, labels, notes, or agent brief. |
 | `tdd` | Feature work or bug fix has observable behavior that can be specified with tests. | Red-green-refactor loop through public interfaces, one vertical slice at a time. |
+| `code-review` | The TDD loop is green and the implementer is about to create or update a PR. Default for every implementation task. | Pre-PR self-review of the task diff with fixes applied on the task branch; findings and resolutions recorded as a ledger entry naming the skill and a `## Pre-PR code review` PR body section. |
 | `diagnose` | Hard bug, failing check, regression, flaky behavior, or performance problem. | Reproduction loop, ranked hypotheses, instrumentation, fix, regression test, post-mortem. |
 | `improve-codebase-architecture` | Structural friction, testability, AI-navigability, deep-module opportunity, or refactor request. | Architecture candidates and deepening recommendations informed by `CONTEXT.md` and ADRs. |
 | `prototype` | A throwaway logic or UI prototype is needed to answer a design question. | Clearly marked disposable prototype and captured decision. |
@@ -40,6 +41,7 @@ Use this quick map:
 - "Can an agent pick this up?" -> `triage`.
 - "I do not understand this code area" -> `zoom-out`.
 - "Build/fix behavior" -> `tdd`.
+- "Ready to open the PR" -> `code-review` first.
 - "Something is failing" -> `diagnose`.
 - "This architecture is hard to work with" -> `improve-codebase-architecture`.
 - "Let me try a few options" -> `prototype`.

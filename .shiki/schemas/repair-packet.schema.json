@@ -44,6 +44,7 @@
     "required_skill": {
       "enum": [
         "tdd",
+        "code-review",
         "diagnose",
         "grill-with-docs",
         "improve-codebase-architecture",

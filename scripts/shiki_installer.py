@@ -66,6 +66,7 @@ TEMPLATE_PATHS = [
     "scripts/test_shiki_daemon_runner.sh",
     "scripts/test_shiki_runner_codex.sh",
     "scripts/test_shiki_runner_claude.sh",
+    "scripts/test_shiki_code_review_gate.sh",
     "scripts/test_shiki_start.sh",
     "scripts/test_shiki_runtime_auth.sh",
     "scripts/test_shiki_runtime_registry.sh",

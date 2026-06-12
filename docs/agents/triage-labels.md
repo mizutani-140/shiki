@@ -40,6 +40,7 @@ Target Repositories may customize labels, but the Shiki Template assumes these c
 - `skill:to-issues`
 - `skill:triage`
 - `skill:tdd`
+- `skill:code-review`
 - `skill:diagnose`
 - `skill:architecture`
 - `skill:prototype`

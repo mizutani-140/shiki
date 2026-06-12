@@ -205,6 +205,7 @@ KNOWN_SKILLS = {
     "to-issues",
     "triage",
     "tdd",
+    "code-review",
     "diagnose",
     "improve-codebase-architecture",
     "prototype",

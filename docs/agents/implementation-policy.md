@@ -12,7 +12,7 @@ Goal Seek
   -> to-issues
   -> triage
   -> Task DAG + locks
-  -> assigned implementer (Claude Code default / Codex optional) + tdd
+  -> assigned implementer (Claude Code default / Codex optional) + tdd + code-review
   -> PR + evidence
   -> GitHub CCA completion judgment
   -> MergeGate
@@ -172,6 +172,9 @@ Required behavior:
 - Write one test for one behavior, see it fail, implement minimal code, see it pass.
 - Repeat until acceptance criteria pass.
 - Refactor only after green.
+- Run the `code-review` pre-PR gate on the full task diff, apply fixes on the
+  task branch, and record the findings as ledger evidence and a
+  `## Pre-PR code review` PR body section.
 - Run required checks.
 - Update PR body and ledger evidence.
 
@@ -198,6 +201,7 @@ Every implementation PR must include:
 - Scope and non-goals.
 - Acceptance criteria checklist.
 - TDD evidence.
+- Pre-PR code-review evidence (`## Pre-PR code review` section and ledger reference).
 - Verification commands and results.
 - Changed locks.
 - Risk level.

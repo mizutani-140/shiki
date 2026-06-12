@@ -147,7 +147,7 @@ When verdict is `repair_required`, CCA must provide a repair packet containing:
 - Failing acceptance criteria.
 - Minimal required changes.
 - Prohibited changes.
-- Required skill: `tdd`, `diagnose`, `grill-with-docs`, or `improve-codebase-architecture` when applicable.
+- Required skill: `tdd`, `code-review`, `diagnose`, `grill-with-docs`, or `improve-codebase-architecture` when applicable.
 - Verification commands or checks.
 - Evidence the implementer must add.
 - Stop condition.

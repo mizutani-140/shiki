@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "docs/adr/0008-use-claude-code-as-default-implementer.md",
+    "skills/engineering/code-review/SKILL.md"
+  ],
+  "goal_id": "G-20260612T055133628076Z-d76238aa",
+  "id": "L-20260612T061357036867Z-e2fff40f",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/119"
+  ],
+  "summary": "Skill grill-with-docs completed for this Goal: the code-review gate design (wrapper skill + default required_skills + PR-12 + skill-evidence enforcement) was settled in the 2026-06-12 Requirements Definition session recorded in ADR 0008 and PRD issue #119",
+  "task_id": "T-20260612T055157606542Z-5205e0bd",
+  "timestamp": "2026-06-12T06:13:57+00:00",
+  "type": "check"
+}

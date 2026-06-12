@@ -81,7 +81,7 @@ The controlled retry cycle that diagnoses failed checks, CCA findings, review fi
 _Avoid_: infinite retry, silent fix, broad rewrite
 
 **Skill Gate**:
-The rule that certain engineering work must invoke the relevant skills before execution, such as `grill-with-docs`, `to-prd`, `to-issues`, `triage`, `tdd`, `diagnose`, `zoom-out`, `improve-codebase-architecture`, or `prototype`.
+The rule that certain engineering work must invoke the relevant skills before execution, such as `grill-with-docs`, `to-prd`, `to-issues`, `triage`, `tdd`, `code-review`, `diagnose`, `zoom-out`, `improve-codebase-architecture`, or `prototype`.
 _Avoid_: optional prompt style, undocumented best effort
 
 **Agent Runtime**:

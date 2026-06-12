@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "skills/engineering/code-review/SKILL.md",
+    ".shiki/tasks/T-20260612T055157606542Z-5205e0bd.json"
+  ],
+  "goal_id": "G-20260612T055133628076Z-d76238aa",
+  "id": "L-20260612T061357037912Z-fc64fcb4",
+  "links": [],
+  "summary": "Skill code-review pre-PR gate executed on the full task diff (multi-agent review, 3 dimensions, 33 agents): 2 blockers (ledger-evidence gaps in this task's own state), 4 major doc-sync omissions (completion-check-agent, codex-handoff x2, AGENTS/CLAUDE repair lists), 7 minor findings (skills README, PR-12 exception cross-ref, ADR 0008 delivery note, SKILL.md effort wording, implementation-policy Phase 7 + diagram, CONTEXT.md glossary, codex-task-handoff prompt) \u2014 all applied as fixes on the task branch; 2 findings rejected as refuted (tmp-file cleanup, lock-scope objection resolved via recorded lock amendment instead)",
+  "task_id": "T-20260612T055157606542Z-5205e0bd",
+  "timestamp": "2026-06-12T06:13:57+00:00",
+  "type": "review"
+}
