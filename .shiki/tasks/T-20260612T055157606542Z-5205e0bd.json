@@ -8,7 +8,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/g-d76238aa-code-review-gate",
-  "expected_pr": null,
+  "expected_pr": 122,
   "github_issue": 119,
   "goal_id": "G-20260612T055133628076Z-d76238aa",
   "id": "T-20260612T055157606542Z-5205e0bd",
@@ -21,7 +21,8 @@
     "L-20260612T061357036867Z-e2fff40f",
     "L-20260612T061357037513Z-12b3b43a",
     "L-20260612T061357037912Z-fc64fcb4",
-    "L-20260612T061357114114Z-62e3eae1"
+    "L-20260612T061357114114Z-62e3eae1",
+    "L-20260612T061456787131Z-2d295936"
   ],
   "locks": [
     "path:scripts/validate_shiki.py",
