@@ -77,7 +77,7 @@ Every non-trivial change follows this loop:
 1. **Goal**: clarify outcome, completion conditions, non-goals, risk level, and success signals.
 2. **grill-with-docs**: challenge the plan against domain docs, ADRs, code reality, terminology, and edge scenarios.
 3. **Context & Impact**: find relevant docs, ADRs, code, dependencies, owners, locks, and verification surfaces.
-4. **PRD**: use `to-prd` when context is settled enough to become durable product/engineering intent.
+4. **PRD and Spec Freeze**: use `to-prd` when context is settled enough to become durable product/engineering intent. The operator's explicit approval of the PRD is Spec Freeze: the plan records a `spec_freeze` block, and no plan runs without it. Steps 1-4 form Requirements Definition — one continuous operator dialogue. After Spec Freeze, scope changes require an operator-approved Spec Amendment; non-scope-moving interpretations go to the Assumption Log.
 5. **Issues**: use `to-issues` to create independently grabbable vertical-slice issues. Prefer AFK slices over HITL slices where possible.
 6. **Triage**: label issues for readiness, risk, runtime, skills, and MergeGate state.
 7. **Plan**: decompose into a Task DAG with explicit dependencies, locks, acceptance checks, checklist profile, and runtime assignment.
@@ -187,6 +187,9 @@ Every executable task must include:
 Only tasks whose dependencies and locks are satisfied may run.
 
 ## Context & Impact Requirements
+
+For non-trivial Goals, Context & Impact must be produced by a Workflow
+parallel exploration sweep, with the sweep run recorded as evidence (CI-08).
 
 Context & Impact must identify:
 

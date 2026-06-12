@@ -34,6 +34,21 @@
       },
       "additionalProperties": true
     },
+    "spec_freeze": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["frozen"] },
+        "approved_by": { "type": "string" },
+        "source": { "type": "string" },
+        "prd": { "type": "string" },
+        "amendments": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
     "tasks": {
       "type": "array",
       "minItems": 1,

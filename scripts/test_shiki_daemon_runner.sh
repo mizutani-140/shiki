@@ -44,6 +44,11 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
     "source": "CONTEXT.md",
     "decisions": ["Use one dispatchable task"]
   },
+  "spec_freeze": {
+    "status": "frozen",
+    "approved_by": "operator",
+    "source": "test fixture"
+  },
   "tasks": [
     {
       "title": "Write daemon marker",
@@ -118,6 +123,11 @@ cat >"$TMP_ROOT/smoke-plan.json" <<'JSON'
     "status": "complete",
     "source": "CONTEXT.md",
     "decisions": ["Use a separate smoke lock"]
+  },
+  "spec_freeze": {
+    "status": "frozen",
+    "approved_by": "operator",
+    "source": "test fixture"
   },
   "tasks": [
     {

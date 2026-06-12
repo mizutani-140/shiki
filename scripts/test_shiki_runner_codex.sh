@@ -43,6 +43,11 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
     "source": "CONTEXT.md",
     "decisions": ["Use Codex as implementation runtime"]
   },
+  "spec_freeze": {
+    "status": "frozen",
+    "approved_by": "operator",
+    "source": "test fixture"
+  },
   "tasks": [
     {
       "title": "Write Codex marker",

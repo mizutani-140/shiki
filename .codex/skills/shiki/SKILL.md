@@ -77,7 +77,8 @@ start record, plan, and handoff must preserve the selected skills directory.
 
 ## Rules
 
-- For non-trivial goals, enter through `grill-with-docs`.
+- For non-trivial goals, enter through `grill-with-docs`. In a bootstrapped Target Repository the default flow is Goal mode: Requirements Definition (grill dialogue + Context & Impact + PRD) ends with the operator's explicit approval = Spec Freeze, recorded as the plan's `spec_freeze` block (`status: frozen`, `approved_by`, `source`). Plans without it are rejected by `shiki plan ingest`/`run`. Codex satisfies the Context & Impact sweep requirement with an equivalent recorded exploration (the Claude Workflow tool is not available in Codex).
+- After Spec Freeze, scope-moving discoveries pause the task and return to the operator as a Spec Amendment; non-scope-moving interpretations are recorded in the Assumption Log.
 - `/shiki` should guide the user through missing repo/Goal answers one question at a time and then run `shiki start`; direct `init`, `plan`, and `run` calls are lower-level fallback commands.
 - Convert the settled `grill-with-docs` result into a machine-readable plan and run it with `shiki plan ingest` followed by `shiki run`.
 - For unattended execution, queue the plan with `shiki daemon enqueue-plan` and process it with `shiki daemon run`.

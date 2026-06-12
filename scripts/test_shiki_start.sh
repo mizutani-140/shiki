@@ -79,6 +79,7 @@ cat >"$TMP_ROOT/answers.json" <<'JSON'
   ],
   "risk_level": "medium",
   "required_skills": ["grill-with-docs", "to-prd", "to-issues", "tdd"],
+  "approve_spec_freeze": true,
   "tasks": [
     {
       "title": "Create one command start path",
@@ -90,6 +91,21 @@ cat >"$TMP_ROOT/answers.json" <<'JSON'
   ]
 }
 JSON
+
+# Start without explicit Spec Freeze approval must fail (ADR 0009).
+python3 - "$TMP_ROOT/answers.json" "$TMP_ROOT/answers-unapproved.json" <<'PY'
+import json
+import sys
+
+answers = json.load(open(sys.argv[1]))
+answers.pop("approve_spec_freeze", None)
+json.dump(answers, open(sys.argv[2], "w"), indent=2)
+PY
+if python3 scripts/shiki.py start "$TARGET" --answers-file "$TMP_ROOT/answers-unapproved.json" --execute --no-push --no-protect </dev/null 2>/tmp/shiki-start-unapproved.out; then
+  echo "expected start without spec-freeze approval to fail" >&2
+  exit 1
+fi
+grep "Spec Freeze was not approved" /tmp/shiki-start-unapproved.out >/dev/null
 
 python3 scripts/shiki.py start \
   "$TARGET" \

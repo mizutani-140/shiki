@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "docs/adr/0009-requirements-definition-and-spec-freeze.md",
+    "CONTEXT.md"
+  ],
+  "goal_id": "G-20260612T062701078809Z-266eceff",
+  "id": "L-20260612T085336892327Z-8c33599b",
+  "links": [
+    "https://github.com/mizutani-140/shiki/issues/119"
+  ],
+  "summary": "Skill grill-with-docs completed for this Goal: the Requirements Definition + Spec Freeze design (freeze at PRD approval, operator-only amendments, additive plan contract, /shiki Goal mode) was settled in the 2026-06-12 grill session recorded in ADR 0009 and PRD issue #119",
+  "task_id": "T-20260612T062731178333Z-36e9bdc7",
+  "timestamp": "2026-06-12T08:53:36+00:00",
+  "type": "check"
+}

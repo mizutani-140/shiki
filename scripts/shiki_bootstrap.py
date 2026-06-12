@@ -333,6 +333,23 @@ def load_start_answers(args: argparse.Namespace) -> dict[str, Any]:
             }
         ]
 
+    approved = bool(getattr(args, "approve_spec_freeze", False))
+    spec_freeze_source = "shiki start --approve-spec-freeze flag"
+    if not approved and answers.get("approve_spec_freeze"):
+        approved = True
+        spec_freeze_source = "answers file approve_spec_freeze: true"
+    if not approved and sys.stdin.isatty():
+        reply = prompt_value("Approve these requirements and freeze the spec? (yes/no)")
+        if reply.strip().lower() in {"yes", "y"}:
+            approved = True
+            spec_freeze_source = "shiki start interactive approval question"
+    if not approved:
+        raise ShikiError(
+            "Spec Freeze was not approved. Re-run with --approve-spec-freeze, set "
+            "approve_spec_freeze: true in the answers file, or answer yes interactively. "
+            "Plans cannot run without an operator-approved spec_freeze (ADR 0009)."
+        )
+
     return {
         "repo": repo,
         "project_name": project_name,
@@ -343,6 +360,7 @@ def load_start_answers(args: argparse.Namespace) -> dict[str, Any]:
         "risk_level": args.risk_level or answers.get("risk_level", "medium"),
         "required_skills": required_skills,
         "skills_dir": skills_dir,
+        "spec_freeze_source": spec_freeze_source,
         "tasks": tasks,
     }
 
@@ -366,6 +384,11 @@ def plan_from_start_answers(answers: dict[str, Any]) -> dict[str, Any]:
                 "Use engineering skills as mandatory planning and implementation gates.",
                 "Use a guided one-question-at-a-time start flow before creating the Task DAG.",
             ],
+        },
+        "spec_freeze": {
+            "status": "frozen",
+            "approved_by": "operator",
+            "source": answers["spec_freeze_source"],
         },
         "skill_gate": {
             "skills_dir": answers["skills_dir"],

@@ -52,6 +52,11 @@ For non-trivial work, do not start by manually creating each task. First run
     "source": "CONTEXT.md",
     "decisions": ["Settled decision"]
   },
+  "spec_freeze": {
+    "status": "frozen",
+    "approved_by": "operator",
+    "source": "Operator approved the PRD at the end of Requirements Definition"
+  },
   "tasks": [
     {
       "title": "Vertical slice title",

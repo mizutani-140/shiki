@@ -1,0 +1,30 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "shiki plan ingest / run / daemon / smoke reject plans without spec_freeze.status=frozen; shiki start synthesizes the block with recorded source",
+    "Both state machines gain spec_frozen after prd_ready; checklists gain the SF family and CI-08",
+    "/shiki defaults to Goal mode (Requirements Definition -> Spec Freeze -> plan ingest/run) in bootstrapped repos with Skill and Workflow in allowed-tools",
+    "Migration M-20260612-0001-spec-freeze registered with dry-run default; all contract tests green including a negative test for unfrozen plans"
+  ],
+  "created_at": "2026-06-12T06:27:01+00:00",
+  "github_issue": 119,
+  "id": "G-20260612T062701078809Z-266eceff",
+  "non_goals": [
+    "No autonomous loop, auto-merge, or repair auto-dispatch (G-D)",
+    "No renaming or removal of grill_with_docs (additive only)",
+    "No workflow YAML or required-check changes"
+  ],
+  "outcome": "Plans cannot run without an operator-approved spec_freeze block; the /shiki command's default mode in a bootstrapped repo is the Requirements Definition dialogue ending in Spec Freeze; Context & Impact for non-trivial Goals is produced by a recorded Workflow parallel sweep; state machines and checklists carry the spec_frozen stage; a registered migration backfills stored plans",
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "status": "planned",
+  "title": "G-C: Requirements Definition and Spec Freeze in the plan contract and /shiki Goal mode"
+}

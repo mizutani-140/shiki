@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260612T062731178333Z-36e9bdc7.json"
+  ],
+  "goal_id": "G-20260612T062701078809Z-266eceff",
+  "id": "L-20260612T062731178615Z-23cf141a",
+  "links": [],
+  "summary": "Task registered: Spec Freeze plan contract, /shiki Requirements Definition Goal mode, SF/CI checklists, state machines, migration",
+  "task_id": "T-20260612T062731178333Z-36e9bdc7",
+  "timestamp": "2026-06-12T06:27:31+00:00",
+  "type": "task-registered"
+}

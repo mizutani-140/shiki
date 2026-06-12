@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "scripts/test_shiki_run_orchestrator.sh",
+    "scripts/test_shiki_migrations.sh",
+    "scripts/test_shiki_start.sh"
+  ],
+  "goal_id": "G-20260612T062701078809Z-266eceff",
+  "id": "L-20260612T085336893090Z-2cd013f9",
+  "links": [],
+  "summary": "Skill tdd evidence: negative unfrozen-plan rejection test in test_shiki_run_orchestrator.sh, spec-freeze migration backfill coverage in test_shiki_migrations.sh, unapproved-start rejection test in test_shiki_start.sh, 6 plan heredocs updated; full suite of 29 contract tests + unittests green",
+  "task_id": "T-20260612T062731178333Z-36e9bdc7",
+  "timestamp": "2026-06-12T08:53:36+00:00",
+  "type": "check"
+}

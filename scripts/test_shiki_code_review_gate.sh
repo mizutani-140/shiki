@@ -59,6 +59,11 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
     "source": "CONTEXT.md",
     "decisions": ["code-review is a mandatory pre-PR implementer gate (ADR 0008)"]
   },
+  "spec_freeze": {
+    "status": "frozen",
+    "approved_by": "operator",
+    "source": "test fixture"
+  },
   "tasks": [
     {
       "title": "Default-skill task",
