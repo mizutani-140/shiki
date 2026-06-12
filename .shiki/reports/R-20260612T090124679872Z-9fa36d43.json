@@ -1,0 +1,19 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-12T09:01:24+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260612T062731178333Z-36e9bdc7.json"
+  ],
+  "goal_id": "G-20260612T062701078809Z-266eceff",
+  "id": "R-20260612T090124679872Z-9fa36d43",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "medium"
+  },
+  "status": "complete",
+  "summary": "G-C complete: Spec Freeze gates plan execution, /shiki defaults to Requirements Definition Goal mode, SF/CI-08 checklists and spec_frozen states recorded; merged as PR #124"
+}

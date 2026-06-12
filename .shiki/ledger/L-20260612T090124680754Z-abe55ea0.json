@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260612T090124679872Z-9fa36d43.json"
+  ],
+  "goal_id": "G-20260612T062701078809Z-266eceff",
+  "id": "L-20260612T090124680754Z-abe55ea0",
+  "links": [],
+  "summary": "G-C complete: Spec Freeze gates plan execution, /shiki defaults to Requirements Definition Goal mode, SF/CI-08 checklists and spec_frozen states recorded; merged as PR #124",
+  "task_id": null,
+  "timestamp": "2026-06-12T09:01:24+00:00",
+  "type": "completion"
+}
