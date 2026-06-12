@@ -1,0 +1,64 @@
+{
+  "acceptance_checks": [
+    "bash scripts/test_shiki_goal_loop.sh passes: fake-runtime goal drives dispatch -> PR -> green checks -> auto-merge -> dependent unblock -> goal complete; high/critical risk stops for guardian; repair dispatch stops after the attempt limit",
+    "python3 -m unittest discover -s tests passes including tests/test_loop_engine.py covering every decision branch",
+    "shiki runner claude --repair-id dispatches a repair handoff in the runner contract tests",
+    "shiki doctor flags an unregistered git worktree in test_shiki_doctor.sh",
+    "VERSION and pyproject.toml read 0.2.0; python3 scripts/validate_shiki.py and all scripts/test_shiki_*.sh pass; CI (Validate / Claude review / CCA / MergeGate) green",
+    "This PR carries pre-PR code-review ledger evidence (PR-12)"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/g-d0c43361-goal-loop",
+  "expected_pr": null,
+  "github_issue": 119,
+  "goal_id": "G-20260612T091302245408Z-d0c43361",
+  "id": "T-20260612T091329543362Z-778e0c2f",
+  "ledger_evidence": [
+    "L-20260612T091329543588Z-9cbc1742",
+    "L-20260612T091329629310Z-c03801dc",
+    "L-20260612T091329709249Z-6343ff50",
+    "L-20260612T091302246267Z-1d948ad0",
+    "L-20260612T091329785073Z-d1d74907",
+    "L-20260612T095525696735Z-08fdceda",
+    "L-20260612T095525697560Z-30ef1878",
+    "L-20260612T095525697968Z-18241955",
+    "L-20260612T095525778113Z-e465f399"
+  ],
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:scripts/shiki_runtime.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/shiki_doctor.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*",
+    "path:.shiki/**",
+    "path:docs/**",
+    "path:AGENTS.md",
+    "path:CLAUDE.md",
+    "path:README.md",
+    "path:SYSTEM_PROMPT.md",
+    "path:CONTRIBUTING.md",
+    "path:.claude/commands/shiki.md",
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:VERSION",
+    "path:pyproject.toml",
+    "path:scripts/shiki_tasks.py"
+  ],
+  "non_goals": [
+    "No target migration application",
+    "No workflow YAML changes",
+    "No Guardian policy changes"
+  ],
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "scope": "New module scripts/shiki_loop.py: pure decision engine decide_task_action(snapshot)->action covering dispatch / create_pr / wait_checks / rerun_cca (CCA failed while other required checks passed or pending->green) / merge (all required checks green AND risk low|medium) / stop_guardian (risk high|critical at merge time, or repair attempts exhausted) / dispatch_repair (required check failed, bounded by automatic_repair_limit) / unblock_dependents and goal_complete; effectors separated (gh pr checks/view/merge via run(), runner dispatch, repair packet + handoff creation, task status + ledger evidence). CLI: shiki loop step --goal-id and shiki loop run --goal-id --max-cycles --interval wired in shiki_cli.py. Runner: dispatch_runner_task accepts --repair-id (handoffs/RP-x-repair.md). Doctor: new finding doctor.worktrees.unregistered comparing git worktree list against .shiki/worktrees registry. Version: VERSION and pyproject.toml to 0.2.0. Sync: installer TEMPLATE_PATHS, validator SHIKI_CLI_MODULE_FILES, module-boundary/staging lists; tests tests/test_loop_engine.py (fixture unit tests for every action branch) and scripts/test_shiki_goal_loop.sh (fake gh + fake claude end-to-end: dispatch -> PR -> checks green -> auto-merge -> dependent unblock -> goal complete; plus high-risk stop and repair-limit stop). Docs: control-commands loop section, implementation-policy coordinator loop, /shiki Goal mode step references shiki loop run, AGENTS.md MergeGate auto-merge sentence (risk low/medium with full evidence; high/critical stays Guardian-gated). Guardian-approved implementation by Claude Code in this assigned task.",
+  "status": "review",
+  "title": "Goal loop engine, repair dispatch via runner --repair-id, doctor unregistered-worktree check, version 0.2.0"
+}

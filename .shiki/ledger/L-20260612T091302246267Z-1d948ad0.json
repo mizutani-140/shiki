@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260612T091302245408Z-d0c43361.json"
+  ],
+  "goal_id": "G-20260612T091302245408Z-d0c43361",
+  "id": "L-20260612T091302246267Z-1d948ad0",
+  "links": [],
+  "summary": "Goal registered: G-D: autonomous post-freeze goal loop, repair dispatch, doctor worktree check, release 0.2.0",
+  "task_id": null,
+  "timestamp": "2026-06-12T09:13:02+00:00",
+  "type": "goal-created"
+}

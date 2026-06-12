@@ -200,6 +200,11 @@ Coordinator dispatch rule:
   and recording runner/Ledger evidence.
 - Stop and ask the user only when the assigned runtime's auth/tooling is
   unavailable, dispatch is blocked, or Guardian approval is required.
+- For a frozen Goal, prefer `shiki loop run --goal-id G-XXXX`: it executes the
+  dispatch / PR / CCA-rerun / auto-merge (risk low/medium) / repair /
+  unblock / completion cycle autonomously and stops only for the repair
+  limit, Guardian gates, blocked evidence, or completion. A Spec Amendment is
+  operator-initiated: interrupt the loop, re-grill, re-stamp, restart.
 
 ## Phase 7 — PR Evidence
 

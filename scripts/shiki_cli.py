@@ -11,6 +11,7 @@ from shiki_bootstrap import cmd_bootstrap_github, cmd_init, cmd_preflight, cmd_s
 from shiki_doctor import cmd_doctor
 from shiki_github import cmd_github_issue, cmd_github_pr
 from shiki_installer import DEFAULT_CLAUDE_COMMAND_PATH, DEFAULT_CODEX_SKILL_PATH, DEFAULT_GLOBAL_COMMAND_PATH, cmd_install_command, cmd_install_global, cmd_install_target, cmd_status
+from shiki_loop import cmd_loop_run, cmd_loop_step
 from shiki_migrations import cmd_migrate
 from shiki_process import ShikiError
 from shiki_runtime import cmd_daemon_enqueue_plan, cmd_daemon_run, cmd_runner_claude, cmd_runner_codex, cmd_runner_execute, cmd_runner_next, cmd_smoke_live
@@ -219,13 +220,28 @@ def build_parser() -> argparse.ArgumentParser:
     runner_codex.add_argument("--task-id", required=True)
     runner_codex.add_argument("--dry-run", action="store_true", help="Show the Codex dispatch without executing it")
     runner_codex.add_argument("--force", action="store_true", help="Run even if the task runtime is not codex")
+    runner_codex.add_argument("--repair-id", help="Dispatch a repair handoff (RP-XXXX) instead of the task handoff")
     runner_codex.set_defaults(func=cmd_runner_codex)
     runner_claude = runner_subcommands.add_parser("claude", help="Run Claude Code autonomously for a ready Shiki task")
     runner_claude.add_argument("--target", default=".", help="Target repository path")
     runner_claude.add_argument("--task-id", required=True)
     runner_claude.add_argument("--dry-run", action="store_true", help="Show the Claude Code dispatch without executing it")
     runner_claude.add_argument("--force", action="store_true", help="Run even if the task runtime is not claude-code")
+    runner_claude.add_argument("--repair-id", help="Dispatch a repair handoff (RP-XXXX) instead of the task handoff")
     runner_claude.set_defaults(func=cmd_runner_claude)
+
+    loop = subcommands.add_parser("loop", help="Drive a frozen Goal autonomously through dispatch, checks, CCA, merge, and repair")
+    loop_subcommands = loop.add_subparsers(dest="loop_command", required=True)
+    loop_step = loop_subcommands.add_parser("step", help="Evaluate the Goal and execute exactly one loop action")
+    loop_step.add_argument("--target", default=".", help="Target repository path")
+    loop_step.add_argument("--goal-id", required=True)
+    loop_step.set_defaults(func=cmd_loop_step)
+    loop_run = loop_subcommands.add_parser("run", help="Repeat loop steps until completion or a stop condition")
+    loop_run.add_argument("--target", default=".", help="Target repository path")
+    loop_run.add_argument("--goal-id", required=True)
+    loop_run.add_argument("--max-cycles", type=int, default=50)
+    loop_run.add_argument("--interval", type=float, default=30.0, help="Seconds to sleep between wait cycles")
+    loop_run.set_defaults(func=cmd_loop_run)
 
     smoke = subcommands.add_parser("smoke", help="Run live Shiki smoke checks against a GitHub-backed target")
     smoke_subcommands = smoke.add_subparsers(dest="smoke_command", required=True)

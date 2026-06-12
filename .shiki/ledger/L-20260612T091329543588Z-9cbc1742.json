@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260612T091329543362Z-778e0c2f.json"
+  ],
+  "goal_id": "G-20260612T091302245408Z-d0c43361",
+  "id": "L-20260612T091329543588Z-9cbc1742",
+  "links": [],
+  "summary": "Task registered: Goal loop engine, repair dispatch via runner --repair-id, doctor unregistered-worktree check, version 0.2.0",
+  "task_id": "T-20260612T091329543362Z-778e0c2f",
+  "timestamp": "2026-06-12T09:13:29+00:00",
+  "type": "task-registered"
+}

@@ -1,0 +1,30 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "shiki loop step/run drives a goal end-to-end in the contract test with fake gh and fake claude (dispatch -> PR -> checks -> auto-merge -> dependent unblock -> goal complete)",
+    "Loop engine decisions are unit-tested over state fixtures for every action branch including rerun_cca, repair limit exhaustion, and guardian stops",
+    "shiki runner claude/codex accept --repair-id and dispatch repair handoffs",
+    "shiki doctor reports unregistered git worktrees; VERSION and pyproject.toml read 0.2.0; docs sweep recorded"
+  ],
+  "created_at": "2026-06-12T09:13:02+00:00",
+  "github_issue": 119,
+  "id": "G-20260612T091302245408Z-d0c43361",
+  "non_goals": [
+    "No target-repo migration application (separate follow-up Goal)",
+    "No workflow YAML or required-check changes",
+    "No Guardian policy changes"
+  ],
+  "outcome": "A frozen Goal drives itself: shiki loop evaluates each task's PR/check state through a pure decision engine and executes dispatch, PR creation, CCA rerun-after-green, risk-gated auto-merge (low/medium), bounded repair dispatch, dependent unblocking, and goal completion, stopping only for amendment, repair-limit, guardian, or completion; runner dispatches repair handoffs; doctor detects unregistered worktrees; platform version is 0.2.0",
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "status": "planned",
+  "title": "G-D: autonomous post-freeze goal loop, repair dispatch, doctor worktree check, release 0.2.0"
+}

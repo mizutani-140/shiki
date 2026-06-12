@@ -245,7 +245,10 @@ def dispatch_runner_task(args: argparse.Namespace, adapter: RunnerAdapter) -> in
     runtime = str(task.get("assigned_runtime", adapter.name))
     if runtime != adapter.name and not args.force:
         raise ShikiError(f"task {args.task_id} is assigned to {runtime}, not {adapter.name}")
-    if task.get("status") not in {"ready", "running"}:
+    allowed_statuses = {"ready", "running"}
+    if getattr(args, "repair_id", None):
+        allowed_statuses.add("repair-needed")
+    if task.get("status") not in allowed_statuses:
         raise ShikiError(f"task {args.task_id} is not ready for {adapter.display_name} execution")
 
     require_tool(adapter.required_tool)
@@ -253,9 +256,15 @@ def dispatch_runner_task(args: argparse.Namespace, adapter: RunnerAdapter) -> in
     if not auth["ready"]:
         raise ShikiError(f"{adapter.display_name} is not ready. {adapter.auth_remediation}")
 
-    handoff_file = shiki_path(target, "handoffs", f"{args.task_id}-task.md")
-    if not handoff_file.exists():
-        raise ShikiError(f"missing handoff file: {handoff_file}. Run `shiki handoff task {args.task_id}` first.")
+    repair_id = getattr(args, "repair_id", None)
+    if repair_id:
+        handoff_file = shiki_path(target, "handoffs", f"{repair_id}-repair.md")
+        if not handoff_file.exists():
+            raise ShikiError(f"missing repair handoff file: {handoff_file}. Run `shiki handoff repair {repair_id}` first.")
+    else:
+        handoff_file = shiki_path(target, "handoffs", f"{args.task_id}-task.md")
+        if not handoff_file.exists():
+            raise ShikiError(f"missing handoff file: {handoff_file}. Run `shiki handoff task {args.task_id}` first.")
 
     worktree = ensure_physical_worktree(target, task)
     worktree_path = Path(worktree["path"]).expanduser().resolve()

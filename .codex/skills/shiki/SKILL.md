@@ -107,6 +107,8 @@ start record, plan, and handoff must preserve the selected skills directory.
 - `shiki runner execute --task-id T-0001 --command "..."`
 - `shiki runner claude --task-id T-0001`
 - `shiki runner codex --task-id T-0001`
+- `shiki loop step --goal-id G-0001`
+- `shiki loop run --goal-id G-0001`
 - `shiki smoke live --plan-file PLAN.json --dry-run`
 - `shiki smoke live --plan-file PLAN.json --execute-github`
 - `shiki smoke live --plan-file PLAN.json --execute-github --push-branch`

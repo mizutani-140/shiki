@@ -36,6 +36,10 @@ _Avoid_: separate grill and plan sessions, requirements emerging during implemen
 The state transition where the operator approves the PRD and the requirements become fixed. Task decomposition and implementation proceed autonomously against the frozen spec. Scope changes after Spec Freeze require an explicit, recorded Spec Amendment, never silent drift.
 _Avoid_: implicit approval, re-negotiating scope mid-implementation, freezing before open design questions are resolved
 
+**Goal Loop**:
+The autonomous post-freeze driver that takes a frozen Goal's Task DAG through dispatch, completion judgment, risk-gated merge, bounded repair, and dependent unblocking without operator input. It stops only for repair-limit exhaustion, Guardian-gated risk, blocked evidence, operator-initiated Spec Amendment, or Goal completion.
+_Avoid_: unbounded automation, merging without MergeGate evidence, treating the loop as the merge authority
+
 **Spec Amendment**:
 A bounded re-opening of a frozen spec when implementation reveals the spec is wrong or incomplete. It pauses affected tasks, runs a scoped re-grill of only the contested decisions with the operator, and re-stamps Spec Freeze with the amendment recorded as evidence. Only the operator approves amendments.
 _Avoid_: full re-planning, unrecorded scope changes, automated self-approval, treating every discovery as an amendment

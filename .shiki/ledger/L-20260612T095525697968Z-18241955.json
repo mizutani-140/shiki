@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "scripts/shiki_loop.py",
+    "CONTEXT.md",
+    "docs/adr/0008-use-claude-code-as-default-implementer.md"
+  ],
+  "goal_id": "G-20260612T091302245408Z-d0c43361",
+  "id": "L-20260612T095525697968Z-18241955",
+  "links": [],
+  "summary": "Skill code-review pre-PR gate executed on the full task diff (multi-agent review, 3 dimensions, 33 agents): 8 major loop findings all fixed (repair limit read from target config.yaml capped at the schema limit, pre-PR repair packets fail closed instead of writing schema-invalid pr:0, deterministic repair-id from create_repair_packet instead of mtime, CCA rerun filtered by PR head SHA and count persisted on the task record, merge failure and fruitless unblock stop the loop instead of hot-looping, lock release on done so dependents unblock, latest-startedAt check aggregation so stale passes cannot mask failures, PR-evidence state sync committed to the task branch); governance findings fixed (ADR 0008 bypassPermissions deferral recorded honestly, Spec Amendment stop reworded as operator-initiated across 4 surfaces, CONTEXT.md Goal Loop glossary entry, triage risk-label semantics); 5 reviewer claims rejected as refuted",
+  "task_id": "T-20260612T091329543362Z-778e0c2f",
+  "timestamp": "2026-06-12T09:55:25+00:00",
+  "type": "review"
+}

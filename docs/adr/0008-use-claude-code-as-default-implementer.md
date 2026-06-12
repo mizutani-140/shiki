@@ -90,8 +90,9 @@ Action with `CLAUDE_CODE_OAUTH_TOKEN` stays), and API-key based automation
   approval for high/critical risk; and MergeGate remaining the only authority
   for state transitions ("LLM outputs may vary. State transitions must not
   vary."). A tighter posture (settings-based deny rules and hooks shipped into
-  the dispatch worktree) is follow-up work for the autonomy Goal (G-D of the
-  0.2.0 series).
+  the dispatch worktree) was deferred past the 0.2.0 series: Goal G-D shipped
+  the autonomous loop without it, and the bounding work remains an open,
+  recorded follow-up for the next series (tracked in PRD issue #119).
 
 ## Alternatives Considered
 
