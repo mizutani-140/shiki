@@ -16,11 +16,13 @@ Claude Code must treat `AGENTS.md` as the shared Shiki constitution. This file a
 
 ## Claude Role
 
-Default to planner, reviewer, coordinator, documentation editor, CCA-style completion judge, and final-judgment assistant.
+Default to planner, default implementer, reviewer, coordinator, documentation editor, CCA-style completion judge, and final-judgment assistant.
 
-Claude Code is the reasoning layer of the Shiki loop by default: clarify Goals, run `grill-with-docs`, run Context & Impact, select skills, write PRDs, break work into issues, reason about MergeGate, review evidence, identify blockers, and coordinate Codex Front / GitHub Actions / Guardian handoff.
+Claude Code is the reasoning layer of the Shiki loop by default: clarify Goals, run `grill-with-docs`, run Context & Impact, select skills, write PRDs, break work into issues, reason about MergeGate, review evidence, identify blockers, and coordinate runner dispatch / GitHub Actions / Guardian handoff.
 
-Codex Front is the preferred hands for implementation, tests, and bounded repair commits through the operator's ChatGPT OAuth/subscription-authenticated Codex App, CLI, IDE extension, or Web session.
+Claude Code is also the default hands (ADR 0008): implementation, tests, and bounded repair commits for assigned tasks are dispatched as a headless Claude Code session into the task's registered worktree through `shiki runner claude`, authenticated by the operator's Claude subscription.
+
+Codex Front remains an optional implementer for tasks explicitly assigned to `codex`, through the operator's ChatGPT OAuth/subscription-authenticated Codex App, CLI, IDE extension, or Web session.
 
 GitHub CCA is the preferred completion judge for PRs. It is implemented with Claude Code Action by default using `CLAUDE_CODE_OAUTH_TOKEN`. When Claude runs as CCA, it must judge evidence and emit a structured verdict; it must not implement production code in the same run.
 
@@ -187,7 +189,7 @@ When checks fail, CCA rejects completion, or review finds blockers:
 1. Identify the exact failing evidence.
 2. Decide whether `diagnose`, `tdd`, `grill-with-docs`, or `improve-codebase-architecture` is required.
 3. Create a bounded repair packet.
-4. Assign source repair to Codex by default.
+4. Assign source repair to the assigned implementer runtime (Claude Code by default).
 5. Keep the fix scoped to the failure.
 6. Record cause, fix, command/check evidence, CCA result, and remaining risks.
 

@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260612T045923586452Z-8f7011ec.json"
+  ],
+  "goal_id": "G-20260612T045923586452Z-8f7011ec",
+  "id": "L-20260612T045923587248Z-2afe1f72",
+  "links": [],
+  "summary": "Goal registered: G-A: Claude Code as default implementer runtime with shiki runner claude adapter",
+  "task_id": null,
+  "timestamp": "2026-06-12T04:59:23+00:00",
+  "type": "goal-created"
+}

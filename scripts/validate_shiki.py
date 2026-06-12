@@ -304,6 +304,7 @@ SHIKI_CLI_MODULE_FILES = (
     "scripts/shiki_provider.py",
     "scripts/shiki_process.py",
     "scripts/shiki_runtime.py",
+    "scripts/shiki_runtime_adapters.py",
     "scripts/shiki_runtime_registry.py",
     "scripts/shiki_state_classes.py",
     "scripts/shiki_tasks.py",

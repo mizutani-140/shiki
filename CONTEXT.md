@@ -25,8 +25,24 @@ The clarification process that turns a user request into a Goal with outcome, no
 _Avoid_: jumping directly into code
 
 **grill-with-docs**:
-A planning skill that challenges a plan against domain language, ADRs, code reality, and concrete edge scenarios. It resolves design-tree questions before PRD/issues.
+A planning skill that challenges a plan against domain language, ADRs, code reality, and concrete edge scenarios. It resolves design-tree questions before PRD/issues. It runs inside Requirements Definition.
 _Avoid_: generic brainstorming, silent assumptions
+
+**Requirements Definition**:
+The single interactive phase that combines Goal Seek, grill-with-docs, Context & Impact review, and PRD drafting into one continuous operator dialogue. It ends with Spec Freeze. After Requirements Definition, no operator input is required on the happy path.
+_Avoid_: separate grill and plan sessions, requirements emerging during implementation
+
+**Spec Freeze**:
+The state transition where the operator approves the PRD and the requirements become fixed. Task decomposition and implementation proceed autonomously against the frozen spec. Scope changes after Spec Freeze require an explicit, recorded Spec Amendment, never silent drift.
+_Avoid_: implicit approval, re-negotiating scope mid-implementation, freezing before open design questions are resolved
+
+**Spec Amendment**:
+A bounded re-opening of a frozen spec when implementation reveals the spec is wrong or incomplete. It pauses affected tasks, runs a scoped re-grill of only the contested decisions with the operator, and re-stamps Spec Freeze with the amendment recorded as evidence. Only the operator approves amendments.
+_Avoid_: full re-planning, unrecorded scope changes, automated self-approval, treating every discovery as an amendment
+
+**Assumption Log**:
+The recorded list of implementation-level interpretations that do not move scope boundaries, made after Spec Freeze without pausing work. Each assumption is durable evidence and is challengeable by CCA and review.
+_Avoid_: hiding scope changes as assumptions, unrecorded interpretation, blocking on trivia
 
 **Context & Impact**:
 The planning intelligence that identifies relevant documents, code areas, symbols, dependencies, risks, lock candidates, and likely verification surfaces before execution.

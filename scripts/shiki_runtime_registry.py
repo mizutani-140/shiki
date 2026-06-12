@@ -88,13 +88,13 @@ _RUNTIME_DESCRIPTORS: tuple[RuntimeDescriptor, ...] = (
     RuntimeDescriptor(
         name="claude-code",
         display_name="Claude Code",
-        roles=("planner", "reviewer"),
+        roles=("planner", "implementer", "runner", "reviewer"),
         execution_mode="local_cli",
         auth_mode="claude_subscription_oauth",
         required_tools=("claude",),
         supports_local_execution=True,
         supports_handoff=True,
-        description="Local Claude Code planning, review, and human-assisted runtime.",
+        description="Local Claude Code planning, review, and default implementation/runner runtime (ADR 0008).",
     ),
     RuntimeDescriptor(
         name="claude-code-action",

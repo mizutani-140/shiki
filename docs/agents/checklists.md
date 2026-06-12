@@ -79,7 +79,7 @@ Blocking values:
 | ISS-10 | Verification commands or required checks are listed. | blocking |
 | ISS-11 | CCA checklist profile is listed. | blocking |
 
-## H — Codex Handoff Checklist
+## H — Implementer Handoff Checklist (Claude Code or Codex)
 
 | ID | Item | Blocking |
 | --- | --- | --- |
@@ -92,7 +92,7 @@ Blocking values:
 | H-07 | TDD expectations are stated. | blocking when behavior work |
 | H-08 | Acceptance criteria are included. | blocking |
 | H-09 | Verification commands are included. | blocking |
-| H-10 | Evidence Codex must produce is included. | blocking |
+| H-10 | Evidence the implementer must produce is included. | blocking |
 | H-11 | Prohibited changes are stated. | blocking |
 
 ## TDD — Implementation Checklist
@@ -185,7 +185,7 @@ ledger entries.
 | RP-05 | Prohibited changes are stated. | blocking |
 | RP-06 | Required skill is stated. | blocking |
 | RP-07 | Verification commands/checks are stated. | blocking |
-| RP-08 | Evidence Codex must produce is stated. | blocking |
+| RP-08 | Evidence the implementer must produce is stated. | blocking |
 | RP-09 | Stop condition is stated. | blocking |
 
 ## MG — MergeGate Checklist

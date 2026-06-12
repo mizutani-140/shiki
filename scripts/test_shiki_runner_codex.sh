@@ -49,6 +49,7 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
       "scope": "Create the smallest Codex-visible implementation task",
       "acceptance_checks": ["Codex fake writes a marker in the materialized worktree"],
       "locks": ["path:codex-marker.txt"],
+      "runtime": "codex",
       "required_skills": ["tdd"]
     }
   ]

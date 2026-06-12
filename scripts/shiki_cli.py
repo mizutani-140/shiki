@@ -13,7 +13,7 @@ from shiki_github import cmd_github_issue, cmd_github_pr
 from shiki_installer import DEFAULT_CLAUDE_COMMAND_PATH, DEFAULT_CODEX_SKILL_PATH, DEFAULT_GLOBAL_COMMAND_PATH, cmd_install_command, cmd_install_global, cmd_install_target, cmd_status
 from shiki_migrations import cmd_migrate
 from shiki_process import ShikiError
-from shiki_runtime import cmd_daemon_enqueue_plan, cmd_daemon_run, cmd_runner_codex, cmd_runner_execute, cmd_runner_next, cmd_smoke_live
+from shiki_runtime import cmd_daemon_enqueue_plan, cmd_daemon_run, cmd_runner_claude, cmd_runner_codex, cmd_runner_execute, cmd_runner_next, cmd_smoke_live
 from shiki_tasks import cmd_dispatch_check, cmd_goal_complete, cmd_goal_create, cmd_handoff_repair, cmd_handoff_task, cmd_issue_plan, cmd_lock_acquire, cmd_plan_guide, cmd_plan_ingest, cmd_repair_packet, cmd_run, cmd_task_status, cmd_worktree_allocate
 
 
@@ -219,6 +219,12 @@ def build_parser() -> argparse.ArgumentParser:
     runner_codex.add_argument("--dry-run", action="store_true", help="Show the Codex dispatch without executing it")
     runner_codex.add_argument("--force", action="store_true", help="Run even if the task runtime is not codex")
     runner_codex.set_defaults(func=cmd_runner_codex)
+    runner_claude = runner_subcommands.add_parser("claude", help="Run Claude Code autonomously for a ready Shiki task")
+    runner_claude.add_argument("--target", default=".", help="Target repository path")
+    runner_claude.add_argument("--task-id", required=True)
+    runner_claude.add_argument("--dry-run", action="store_true", help="Show the Claude Code dispatch without executing it")
+    runner_claude.add_argument("--force", action="store_true", help="Run even if the task runtime is not claude-code")
+    runner_claude.set_defaults(func=cmd_runner_claude)
 
     smoke = subcommands.add_parser("smoke", help="Run live Shiki smoke checks against a GitHub-backed target")
     smoke_subcommands = smoke.add_subparsers(dest="smoke_command", required=True)
@@ -261,7 +267,7 @@ def build_parser() -> argparse.ArgumentParser:
     issue_plan.add_argument("--non-goal", action="append", default=[])
     issue_plan.add_argument("--dependency", action="append", default=[])
     issue_plan.add_argument("--lock", action="append", default=[])
-    issue_plan.add_argument("--runtime", default="codex", choices=["codex", "claude-code", "github-actions", "hermes-runner", "human", "other"])
+    issue_plan.add_argument("--runtime", default="claude-code", choices=["codex", "claude-code", "github-actions", "hermes-runner", "human", "other"])
     issue_plan.add_argument("--risk-level", default="low", choices=["low", "medium", "high", "critical"])
     issue_plan.add_argument("--required-skill", action="append", default=[])
     issue_plan.add_argument("--acceptance-check", action="append", required=True)

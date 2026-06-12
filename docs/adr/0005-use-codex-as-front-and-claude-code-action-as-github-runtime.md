@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted (implementer default superseded by ADR 0008; the auth model and the
+Claude Code Action GitHub runtime decision remain in force)
 
 ## Context
 

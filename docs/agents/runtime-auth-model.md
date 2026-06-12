@@ -4,7 +4,8 @@ Shiki's default operator model is subscription-authenticated, not API-key-first.
 
 ## Default Runtime Split
 
-- **Codex Front**: the operator-facing implementation surface. Use Codex App, Codex CLI, Codex IDE extension, or Codex Web signed in with ChatGPT OAuth/subscription auth.
+- **Claude Code**: the default implementer and runner runtime (ADR 0008). `shiki runner claude` dispatches a headless `claude -p` session into the task's registered worktree, authenticated by the operator's Claude subscription login.
+- **Codex Front**: an optional implementer surface for tasks explicitly assigned to `codex`. Use Codex App, Codex CLI, Codex IDE extension, or Codex Web signed in with ChatGPT OAuth/subscription auth.
 - **Claude Code Action**: the GitHub Actions runtime for PR review, issue/PR automation, and MergeGate judgment. Use `CLAUDE_CODE_OAUTH_TOKEN` as the default secret.
 - **GitHub**: the durable coordination surface for Issues, PRs, Checks, Reviews, comments, and merge evidence.
 - **`.shiki/` mirror**: portable recovery and evidence mirror inside each target repo.
@@ -45,8 +46,8 @@ unavailable.
 Do not assume `openai/codex-action` or `OPENAI_API_KEY` unless a target repository explicitly opts into an API-key based automation mode. The default Shiki loop is:
 
 1. GitHub Issue or PR defines the Goal/task contract.
-2. Codex Front reads Shiki context and performs implementation through the user's authenticated Codex session.
-3. Codex pushes a branch or opens a PR.
+2. The assigned implementer performs implementation: Claude Code through `shiki runner claude` and the operator's Claude subscription by default, or Codex Front through the user's authenticated Codex session when the task is assigned to `codex`.
+3. The implementer pushes a branch or opens a PR.
 4. Claude Code Action reviews the PR through GitHub Actions using the Claude Code OAuth token secret.
 5. MergeGate uses checks, review, locks, skills, and ledger evidence to decide readiness.
 

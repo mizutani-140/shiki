@@ -1,0 +1,62 @@
+{
+  "acceptance_checks": [
+    "bash scripts/test_shiki_runner_claude.sh passes: a ready claude-code task dispatches through a fake claude binary into the materialized registered worktree with EXEC record, ledger evidence, and review status",
+    "bash scripts/test_shiki_runner_codex.sh still passes with the adapter-extracted machinery",
+    "python3 scripts/validate_shiki.py passes with claude-code implementer/runner roles, implementer: claude-code config, and the new module in SHIKI_CLI_MODULE_FILES",
+    "python3 -m unittest discover -s tests passes including tests/test_runner_adapters.py",
+    "bash scripts/test_shiki_runtime_registry.sh and bash scripts/test_shiki_module_boundaries.sh pass with the extended role grants and new module",
+    "All scripts/test_shiki_*.sh and CI (Validate / Claude review / CCA / MergeGate) pass"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/g-8f7011ec-claude-default-runner",
+  "expected_pr": 120,
+  "github_issue": 119,
+  "goal_id": "G-20260612T045923586452Z-8f7011ec",
+  "id": "T-20260612T045948146790Z-a27bcfa2",
+  "ledger_evidence": [
+    "L-20260612T045923587248Z-2afe1f72",
+    "L-20260612T045948147001Z-2f69d634",
+    "L-20260612T045958617603Z-049aab6f",
+    "L-20260612T045958694223Z-f313daa5",
+    "L-20260612T045958766095Z-1e97b822",
+    "L-20260612T053259839357Z-a2d2be2c",
+    "L-20260612T053349378376Z-3d70c7ec",
+    "L-20260612T053540157300Z-b0df682e",
+    "L-20260612T053540158176Z-1e1a7626"
+  ],
+  "locks": [
+    "path:scripts/shiki_runtime.py",
+    "path:scripts/shiki_runtime_adapters.py",
+    "path:scripts/shiki_runtime_registry.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*",
+    "path:.shiki/**",
+    "path:docs/**",
+    "path:AGENTS.md",
+    "path:CLAUDE.md",
+    "path:CONTEXT.md",
+    "path:.claude/commands/shiki.md",
+    "path:.codex/skills/shiki/SKILL.md",
+    "path:README.md",
+    "path:SYSTEM_PROMPT.md"
+  ],
+  "non_goals": [
+    "No spec_freeze plan contract changes (G-C)",
+    "No autonomous loop or auto-merge (G-D)",
+    "No KNOWN_SKILLS or code-review skill changes (G-B)",
+    "runner codex remains supported and tested"
+  ],
+  "required_skills": [
+    "grill-with-docs",
+    "tdd"
+  ],
+  "risk_level": "medium",
+  "scope": "Grant claude-code the implementer and runner roles in scripts/shiki_runtime_registry.py and set implementer: claude-code in .shiki/config.yaml. Extract the shared runner machinery from cmd_runner_codex into a runtime adapter boundary (new module scripts/shiki_runtime_adapters.py: ExecResult, RunnerAdapter, adapter registry, auth probes) and add shiki runner claude (headless claude -p in the registered worktree, EXEC + ledger evidence, review/repair-needed transition). Default task runtime becomes claude-code. Sync installer TEMPLATE_PATHS, validator SHIKI_CLI_MODULE_FILES, module-boundary/staging/registry tests; add scripts/test_shiki_runner_claude.sh and tests/test_runner_adapters.py. Update runtime-split docs (AGENTS.md, CLAUDE.md, docs/agents/runtime-registry.md, runtime-auth-model.md, implementation-policy.md, control-commands.md, codex-handoff.md, bootstrap-command.md, .claude/commands/shiki.md, .codex/skills/shiki/SKILL.md). Commit decision records: ADR 0008, ADR 0009, CONTEXT.md glossary (Requirements Definition, Spec Freeze, Spec Amendment, Assumption Log). Guardian-approved implementation by Claude Code in this assigned task.",
+  "status": "review",
+  "title": "Establish claude-code as default implementer: registry roles, runtime adapter boundary, shiki runner claude, tests, docs, ADR 0008"
+}

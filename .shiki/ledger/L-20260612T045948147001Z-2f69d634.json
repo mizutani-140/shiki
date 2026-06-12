@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260612T045948146790Z-a27bcfa2.json"
+  ],
+  "goal_id": "G-20260612T045923586452Z-8f7011ec",
+  "id": "L-20260612T045948147001Z-2f69d634",
+  "links": [],
+  "summary": "Task registered: Establish claude-code as default implementer: registry roles, runtime adapter boundary, shiki runner claude, tests, docs, ADR 0008",
+  "task_id": "T-20260612T045948146790Z-a27bcfa2",
+  "timestamp": "2026-06-12T04:59:48+00:00",
+  "type": "task-registered"
+}

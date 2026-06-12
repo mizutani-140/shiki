@@ -1,0 +1,30 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "shiki runner claude dispatches a ready claude-code task into its registered worktree with EXEC and ledger evidence",
+    "runtime registry grants claude-code implementer+runner and .shiki/config.yaml sets implementer: claude-code; validate_shiki.py passes",
+    "runner machinery is shared through a runtime adapter boundary used by both codex and claude adapters",
+    "ADR 0008, ADR 0009, and CONTEXT.md glossary additions are committed as decision records"
+  ],
+  "created_at": "2026-06-12T04:59:23+00:00",
+  "github_issue": 119,
+  "id": "G-20260612T045923586452Z-8f7011ec",
+  "non_goals": [
+    "No spec_freeze plan contract changes (G-C scope)",
+    "No autonomous loop, auto-merge, or repair auto-dispatch (G-D scope)",
+    "No code-review wrapper skill or KNOWN_SKILLS changes (G-B scope)",
+    "No removal of Codex support; runner codex stays functional"
+  ],
+  "outcome": "A task assigned to claude-code dispatches end-to-end through a registered worktree via shiki runner claude, claude-code holds implementer/runner roles in the registry and is the config default implementer, and the runtime-split docs and ADR 0008 record the decision",
+  "required_skills": [
+    "grill-with-docs",
+    "tdd"
+  ],
+  "risk_level": "medium",
+  "status": "planned",
+  "title": "G-A: Claude Code as default implementer runtime with shiki runner claude adapter"
+}

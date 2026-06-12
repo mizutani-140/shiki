@@ -16,7 +16,7 @@ Core maxim:
 
 When an operator asks what this framework is doing, answer clearly:
 
-Shiki is a GitHub-first execution governance layer for AI coding agents. It takes a Goal, clarifies success conditions, grills the plan against repository docs and domain language, converts settled context into a PRD, decomposes the PRD into vertical-slice issues, assigns implementation to Codex Front by default, forces TDD and scoped branches, has a GitHub-side Completion Check Agent judge whether the work is actually complete, returns incomplete work to Codex as bounded repair, and permits merge only when MergeGate conditions and durable evidence are satisfied.
+Shiki is a GitHub-first execution governance layer for AI coding agents. It takes a Goal, clarifies success conditions, grills the plan against repository docs and domain language, converts settled context into a PRD, decomposes the PRD into vertical-slice issues, assigns implementation to Claude Code by default (Codex Front when explicitly assigned, ADR 0008), forces TDD and scoped branches, has a GitHub-side Completion Check Agent judge whether the work is actually complete, returns incomplete work to the assigned implementer as bounded repair, and permits merge only when MergeGate conditions and durable evidence are satisfied.
 
 Shiki is not a prompt collection, a single-agent coding workflow, or a Claude/Codex-only plugin. Codex, Claude Code, GitHub Actions, Hermes Runner, and future runtimes are replaceable workers. The durable Shiki state, Skill Gate, CCA verdict, MergeGate rules, and evidence ledger are the product.
 
@@ -61,11 +61,11 @@ For any non-trivial Goal, use this flow:
 5. **to-issues**: decompose the PRD into independently grabbable vertical-slice issues. Prefer AFK slices; mark HITL slices when judgment is still required.
 6. **triage**: label readiness and runtime assignment. Only dispatch `ready-for-agent` issues.
 7. **Task DAG + locks**: register dependencies, candidate locks, expected branch/PR, and required evidence.
-8. **Codex implementation with tdd**: one vertical slice at a time, one behavior test at a time, public interfaces only, minimal code, refactor only after green.
+8. **Implementer execution with tdd** (Claude Code by default, Codex when assigned): one vertical slice at a time, one behavior test at a time, public interfaces only, minimal code, refactor only after green.
 9. **PR + evidence**: PR must link Goal/task, acceptance criteria, TDD evidence, checks, locks, risk, and ledger entries.
 10. **GitHub CCA completion judgment**: CCA evaluates checklists and emits a structured verdict: `complete`, `repair_required`, `blocked`, `needs_guardian`, or `insufficient_evidence`.
 11. **MergeGate**: allows merge only when CCA verdict, checks, review, dependencies, locks, risk approval, and ledger evidence all pass.
-12. **Repair Loop**: if CCA or MergeGate rejects completion, produce a bounded repair packet and return to Codex. Default max automatic repair attempts: 3.
+12. **Repair Loop**: if CCA or MergeGate rejects completion, produce a bounded repair packet and return it to the assigned implementer (Claude Code by default). Default max automatic repair attempts: 3.
 13. **Goal completion judgment**: after all task PRs merge, verify the Goal-level checklist and record final evidence.
 
 Trivial documentation-only changes may skip PRD/issues only when the Goal, risk, scope, and evidence are self-evident. The skip must be stated and recorded.
@@ -193,7 +193,7 @@ Rules:
 
 - Diagnose the failure before changing code.
 - Create a bounded repair packet.
-- Return implementation repair to Codex unless the task explicitly assigns repair to another runtime.
+- Return implementation repair to the assigned implementer runtime (Claude Code by default) unless the task explicitly assigns repair to another runtime.
 - Do not broaden scope.
 - Do not silently rewrite unrelated code.
 - Run the relevant skill: `diagnose` for hard bugs/failing checks; `tdd` for behavior fixes; `grill-with-docs` for unclear requirements; `improve-codebase-architecture` for structural testability blockers.

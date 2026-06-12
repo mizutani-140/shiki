@@ -12,7 +12,7 @@ Goal Seek
   -> to-issues
   -> triage
   -> Task DAG + locks
-  -> Codex Front + tdd
+  -> assigned implementer (Claude Code default / Codex optional) + tdd
   -> PR + evidence
   -> GitHub CCA completion judgment
   -> MergeGate
@@ -38,7 +38,7 @@ Goal Seek
 3. **PRD precedes issue decomposition.** `to-prd` is used once the context is settled enough to become durable intent.
 4. **Issues are vertical slices.** `to-issues` must produce independently grabbable tracer-bullet tasks, not horizontal layer tickets.
 5. **Triage controls dispatch.** Only `ready-for-agent` / AFK tasks may be assigned to Codex without human input.
-6. **Codex implements; CCA judges.** Codex Front is the default implementer and repairer. GitHub CCA is the default completion judge.
+6. **The assigned implementer implements; CCA judges.** Claude Code is the default implementer and repairer (ADR 0008); Codex Front implements tasks explicitly assigned to `codex`. GitHub CCA is the default completion judge.
 7. **TDD is default for behavior work.** One failing behavior test, minimal code, pass, repeat. Refactor only after green.
 8. **No implementation is complete until CCA and MergeGate agree.** Green CI is necessary but not sufficient.
 9. **Repair is bounded.** CCA failures become repair packets. Default automatic repair limit is 3 attempts.
@@ -179,13 +179,15 @@ Codex must not claim completion. It may state that implementation is ready for C
 
 Coordinator dispatch rule:
 
-- If the task is ready and `runtime:codex`, the coordinator runs
-  `shiki runner codex --task-id T-XXXX` instead of telling the user to run
-  Codex manually.
-- `shiki runner codex` is responsible for materializing the worktree, invoking
-  `codex exec` with the task handoff, and recording runner/Ledger evidence.
-- Stop and ask the user only when Codex auth/tooling is unavailable, dispatch is
-  blocked, or Guardian approval is required.
+- If the task is ready and assigned to `claude-code` (the default), the
+  coordinator runs `shiki runner claude --task-id T-XXXX`; if it is assigned to
+  `codex`, the coordinator runs `shiki runner codex --task-id T-XXXX` instead
+  of telling the user to run the runtime manually.
+- The runner adapter is responsible for materializing the worktree, invoking
+  the headless runtime (`claude -p` or `codex exec`) with the task handoff,
+  and recording runner/Ledger evidence.
+- Stop and ask the user only when the assigned runtime's auth/tooling is
+  unavailable, dispatch is blocked, or Guardian approval is required.
 
 ## Phase 7 — PR Evidence
 

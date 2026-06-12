@@ -57,7 +57,7 @@ else:
 
 valid_pairs = {
     "front": "codex-front",
-    "implementer": "codex-front",
+    "implementer": "claude-code",
     "planner": "claude-code",
     "completion_checker": "github-cca",
     "reviewer": "claude-code-action",
@@ -65,6 +65,12 @@ valid_pairs = {
 }
 for role, runtime in valid_pairs.items():
     registry_module.validate_runtime_role_assignment(role, runtime)
+
+# ADR 0008: claude-code is the default implementer/runner; codex stays a
+# valid optional implementer.
+registry_module.validate_runtime_role_assignment("runner", "claude-code")
+registry_module.validate_runtime_role_assignment("implementer", "codex-front")
+registry_module.validate_runtime_role_assignment("implementer", "codex")
 
 try:
     registry_module.validate_runtime_role_assignment("verifier", "codex")
@@ -106,7 +112,7 @@ with tempfile.TemporaryDirectory() as tmp:
         config = root / ".shiki/config.yaml"
         original_config = config.read_text(encoding="utf-8")
 
-        config.write_text(original_config.replace("  implementer: codex-front", "  implementer: missing-runtime"), encoding="utf-8")
+        config.write_text(original_config.replace("  implementer: claude-code", "  implementer: missing-runtime"), encoding="utf-8")
         try:
             validator.validate_config_runtime_assignments()
         except validator.ValidationError:
