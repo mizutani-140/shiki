@@ -13,6 +13,9 @@
   "created_at": "2026-06-12T05:51:33+00:00",
   "github_issue": 119,
   "id": "G-20260612T055133628076Z-d76238aa",
+  "ledger_evidence": [
+    "L-20260612T061938064648Z-2370dfe9"
+  ],
   "non_goals": [
     "No spec_freeze or /shiki Goal mode changes (G-C)",
     "No autonomous loop changes (G-D)",
@@ -24,6 +27,6 @@
     "tdd"
   ],
   "risk_level": "medium",
-  "status": "planned",
+  "status": "complete",
   "title": "G-B: mandatory pre-PR code-review gate via Skill Gate and skill-evidence enforcement"
 }
