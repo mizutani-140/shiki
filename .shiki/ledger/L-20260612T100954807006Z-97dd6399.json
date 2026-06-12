@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260612T100954806085Z-d598f4dd.json"
+  ],
+  "goal_id": "G-20260612T091302245408Z-d0c43361",
+  "id": "L-20260612T100954807006Z-97dd6399",
+  "links": [],
+  "summary": "G-D complete: shiki loop drives frozen Goals autonomously (risk-gated auto-merge, bounded repair, CCA rerun, dependent unblocking), runners dispatch repair handoffs, doctor flags unregistered worktrees, platform version 0.2.0; merged as PR #126",
+  "task_id": null,
+  "timestamp": "2026-06-12T10:09:54+00:00",
+  "type": "completion"
+}
