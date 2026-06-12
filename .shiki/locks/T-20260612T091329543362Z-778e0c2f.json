@@ -21,7 +21,8 @@
     "path:.codex/skills/shiki/SKILL.md",
     "path:VERSION",
     "path:pyproject.toml",
-    "path:scripts/shiki_tasks.py"
+    "path:scripts/shiki_tasks.py",
+    "path:CONTEXT.md"
   ],
   "owner": "shiki-cli",
   "state": "active",

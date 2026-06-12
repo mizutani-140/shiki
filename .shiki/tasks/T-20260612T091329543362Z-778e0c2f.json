@@ -46,7 +46,8 @@
     "path:.codex/skills/shiki/SKILL.md",
     "path:VERSION",
     "path:pyproject.toml",
-    "path:scripts/shiki_tasks.py"
+    "path:scripts/shiki_tasks.py",
+    "path:CONTEXT.md"
   ],
   "non_goals": [
     "No target migration application",
