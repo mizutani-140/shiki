@@ -41,7 +41,7 @@ Every non-trivial change follows this loop:
 2. **grill-with-docs** — challenge the plan against domain docs, ADRs, and code.
 3. **Context & Impact** — find relevant docs, code, dependencies, locks, and
    verification surfaces.
-4. **PRD** — capture settled product/engineering intent.
+4. **PRD + Spec Freeze** — capture settled product/engineering intent; the operator's approval freezes the spec (steps 1-4 are Requirements Definition).
 5. **Issues** — create independently grabbable vertical-slice issues.
 6. **Triage** — label readiness, risk, runtime, skills, and MergeGate state.
 7. **Plan** — decompose into a Task DAG with explicit dependencies and locks.

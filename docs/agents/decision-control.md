@@ -13,6 +13,8 @@ Core rule:
 | Is the Goal clear enough to plan? | Planner + Guardian when needed | Goal intake | User request, existing docs, risk signals | Goal readiness verdict | Goal checklist, issue template, ledger |
 | Must `grill-with-docs` run? | Planner / Skill Gate | Before PRD or issue split | Ambiguity, domain terms, ADR conflicts, unclear boundaries | Skill invocation or explicit skip rationale | Skill Gate checklist |
 | Is a PRD required? | Planner | After Goal context stabilizes | Goal, `grill-with-docs` output, Context & Impact output | PRD required / not required | PRD checklist, CCA evidence check |
+| Can the spec be frozen? | Operator only | End of Requirements Definition, before issue split | PRD/requirements summary, scope inventory (SF-02), open-question list | `spec_freeze` block in the plan + ledger evidence | `require_grilled_plan` (plan ingest/run), SF checklist |
+| Can a frozen spec change? | Operator only (Spec Amendment) | When implementation contradicts the frozen spec | Contested decisions, scoped re-grill result | recorded amendment + re-stamped freeze | SF checklist, ledger evidence |
 | Can work be split into issues? | Planner | After PRD or settled Goal | Acceptance criteria, non-goals, dependencies | Vertical-slice issues | `to-issues`, issue templates |
 | Is an issue AFK-ready or HITL? | Triager | Issue triage | Scope, decisions remaining, testability, risk | `ready-for-agent` or HITL/blocker label | triage labels, dispatch check |
 | Which runtime should execute? | Runtime Router | After issue is AFK-ready | Task type, risk, skills, repo constraints | Runtime assignment | task metadata, handoff schema |
@@ -35,6 +37,7 @@ The following decisions must not be delegated to Codex or any implementation run
 - whether to deploy to a protected environment;
 - whether high-risk security, auth, data, billing, or infra changes are acceptable;
 - whether unresolved design ambiguity may be ignored;
+- whether a frozen spec may change (Spec Amendment approval is operator-only);
 - whether a PR is complete;
 - whether unrelated refactors may be added to an implementation PR;
 - whether to mutate files outside granted locks.
@@ -332,6 +335,7 @@ draft
   -> grilled
   -> context_ready
   -> prd_ready
+  -> spec_frozen
   -> issue_ready
   -> triaged
   -> dispatchable

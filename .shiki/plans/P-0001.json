@@ -41,6 +41,10 @@
   ],
   "risk_level": "critical",
   "source_file": "/Users/kio.mizutani/shiki/.shiki/inbox/harden-production-use.plan.json",
+  "spec_freeze": {
+    "source": "backfilled from grill_with_docs by M-20260612-0001-spec-freeze",
+    "status": "frozen"
+  },
   "status": "ingested",
   "tasks": [
     {

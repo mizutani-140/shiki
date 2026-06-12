@@ -101,7 +101,45 @@ python3 scripts/shiki.py migrate status --json --target "$VALID" >/tmp/shiki-mig
 python3 -m json.tool /tmp/shiki-migrate-valid.json >/dev/null
 test "$(json_get /tmp/shiki-migrate-valid.json valid)" = "True"
 test "$(json_get /tmp/shiki-migrate-valid.json pending_count)" = "0"
-test "$(json_get /tmp/shiki-migrate-valid.json applied_count)" = "3"
+test "$(json_get /tmp/shiki-migrate-valid.json applied_count)" = "4"
+
+# M-20260612-0001-spec-freeze backfills stored plans that predate Spec Freeze.
+SPEC_FREEZE_TARGET="$TMP_ROOT/spec-freeze"
+make_target "$SPEC_FREEZE_TARGET"
+mkdir -p "$SPEC_FREEZE_TARGET/.shiki/plans"
+cat >"$SPEC_FREEZE_TARGET/.shiki/plans/P-0001.json" <<'JSON'
+{
+  "id": "P-0001",
+  "title": "Pre-freeze plan",
+  "outcome": "Plan stored before the Spec Freeze contract",
+  "grill_with_docs": {"status": "complete", "source": "fixture"},
+  "tasks": [
+    {"title": "t", "scope": "s", "acceptance_checks": ["c"]}
+  ]
+}
+JSON
+python3 - "$SPEC_FREEZE_TARGET/.shiki/migrations/state.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+state = json.load(open(path))
+state["applied"] = [record for record in state["applied"] if record["id"] != "M-20260612-0001-spec-freeze"]
+json.dump(state, open(path, "w"), indent=2)
+PY
+python3 scripts/shiki.py migrate apply --target "$SPEC_FREEZE_TARGET" >/tmp/shiki-migrate-sf-dry.out
+grep "spec-freeze" /tmp/shiki-migrate-sf-dry.out >/dev/null
+python3 - "$SPEC_FREEZE_TARGET/.shiki/plans/P-0001.json" <<'PY'
+import json, sys
+plan = json.load(open(sys.argv[1]))
+assert "spec_freeze" not in plan, "dry-run must not mutate plans"
+PY
+python3 scripts/shiki.py migrate apply --execute --target "$SPEC_FREEZE_TARGET" >/tmp/shiki-migrate-sf-exec.out
+python3 - "$SPEC_FREEZE_TARGET/.shiki/plans/P-0001.json" <<'PY'
+import json, sys
+plan = json.load(open(sys.argv[1]))
+assert plan.get("spec_freeze", {}).get("status") == "frozen", "backfill missing"
+PY
 
 python3 scripts/shiki.py migrate status --json --target "$VALID" >/tmp/shiki-migrate-valid-2.json
 cmp /tmp/shiki-migrate-valid.json /tmp/shiki-migrate-valid-2.json >/dev/null

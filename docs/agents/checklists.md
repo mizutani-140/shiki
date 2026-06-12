@@ -50,6 +50,7 @@ Blocking values:
 | CI-05 | Risk and architecture-gate triggers identified. | blocking |
 | CI-06 | Verification surfaces identified. | blocking |
 | CI-07 | Likely repair surfaces identified. | advisory |
+| CI-08 | Context & Impact was produced by a Workflow parallel exploration sweep with the run recorded as evidence. | blocking for non-trivial Goals |
 
 ## PRD — PRD Checklist
 
@@ -62,6 +63,16 @@ Blocking values:
 | PRD-05 | Testing decisions are recorded. | blocking |
 | PRD-06 | Out-of-scope items are explicit. | blocking |
 | PRD-07 | Relevant glossary/ADR links are present when applicable. | blocking |
+
+## SF — Spec Freeze Checklist
+
+| ID | Item | Blocking |
+| --- | --- | --- |
+| SF-01 | The operator explicitly approved the PRD/requirements before freeze. | blocking |
+| SF-02 | Required external scopes and permissions (scope inventory) were enumerated before freeze. | blocking |
+| SF-03 | The freeze is recorded as a `spec_freeze` block in the plan and as ledger evidence. | blocking |
+| SF-04 | Scope changes after freeze went through an operator-approved, recorded Spec Amendment. | blocking when applicable |
+| SF-05 | Non-scope-moving interpretations are recorded in the Assumption Log, not hidden. | blocking when applicable |
 
 ## ISS — Issue / Task Checklist
 

@@ -43,6 +43,11 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
     "source": "CONTEXT.md",
     "decisions": ["Use Claude Code as the default implementation runtime (ADR 0008)"]
   },
+  "spec_freeze": {
+    "status": "frozen",
+    "approved_by": "operator",
+    "source": "test fixture"
+  },
   "tasks": [
     {
       "title": "Write Claude marker",

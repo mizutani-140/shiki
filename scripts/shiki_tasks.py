@@ -131,6 +131,12 @@ def require_grilled_plan(plan: dict[str, Any]) -> None:
     grill = plan.get("grill_with_docs")
     if not isinstance(grill, dict) or grill.get("status") != "complete":
         raise ShikiError("plan must include grill_with_docs.status=complete before Shiki can run it")
+    freeze = plan.get("spec_freeze")
+    if not isinstance(freeze, dict) or freeze.get("status") != "frozen":
+        raise ShikiError(
+            "plan must include spec_freeze.status=frozen (operator approval of the PRD/requirements) "
+            "before Shiki can run it; see CONTEXT.md 'Spec Freeze' and ADR 0009"
+        )
     tasks = plan.get("tasks")
     if not isinstance(tasks, list) or not tasks:
         raise ShikiError("plan must include at least one vertical-slice task")
@@ -487,12 +493,13 @@ def cmd_plan_guide(args: argparse.Namespace) -> int:
         "entry_skill": "grill-with-docs",
         "required_next_steps": [
             "Run grill-with-docs until terminology, boundaries, risks, and ADR-worthy decisions are settled.",
-            "Write a machine-readable plan JSON with grill_with_docs.status=complete.",
+            "Obtain the operator's explicit approval of the PRD/requirements (Spec Freeze).",
+            "Write a machine-readable plan JSON with grill_with_docs.status=complete and spec_freeze.status=frozen.",
             "Run shiki plan ingest --plan-file PLAN.json.",
             "Run shiki run --plan P-0001 to create the Goal, Task DAG, locks, and first dispatchable worktree.",
         ],
         "plan_contract": {
-            "required_goal_fields": ["title", "outcome", "grill_with_docs", "tasks"],
+            "required_goal_fields": ["title", "outcome", "grill_with_docs", "spec_freeze", "tasks"],
             "required_task_fields": ["title", "scope", "acceptance_checks"],
         },
     }

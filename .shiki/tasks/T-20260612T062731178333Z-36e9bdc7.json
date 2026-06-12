@@ -1,0 +1,58 @@
+{
+  "acceptance_checks": [
+    "A plan without spec_freeze is rejected by plan ingest/run/daemon with a clear error; a frozen plan orchestrates normally (covered by updated contract tests)",
+    "bash scripts/test_shiki_migrations.sh passes with M-20260612-0001-spec-freeze registered; migration backfills a stored plan in a test target",
+    "python3 scripts/validate_shiki.py passes; all scripts/test_shiki_*.sh and unittests green",
+    "/shiki command documents Goal mode as default with Spec Freeze gate and widened allowed-tools; state machines and checklists updated in sync",
+    "This PR carries pre-PR code-review ledger evidence (PR-12)"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/g-266eceff-spec-freeze",
+  "expected_pr": null,
+  "github_issue": 119,
+  "goal_id": "G-20260612T062701078809Z-266eceff",
+  "id": "T-20260612T062731178333Z-36e9bdc7",
+  "ledger_evidence": [
+    "L-20260612T062731178615Z-23cf141a",
+    "L-20260612T062731258657Z-b5cac4d3",
+    "L-20260612T062731336850Z-e8e628cd",
+    "L-20260612T062701079525Z-f77579cb",
+    "L-20260612T062731413585Z-14060d6b",
+    "L-20260612T085336892327Z-8c33599b",
+    "L-20260612T085336893090Z-2cd013f9",
+    "L-20260612T085336893451Z-7cb6ac98",
+    "L-20260612T085336982902Z-2a14a61a"
+  ],
+  "locks": [
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/shiki_bootstrap.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/shiki_migrations.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*",
+    "path:.shiki/**",
+    "path:docs/**",
+    "path:AGENTS.md",
+    "path:CLAUDE.md",
+    "path:README.md",
+    "path:SYSTEM_PROMPT.md",
+    "path:CONTEXT.md",
+    "path:.claude/commands/shiki.md",
+    "path:.codex/skills/shiki/SKILL.md"
+  ],
+  "non_goals": [
+    "No autonomous loop (G-D)",
+    "No grill_with_docs removal or rename",
+    "No workflow YAML changes"
+  ],
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "scope": "Plan contract: extend require_grilled_plan (shiki_tasks.py) to also require spec_freeze.status=frozen with a clear error; validate_plan (validate_shiki.py) validates spec_freeze shape when present (backward compatible for stored plans); plan.schema.json gains the optional spec_freeze property (status enum frozen, approved_by, source, prd, amendments); shiki start (shiki_bootstrap.py) synthesizes spec_freeze alongside grill_with_docs with source recorded. State machines: insert spec_frozen after prd_ready in decision-control.md and spec-frozen after prd-ready in execution-control.md. Checklists: new SF family (operator approval, scope inventory before freeze, freeze recorded in plan+ledger, amendments operator-approved, assumption log) and CI-08 (Context & Impact produced by a recorded Workflow parallel exploration sweep, blocking for non-trivial Goals); sync AGENTS.md C&I requirements and implementation-policy.md Phases 2-4 with Requirements Definition/Spec Freeze flow and the operating-model step lists in AGENTS.md/README.md/CLAUDE.md/SYSTEM_PROMPT.md. /shiki command: Goal mode default in bootstrapped repos (Requirements Definition dialogue -> C&I Workflow sweep -> PRD -> operator approval = Spec Freeze stamped in plan JSON -> plan ingest -> run -> runner dispatch), setup mode only when .shiki missing; allowed-tools gains Skill and Workflow; mirror guidance in .codex/skills/shiki/SKILL.md. Migration: register M-20260612-0001-spec-freeze in shiki_migrations.py (backfill spec_freeze into stored plans, dry-run default). Tests: add spec_freeze blocks to plan heredocs in test_shiki_runner_codex.sh, test_shiki_runner_claude.sh, test_shiki_code_review_gate.sh, test_shiki_daemon_runner.sh, test_shiki_run_orchestrator.sh and any control-plane plans; add negative test (plan without spec_freeze is rejected) and migration coverage in test_shiki_migrations.sh or a new test. Guardian-approved implementation by Claude Code in this assigned task.",
+  "status": "review",
+  "title": "Spec Freeze plan contract, /shiki Requirements Definition Goal mode, SF/CI checklists, state machines, migration"
+}

@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "scripts/shiki_bootstrap.py",
+    "CONTRIBUTING.md",
+    "docs/agents/decision-control.md",
+    ".claude/commands/shiki.md"
+  ],
+  "goal_id": "G-20260612T062701078809Z-266eceff",
+  "id": "L-20260612T085336893451Z-7cb6ac98",
+  "links": [],
+  "summary": "Skill code-review pre-PR gate executed on the full task diff (multi-agent review, 3 dimensions, 24 agents; 11 verifications interrupted by session limit were re-verified locally by the implementer): 1 blocker (shiki start fabricated Spec Freeze approval contradicting ADR 0009 \u2014 fixed with an explicit approval gate: --approve-spec-freeze flag, answers key, interactive question, honest source string, negative test), 2 major governance gaps fixed (CONTRIBUTING.md operating model, decision-control.md Spec Freeze/Amendment ownership + non-delegable entry), plus ledger-evidence and status-transition findings fixed in this state; amendment recording mechanism documented in /shiki Goal mode",
+  "task_id": "T-20260612T062731178333Z-36e9bdc7",
+  "timestamp": "2026-06-12T08:53:36+00:00",
+  "type": "review"
+}

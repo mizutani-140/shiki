@@ -173,6 +173,7 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("--required-check", action="append", default=None, help="Required status-check context; repeatable. Default derives from .shiki/config.yaml mergegate.required_checks (documented fallback when config is absent).")
     start.add_argument("--create-issues", action=argparse.BooleanOptionalAction, default=True)
     start.add_argument("--create-handoffs", action=argparse.BooleanOptionalAction, default=True)
+    start.add_argument("--approve-spec-freeze", action="store_true", help="Record explicit operator approval of the requirements (Spec Freeze); without it start asks interactively or fails")
     start.set_defaults(func=cmd_start)
 
     plan = subcommands.add_parser("plan", help="Ingest and guide grill-with-docs plans")

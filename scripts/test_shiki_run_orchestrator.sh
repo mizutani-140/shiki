@@ -50,6 +50,11 @@ cat >"$TMP_ROOT/grilled-plan.json" <<'JSON'
     "source": "CONTEXT.md",
     "decisions": ["Use one vertical slice first"]
   },
+  "spec_freeze": {
+    "status": "frozen",
+    "approved_by": "operator",
+    "source": "test fixture"
+  },
   "tasks": [
     {
       "title": "Create onboarding checklist",
@@ -74,6 +79,21 @@ if python3 "$ROOT/scripts/shiki.py" plan ingest --target "$TARGET" --plan-file "
   echo "expected missing plan file to fail" >&2
   exit 1
 fi
+
+# A grilled but unfrozen plan must be rejected (ADR 0009 Spec Freeze gate).
+python3 - "$TMP_ROOT/grilled-plan.json" "$TMP_ROOT/unfrozen.json" <<'PY'
+import json
+import sys
+
+plan = json.load(open(sys.argv[1]))
+plan.pop("spec_freeze", None)
+json.dump(plan, open(sys.argv[2], "w"), indent=2)
+PY
+if python3 "$ROOT/scripts/shiki.py" plan ingest --target "$TARGET" --plan-file "$TMP_ROOT/unfrozen.json" 2>/tmp/shiki-run-unfrozen.out; then
+  echo "expected unfrozen plan to fail" >&2
+  exit 1
+fi
+grep "spec_freeze.status=frozen" /tmp/shiki-run-unfrozen.out >/dev/null
 
 python3 "$ROOT/scripts/shiki.py" plan ingest --target "$TARGET" --plan-file "$TMP_ROOT/grilled-plan.json" >/tmp/shiki-plan-ingest.json
 PLAN_ID="$(json_get /tmp/shiki-plan-ingest.json plan_id)"

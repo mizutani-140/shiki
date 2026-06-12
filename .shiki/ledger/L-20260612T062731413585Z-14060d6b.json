@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/handoffs/T-20260612T062731178333Z-36e9bdc7-task.md"
+  ],
+  "goal_id": "G-20260612T062701078809Z-266eceff",
+  "id": "L-20260612T062731413585Z-14060d6b",
+  "links": [],
+  "summary": "Task handoff written for T-20260612T062731178333Z-36e9bdc7",
+  "task_id": "T-20260612T062731178333Z-36e9bdc7",
+  "timestamp": "2026-06-12T06:27:31+00:00",
+  "type": "handoff"
+}

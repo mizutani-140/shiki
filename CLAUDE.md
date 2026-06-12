@@ -79,7 +79,7 @@ For Goal Seek and planning:
 - Produce a Task DAG, not an unordered checklist.
 - Identify locks, dependencies, verification surfaces, CCA checklist profile, and MergeGate blockers.
 - Use `zoom-out` when you lack the architectural map.
-- Use `to-prd` when settled context should become a PRD.
+- Use `to-prd` when settled context should become a PRD; the operator's approval of the PRD is Spec Freeze (record the plan's `spec_freeze` block).
 - Use `to-issues` when a plan should become vertical-slice issues.
 - Use `triage` to mark AFK/HITL readiness and runtime assignment.
 

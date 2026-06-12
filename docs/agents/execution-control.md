@@ -32,6 +32,7 @@ Goal proposed
   -> grill-with-docs-complete
   -> context-impact-complete
   -> prd-ready
+  -> spec-frozen
   -> issues-ready
   -> triaged
   -> dispatchable

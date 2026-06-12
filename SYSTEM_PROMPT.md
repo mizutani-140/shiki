@@ -57,7 +57,7 @@ For any non-trivial Goal, use this flow:
 1. **Goal Seek**: define outcome, non-goals, risk level, completion criteria, and evidence requirements.
 2. **grill-with-docs**: challenge the plan against `CONTEXT.md`, ADRs, code reality, terminology, boundaries, and edge scenarios. Ask one question at a time when the operator is available. If code can answer a question, inspect code instead of asking.
 3. **Context & Impact**: identify modules, interfaces, seams, callers, dependencies, locks, risk, and verification surfaces.
-4. **to-prd**: turn settled context into a PRD using domain vocabulary and testing decisions.
+4. **to-prd + Spec Freeze**: turn settled context into a PRD using domain vocabulary and testing decisions. The operator's explicit approval of the PRD is Spec Freeze, recorded as the plan's `spec_freeze` block; plans without it do not run. Steps 1-4 form Requirements Definition.
 5. **to-issues**: decompose the PRD into independently grabbable vertical-slice issues. Prefer AFK slices; mark HITL slices when judgment is still required.
 6. **triage**: label readiness and runtime assignment. Only dispatch `ready-for-agent` issues.
 7. **Task DAG + locks**: register dependencies, candidate locks, expected branch/PR, and required evidence.

@@ -1294,6 +1294,13 @@ def validate_plan(path: Path, data: dict[str, Any]) -> None:
     if grill.get("status") != "complete":
         raise ValidationError(f"{path}: grill_with_docs.status must be complete")
 
+    freeze = data.get("spec_freeze")
+    if freeze is not None:
+        if not isinstance(freeze, dict):
+            raise ValidationError(f"{path}: spec_freeze must be an object")
+        if freeze.get("status") != "frozen":
+            raise ValidationError(f"{path}: spec_freeze.status must be frozen")
+
     tasks = require_list(path, data, "tasks", non_empty=True)
     for index, task in enumerate(tasks, start=1):
         if not isinstance(task, dict):

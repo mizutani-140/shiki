@@ -43,6 +43,7 @@ Goal Seek
 8. **No implementation is complete until CCA and MergeGate agree.** Green CI is necessary but not sufficient.
 9. **Repair is bounded.** CCA failures become repair packets. Default automatic repair limit is 3 attempts.
 10. **Evidence is durable.** Important decisions and verification must live in GitHub and/or `.shiki/`, not chat memory.
+11. **Spec Freeze gates execution.** No plan runs without an operator-approved `spec_freeze` block (ADR 0009). Post-freeze scope changes require an operator-approved, recorded Spec Amendment; non-scope-moving interpretations are recorded in the Assumption Log.
 
 ## Phase 0 — Repository Setup
 
@@ -110,6 +111,9 @@ Outputs:
 
 ## Phase 3 — Context & Impact
 
+For non-trivial Goals, produce this phase with a Workflow parallel
+exploration sweep and record the run as evidence (CI-08).
+
 Outputs must include:
 
 - Relevant documents and ADRs.
@@ -136,6 +140,11 @@ The PRD must include:
 - Out of scope.
 - Further notes.
 - Links to relevant Goal, domain terms, and ADRs.
+
+Phase 4 ends with Spec Freeze: the operator explicitly approves the PRD, the
+plan records a `spec_freeze` block (status, approved_by, source), and the SF
+checklist applies. Phases 1-4 form Requirements Definition — one continuous
+operator dialogue with exactly one approval gate on the happy path.
 
 CCA may mark downstream PRs `insufficient_evidence` if the task contract relies on decisions missing from the PRD.
 

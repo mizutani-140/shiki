@@ -37,6 +37,19 @@
       "id": "M-20260605-0002-state-classes",
       "status": "applied",
       "summary": "Accepted explicit .shiki state class classification without rewriting historical state."
+    },
+    {
+      "actor": "shiki-cli",
+      "applied_at": "2026-06-12T06:33:30Z",
+      "evidence": [
+        "Plan ingest/run/daemon/smoke require spec_freeze.status=frozen (ADR 0009).",
+        "Backfilled: P-0001.json.",
+        "Already frozen: none.",
+        "grill_with_docs blocks were preserved unchanged (additive contract)."
+      ],
+      "id": "M-20260612-0001-spec-freeze",
+      "status": "applied",
+      "summary": "Backfilled spec_freeze into 1 stored plan(s); 0 already frozen."
     }
   ],
   "source_of_truth": "Repository-local Shiki migration state. GitHub operational state remains authoritative.",

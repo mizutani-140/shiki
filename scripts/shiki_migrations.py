@@ -21,6 +21,7 @@ MIGRATION_STATE_VERSION = 1
 BASELINE_MIGRATION_ID = "M-20260604-0001-baseline"
 GUARDIAN_POLICY_MIGRATION_ID = "M-20260604-0002-guardian-policy"
 STATE_CLASSES_MIGRATION_ID = "M-20260605-0002-state-classes"
+SPEC_FREEZE_MIGRATION_ID = "M-20260612-0001-spec-freeze"
 MIGRATION_ID_RE = re.compile(r"^M-[0-9]{8}-[0-9]{4}-[a-z0-9][a-z0-9-]*$")
 MIGRATION_SOURCE_OF_TRUTH = "Repository-local Shiki migration state. GitHub operational state remains authoritative."
 
@@ -126,6 +127,37 @@ def _state_classes_apply(root: Path, dry_run: bool) -> dict[str, Any]:
     }
 
 
+def _spec_freeze_apply(root: Path, dry_run: bool) -> dict[str, Any]:
+    plans_dir = root / ".shiki" / "plans"
+    backfilled: list[str] = []
+    skipped: list[str] = []
+    if plans_dir.exists():
+        for path in sorted(plans_dir.glob("*.json")):
+            plan = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(plan, dict):
+                raise MigrationError(f"{SPEC_FREEZE_MIGRATION_ID}: {path} is not a JSON object")
+            if isinstance(plan.get("spec_freeze"), dict):
+                skipped.append(path.name)
+                continue
+            if not dry_run:
+                plan["spec_freeze"] = {
+                    "status": "frozen",
+                    "source": f"backfilled from grill_with_docs by {SPEC_FREEZE_MIGRATION_ID}",
+                }
+                path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            backfilled.append(path.name)
+    return {
+        "summary": f"Backfilled spec_freeze into {len(backfilled)} stored plan(s); {len(skipped)} already frozen.",
+        "evidence": [
+            "Plan ingest/run/daemon/smoke require spec_freeze.status=frozen (ADR 0009).",
+            f"Backfilled: {', '.join(backfilled) or 'none'}.",
+            f"Already frozen: {', '.join(skipped) or 'none'}.",
+            "grill_with_docs blocks were preserved unchanged (additive contract).",
+        ],
+        "dry_run": dry_run,
+    }
+
+
 def migration_registry() -> tuple[Migration, ...]:
     return (
         Migration(
@@ -170,6 +202,19 @@ def migration_registry() -> tuple[Migration, ...]:
             ),
             destructive=False,
             apply=_state_classes_apply,
+        ),
+        Migration(
+            id=SPEC_FREEZE_MIGRATION_ID,
+            title="Backfill spec_freeze into stored plans",
+            description="Add the additive spec_freeze block (ADR 0009) to stored plans that predate the Spec Freeze contract so they can be re-ingested or re-run.",
+            introduced_in="T-20260612T062731178333Z-36e9bdc7",
+            requires=(STATE_CLASSES_MIGRATION_ID,),
+            affected_paths=(
+                ".shiki/plans",
+                MIGRATION_STATE_PATH,
+            ),
+            destructive=False,
+            apply=_spec_freeze_apply,
         ),
     )
 

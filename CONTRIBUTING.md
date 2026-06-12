@@ -11,7 +11,7 @@ before contributing. `CLAUDE.md` adds Claude Code-specific rules.
 ## Contribution Flow
 
 ```text
-Goal -> grill-with-docs -> PRD -> Issues -> Task -> PR -> CCA -> MergeGate
+Goal -> grill-with-docs -> PRD -> Spec Freeze -> Issues -> Task -> PR -> CCA -> MergeGate
 ```
 
 1. **Goal** — start from a user-approved Goal with an outcome, completion
@@ -19,14 +19,18 @@ Goal -> grill-with-docs -> PRD -> Issues -> Task -> PR -> CCA -> MergeGate
 2. **grill-with-docs** — for any non-trivial change, challenge the plan against
    domain language, ADRs, and code reality before writing a PRD.
 3. **PRD** — capture settled product/engineering intent (`to-prd`).
-4. **Issues** — decompose into independently grabbable vertical-slice issues
+4. **Spec Freeze** — the operator explicitly approves the PRD/requirements;
+   the plan records a `spec_freeze` block and no plan runs without it
+   (ADR 0009). Post-freeze scope changes require an operator-approved,
+   recorded Spec Amendment.
+5. **Issues** — decompose into independently grabbable vertical-slice issues
    (`to-issues`), then `triage` them for readiness, risk, runtime, and skills.
-5. **Task** — register an executable task in the `.shiki/` mirror with scope,
+6. **Task** — register an executable task in the `.shiki/` mirror with scope,
    non-goals, dependencies, locks, runtime, risk, required skills, acceptance
    checks, and the expected branch (`shiki issue plan ...`).
-6. **PR** — implement on a scoped branch and open one PR per task.
-7. **CCA** — GitHub CCA judges completion and emits a structured verdict.
-8. **MergeGate** — merge only when every gate passes.
+7. **PR** — implement on a scoped branch and open one PR per task.
+8. **CCA** — GitHub CCA judges completion and emits a structured verdict.
+9. **MergeGate** — merge only when every gate passes.
 
 Trivial documentation-only changes may skip the PRD/issues steps when the skip
 is justified and recorded as evidence.

@@ -1,7 +1,7 @@
 ---
 description: Run the Shiki GitHub-first agentic engineering control plane.
 argument-hint: "[goal, task, repo path, or Shiki CLI subcommand]"
-allowed-tools: Bash(shiki:*), Bash(git status:*), Bash(git branch:*), Bash(git diff:*), Bash(gh pr view:*), Bash(gh pr checks:*), Read, Glob, Grep
+allowed-tools: Bash(shiki:*), Bash(git status:*), Bash(git branch:*), Bash(git diff:*), Bash(gh pr view:*), Bash(gh pr checks:*), Bash(gh issue view:*), Read, Glob, Grep, Skill, Workflow
 ---
 
 # Shiki
@@ -43,6 +43,43 @@ Claude authentication before Shiki receives control. If Codex is authenticated,
 the same Shiki flow can still start from Codex or a terminal with
 `shiki start`.
 
+## Mode Selection
+
+- **Goal mode (default)**: the current directory (or the named target) is
+  already a bootstrapped Shiki Target Repository (`.shiki/` exists with a git
+  repo and GitHub origin). Run the Goal lifecycle below.
+- **Setup mode**: `.shiki/` is missing. Run the start flow further down.
+
+## Goal Mode — Requirements Definition to Spec Freeze to Execution
+
+For a non-trivial Goal in a bootstrapped repository:
+
+1. **Requirements Definition** (one continuous operator dialogue):
+   - Run `grill-with-docs` via the Skill tool: one question at a time, with a
+     recommended answer each, challenging terms against `CONTEXT.md` and ADRs.
+   - Produce Context & Impact with a Workflow parallel exploration sweep
+     (mandatory for non-trivial Goals, CI-08) and keep the run summary as
+     evidence for the plan.
+   - When settled, draft the PRD (`to-prd` when it should be published).
+2. **Spec Freeze**: present the PRD/requirements summary and ask the operator
+   for explicit approval. On approval, write the plan JSON with BOTH blocks:
+   `grill_with_docs.status=complete` and `spec_freeze` (`status: frozen`,
+   `approved_by`, `source`). Enumerate required external scopes/permissions
+   (scope inventory, SF-02) BEFORE asking for the freeze.
+3. **Execute**: `shiki plan ingest --plan-file PLAN.json`, then
+   `shiki run --plan P-XXXX`, then dispatch ready tasks with
+   `shiki runner claude --task-id T-XXXX` (or `runner codex` when assigned).
+   Plans without `spec_freeze.status=frozen` are rejected by design.
+4. **After freeze**: scope-moving discoveries pause the affected task and come
+   back to the operator as a Spec Amendment (scoped re-grill, re-stamped
+   freeze). Record the amendment durably: append an entry to the plan's
+   `spec_freeze.amendments` list and write a ledger entry naming
+   "Spec Amendment" with the operator's decision. Non-scope-moving
+   interpretations are recorded in the Assumption Log (a ledger entry naming
+   the assumption) and work continues.
+
+## Setup Mode
+
 If `$ARGUMENTS` is empty and the current directory is not already a Shiki Target
 Repository, ask first whether the user wants to create a new GitHub-backed
 Target Repository or work inside an existing repository. Prefer the new target
@@ -63,6 +100,9 @@ Required start questions:
 5. Completion conditions
 6. Non-goals
 7. First vertical-slice task and acceptance checks
+8. Explicit approval to freeze the requirements (Spec Freeze) — set
+   `approve_spec_freeze: true` in the answers file only after the operator
+   says yes; `shiki start` fails without it
 
 Ask these in the `grill-with-docs` style: one question at a time, with a
 recommended answer when enough context exists. Explore the repository instead
