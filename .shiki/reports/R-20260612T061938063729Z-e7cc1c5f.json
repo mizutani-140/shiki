@@ -1,0 +1,19 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-12T06:19:38+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260612T055157606542Z-5205e0bd.json"
+  ],
+  "goal_id": "G-20260612T055133628076Z-d76238aa",
+  "id": "R-20260612T061938063729Z-e7cc1c5f",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "medium"
+  },
+  "status": "complete",
+  "summary": "G-B complete: code-review is a Skill Gate skill and the default pre-PR implementer gate, enforced by MergeGate skill evidence; merged as PR #122"
+}

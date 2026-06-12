@@ -7,8 +7,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/g-d76238aa-code-review-gate",
-  "expected_pr": 122,
+  "expected_branch": "shiki/t-5205e0bd-post-merge-reconcile",
+  "expected_pr": 123,
   "github_issue": 119,
   "goal_id": "G-20260612T055133628076Z-d76238aa",
   "id": "T-20260612T055157606542Z-5205e0bd",
@@ -22,7 +22,10 @@
     "L-20260612T061357037513Z-12b3b43a",
     "L-20260612T061357037912Z-fc64fcb4",
     "L-20260612T061357114114Z-62e3eae1",
-    "L-20260612T061456787131Z-2d295936"
+    "L-20260612T061456787131Z-2d295936",
+    "L-20260612T061937982408Z-a64cd940",
+    "L-20260612T061938064648Z-2370dfe9",
+    "L-20260612T061955638439Z-5511f4ee"
   ],
   "locks": [
     "path:scripts/validate_shiki.py",
@@ -51,6 +54,6 @@
   ],
   "risk_level": "medium",
   "scope": "Add skills/engineering/code-review/SKILL.md (wrapper: run the native code-review skill after TDD green and before PR creation, apply fixes as the implementer on the task branch, record findings+resolutions as a ledger entry whose summary names the skill and as a PR body section). Extend validate_shiki.py KNOWN_SKILLS, .shiki/schemas/repair-packet.schema.json required_skill enum, and shiki_cli.py repair --required-skill choices with code-review. Flip default required_skills to [tdd, code-review] in shiki_tasks.register_task_from_plan and shiki_bootstrap start synthesis so MergeGate's existing skill-evidence rule enforces the gate on every new task. Document the contract: skill-gate.md row + quick map, AGENTS.md Skill Gate table row, checklists.md PR-12 item, triage-labels.md skill:code-review, implementation-policy.md implementer contract (TDD -> code-review -> PR), CLAUDE.md handoff standard line. Add scripts/test_shiki_code_review_gate.sh (plan task and repair packet carrying code-review pass validation; SKILL.md staged) and register it in installer TEMPLATE_PATHS. Guardian-approved implementation by Claude Code in this assigned task.",
-  "status": "review",
+  "status": "done",
   "title": "Register code-review as a Skill Gate skill and make it the default pre-PR implementer gate"
 }

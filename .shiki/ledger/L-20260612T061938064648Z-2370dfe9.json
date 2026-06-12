@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260612T061938063729Z-e7cc1c5f.json"
+  ],
+  "goal_id": "G-20260612T055133628076Z-d76238aa",
+  "id": "L-20260612T061938064648Z-2370dfe9",
+  "links": [],
+  "summary": "G-B complete: code-review is a Skill Gate skill and the default pre-PR implementer gate, enforced by MergeGate skill evidence; merged as PR #122",
+  "task_id": null,
+  "timestamp": "2026-06-12T06:19:38+00:00",
+  "type": "completion"
+}
