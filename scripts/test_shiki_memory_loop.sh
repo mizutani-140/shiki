@@ -140,5 +140,62 @@ cd "$ROOT"
 python3 "$ROOT/scripts/shiki.py" memory revoke --target "$TARGET" "$MEM" --revoked-by mizutani-140 --reason "rule superseded by automation" >/dev/null
 test "$(json_get "$TARGET/.shiki/memories/$MEM.json" active)" = "False"
 cd "$TARGET" && python3 "$TARGET/scripts/validate_shiki.py"
+cd "$ROOT"
+
+# Validator is the fail-closed boundary: a directly-committed poisoned memory
+# file (bypassing the CLI effectors) must be REJECTED by validate_shiki.py.
+# This proves the repository-wide validator enforces the memory contract on
+# committed state, not just the CLI write path.
+python3 - "$TARGET" "$MEM" <<'PY'
+import copy, json, subprocess, sys
+from pathlib import Path
+
+target = Path(sys.argv[1])
+mem = sys.argv[2]
+mem_dir = target / ".shiki" / "memories"
+validator = str(target / "scripts" / "validate_shiki.py")
+valid = json.loads((mem_dir / f"{mem}.json").read_text(encoding="utf-8"))
+
+
+def validates() -> bool:
+    return subprocess.run(
+        [sys.executable, validator], cwd=str(target), capture_output=True
+    ).returncode == 0
+
+
+if not validates():
+    raise SystemExit("baseline target tree must validate before poisoning")
+
+
+def reject(name: str, entry: dict, *, filename: str) -> None:
+    path = mem_dir / filename
+    path.write_text(json.dumps(entry), encoding="utf-8")
+    poisoned_rejected = not validates()
+    path.unlink()
+    if not poisoned_rejected:
+        raise SystemExit(f"validate_shiki.py must REJECT committed poisoned memory: {name}")
+    if not validates():
+        raise SystemExit(f"clean tree must validate again after removing {name}")
+
+
+# 1. filename does not match id.
+e = copy.deepcopy(valid)
+e["id"] = "MEM-00000001"
+reject("filename!=id", e, filename="MEM-90000001.json")
+
+# 2. distilled entry missing its operator approval_ledger (memory_entry_errors).
+e = copy.deepcopy(valid)
+e["id"] = "MEM-00000002"
+e.pop("approval_ledger", None)
+reject("distilled-without-approval_ledger", e, filename="MEM-00000002.json")
+
+# 3. memory anchored to a non-existent goal (referential integrity).
+e = copy.deepcopy(valid)
+e["id"] = "MEM-00000003"
+e["source"] = {**e.get("source", {}), "goal_id": "G-90000003"}
+reject("dangling-source-goal_id", e, filename="MEM-00000003.json")
+
+print("validator poisoned-memory rejection checks passed")
+PY
 
 echo "shiki memory loop tests passed"

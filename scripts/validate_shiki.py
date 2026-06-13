@@ -1910,6 +1910,7 @@ def main() -> int:
 
         memory_paths = json_files(SHIKI / "memories")
         validate_id_collection(memory_paths, prefix="MEM", pattern=MEMORY_ID)
+        memory_goal_refs: list[tuple[Path, str]] = []
         for memory_path in memory_paths:
             data = load_json(memory_path)
             if not isinstance(data, dict):
@@ -1917,6 +1918,10 @@ def main() -> int:
             memory_errors = memory_entry_errors(data, root=SHIKI.parent)
             if memory_errors:
                 raise ValidationError(f"{memory_path}: {'; '.join(memory_errors)}")
+            source = data.get("source")
+            goal_ref = str(source.get("goal_id") or "") if isinstance(source, dict) else ""
+            if goal_ref:
+                memory_goal_refs.append((memory_path, goal_ref))
 
         for goal_path in goal_paths:
             data = load_json(goal_path)
@@ -1929,6 +1934,13 @@ def main() -> int:
                 raise ValidationError(f"{goal_path}: file name must match goal id {goal_id}")
             known_goals.add(goal_id)
             goal_payloads[goal_id] = data
+
+        # A memory's source.goal_id must reference an existing goal (referential
+        # integrity, mirroring the task goal_id check). A directly-committed
+        # memory that anchors to a non-existent goal is rejected fail-closed.
+        for memory_path, goal_ref in memory_goal_refs:
+            if goal_ref not in known_goals:
+                raise ValidationError(f"{memory_path}: source.goal_id {goal_ref} has no matching goal file")
 
         for task_path in task_paths:
             data = load_json(task_path)
