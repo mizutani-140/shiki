@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "scripts/shiki_memory.py",
+    "scripts/test_shiki_memory_loop.sh",
+    ".shiki/runner"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260613T015343577142Z-805d0624",
+  "links": [],
+  "summary": "Skill code-review pre-PR gate executed on the full T1 diff (multi-agent, 3 dimensions, 13 agents): 3 blockers fixed (memory ledger goal_id='memory' sentinel poisoned validate_ledger -> capture now requires+validates an existing anchoring goal_id and rejects free-text task_id, fail-open; the migrations applied_count and shellcheck ls->find fixes were unstaged at review -> re-staged), 1 major (capture did not verify goal existence -> same fix), 2 minor (supersede_memory now re-validates before save; standalone `memory supersede` CLI subcommand added); 2 reviewer claims refuted (B4 auto-merge exclusion already enforced by high-risk guardian gate; revoke/supersede ledger types intentional). Contract-sync core verified clean (manifest/contracts order-exact, README byte-match, migration applied, MEM prefix, ledger enum). Implementation continued in the interactive session under the goal's Guardian approval after the headless runner hit the Claude subscription session limit (EXEC-19d73fb0); the runner's partial shiki_memory.py validation block and test_memory_promotion.py were adopted and extended.",
+  "task_id": "T-20260612T152357706392Z-75f529da",
+  "timestamp": "2026-06-13T01:53:43+00:00",
+  "type": "review"
+}

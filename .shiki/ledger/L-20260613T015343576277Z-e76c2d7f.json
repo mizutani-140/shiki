@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "tests/test_memory_promotion.py",
+    "scripts/test_shiki_memory_loop.sh"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260613T015343576277Z-e76c2d7f",
+  "links": [],
+  "summary": "Skill tdd evidence: tests/test_memory_promotion.py (status-field/transition/HITL unit tests incl. the 5 rejection acceptance checks) and scripts/test_shiki_memory_loop.sh (install->migrate->goal->capture->investigate->promote->distill->revoke E2E with no-goal and absent-goal rejections) written with the foundation; full suite of 31 contract tests + 104 unittests green",
+  "task_id": "T-20260612T152357706392Z-75f529da",
+  "timestamp": "2026-06-13T01:53:43+00:00",
+  "type": "check"
+}

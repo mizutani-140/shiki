@@ -123,6 +123,14 @@
       "required": true,
       "description": "Imported plans and intake artifacts waiting for Shiki processing."
     },
+    ".shiki/memories": {
+      "kind": "mirror",
+      "state_class": "mirror",
+      "tracked": true,
+      "required": false,
+      "create_on_demand": true,
+      "description": "Memory entries (raw/investigated/verified/distilled) created on demand. Audit trail is recorded in the ledger as memory-transition events."
+    },
     ".shiki/ledger": {
       "kind": "append-only-evidence",
       "state_class": "append-only-evidence",
@@ -306,7 +314,8 @@
       ".shiki/handoffs",
       ".shiki/runner",
       ".shiki/smoke",
-      ".shiki/starts"
+      ".shiki/starts",
+      ".shiki/memories"
     ],
     "exclude_from_commit": [
       ".shiki/gha/**"

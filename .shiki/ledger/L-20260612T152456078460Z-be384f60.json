@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "docs/proposals/0001-memory-loop-spec-freeze-review.md",
+    ".shiki/plans/P-20260612T152357625042Z-b25b41ec.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260612T152456078460Z-be384f60",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/128#issuecomment-4692632117"
+  ],
+  "summary": "Guardian approval granted for the Memory Loop goal: operator mizutani-140 approved proposal 0001 v2 as Spec Freeze (SF-01) authorizing autonomous implementation dispatch of the high-risk tasks; merges remain operator-approved per the frozen plan",
+  "task_id": null,
+  "timestamp": "2026-06-12T15:24:56+00:00",
+  "type": "review"
+}

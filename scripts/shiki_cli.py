@@ -12,6 +12,7 @@ from shiki_doctor import cmd_doctor
 from shiki_github import cmd_github_issue, cmd_github_pr
 from shiki_installer import DEFAULT_CLAUDE_COMMAND_PATH, DEFAULT_CODEX_SKILL_PATH, DEFAULT_GLOBAL_COMMAND_PATH, cmd_install_command, cmd_install_global, cmd_install_target, cmd_status
 from shiki_loop import cmd_loop_run, cmd_loop_step
+from shiki_memory import cmd_memory_capture, cmd_memory_distill, cmd_memory_investigate, cmd_memory_list, cmd_memory_promote, cmd_memory_revoke, cmd_memory_supersede
 from shiki_migrations import cmd_migrate
 from shiki_process import ShikiError
 from shiki_runtime import cmd_daemon_enqueue_plan, cmd_daemon_run, cmd_runner_claude, cmd_runner_codex, cmd_runner_execute, cmd_runner_next, cmd_smoke_live
@@ -229,6 +230,64 @@ def build_parser() -> argparse.ArgumentParser:
     runner_claude.add_argument("--force", action="store_true", help="Run even if the task runtime is not claude-code")
     runner_claude.add_argument("--repair-id", help="Dispatch a repair handoff (RP-XXXX) instead of the task handoff")
     runner_claude.set_defaults(func=cmd_runner_claude)
+
+    memory = subcommands.add_parser("memory", help="Manage Memory Loop entries (capture, promotion, distillation)")
+    memory_subcommands = memory.add_subparsers(dest="memory_command", required=True)
+
+    mem_capture = memory_subcommands.add_parser("capture", help="Capture a raw memory entry")
+    mem_capture.add_argument("--target", default=".", help="Target repository path")
+    mem_capture.add_argument("--area", required=True, choices=list(__import__("shiki_memory").MEMORY_AREAS))
+    mem_capture.add_argument("--claim", required=True)
+    mem_capture.add_argument("--source-kind", required=True, choices=list(__import__("shiki_memory").MEMORY_SOURCE_KINDS))
+    mem_capture.add_argument("--goal-id", required=True, help="Anchoring goal id (G-...); required so the memory's ledger events validate")
+    mem_capture.add_argument("--task-id", help="Optional anchoring task id (T-...)")
+    mem_capture.add_argument("--applies-to", action="append", default=[])
+    mem_capture.add_argument("--tag", action="append", default=[])
+    mem_capture.add_argument("--evidence", action="append", default=[], help="Repository-relative .shiki/ evidence path; repeatable")
+    mem_capture.add_argument("--redaction", default="clean", choices=["clean", "redacted", "skipped"])
+    mem_capture.add_argument("--redaction-notes")
+    mem_capture.set_defaults(func=cmd_memory_capture)
+
+    mem_list = memory_subcommands.add_parser("list", help="List memory entries")
+    mem_list.add_argument("--target", default=".", help="Target repository path")
+    mem_list.add_argument("--status", choices=list(__import__("shiki_memory").MEMORY_STATUSES))
+    mem_list.add_argument("--area", choices=list(__import__("shiki_memory").MEMORY_AREAS))
+    mem_list.set_defaults(func=cmd_memory_list)
+
+    mem_investigate = memory_subcommands.add_parser("investigate", help="Promote raw -> investigated with an investigation note")
+    mem_investigate.add_argument("--target", default=".", help="Target repository path")
+    mem_investigate.add_argument("memory_id")
+    mem_investigate.add_argument("--summary", required=True)
+    mem_investigate.add_argument("--ref", action="append", default=[])
+    mem_investigate.set_defaults(func=cmd_memory_investigate)
+
+    mem_promote = memory_subcommands.add_parser("promote", help="Promote investigated -> verified with local evidence")
+    mem_promote.add_argument("--target", default=".", help="Target repository path")
+    mem_promote.add_argument("memory_id")
+    mem_promote.add_argument("--local-evidence", nargs=2, action="append", metavar=("KIND", "PATH"), default=[], help="Local evidence as KIND PATH (kind: ledger|report|exec); repeatable")
+    mem_promote.set_defaults(func=cmd_memory_promote)
+
+    mem_distill = memory_subcommands.add_parser("distill", help="Promote verified -> distilled (operator-only; requires --approve)")
+    mem_distill.add_argument("--target", default=".", help="Target repository path")
+    mem_distill.add_argument("memory_id")
+    mem_distill.add_argument("--rule", required=True)
+    mem_distill.add_argument("--approved-by", required=True)
+    mem_distill.add_argument("--approve", action="store_true")
+    mem_distill.add_argument("--supersede", action="append", default=[], help="MEM id this rule supersedes; repeatable")
+    mem_distill.set_defaults(func=cmd_memory_distill)
+
+    mem_revoke = memory_subcommands.add_parser("revoke", help="Revoke a distilled rule (operator-only)")
+    mem_revoke.add_argument("--target", default=".", help="Target repository path")
+    mem_revoke.add_argument("memory_id")
+    mem_revoke.add_argument("--revoked-by", required=True)
+    mem_revoke.add_argument("--reason", required=True)
+    mem_revoke.set_defaults(func=cmd_memory_revoke)
+
+    mem_supersede = memory_subcommands.add_parser("supersede", help="Supersede a distilled rule with another (operator-only)")
+    mem_supersede.add_argument("--target", default=".", help="Target repository path")
+    mem_supersede.add_argument("memory_id")
+    mem_supersede.add_argument("--superseded-by", required=True, help="MEM id of the rule that replaces this one")
+    mem_supersede.set_defaults(func=cmd_memory_supersede)
 
     loop = subcommands.add_parser("loop", help="Drive a frozen Goal autonomously through dispatch, checks, CCA, merge, and repair")
     loop_subcommands = loop.add_subparsers(dest="loop_command", required=True)

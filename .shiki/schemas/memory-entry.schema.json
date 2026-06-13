@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/memory-entry.schema.json",
+  "title": "Shiki Memory Entry",
+  "type": "object",
+  "required": [
+    "id",
+    "schema_version",
+    "status",
+    "area",
+    "claim",
+    "source",
+    "created_at",
+    "updated_at",
+    "redaction"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^MEM-(?:[0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$"
+    },
+    "schema_version": { "const": 1 },
+    "status": { "enum": ["raw", "investigated", "verified", "distilled"] },
+    "area": {
+      "enum": [
+        "mergegate",
+        "cca",
+        "locks",
+        "runner",
+        "loop",
+        "planning",
+        "memory",
+        "contracts",
+        "manifest",
+        "migrations",
+        "handoff",
+        "validator",
+        "docs",
+        "other"
+      ]
+    },
+    "applies_to": { "type": "array", "items": { "type": "string" } },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "claim": { "type": "string", "minLength": 1 },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": { "enum": ["ledger", "report", "exec", "pr_check"] },
+          "path": { "type": "string" },
+          "pr": { "type": "integer" },
+          "check": { "type": "string" },
+          "required": { "type": "boolean" }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["kind", "goal_id"],
+      "properties": {
+        "kind": { "enum": ["repair", "loop_stop", "cca_fail", "runner_fail", "manual"] },
+        "goal_id": { "type": "string", "pattern": "^G-" },
+        "task_id": { "type": ["string", "null"] }
+      }
+    },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "investigation": {
+      "type": "object",
+      "properties": {
+        "summary": { "type": "string" },
+        "refs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "verified_at": { "type": "string" },
+        "validator": { "type": "string" },
+        "evidence": { "type": "array" }
+      }
+    },
+    "last_verified": { "type": "string" },
+    "rule": { "type": "string" },
+    "approved_by": { "type": "string" },
+    "approved_at": { "type": "string" },
+    "approval_ledger": { "type": "string" },
+    "active": { "type": "boolean" },
+    "supersedes": { "type": "array", "items": { "type": "string" } },
+    "superseded_by": { "type": ["string", "null"] },
+    "revoked_at": { "type": ["string", "null"] },
+    "revoked_by": { "type": ["string", "null"] },
+    "revocation_ledger": { "type": ["string", "null"] },
+    "redaction": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["clean", "redacted", "skipped"] },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": true
+}

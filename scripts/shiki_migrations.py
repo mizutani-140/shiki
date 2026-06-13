@@ -22,6 +22,7 @@ BASELINE_MIGRATION_ID = "M-20260604-0001-baseline"
 GUARDIAN_POLICY_MIGRATION_ID = "M-20260604-0002-guardian-policy"
 STATE_CLASSES_MIGRATION_ID = "M-20260605-0002-state-classes"
 SPEC_FREEZE_MIGRATION_ID = "M-20260612-0001-spec-freeze"
+MEMORIES_MIGRATION_ID = "M-20260613-0001-memories"
 MIGRATION_ID_RE = re.compile(r"^M-[0-9]{8}-[0-9]{4}-[a-z0-9][a-z0-9-]*$")
 MIGRATION_SOURCE_OF_TRUTH = "Repository-local Shiki migration state. GitHub operational state remains authoritative."
 
@@ -158,6 +159,27 @@ def _spec_freeze_apply(root: Path, dry_run: bool) -> dict[str, Any]:
     }
 
 
+def _memories_apply(root: Path, dry_run: bool) -> dict[str, Any]:
+    memories_dir = root / ".shiki" / "memories"
+    manifest_path = root / ".shiki" / "manifest.json"
+    created = False
+    if not dry_run:
+        memories_dir.mkdir(parents=True, exist_ok=True)
+        created = True
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+    declared = ".shiki/memories" in (manifest.get("directories") or {})
+    return {
+        "summary": "Accepted .shiki/memories as an on-demand mirror directory for the Memory Loop (proposal 0001 v2).",
+        "evidence": [
+            ".shiki/manifest.json declares .shiki/memories (mirror, create_on_demand).",
+            f"manifest declaration present: {declared}.",
+            f".shiki/memories directory ensured: {created or memories_dir.exists()}.",
+            "Memory audit trail is recorded in the ledger as memory-transition events.",
+        ],
+        "dry_run": dry_run,
+    }
+
+
 def migration_registry() -> tuple[Migration, ...]:
     return (
         Migration(
@@ -215,6 +237,20 @@ def migration_registry() -> tuple[Migration, ...]:
             ),
             destructive=False,
             apply=_spec_freeze_apply,
+        ),
+        Migration(
+            id=MEMORIES_MIGRATION_ID,
+            title="Add the .shiki/memories mirror directory",
+            description="Register .shiki/memories as an on-demand mirror directory for Memory Loop entries; audit trail stays in the ledger as memory-transition events.",
+            introduced_in="T-20260612T152357706392Z-75f529da",
+            requires=(SPEC_FREEZE_MIGRATION_ID,),
+            affected_paths=(
+                ".shiki/manifest.json",
+                ".shiki/memories",
+                MIGRATION_STATE_PATH,
+            ),
+            destructive=False,
+            apply=_memories_apply,
         ),
     )
 

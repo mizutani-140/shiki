@@ -1,0 +1,20 @@
+{
+  "created_at": "2026-06-12T15:23:57+00:00",
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "locks": [
+    "path:.shiki/**",
+    "path:scripts/shiki_memory.py",
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/shiki_contracts.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/shiki_migrations.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*",
+    "path:docs/**"
+  ],
+  "owner": "shiki-run",
+  "state": "active",
+  "task_id": "T-20260612T152357706392Z-75f529da"
+}

@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260612T152357704854Z-8a5508cf.json",
+    ".shiki/plans/P-20260612T152357625042Z-b25b41ec.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260612T152357705670Z-448aa8b2",
+  "links": [],
+  "summary": "Goal registered from plan: Memory Loop: capture, promotion, consult, and scorecard for the Shiki platform",
+  "task_id": null,
+  "timestamp": "2026-06-12T15:23:57+00:00",
+  "type": "goal-created"
+}

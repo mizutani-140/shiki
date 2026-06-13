@@ -1,0 +1,16 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/validate_shiki.py",
+    "scripts/test_shiki_memory_loop.sh"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260613T070335944116Z-c369a581",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/129"
+  ],
+  "summary": "External GPT-5.5 Pro guardian review of PR #129 (rebased onto main with ADR 0010) returned request_changes (B1: validate_shiki.py should be the fail-closed boundary for committed memory state). On verification the integration already existed (validate_shiki.py traverses .shiki/memories, enforces filename==id, and calls memory_entry_errors), so B1's 'no integration' claim was inaccurate; however two genuine gaps were closed: (1) a memory source.goal_id must now reference an existing goal (referential integrity, mirroring the task goal_id check), and (2) validator-level regression tests prove validate_shiki.py REJECTS directly-committed poisoned memory files (filename!=id, distilled without approval_ledger, dangling goal_id), not just the CLI write path. 127 unit + full shell suite + validators green. Awaiting fresh GPT-5.5 Pro review of the updated head.",
+  "task_id": "T-20260612T152357706392Z-75f529da",
+  "timestamp": "2026-06-13T07:03:35+00:00",
+  "type": "check"
+}
