@@ -37,6 +37,7 @@ The following decisions must not be delegated to Codex or any implementation run
 - whether to deploy to a protected environment;
 - whether high-risk security, auth, data, billing, or infra changes are acceptable;
 - whether unresolved design ambiguity may be ignored;
+- whether to record an external AI reviewer's verdict as a human (operator) approval — `external_ai_guardian_review` artifacts must preserve the AI reviewer identity and never be transformed into operator approval;
 - whether a frozen spec may change (Spec Amendment approval is operator-only);
 - whether a PR is complete;
 - whether unrelated refactors may be added to an implementation PR;

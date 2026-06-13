@@ -1,0 +1,23 @@
+{
+  "branch": "shiki/g-authority-external-ai-guardian",
+  "created_at": "2026-06-13T03:51:29+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260613T035041766666Z-cfcc6734",
+  "locks": [
+    "path:scripts/shiki_guardian.py",
+    "path:.shiki/guardian-policy.json",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/shiki_loop.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*",
+    "path:docs/**",
+    "path:CONTEXT.md",
+    "path:.shiki/**"
+  ],
+  "path": "/Users/kio.mizutani/shiki",
+  "pr": null,
+  "runtime": "claude-code",
+  "state": "registered",
+  "task_id": "T-20260613T035102039128Z-9bef9375"
+}

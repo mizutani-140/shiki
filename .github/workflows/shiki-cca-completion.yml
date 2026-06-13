@@ -43,6 +43,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           rm -rf .shiki/gha
           mkdir -p .shiki/gha
@@ -51,6 +52,28 @@ jobs:
           git fetch origin "$base_ref" --depth=1
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
           git diff --name-status "origin/${base_ref}...HEAD" > .shiki/gha/changed-files-status.txt
+
+          # Deterministic Guardian-approval signal for CCA-08. The CCA must not
+          # judge Guardian approval by LLM-reading raw comments; it reads the
+          # result of the SAME authoritative evaluate_guardian_approval the
+          # MergeGate policy check uses (recognizes label/review/comment OR an
+          # external AI guardian review artifact, ADR 0010). The policy check
+          # remains the authoritative gate.
+          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" > .shiki/gha/live-guardian-comments.json || echo "[]" > .shiki/gha/live-guardian-comments.json
+          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/events" > .shiki/gha/live-guardian-events.json || echo "[]" > .shiki/gha/live-guardian-events.json
+          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/timeline" -H "Accept: application/vnd.github+json" > .shiki/gha/live-guardian-timeline.json || echo "[]" > .shiki/gha/live-guardian-timeline.json
+          python3 scripts/guardian_approval_signal.py \
+            --pr-json .shiki/gha/pr.json \
+            --guardian-policy .shiki/guardian-policy.json \
+            --guardian-comments .shiki/gha/live-guardian-comments.json \
+            --guardian-events .shiki/gha/live-guardian-events.json \
+            --guardian-timeline .shiki/gha/live-guardian-timeline.json \
+            --expected-repository "${REPOSITORY}" \
+            --shiki-root . \
+            --output .shiki/gha/guardian-approval.json
+          echo "::group::guardian-approval signal"
+          cat .shiki/gha/guardian-approval.json
+          echo "::endgroup::"
 
       - name: Prepare CCA transport schema
         id: schema
@@ -144,6 +167,17 @@ jobs:
             - docs/agents/runtime-auth-model.md
             - .shiki/gha/pr.json
             - .shiki/gha/changed-files.txt
+            - .shiki/gha/guardian-approval.json
+
+            For Guardian approval (CCA-08), do NOT interpret raw PR comments
+            yourself. Read .shiki/gha/guardian-approval.json (the deterministic
+            result of the authoritative evaluate_guardian_approval). If
+            "required" is false, CCA-08 is not applicable. If "required" is true
+            and "approved" is true, CCA-08 is satisfied by the recorded authority
+            in "sources"/"ai_reviewers" (an external AI guardian review is a
+            valid authority per ADR 0010; record it as such, never as a human
+            approver). If "required" is true and "approved" is false, return
+            needs_guardian.
 
             Judge completion only. Do not edit production code.
             Do not require this CCA verdict check, the downstream MergeGate policy

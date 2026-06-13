@@ -41,7 +41,12 @@ from shiki_tasks import (
 )
 
 AUTO_MERGE_RISKS = {"low", "medium"}
-CCA_CHAIN_CHECKS = {"CCA verdict", "MergeGate policy check"}
+# The Guardian/policy gate. It enforces guardian-policy.json (human
+# review/label/comment OR an external AI guardian review, ADR 0010) and is the
+# ONLY required check that must never become an auto-repair target: an
+# autonomous runner must never be instructed to "make the Guardian gate pass".
+POLICY_GATE = "MergeGate policy check"
+CCA_VERDICT_CHECK = "CCA verdict"
 MAX_CCA_RERUNS = 2
 
 # Engine action names, in execution priority order for a goal pass.
@@ -109,27 +114,49 @@ def decide_task_action(
     failed = sorted(name for name, value in results.items() if value == "fail")
     pending = sorted(name for name, value in results.items() if value == "pending")
 
-    cca_only_failed = bool(failed) and set(failed) <= CCA_CHAIN_CHECKS
-    if cca_only_failed and set(pending) - CCA_CHAIN_CHECKS:
-        # Known race: CCA judged while sibling checks were still in flight.
-        # Let the siblings settle before deciding anything about CCA.
-        return {"action": "wait_checks", "task_id": task_id, "reason": f"CCA chain failed early; waiting for pending checks: {', '.join(pending)}"}
-    if cca_only_failed:
-        # Siblings are settled green; rerun the CCA chain, bounded so a real
-        # CCA failure eventually becomes a repair.
-        if cca_reruns < MAX_CCA_RERUNS:
-            return {"action": "rerun_cca", "task_id": task_id, "reason": f"only the CCA chain failed ({', '.join(failed)}); rerun after green"}
-        if repair_attempts >= repair_limit:
-            return {"action": "stop_guardian", "task_id": task_id, "reason": "CCA still failing after reruns and repair limit reached"}
-        return {"action": "dispatch_repair", "task_id": task_id, "reason": "CCA chain still failing after bounded reruns", "failed_checks": failed}
-    if failed:
+    # A failing Guardian gate must NEVER be laundered into auto-remediation. The
+    # policy gate is held apart from genuinely repairable checks: it never enters
+    # a repair packet, and when it is the only thing red the loop stops for a
+    # recorded authority. This closes the impersonation pathway ADR 0010 exists
+    # to prevent — an autonomous runner is never told to "make the Guardian gate
+    # pass" — while still letting high/critical tasks iterate real repairs (the
+    # policy gate stays red until approval, which is expected, not a repair item).
+    repairable_failed = sorted(name for name in failed if name != POLICY_GATE)
+    repairable_pending = sorted(name for name in pending if name != POLICY_GATE)
+    policy_failed = POLICY_GATE in failed
+
+    if repairable_failed:
+        # Genuine check failures exist (CCA, mirror, metadata, ...). The policy
+        # gate, if also red, is stripped — it is never handed to the runner.
+        cca_completion_race = set(repairable_failed) == {CCA_VERDICT_CHECK}
+        if cca_completion_race and repairable_pending:
+            # CCA judged while sibling checks were still in flight; let them settle.
+            return {"action": "wait_checks", "task_id": task_id, "reason": f"CCA judged early; waiting for pending checks: {', '.join(pending)}"}
+        if cca_completion_race and cca_reruns < MAX_CCA_RERUNS:
+            return {"action": "rerun_cca", "task_id": task_id, "reason": "only the CCA verdict failed against green siblings; rerun after green"}
         if repair_attempts >= repair_limit:
             return {
                 "action": "stop_guardian",
                 "task_id": task_id,
-                "reason": f"required checks failed ({', '.join(failed)}) and repair attempt limit reached",
+                "reason": f"required checks failed ({', '.join(repairable_failed)}) and repair attempt limit reached",
             }
-        return {"action": "dispatch_repair", "task_id": task_id, "reason": f"required checks failed: {', '.join(failed)}", "failed_checks": failed}
+        return {
+            "action": "dispatch_repair",
+            "task_id": task_id,
+            "reason": f"required checks failed: {', '.join(repairable_failed)}",
+            "failed_checks": repairable_failed,
+        }
+
+    if policy_failed:
+        # All repairable checks are green; only the Guardian/policy gate is red.
+        # The gate said NO (or no authority has approved yet): a recorded
+        # authority must resolve it. Never rerun (CCA is green) or auto-repair.
+        return {
+            "action": "stop_guardian",
+            "task_id": task_id,
+            "reason": "the MergeGate policy Guardian gate is failing with all other checks green; a recorded authority must resolve it (never auto-repaired)",
+        }
+
     if pending:
         return {"action": "wait_checks", "task_id": task_id, "reason": f"required checks pending: {', '.join(pending)}"}
 
@@ -143,10 +170,21 @@ def decide_task_action(
     risk = str(risk)
     if risk in AUTO_MERGE_RISKS:
         return {"action": "merge", "task_id": task_id, "reason": f"all required checks green and risk {risk} permits auto-merge"}
+    # High/critical risk requires Guardian approval, but the "MergeGate policy
+    # check" required check IS the Guardian gate: it enforces guardian-policy.json
+    # (human review/label/comment OR an external AI guardian review, ADR 0010).
+    # When it is green, Guardian approval — by whatever authority — was recorded,
+    # so the loop may merge autonomously.
+    if "MergeGate policy check" in required_checks:
+        return {
+            "action": "merge",
+            "task_id": task_id,
+            "reason": f"all required checks green incl. the MergeGate policy Guardian gate; risk {risk} approved by recorded authority",
+        }
     return {
         "action": "stop_guardian",
         "task_id": task_id,
-        "reason": f"all required checks green but risk {risk} requires Guardian approval to merge",
+        "reason": f"all required checks green but risk {risk} requires Guardian approval and no MergeGate policy gate is configured",
     }
 
 

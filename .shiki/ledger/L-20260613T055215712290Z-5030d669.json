@@ -1,0 +1,18 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/guardian_approval_signal.py",
+    ".github/workflows/shiki-cca-completion.yml",
+    ".github/prompts/cca-completion-check.md",
+    "scripts/shiki_installer.py"
+  ],
+  "goal_id": "G-20260613T035041766666Z-cfcc6734",
+  "id": "L-20260613T055215712290Z-5030d669",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/130"
+  ],
+  "summary": "Spec amendment (operator-approved, option 1): completing ADR 0010 end-to-end. The CCA judge could not see comment-based Guardian approval (pr.json lacks comments), so the external AI guardian review artifact and the legacy guardian-comment path were invisible to CCA, deadlocking at needs_guardian (MergeGate policy check is needs: cca). Fix: a deterministic Guardian-approval signal (scripts/guardian_approval_signal.py) runs the authoritative evaluate_guardian_approval in the CCA Prepare-context step and writes .shiki/gha/guardian-approval.json; the CCA reads it for CCA-08 instead of LLM-interpreting raw comments (state transitions must not vary). Task risk is taken from the matching task's risk_level (not just PR labels) so a missing label cannot bypass. Lock amendment adds scripts/guardian_approval_signal.py, scripts/shiki_installer.py (TEMPLATE_PATHS staging for target repos), .github/workflows/shiki-cca-completion.yml, and .github/prompts/cca-completion-check.md. The MergeGate policy check remains the authoritative gate.",
+  "task_id": "T-20260613T035102039128Z-9bef9375",
+  "timestamp": "2026-06-13T05:52:15+00:00",
+  "type": "lock"
+}

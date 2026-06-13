@@ -1,0 +1,17 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/test_shiki_guardian_policy.sh",
+    "tests/test_loop_engine.py",
+    "docs/adr/0010-external-ai-guardian-review.md"
+  ],
+  "goal_id": "G-20260613T035041766666Z-cfcc6734",
+  "id": "L-20260613T043733359467Z-9e878bdf",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/130"
+  ],
+  "summary": "Skill code-review: pre-PR multi-agent adversarial security review gate for the external_ai_guardian_review authority diff. Two review rounds found and fixed 1 blocker + 4 major (round 1: self-approval bypass, cross-repo/PR/stale-head replay, comment/AI poisoning, fence scan) and 1 blocker + 2 major (round 2: loop laundering on mixed/race failure sets, review-path poisoning); round 3 confirmed 0 findings. Full suite green (88 unit + 31 shell + validate + lint + shellcheck). Evidence on PR #130.",
+  "task_id": "T-20260613T035102039128Z-9bef9375",
+  "timestamp": "2026-06-13T04:37:33+00:00",
+  "type": "check"
+}

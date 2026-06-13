@@ -1,0 +1,16 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/shiki_guardian.py",
+    "scripts/test_shiki_guardian_policy.sh"
+  ],
+  "goal_id": "G-20260613T035041766666Z-cfcc6734",
+  "id": "L-20260613T050917134820Z-5268d389",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/130"
+  ],
+  "summary": "External GPT-5.5 Pro guardian review (external_guardian_reviewer) of PR #130 returned request_changes with 2 blockers: B1 (_review_source did not explicitly fail-closed/soft-demote an arbitrary unconfigured GitHub reviewer, asymmetric with the comment path) and B2 (_external_ai_review_source did not fail closed on identity-boundary fields: reviewer.type must be ai_model and not_operator_approval must be exactly true). Both fixed with regression tests; an adversarial verification sweep confirmed 0 findings. The independent authority did not rubber-stamp - authority-in-the-loop working as designed. Awaiting fresh GPT-5.5 Pro review of the updated head.",
+  "task_id": "T-20260613T035102039128Z-9bef9375",
+  "timestamp": "2026-06-13T05:09:17+00:00",
+  "type": "check"
+}

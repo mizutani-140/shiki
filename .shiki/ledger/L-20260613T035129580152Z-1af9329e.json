@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "docs/adr/0010-external-ai-guardian-review.md"
+  ],
+  "goal_id": "G-20260613T035041766666Z-cfcc6734",
+  "id": "L-20260613T035129580152Z-1af9329e",
+  "links": [],
+  "summary": "Guardian approval granted for autonomous implementation dispatch of the authority-model goal: operator mizutani-140 directed (chat) building external_ai_guardian_review as a first-class authority and chose self-bootstrap; merges of this series proceed via the external AI guardian artifact, recorded with AI identity, never as operator approval.",
+  "task_id": null,
+  "timestamp": "2026-06-13T03:51:29+00:00",
+  "type": "review"
+}

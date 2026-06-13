@@ -39,6 +39,14 @@ class GuardianPolicy:
     solo_maintainer_rationale: str
     github_actions_review_bridge_counts_as_guardian: bool
     advisory_claude_review_counts_as_guardian: bool
+    # external_ai_guardian_review: a first-class authority kind (ADR 0010).
+    # An external AI reviewer (e.g. GPT-5.5 Pro) can authorize autonomous merge,
+    # recorded under its OWN model identity — never as a human operator approval.
+    ai_review_enabled: bool = False
+    ai_review_fence: str = "external-ai-guardian-review"
+    ai_review_require_head_sha: bool = True
+    ai_review_allowed_models: tuple[str, ...] = ()
+    ai_review_allowed_roles: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -48,6 +56,10 @@ class GuardianApprovalResult:
     blockers: tuple[str, ...]
     warnings: tuple[str, ...]
     approvers: tuple[str, ...]
+    # AI reviewer identities (model names) when external_ai_guardian_review
+    # satisfied approval. Recorded distinctly from human `approvers` so the
+    # merge ledger can stamp reviewer_type=external_ai_model.
+    ai_reviewers: tuple[str, ...] = ()
 
 
 def _strings(value: Any) -> tuple[str, ...]:
@@ -65,6 +77,7 @@ def _policy_from_data(data: dict[str, Any]) -> GuardianPolicy:
     review = sources.get("github_review") if isinstance(sources.get("github_review"), dict) else {}
     label = sources.get("guardian_label") if isinstance(sources.get("guardian_label"), dict) else {}
     comment = sources.get("guardian_comment") if isinstance(sources.get("guardian_comment"), dict) else {}
+    ai_review = sources.get("external_ai_guardian_review") if isinstance(sources.get("external_ai_guardian_review"), dict) else {}
     approvers = data.get("approvers") if isinstance(data.get("approvers"), dict) else {}
     solo = data.get("solo_maintainer") if isinstance(data.get("solo_maintainer"), dict) else {}
     exclusions = data.get("exclusions") if isinstance(data.get("exclusions"), dict) else {}
@@ -86,6 +99,11 @@ def _policy_from_data(data: dict[str, Any]) -> GuardianPolicy:
         solo_maintainer_rationale=str(solo.get("rationale") or "").strip(),
         github_actions_review_bridge_counts_as_guardian=_bool(exclusions.get("github_actions_review_bridge_counts_as_guardian")),
         advisory_claude_review_counts_as_guardian=_bool(exclusions.get("advisory_claude_review_counts_as_guardian")),
+        ai_review_enabled=_bool(ai_review.get("enabled")),
+        ai_review_fence=str(ai_review.get("fence") or "external-ai-guardian-review").strip(),
+        ai_review_require_head_sha=_bool(ai_review.get("require_head_sha"), default=True),
+        ai_review_allowed_models=_strings(ai_review.get("allowed_models")),
+        ai_review_allowed_roles=_strings(ai_review.get("allowed_roles")),
     )
 
 
@@ -135,6 +153,15 @@ def validate_guardian_policy(policy: GuardianPolicy) -> list[str]:
         errors.append("CCA Review Bridge must not count as Guardian approval by default")
     if policy.advisory_claude_review_counts_as_guardian:
         errors.append("advisory Claude review must not count as Guardian approval by default")
+    if policy.ai_review_enabled:
+        if not policy.ai_review_fence:
+            errors.append("external_ai_guardian_review requires a non-empty fence marker when enabled")
+        if policy.ai_review_require_head_sha is not True:
+            errors.append("external_ai_guardian_review must bind to the head SHA (require_head_sha=true)")
+        if not policy.ai_review_allowed_models:
+            errors.append("external_ai_guardian_review must list at least one allowed reviewer model when enabled")
+        if not policy.ai_review_allowed_roles:
+            errors.append("external_ai_guardian_review must list at least one allowed reviewer role when enabled")
     return errors
 
 
@@ -214,13 +241,14 @@ def _review_source(
     policy: GuardianPolicy,
     reviews: list[dict[str, Any]],
     pr_author: str,
-) -> tuple[list[str], list[str], list[str], list[str]]:
+) -> tuple[list[str], list[str], list[str], list[str], list[str]]:
     sources: list[str] = []
     approvers: list[str] = []
     blockers: list[str] = []
+    soft: list[str] = []
     warnings: list[str] = []
     if not policy.github_review_enabled:
-        return sources, approvers, blockers, warnings
+        return sources, approvers, blockers, soft, warnings
     for review in reviews:
         if not isinstance(review, dict):
             continue
@@ -239,14 +267,26 @@ def _review_source(
         if not _configured_guardian(actor, policy):
             team = _actor_login(review.get("team"))
             if _team_allowed(team, policy):
-                blockers.append("Guardian team review could not be verified from PR review payload")
+                # Soft: an unverifiable team review must not poison a gate that
+                # another authority already approved; fatal only when it is the
+                # sole approval attempt.
+                soft.append("Guardian team review could not be verified from PR review payload")
+            else:
+                # An arbitrary unconfigured reviewer is explicitly fail-closed and
+                # auditable (symmetric with the comment path): it never satisfies
+                # approval, is fatal when it is the sole attempt, and is demoted to
+                # a warning when another authority validly approved.
+                soft.append(f"Guardian review actor {actor} is not configured")
             continue
         if not _author_allowed(actor, pr_author, policy):
-            blockers.append(f"PR author {actor} cannot satisfy Guardian review without solo maintainer policy")
+            # Soft: a PR author's own stray review must not poison a validly
+            # approved gate (symmetric with the comment and AI paths); it still
+            # blocks when it is the only approval attempt.
+            soft.append(f"PR author {actor} cannot satisfy Guardian review without solo maintainer policy")
             continue
         sources.append("github_review")
         approvers.append(actor)
-    return sources, approvers, blockers, warnings
+    return sources, approvers, blockers, soft, warnings
 
 
 def _comment_source(
@@ -255,13 +295,14 @@ def _comment_source(
     comments: list[dict[str, Any]],
     head_sha: str,
     pr_author: str,
-) -> tuple[list[str], list[str], list[str], list[str]]:
+) -> tuple[list[str], list[str], list[str], list[str], list[str]]:
     sources: list[str] = []
     approvers: list[str] = []
     blockers: list[str] = []
+    soft: list[str] = []
     warnings: list[str] = []
     if not policy.guardian_comment_enabled:
-        return sources, approvers, blockers, warnings
+        return sources, approvers, blockers, soft, warnings
     for comment in comments:
         if not isinstance(comment, dict):
             continue
@@ -272,17 +313,139 @@ def _comment_source(
             continue
         actor = _actor_login(comment.get("author") or comment.get("user"))
         if not _configured_guardian(actor, policy):
-            blockers.append(f"Guardian approval comment actor {actor or '<missing>'} is not configured")
+            # Soft: a stray marker comment from a non-Guardian must not let any
+            # user grief a validly-approved gate; it is a blocker only when it
+            # is the sole approval attempt.
+            soft.append(f"Guardian approval comment actor {actor or '<missing>'} is not configured")
             continue
         if not _author_allowed(actor, pr_author, policy):
-            blockers.append(f"PR author {actor} cannot satisfy Guardian comment without solo maintainer policy")
+            soft.append(f"PR author {actor} cannot satisfy Guardian comment without solo maintainer policy")
             continue
         if policy.require_head_sha and head_sha not in body:
-            blockers.append("Guardian approval comment does not reference current head SHA")
+            # Stale/malformed marker comment lacking the current head SHA. This
+            # is a SOFT blocker: it is fatal only when no other valid approval
+            # source exists (the poisoning fix is applied in the caller).
+            soft.append("Guardian approval comment does not reference current head SHA")
             continue
         sources.append("guardian_comment")
         approvers.append(actor)
-    return sources, approvers, blockers, warnings
+    return sources, approvers, blockers, soft, warnings
+
+
+def _extract_ai_review_artifacts(body: str, fence: str) -> list[dict[str, Any]]:
+    """Extract every fenced ```<fence> {json} ``` artifact from a comment body.
+
+    Scans ALL fenced blocks (not just the first) so a malformed leading block
+    cannot hide a later valid artifact.
+    """
+    artifacts: list[dict[str, Any]] = []
+    marker = "```" + fence
+    cursor = 0
+    while True:
+        start = body.find(marker, cursor)
+        if start == -1:
+            break
+        rest = body[start + len(marker):]
+        end = rest.find("```")
+        if end == -1:
+            break
+        block = rest[:end].strip()
+        cursor = start + len(marker) + end + 3
+        try:
+            data = json.loads(block)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, dict):
+            artifacts.append(data)
+    return artifacts
+
+
+def _external_ai_review_source(
+    *,
+    policy: GuardianPolicy,
+    comments: list[dict[str, Any]],
+    head_sha: str,
+    pr: dict[str, Any],
+    pr_author: str,
+    expected_repo: str,
+) -> tuple[list[str], list[str], list[str], list[str]]:
+    """Evaluate external_ai_guardian_review artifacts carried in PR comments.
+
+    Returns (sources, ai_reviewers, soft_blockers, warnings). The recorded
+    authority is the AI reviewer model, never the human comment author; a
+    configured Guardian must relay the artifact (integrity) AND satisfy the
+    same PR-author guard the human paths enforce (the AI path must be no weaker
+    than the human comment path). The artifact is bound to the exact repo, PR,
+    and head SHA to defeat cross-repo / cross-PR / stale replay.
+    """
+    sources: list[str] = []
+    ai_reviewers: list[str] = []
+    soft: list[str] = []
+    warnings: list[str] = []
+    if not policy.ai_review_enabled:
+        return sources, ai_reviewers, soft, warnings
+    pr_number = pr.get("number")
+    expected_repo = (expected_repo or "").strip().lower()
+    for comment in comments:
+        if not isinstance(comment, dict):
+            continue
+        for artifact in _extract_ai_review_artifacts(str(comment.get("body") or ""), policy.ai_review_fence):
+            if artifact.get("kind") != "external_ai_guardian_review":
+                continue
+            relay = _actor_login(comment.get("author") or comment.get("user"))
+            if not _configured_guardian(relay, policy):
+                # Soft: a non-Guardian relay must not poison a valid approval,
+                # but is a blocker when it is the only attempt.
+                soft.append(f"external AI guardian review relayed by non-Guardian actor {relay or '<missing>'}")
+                continue
+            if not _author_allowed(relay, pr_author, policy):
+                # The AI path is no weaker than the human comment path: a PR
+                # author relaying their own AI artifact is allowed only under
+                # the explicit solo-maintainer escape hatch.
+                soft.append(f"PR author {relay} cannot relay external AI guardian review without solo maintainer policy")
+                continue
+            # Identity boundary: this authority exists for identity honesty, so
+            # the artifact must EXPLICITLY declare itself a non-operator AI-model
+            # review. Missing/null fields fail closed (not just an explicit
+            # false), so a malformed or under-specified artifact never approves.
+            if artifact.get("not_operator_approval") is not True:
+                warnings.append("external AI guardian review artifact must explicitly declare not_operator_approval=true")
+                continue
+            reviewer = artifact.get("reviewer") if isinstance(artifact.get("reviewer"), dict) else {}
+            if str(reviewer.get("type") or "").strip() != "ai_model":
+                warnings.append("external AI guardian review artifact reviewer.type must be ai_model")
+                continue
+            model = str(reviewer.get("model") or "").strip()
+            role = str(reviewer.get("role") or "").strip()
+            if model not in policy.ai_review_allowed_models:
+                warnings.append(f"external AI guardian review model {model!r} is not in the allowed list")
+                continue
+            if role not in policy.ai_review_allowed_roles:
+                warnings.append(f"external AI guardian review role {role!r} is not in the allowed list")
+                continue
+            if artifact.get("verdict") != "approve" or artifact.get("merge_permission") != "autonomous_merge_permitted":
+                warnings.append("external AI guardian review artifact does not authorize autonomous merge")
+                continue
+            # Repo binding: defeat cross-repo replay. Fail closed if either side
+            # is missing.
+            artifact_repo = str(artifact.get("repo") or "").strip().lower()
+            if not expected_repo or artifact_repo != expected_repo:
+                warnings.append("external AI guardian review artifact does not bind to this repository")
+                continue
+            # PR binding: require an exact match; fail closed when the PR number
+            # is unknown or the artifact omits/mismatches it.
+            if pr_number is None or artifact.get("pr") != pr_number:
+                warnings.append("external AI guardian review artifact does not bind to this PR")
+                continue
+            # Head-SHA binding: require a non-empty exact match; an empty head
+            # must never pass.
+            artifact_head = str(artifact.get("head_sha") or "")
+            if policy.ai_review_require_head_sha and (not head_sha or artifact_head != head_sha):
+                soft.append("external AI guardian review artifact does not reference current head SHA")
+                continue
+            sources.append("external_ai_guardian_review")
+            ai_reviewers.append(model)
+    return sources, ai_reviewers, soft, warnings
 
 
 def evaluate_guardian_approval(
@@ -293,20 +456,26 @@ def evaluate_guardian_approval(
     comments: list[dict[str, Any]],
     label_events: list[dict[str, Any]],
     head_sha: str,
+    expected_repo: str = "",
 ) -> GuardianApprovalResult:
     blockers: list[str] = []
     warnings: list[str] = []
     sources: list[str] = []
     approvers: list[str] = []
+    # Human-path failures (missing/forged label) are fatal only when no
+    # approval path succeeds; the external AI guardian path does not require
+    # the human label.
+    human_path_blockers: list[str] = []
     policy_errors = validate_guardian_policy(policy)
     if policy_errors:
         return GuardianApprovalResult(False, (), tuple(policy_errors), (), ())
 
     labels = _pr_label_names(pr)
     label_present = policy.guardian_label_enabled and policy.label.lower() in labels
+    label_actor_ok = False
     pr_author = _pr_author(pr)
     if not label_present:
-        blockers.append(f"Guardian label {policy.label!r} is missing")
+        human_path_blockers.append(f"Guardian label {policy.label!r} is missing")
     else:
         label_actor_ok, label_actor = _valid_label_actor(policy, label_events, pr_author)
         if label_actor_ok:
@@ -314,9 +483,10 @@ def evaluate_guardian_approval(
             if label_actor:
                 approvers.append(label_actor)
         else:
-            blockers.append(f"Guardian label {policy.label!r} was not applied by a configured Guardian")
+            human_path_blockers.append(f"Guardian label {policy.label!r} was not applied by a configured Guardian")
 
-    review_sources, review_approvers, review_blockers, review_warnings = _review_source(
+    soft_blockers: list[str] = []
+    review_sources, review_approvers, review_blockers, review_soft, review_warnings = _review_source(
         policy=policy,
         reviews=reviews,
         pr_author=pr_author,
@@ -324,9 +494,9 @@ def evaluate_guardian_approval(
     sources.extend(review_sources)
     approvers.extend(review_approvers)
     blockers.extend(review_blockers)
+    soft_blockers.extend(review_soft)
     warnings.extend(review_warnings)
-
-    comment_sources, comment_approvers, comment_blockers, comment_warnings = _comment_source(
+    comment_sources, comment_approvers, comment_blockers, comment_soft, comment_warnings = _comment_source(
         policy=policy,
         comments=comments,
         head_sha=head_sha,
@@ -335,19 +505,54 @@ def evaluate_guardian_approval(
     sources.extend(comment_sources)
     approvers.extend(comment_approvers)
     blockers.extend(comment_blockers)
+    soft_blockers.extend(comment_soft)
     warnings.extend(comment_warnings)
 
-    has_secondary = bool(set(sources).intersection({"github_review", "guardian_comment"}))
-    if not has_secondary:
-        blockers.append("Guardian approval requires a configured Guardian review or current-head Guardian comment")
+    ai_sources, ai_reviewers, ai_soft, ai_warnings = _external_ai_review_source(
+        policy=policy,
+        comments=comments,
+        head_sha=head_sha,
+        pr=pr,
+        pr_author=pr_author,
+        expected_repo=expected_repo,
+    )
+    sources.extend(ai_sources)
+    soft_blockers.extend(ai_soft)
+    warnings.extend(ai_warnings)
 
-    approved = label_present and has_secondary and not any("must not" in blocker for blocker in blockers)
-    if blockers:
-        approved = False
+    # Two approval paths satisfy the gate independently:
+    #  - the human path: Guardian label applied by a configured Guardian PLUS a
+    #    current-head Guardian review or comment;
+    #  - the external AI guardian path: a valid head-bound external AI review
+    #    artifact (a distinct authority kind; no human label required).
+    human_secondary = bool(set(sources).intersection({"github_review", "guardian_comment"}))
+    human_approved = label_present and label_actor_ok and human_secondary
+    ai_approved = "external_ai_guardian_review" in sources
+    approved_path = human_approved or ai_approved
+
+    if not approved_path:
+        # No valid approval exists: explain why. The human-path failures and a
+        # stale/malformed approval attempt are the genuine blockers in this case.
+        blockers.extend(human_path_blockers)
+        if not human_secondary and not ai_approved:
+            blockers.append("Guardian approval requires a configured Guardian review or current-head Guardian comment")
+        blockers.extend(soft_blockers)
+    else:
+        # A valid exact-head approval exists: stale/malformed approval-like
+        # artifacts and unused human-path conditions must not poison the gate —
+        # record them as warnings.
+        warnings.extend(soft_blockers)
+        if ai_approved and not human_approved:
+            warnings.extend(human_path_blockers)
+        else:
+            blockers.extend(human_path_blockers)
+
+    approved = approved_path and not blockers
     return GuardianApprovalResult(
         approved=approved,
         sources=tuple(dict.fromkeys(sources)),
         blockers=tuple(dict.fromkeys(blockers)),
         warnings=tuple(dict.fromkeys(warnings)),
         approvers=tuple(dict.fromkeys(approvers)),
+        ai_reviewers=tuple(dict.fromkeys(ai_reviewers)),
     )

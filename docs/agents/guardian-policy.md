@@ -48,3 +48,26 @@ this policy. It verifies that label-only approval, negative text such as
 "no Guardian approval evidence is present", stale-head comments, unconfigured
 actors, CCA Review Bridge reviews, advisory Claude reviews, and close-but-not
 exact approval phrases do not satisfy Guardian approval.
+
+## External AI Guardian Review (ADR 0010)
+
+`external_ai_guardian_review` is a first-class approval source for high/critical
+risk, distinct from any human approval. An external AI reviewer (e.g. GPT-5.5
+Pro acting as `external_guardian_reviewer`) authorizes autonomous merge through
+a head-SHA-bound artifact delivered as a live PR comment carrying a fenced
+```` ```external-ai-guardian-review ```` JSON block: `{kind, reviewer:{type,
+model, role}, repo, pr, head_sha, verdict:"approve",
+merge_permission:"autonomous_merge_permitted", not_operator_approval:true}`.
+
+The artifact is valid only when relayed by a configured Guardian (integrity),
+the reviewer model/role are allow-listed in `external_ai_guardian_review`, the
+head SHA matches the current PR head exactly, and the verdict authorizes merge.
+The recorded authority is the AI reviewer's own identity: the merge ledger
+stamps `reviewer_type=external_ai_model`, and the human relay is never recorded
+as an approver. AI approval is never transformed into operator approval. The AI
+path does not require the `guardian:approved` human label.
+
+The guardian-comment parser ignores a stale or abbreviated-SHA approval comment
+(records it as a warning) once a valid current-head approval exists from any
+authority; such a comment is only a blocker when it is the sole approval
+attempt.
