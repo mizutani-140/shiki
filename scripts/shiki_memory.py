@@ -239,6 +239,14 @@ def memory_entry_errors(data: dict[str, Any], *, root: Path | None = None) -> li
     source = data.get("source")
     if not isinstance(source, dict) or source.get("kind") not in MEMORY_SOURCE_KINDS:
         errors.append(f"source.kind must be one of {sorted(MEMORY_SOURCE_KINDS)}")
+    # Every memory must be anchored to a real Goal: source.goal_id is required and
+    # must be a well-formed G-* id. Existence against an actual goal file is
+    # cross-checked by the repository validator. This makes a committed entry
+    # without a goal anchor fail closed at the engine boundary.
+    if isinstance(source, dict):
+        source_goal_id = source.get("goal_id")
+        if not source_goal_id or not GOAL_ID_RE.match(str(source_goal_id)):
+            errors.append("source.goal_id is required and must match ^G-<id>")
 
     redaction = data.get("redaction")
     if not isinstance(redaction, dict) or redaction.get("status") not in STORED_REDACTION_STATUSES:

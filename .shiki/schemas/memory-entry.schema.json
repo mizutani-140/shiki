@@ -58,10 +58,10 @@
     },
     "source": {
       "type": "object",
-      "required": ["kind"],
+      "required": ["kind", "goal_id"],
       "properties": {
         "kind": { "enum": ["repair", "loop_stop", "cca_fail", "runner_fail", "manual"] },
-        "goal_id": { "type": "string" },
+        "goal_id": { "type": "string", "pattern": "^G-" },
         "task_id": { "type": ["string", "null"] }
       }
     },

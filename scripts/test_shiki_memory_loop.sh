@@ -195,6 +195,12 @@ e["id"] = "MEM-00000003"
 e["source"] = {**e.get("source", {}), "goal_id": "G-90000003"}
 reject("dangling-source-goal_id", e, filename="MEM-00000003.json")
 
+# 4. memory with NO source.goal_id (unanchored to any Goal) is rejected.
+e = copy.deepcopy(valid)
+e["id"] = "MEM-00000004"
+e["source"] = {"kind": "manual"}
+reject("missing-source-goal_id", e, filename="MEM-00000004.json")
+
 print("validator poisoned-memory rejection checks passed")
 PY
 
