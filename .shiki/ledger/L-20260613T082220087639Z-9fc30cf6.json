@@ -1,0 +1,16 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/shiki_memory.py",
+    "scripts/shiki_loop.py",
+    "scripts/shiki_runtime.py",
+    "scripts/shiki_tasks.py"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260613T082220087639Z-9fc30cf6",
+  "links": [],
+  "summary": "Skill code-review: pre-PR multi-agent adversarial review of the T2 diff against the guardian blocker list (secret persistence, hook fail-open, sentinel goal_id, evidence body copy, CCA raw-text, runner EXEC body, scorecard raw-memory source, stdout contract, suggestion status, autonomous distillation); 0 confirmed findings.",
+  "task_id": "T-20260612T152357707056Z-90925f53",
+  "timestamp": "2026-06-13T08:22:20+00:00",
+  "type": "check"
+}

@@ -761,6 +761,19 @@ def create_repair_packet(
     task["status"] = "repair-needed"
     task.setdefault("ledger_evidence", []).append(ledger_id)
     write_json(shiki_path(target, "tasks", f"{task_id}.json"), task)
+    # Auto-capture (proposal 3.3, source=repair). Reference the repair ledger
+    # only — never the failing output, repair prompt, or model response.
+    from shiki_memory import capture_failure
+
+    capture_failure(
+        target,
+        source_kind="repair",
+        area="loop",
+        claim=f"Repair packet created for {task_id} (PR #{pr}, attempt {attempt}); failing checks need a bounded fix.",
+        goal_id=task["goal_id"],
+        task_id=task_id,
+        evidence_refs=[f".shiki/ledger/{ledger_id}.json"],
+    )
     return repair_id, repair_file, ledger_id
 
 
@@ -836,6 +849,15 @@ def cmd_goal_complete(args: argparse.Namespace) -> int:
         },
         "created_at": utc_now(),
     }
+    # Scorecard (proposal 3.6) lives INSIDE the report file, never on stdout, so
+    # the goal-complete stdout stays json_get_last compatible. Generation is
+    # failure tolerant: a scorecard error must not block goal completion.
+    try:
+        from shiki_memory import compute_scorecard
+
+        report["scorecard"] = compute_scorecard(target, args.goal_id, tasks=tasks)
+    except Exception as error:  # noqa: BLE001 - scorecard is failure tolerant (3.6)
+        report["scorecard"] = {"goal_id": args.goal_id, "warnings": [f"scorecard generation failed: {error}"]}
     report_file = shiki_path(target, "reports", f"{report_id}.json")
     write_json(report_file, report)
     ledger_id = append_ledger(
