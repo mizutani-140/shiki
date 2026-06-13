@@ -219,6 +219,85 @@ class MemoryTransitionTests(unittest.TestCase):
         )
 
 
+class StatusProhibitedFieldTests(unittest.TestCase):
+    """B1: a lower status must not carry a higher status's fields."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_raw_with_investigation_rejected(self) -> None:
+        self.assertTrue(memory_entry_errors(raw_entry() | {"investigation": {"summary": "x", "refs": []}}, root=self.root))
+
+    def test_raw_with_verification_rejected(self) -> None:
+        self.assertTrue(memory_entry_errors(raw_entry() | {"verification": {"verified_at": "t", "evidence": []}}, root=self.root))
+
+    def test_raw_with_lifecycle_field_rejected(self) -> None:
+        self.assertTrue(memory_entry_errors(raw_entry() | {"active": True}, root=self.root))
+
+    def test_investigated_with_verification_rejected(self) -> None:
+        entry = entry_with_status("investigated", self.root)
+        entry["verification"] = {"verified_at": "t", "evidence": []}
+        self.assertTrue(memory_entry_errors(entry, root=self.root))
+
+    def test_investigated_with_last_verified_rejected(self) -> None:
+        entry = entry_with_status("investigated", self.root)
+        entry["last_verified"] = "2026-06-13T00:00:00Z"
+        self.assertTrue(memory_entry_errors(entry, root=self.root))
+
+    def test_verified_with_lifecycle_field_rejected(self) -> None:
+        entry = entry_with_status("verified", self.root)
+        entry["active"] = True
+        self.assertTrue(memory_entry_errors(entry, root=self.root))
+
+
+class EvidenceKindPathTests(unittest.TestCase):
+    """B3: a local evidence kind must point at its own state directory."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        (self.root / ".shiki" / "goals").mkdir(parents=True, exist_ok=True)
+        (self.root / ".shiki" / "goals" / "G-0001.json").write_text("{}\n")
+
+    def test_ledger_kind_pointing_at_goal_rejected(self) -> None:
+        entry = entry_with_status("verified", self.root)
+        wrong = [{"kind": "ledger", "path": ".shiki/goals/G-0001.json"}]
+        entry["evidence"] = wrong
+        entry["verification"]["evidence"] = wrong
+        self.assertTrue(memory_entry_errors(entry, root=self.root))
+
+    def test_report_kind_pointing_at_ledger_rejected(self) -> None:
+        entry = entry_with_status("verified", self.root)
+        ledger = self.root / ".shiki" / "ledger" / "L-20260613T000000000000Z-0000bbbb.json"
+        wrong = [{"kind": "report", "path": f".shiki/ledger/{ledger.name}"}]
+        entry["evidence"] = wrong
+        entry["verification"]["evidence"] = wrong
+        self.assertTrue(memory_entry_errors(entry, root=self.root))
+
+
+class RedactionTests(unittest.TestCase):
+    """B4: a persisted entry may not be redaction.status=skipped."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_stored_entry_skipped_redaction_rejected(self) -> None:
+        entry = raw_entry()
+        entry["redaction"] = {"status": "skipped", "notes": ""}
+        self.assertTrue(memory_entry_errors(entry, root=self.root))
+
+    def test_clean_and_redacted_accepted(self) -> None:
+        for status in ("clean", "redacted"):
+            entry = raw_entry()
+            entry["redaction"] = {"status": status, "notes": ""}
+            self.assertEqual(memory_entry_errors(entry, root=self.root), [], status)
+
+
 class AutonomousContextBoundaryTests(unittest.TestCase):
     """Acceptance check 5: operator-only actions are refused in autonomous context."""
 

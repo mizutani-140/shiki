@@ -112,6 +112,18 @@ expect_fail python3 "$ROOT/scripts/shiki.py" memory distill --target "$TARGET" "
 SHIKI_AUTONOMOUS_EXECUTION=1 expect_fail python3 "$ROOT/scripts/shiki.py" memory distill --target "$TARGET" "$MEM" --rule "x" --approved-by op --approve
 grep "operator-only" /tmp/shiki-memory-expected-fail.out >/dev/null
 
+# Atomicity (B2): a distill that fails its pre-checks leaves no orphan approval
+# ledger and does not change the memory. Use an invalid supersede target.
+LEDGER_BEFORE=$(find "$TARGET/.shiki/ledger" -name 'L-*.json' | wc -l | tr -d ' ')
+expect_fail python3 "$ROOT/scripts/shiki.py" memory distill --target "$TARGET" "$MEM" \
+  --rule "x" --approved-by mizutani-140 --approve --supersede "$MEM"
+LEDGER_AFTER=$(find "$TARGET/.shiki/ledger" -name 'L-*.json' | wc -l | tr -d ' ')
+test "$LEDGER_BEFORE" = "$LEDGER_AFTER"  # no approval ledger written on failure
+test "$(json_get "$TARGET/.shiki/memories/$MEM.json" status)" = "verified"  # memory unchanged
+# redaction skipped writes no memory file (B4).
+SKIP=$(python3 "$ROOT/scripts/shiki.py" memory capture --target "$TARGET" --area locks --source-kind manual --claim "x" --goal-id "$GOAL" --redaction skipped)
+test "$(echo "$SKIP" | python3 -c 'import json,sys; print(json.load(sys.stdin)["written"])')" = "False"
+
 # Operator distill succeeds and records an approval ledger.
 python3 "$ROOT/scripts/shiki.py" memory distill --target "$TARGET" "$MEM" \
   --rule "Declare every touched file in task locks before opening a PR." --approved-by mizutani-140 --approve >/dev/null

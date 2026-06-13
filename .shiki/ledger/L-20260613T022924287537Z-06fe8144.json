@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "scripts/shiki_memory.py",
+    "tests/test_memory_promotion.py",
+    "scripts/test_shiki_memory_loop.sh"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260613T022924287537Z-06fe8144",
+  "links": [],
+  "summary": "Operator merge-before review (B1-B4) applied: B1 status-specific prohibited fields expanded (raw forbids investigation/verification/lifecycle, investigated forbids verification/last_verified/lifecycle, verified forbids lifecycle) + 6 rejection tests; B2 distill/supersede/revoke reordered to structural pre-validation before any ledger write (no orphan approval ledger on failure), supersede now records an operator-approval ledger, + atomicity E2E test; B3 evidence kind/path strictened (ledger->.shiki/ledger/L-, report->.shiki/reports/R-, exec->.shiki/runner/EXEC-) + wrong-kind rejection tests; B4 redaction skipped forbidden on stored entries and no-write at capture + tests. Full suite of 31 contract tests + 114 unit tests green.",
+  "task_id": "T-20260612T152357706392Z-75f529da",
+  "timestamp": "2026-06-13T02:29:24+00:00",
+  "type": "review"
+}

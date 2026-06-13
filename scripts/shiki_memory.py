@@ -55,7 +55,17 @@ MEMORY_AREAS = (
 MEMORY_SOURCE_KINDS = ("repair", "loop_stop", "cca_fail", "runner_fail", "manual")
 MEMORY_EVIDENCE_KINDS = ("ledger", "report", "exec", "pr_check")
 LOCAL_EVIDENCE_KINDS = ("ledger", "report", "exec")
+# A local evidence kind must point at the matching state directory so that
+# "local evidence >= 1" cannot be satisfied by an arbitrary existing .shiki path (B3).
+LOCAL_EVIDENCE_PREFIX = {
+    "ledger": ".shiki/ledger/L-",
+    "report": ".shiki/reports/R-",
+    "exec": ".shiki/runner/EXEC-",
+}
+# redaction.status on a PERSISTED entry must be clean or redacted; "skipped"
+# is a capture-time signal that the entry is not written at all (B4).
 REDACTION_STATUSES = ("clean", "redacted", "skipped")
+STORED_REDACTION_STATUSES = ("clean", "redacted")
 
 _ID_SUFFIX = r"(?:[0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})"
 MEMORY_ID_RE = re.compile(rf"^MEM-{_ID_SUFFIX}$")
@@ -92,10 +102,20 @@ MEMORY_STATUS_REQUIRED: dict[str, tuple[str, ...]] = {
         "active",
     ),
 }
+# Fields that belong only to a higher status. A lower status must not carry a
+# higher status's blocks, so an unpromoted memory cannot look half-investigated,
+# half-verified, or carry distilled-only lifecycle fields (B1).
+_INVESTIGATION_FIELDS = ("investigation",)
+_VERIFICATION_FIELDS = ("verification", "last_verified")
+_DISTILLED_FIELDS = (
+    "rule", "approved_by", "approved_at", "approval_ledger",
+    "active", "supersedes", "superseded_by",
+    "revoked_at", "revoked_by", "revocation_ledger",
+)
 MEMORY_STATUS_PROHIBITED: dict[str, tuple[str, ...]] = {
-    "raw": ("rule", "approved_by", "approved_at", "approval_ledger", "last_verified"),
-    "investigated": ("rule", "approved_by", "approved_at", "approval_ledger"),
-    "verified": ("rule", "approved_by", "approved_at", "approval_ledger"),
+    "raw": _INVESTIGATION_FIELDS + _VERIFICATION_FIELDS + _DISTILLED_FIELDS,
+    "investigated": _VERIFICATION_FIELDS + _DISTILLED_FIELDS,
+    "verified": _DISTILLED_FIELDS,
     "distilled": (),
 }
 
@@ -150,8 +170,9 @@ def _memory_evidence_errors(
             continue
         if kind in LOCAL_EVIDENCE_KINDS:
             path_value = item.get("path")
-            if not isinstance(path_value, str) or not path_value.startswith(".shiki/"):
-                errors.append(f"{item_label}.path must be a repository-relative .shiki/ path")
+            prefix = LOCAL_EVIDENCE_PREFIX[kind]
+            if not isinstance(path_value, str) or not path_value.startswith(prefix):
+                errors.append(f"{item_label}.path for kind {kind} must be under {prefix}")
                 continue
             if root is not None and not (root / path_value).is_file():
                 errors.append(f"{item_label}.path {path_value} does not exist")
@@ -220,8 +241,8 @@ def memory_entry_errors(data: dict[str, Any], *, root: Path | None = None) -> li
         errors.append(f"source.kind must be one of {sorted(MEMORY_SOURCE_KINDS)}")
 
     redaction = data.get("redaction")
-    if not isinstance(redaction, dict) or redaction.get("status") not in REDACTION_STATUSES:
-        errors.append(f"redaction.status must be one of {sorted(REDACTION_STATUSES)}")
+    if not isinstance(redaction, dict) or redaction.get("status") not in STORED_REDACTION_STATUSES:
+        errors.append(f"redaction.status on a stored entry must be one of {sorted(STORED_REDACTION_STATUSES)}")
 
     evidence_errors, _ = _memory_evidence_errors(data.get("evidence", []), label="evidence", root=root)
     errors.extend(evidence_errors)
@@ -386,6 +407,9 @@ def capture_memory(
     source_errors = memory_source_errors(target, goal_id, task_id)
     if source_errors:
         return {"memory_id": None, "written": False, "warnings": source_errors}
+    if redaction == "skipped":
+        # redact-unable capture writes nothing; the lesson is not persisted (B4).
+        return {"memory_id": None, "written": False, "warnings": ["redaction skipped: capture writes no memory entry"]}
     now = utc_now()
     structured: list[dict[str, Any]] = []
     for ref in evidence or []:
@@ -458,6 +482,11 @@ def distill_memory(
     approve: bool,
     supersede: list[str] | None = None,
 ) -> dict[str, Any]:
+    # Audit + atomicity (B2): all validation that can fail happens BEFORE any
+    # side effect, so an operator-approval ledger is never written for a
+    # mutation that then fails to persist. The placeholder lets the distilled
+    # entry pass structural validation before its real approval ledger exists.
+    _PLACEHOLDER_LEDGER = ".shiki/ledger/L-0000.json"
     _require_operator("distill")
     if not approve:
         raise ShikiError("distill requires explicit operator approval: pass --approve")
@@ -465,45 +494,62 @@ def distill_memory(
     errors = memory_transition_errors(memory.get("status", ""), "distilled")
     if errors:
         raise ShikiError("; ".join(errors))
+    now = utc_now()
+    candidate = {
+        **memory,
+        "status": "distilled",
+        "rule": rule,
+        "approved_by": approved_by,
+        "approved_at": now,
+        "approval_ledger": _PLACEHOLDER_LEDGER,
+        "active": True,
+        "supersedes": supersede or [],
+        "superseded_by": None,
+        "revoked_at": None,
+        "revoked_by": None,
+        "revocation_ledger": None,
+        "updated_at": now,
+    }
+    pre_errors = memory_entry_errors(candidate, root=None)
+    if pre_errors:
+        raise ShikiError("; ".join(pre_errors))
+    # Supersede targets must exist and be distilled before any write.
+    prior_memories = []
+    for prior in supersede or []:
+        prior_memory = load_memory(target, prior)
+        if prior_memory.get("status") != "distilled":
+            raise ShikiError(f"supersede target {prior} is not a distilled rule")
+        prior_memories.append(prior_memory)
     approval_ledger = _record_transition(
         target, memory, f"Operator {approved_by} approved distilling memory {memory_id}", ledger_type="review"
     )
-    now = utc_now()
-    memory["status"] = "distilled"
-    memory["rule"] = rule
-    memory["approved_by"] = approved_by
-    memory["approved_at"] = now
-    memory["approval_ledger"] = f".shiki/ledger/{approval_ledger}.json"
-    memory["active"] = True
-    memory["supersedes"] = supersede or []
-    memory["superseded_by"] = None
-    memory["revoked_at"] = None
-    memory["updated_at"] = now
-    entry_errors = memory_entry_errors(memory, root=target)
-    if entry_errors:
-        raise ShikiError("; ".join(entry_errors))
-    _save(target, memory)
+    candidate["approval_ledger"] = f".shiki/ledger/{approval_ledger}.json"
+    full_errors = memory_entry_errors(candidate, root=target)
+    if full_errors:
+        raise ShikiError("; ".join(full_errors))
+    _save(target, candidate)
     for prior in supersede or []:
-        supersede_memory(target, prior, superseded_by=memory_id)
-    ledger_id = _record_transition(target, memory, f"Memory {memory_id} verified -> distilled (active rule)")
+        supersede_memory(target, prior, superseded_by=memory_id, approved_by=approved_by)
+    ledger_id = _record_transition(target, candidate, f"Memory {memory_id} verified -> distilled (active rule)")
     return {"memory_id": memory_id, "status": "distilled", "approval_ledger": approval_ledger, "ledger_id": ledger_id}
 
 
-def supersede_memory(target: Path, memory_id: str, *, superseded_by: str) -> dict[str, Any]:
+def supersede_memory(target: Path, memory_id: str, *, superseded_by: str, approved_by: str = "operator") -> dict[str, Any]:
     _require_operator("supersede")
     memory = load_memory(target, memory_id)
     if memory.get("status") != "distilled":
         raise ShikiError("only distilled rules can be superseded")
     now = utc_now()
-    memory["active"] = False
-    memory["superseded_by"] = superseded_by
-    memory["updated_at"] = now
-    entry_errors = memory_entry_errors(memory, root=target)
-    if entry_errors:
-        raise ShikiError("; ".join(entry_errors))
-    _save(target, memory)
-    _record_transition(target, memory, f"Memory {memory_id} superseded by {superseded_by}")
-    return {"memory_id": memory_id, "active": False, "superseded_by": superseded_by}
+    candidate = {**memory, "active": False, "superseded_by": superseded_by, "updated_at": now}
+    pre_errors = memory_entry_errors(candidate, root=None)
+    if pre_errors:
+        raise ShikiError("; ".join(pre_errors))
+    approval_ledger = _record_transition(
+        target, memory, f"Operator {approved_by} approved superseding memory {memory_id} with {superseded_by}", ledger_type="review"
+    )
+    _save(target, candidate)
+    transition_ledger = _record_transition(target, candidate, f"Memory {memory_id} superseded by {superseded_by}")
+    return {"memory_id": memory_id, "active": False, "superseded_by": superseded_by, "approval_ledger": approval_ledger, "ledger_id": transition_ledger}
 
 
 def revoke_memory(target: Path, memory_id: str, *, revoked_by: str, reason: str) -> dict[str, Any]:
@@ -511,20 +557,29 @@ def revoke_memory(target: Path, memory_id: str, *, revoked_by: str, reason: str)
     memory = load_memory(target, memory_id)
     if memory.get("status") != "distilled":
         raise ShikiError("only distilled rules can be revoked")
+    _PLACEHOLDER_LEDGER = ".shiki/ledger/L-0000.json"
+    now = utc_now()
+    candidate = {
+        **memory,
+        "active": False,
+        "revoked_at": now,
+        "revoked_by": revoked_by,
+        "revocation_ledger": _PLACEHOLDER_LEDGER,
+        "updated_at": now,
+    }
+    pre_errors = memory_entry_errors(candidate, root=None)
+    if pre_errors:
+        raise ShikiError("; ".join(pre_errors))
     revoke_ledger = _record_transition(
         target, memory, f"Operator {revoked_by} revoked memory {memory_id}: {reason}", ledger_type="review"
     )
-    now = utc_now()
-    memory["active"] = False
-    memory["revoked_at"] = now
-    memory["revoked_by"] = revoked_by
-    memory["revocation_ledger"] = f".shiki/ledger/{revoke_ledger}.json"
-    memory["updated_at"] = now
-    entry_errors = memory_entry_errors(memory, root=target)
-    if entry_errors:
-        raise ShikiError("; ".join(entry_errors))
-    _save(target, memory)
-    return {"memory_id": memory_id, "active": False, "revocation_ledger": revoke_ledger}
+    candidate["revocation_ledger"] = f".shiki/ledger/{revoke_ledger}.json"
+    full_errors = memory_entry_errors(candidate, root=target)
+    if full_errors:
+        raise ShikiError("; ".join(full_errors))
+    _save(target, candidate)
+    transition_ledger = _record_transition(target, candidate, f"Memory {memory_id} distilled -> revoked")
+    return {"memory_id": memory_id, "active": False, "revocation_ledger": revoke_ledger, "ledger_id": transition_ledger}
 
 
 def cmd_memory_capture(args: argparse.Namespace) -> int:
