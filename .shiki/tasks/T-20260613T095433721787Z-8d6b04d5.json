@@ -9,7 +9,8 @@
   "locks": [
     "path:scripts/mergegate_check.py",
     "path:scripts/validate_shiki.py",
-    "path:tests/*"
+    "path:tests/*",
+    "path:.shiki/**"
   ],
   "required_skills": [
     "tdd",
