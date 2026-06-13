@@ -9,7 +9,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/g-authority-external-ai-guardian",
-  "expected_pr": null,
+  "expected_pr": 130,
   "github_issue": null,
   "goal_id": "G-20260613T035041766666Z-cfcc6734",
   "id": "T-20260613T035102039128Z-9bef9375",
@@ -18,7 +18,10 @@
     "L-20260613T035129452020Z-979e2e4b",
     "L-20260613T035129580152Z-1af9329e",
     "L-20260613T035129581125Z-0abc0ab5",
-    "L-20260613T035129581596Z-362844c8"
+    "L-20260613T035129581596Z-362844c8",
+    "L-20260613T035041767638Z-6292cd41",
+    "L-20260613T035129527680Z-d4843fe2",
+    "L-20260613T043733359467Z-9e878bdf"
   ],
   "locks": [
     "path:scripts/shiki_guardian.py",
@@ -43,6 +46,6 @@
   ],
   "risk_level": "high",
   "scope": "guardian-policy.json external_ai_guardian_review block; shiki_guardian.py dataclass/parse/validate + _external_ai_review_source + poisoning fix + independent AI approval path with ai_reviewers identity; mergegate_check.py reviewer_type=external_ai_model; shiki_loop.py high/critical merge when MergeGate policy gate green; validate_shiki.py contract + doc needles; ADR 0010; CONTEXT.md authority glossary; docs/agents guardian-policy + decision-control; tests guardian_policy AI fixtures + loop high-risk merge. Guardian-approved autonomous implementation by Claude Code.",
-  "status": "planned",
+  "status": "review",
   "title": "Implement external_ai_guardian_review authority source, parser poisoning fix, loop high/critical merge, ADR 0010"
 }
