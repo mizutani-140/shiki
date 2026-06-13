@@ -8,7 +8,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260612t152357706392z-75f529da-memory-state-foundation",
-  "expected_pr": null,
+  "expected_pr": 129,
   "github_issue": null,
   "goal_id": "G-20260612T152357704854Z-8a5508cf",
   "id": "T-20260612T152357706392Z-75f529da",
@@ -22,7 +22,8 @@
     "L-20260612T152357712359Z-4b874876",
     "L-20260613T015343576277Z-e76c2d7f",
     "L-20260613T015343577142Z-805d0624",
-    "L-20260613T015343657647Z-a0a77ad0"
+    "L-20260613T015343657647Z-a0a77ad0",
+    "L-20260613T015525020346Z-9c716ad4"
   ],
   "locks": [
     "path:.shiki/**",

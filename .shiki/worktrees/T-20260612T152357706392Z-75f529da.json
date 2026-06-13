@@ -17,7 +17,7 @@
     "path:docs/**"
   ],
   "path": "/Users/kio.mizutani/.worktrees/shiki-t-20260612t152357706392z-75f529da-memory-s",
-  "pr": null,
+  "pr": 129,
   "runtime": "claude-code",
   "state": "registered",
   "task_id": "T-20260612T152357706392Z-75f529da"
