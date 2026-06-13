@@ -1988,6 +1988,11 @@ def main() -> int:
             for tasks in task_payloads_by_goal.values()
             for task in tasks
         }
+        task_goal_by_id = {
+            str(task.get("id")): str(task.get("goal_id") or "")
+            for tasks in task_payloads_by_goal.values()
+            for task in tasks
+        }
 
         for goal_id, tasks in task_payloads_by_goal.items():
             goal = goal_payloads[goal_id]
@@ -1995,6 +2000,16 @@ def main() -> int:
             if status in {"archived", "historical"}:
                 continue
             dag_nodes = dag_nodes_by_goal.get(goal_id)
+            # A DAG node must be a task anchored to this goal: a foreign task wired
+            # into the goal's DAG would otherwise mix its status into this goal's
+            # completion decision (DAG poisoning). Mirrors the goal_reconcile gate.
+            if dag_nodes:
+                for node in dag_nodes:
+                    owner = task_goal_by_id.get(node)
+                    if owner is not None and owner != goal_id:
+                        raise ValidationError(
+                            f".shiki/dag/{goal_id}.json: node {node} is a task of goal {owner}, not {goal_id}"
+                        )
             registered = {str(task.get("id")) for task in tasks}
             if dag_nodes and registered <= dag_nodes:
                 # The DAG covers every registered task: the frozen DAG node set is

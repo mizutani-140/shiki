@@ -15,7 +15,7 @@ from pathlib import Path
 
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
-from mergegate_check import ChangedFile, enforce_goal_reconcile
+from mergegate_check import ChangedFile, enforce_goal_reconcile, goal_reconcile_decision
 
 GOAL = "G-20260613T000000000000Z-0000aaaa"
 PLAN = "P-20260613T000000000000Z-0000pppp"
@@ -44,9 +44,9 @@ def _write_task(root: Path, tid: str, *, title: str, status: str = "planned", go
         encoding="utf-8")
 
 
-def _write_ledger(root: Path, lid: str, *, goal: str = GOAL) -> None:
+def _write_ledger(root: Path, lid: str, *, goal: str = GOAL, ltype: str = "task-registered") -> None:
     (root / ".shiki" / "ledger" / f"{lid}.json").write_text(
-        json.dumps({"id": lid, "goal_id": goal, "task_id": None, "type": "check", "actor": "x",
+        json.dumps({"id": lid, "goal_id": goal, "task_id": None, "type": ltype, "actor": "x",
                     "timestamp": "2026-06-13T00:00:00+00:00", "summary": "reconcile", "evidence": []}),
         encoding="utf-8")
 
@@ -174,18 +174,93 @@ class GoalReconcileTests(unittest.TestCase):
             ])
         self.assertTrue(any("not spec-frozen" in b for b in blocking))
 
-    def test_goal_complete_in_reconcile_is_rejected(self) -> None:
+    def test_goal_file_modification_is_rejected(self) -> None:
+        # The goal file (and its source_plan binding) must be immutable under
+        # reconcile: a repoint to a different frozen plan would widen the set the
+        # reconcile is authorized against.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _seed(root)
             (root / ".shiki" / "goals" / f"{GOAL}.json").write_text(
-                json.dumps({"id": GOAL, "status": "complete", "source_plan": PLAN, "title": "g"}), encoding="utf-8")
+                json.dumps({"id": GOAL, "status": "planned", "source_plan": "P-other", "title": "g"}), encoding="utf-8")
             _write_ledger(root, LEDGER)
             blocking = _run(root, [
                 ChangedFile("M", f".shiki/goals/{GOAL}.json"),
                 ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
             ])
-        self.assertTrue(any("must not mark the goal complete" in b for b in blocking))
+        # goal load now fails (source_plan repointed to a missing plan) and/or the
+        # goal-file change is denied; either way it must block.
+        self.assertTrue(blocking)
+        self.assertTrue(any("must not change" in b or "source_plan" in b for b in blocking))
+
+    def test_cross_goal_dag_node_is_rejected(self) -> None:
+        # A task belonging to another goal but sharing a frozen title must not be
+        # wired into this goal's DAG.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed(root)
+            foreign = "T-20260613T000000000000Z-0000f009"
+            _write_task(root, foreign, title=TITLE_A, goal="G-20260613T000000000000Z-0000zzzz")
+            _write_ledger(root, LEDGER)
+            (root / ".shiki" / "dag" / f"{GOAL}.json").write_text(
+                json.dumps({"goal_id": GOAL, "nodes": [foreign], "edges": []}), encoding="utf-8")
+            blocking = _run(root, [
+                ChangedFile("A", f".shiki/dag/{GOAL}.json"),
+                ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
+            ])
+        self.assertTrue(any("not anchored to goal" in b for b in blocking))
+
+    def test_wrong_ledger_type_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed(root)
+            _write_task(root, T_A, title=TITLE_A)
+            _write_ledger(root, LEDGER, ltype="check")  # not a task-registered event
+            blocking = _run(root, [
+                ChangedFile("A", f".shiki/tasks/{T_A}.json"),
+                ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
+            ])
+        self.assertTrue(any("reconcile ledger" in b for b in blocking))
+
+    def test_duplicate_frozen_title_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed(root)
+            _write_task(root, T_A, title=TITLE_A)
+            _write_task(root, T_B, title=TITLE_A)  # same frozen title twice
+            _write_ledger(root, LEDGER)
+            blocking = _run(root, [
+                ChangedFile("A", f".shiki/tasks/{T_A}.json"),
+                ChangedFile("A", f".shiki/tasks/{T_B}.json"),
+                ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
+            ])
+        self.assertTrue(any("already covered" in b for b in blocking))
+
+
+class ReconcileDecisionTests(unittest.TestCase):
+    MARKER = "<!-- shiki:goal_reconcile -->"
+    LABEL = {"name": "mergegate:goal_reconcile"}
+
+    def test_marker_and_label_enables_mode(self) -> None:
+        mode, err = goal_reconcile_decision({"body": f"register tasks {self.MARKER}", "labels": [self.LABEL]})
+        self.assertTrue(mode)
+        self.assertIsNone(err)
+
+    def test_marker_without_label_fails_closed(self) -> None:
+        mode, err = goal_reconcile_decision({"body": f"register {self.MARKER}", "labels": []})
+        self.assertFalse(mode)
+        self.assertIsNotNone(err)
+        self.assertIn("label", err)
+
+    def test_label_without_marker_is_not_reconcile(self) -> None:
+        mode, err = goal_reconcile_decision({"body": "normal PR", "labels": [self.LABEL]})
+        self.assertFalse(mode)
+        self.assertIsNone(err)
+
+    def test_plain_pr_is_not_reconcile(self) -> None:
+        mode, err = goal_reconcile_decision({"body": "T-0001 normal work", "labels": []})
+        self.assertFalse(mode)
+        self.assertIsNone(err)
 
 
 if __name__ == "__main__":
