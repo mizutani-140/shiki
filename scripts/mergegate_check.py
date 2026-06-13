@@ -167,6 +167,151 @@ def load_goal(target: Path, goal_id: str) -> dict[str, Any] | None:
     return load_json(target / ".shiki" / "goals" / f"{goal_id}.json")
 
 
+def load_dag(target: Path, goal_id: str) -> dict[str, Any] | None:
+    return load_json(target / ".shiki" / "dag" / f"{goal_id}.json")
+
+
+def load_plan(target: Path, plan_id: str) -> dict[str, Any] | None:
+    return load_json(target / ".shiki" / "plans" / f"{plan_id}.json")
+
+
+# A goal_reconcile PR declares itself with this exact HTML-comment marker. A
+# comment marker (not a heading) is required because heading detection is
+# substring-permissive and forgeable; the marker is precise and cannot be
+# accidentally triggered by prose.
+GOAL_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:goal_reconcile\s*-->")
+
+
+def _frozen_plan_titles(target: Path, goal_id: str) -> tuple[set[str], list[str]]:
+    """Return (frozen task titles, errors) for a goal's spec-frozen source plan.
+
+    The frozen authority is the goal's source_plan with spec_freeze.status=frozen.
+    Plan tasks are identified by title (no ids in the plan schema), so the frozen
+    SET that a goal_reconcile may register is the plan's task-title set.
+    """
+    errors: list[str] = []
+    goal = load_goal(target, goal_id)
+    if goal is None:
+        return set(), [f"goal_reconcile: goal {goal_id} not found"]
+    plan_id = str(goal.get("source_plan") or "")
+    if not plan_id:
+        return set(), [f"goal_reconcile: goal {goal_id} has no source_plan to bind to"]
+    plan = load_plan(target, plan_id)
+    if plan is None:
+        return set(), [f"goal_reconcile: source_plan {plan_id} not found"]
+    spec_freeze = plan.get("spec_freeze")
+    if not isinstance(spec_freeze, dict) or spec_freeze.get("status") != "frozen":
+        return set(), [f"goal_reconcile: source_plan {plan_id} is not spec-frozen"]
+    titles = {
+        str(t.get("title")).strip()
+        for t in (plan.get("tasks") or [])
+        if isinstance(t, dict) and t.get("title")
+    }
+    return titles, errors
+
+
+def enforce_goal_reconcile(
+    *,
+    target: Path,
+    goal_id: str,
+    changed_files_status: list[ChangedFile],
+    blocking: list[str],
+    warnings: list[str],
+) -> None:
+    """Validate a goal_reconcile PR: register frozen-plan tasks into main state.
+
+    Deny by default. A goal_reconcile PR may ONLY: add planned task files whose
+    title is in the goal's spec-frozen plan and whose goal_id is this goal;
+    restore the goal's DAG so every node resolves to a frozen-plan task; append a
+    goal-scoped reconcile ledger; and touch the goal file without completing it.
+    Everything else — code, marking a task done/cancelled/superseded, modifying
+    an existing task (e.g. acceptance_checks), goal-complete reports, locks,
+    repairs, runner records, memories, authority artifacts (guardian-policy,
+    distilled rules), or the frozen plan itself — is forbidden. This relaxes the
+    per-task one-file rule into a narrow, frozen-DAG-bound registration mode,
+    never a general multi-file bypass.
+    """
+    if not goal_id:
+        blocking.append("goal_reconcile PR must reference a Shiki goal id")
+        return
+    frozen_titles, frozen_errors = _frozen_plan_titles(target, goal_id)
+    if frozen_errors:
+        blocking.extend(frozen_errors)
+        return
+
+    goal_file = f".shiki/goals/{goal_id}.json"
+    dag_file = f".shiki/dag/{goal_id}.json"
+    reconcile_ledger_seen = False
+
+    for entry in changed_files_status:
+        path = normalize_repo_path(entry.path)
+        if not path.startswith(".shiki/"):
+            blocking.append(f"goal_reconcile must not change non-Shiki (implementation) file {path}")
+            continue
+        if entry.status == "D":
+            blocking.append(f"goal_reconcile must not delete {path}")
+            continue
+        if path.startswith(".shiki/tasks/") and path.endswith(".json"):
+            if entry.status != "A":
+                blocking.append(f"goal_reconcile may only ADD planned task files, not modify {path}")
+                continue
+            data = load_json(target / path)
+            if not isinstance(data, dict):
+                blocking.append(f"goal_reconcile task file {path} is not a JSON object")
+                continue
+            task_id = Path(path).stem
+            if str(data.get("id") or "") != task_id:
+                blocking.append(f"goal_reconcile task filename {path} does not match its id {data.get('id')!r}")
+            if str(data.get("goal_id") or "") != goal_id:
+                blocking.append(f"goal_reconcile task {task_id} is not anchored to goal {goal_id}")
+            if data.get("status") != "planned":
+                blocking.append(f"goal_reconcile task {task_id} must be registered as status=planned, not {data.get('status')!r}")
+            title = str(data.get("title") or "").strip()
+            if title not in frozen_titles:
+                blocking.append(f"goal_reconcile task {task_id} title {title!r} is not in the goal's frozen plan")
+        elif path == dag_file:
+            # DAG restore is allowed; every node must resolve to a frozen-plan
+            # task (existing or added in this PR), preventing DAG poisoning.
+            dag = load_json(target / path)
+            nodes = dag.get("nodes") if isinstance(dag, dict) else None
+            if not isinstance(nodes, list):
+                blocking.append(f"goal_reconcile DAG {path} must have a nodes list")
+                continue
+            for node in nodes:
+                node_task = load_task(target, str(node))
+                if node_task is None:
+                    blocking.append(f"goal_reconcile DAG node {node} has no task file")
+                    continue
+                node_title = str(node_task.get("title") or "").strip()
+                if node_title not in frozen_titles:
+                    blocking.append(f"goal_reconcile DAG node {node} title {node_title!r} is not in the goal's frozen plan")
+        elif path.startswith(".shiki/dag/") and path.endswith(".json"):
+            blocking.append(f"goal_reconcile must not change another goal's DAG {path}")
+        elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
+            if entry.status != "A":
+                blocking.append(f"goal_reconcile must append, not modify, ledger {path}")
+                continue
+            led = load_json(target / path)
+            if not isinstance(led, dict) or str(led.get("goal_id") or "") != goal_id:
+                blocking.append(f"goal_reconcile ledger {path} must be scoped to goal {goal_id}")
+                continue
+            reconcile_ledger_seen = True
+        elif path == goal_file:
+            gdata = load_json(target / path)
+            if isinstance(gdata, dict) and gdata.get("status") == "complete":
+                blocking.append("goal_reconcile must not mark the goal complete")
+        else:
+            # Deny by default: memories, reports, guardian-policy, locks,
+            # repairs, runner, plans, and anything else are out of scope.
+            blocking.append(
+                f"goal_reconcile must not change {path}; only frozen-plan task registration, "
+                f"DAG restore for {goal_id}, the goal file, and a reconcile ledger are allowed"
+            )
+
+    if not reconcile_ledger_seen:
+        blocking.append(f"goal_reconcile must include a goal-scoped reconcile ledger event for {goal_id}")
+
+
 def blocking_checklist_failures(verdict: dict[str, Any]) -> list[str]:
     failures: list[str] = []
     for item in verdict.get("checklist") or []:
@@ -745,6 +890,7 @@ def main() -> int:
     warnings: list[str] = []
     resolved_task_id: str | None = None
     resolved_goal_id: str | None = None
+    reconcile_mode = False
     manifest: dict[str, Any] | None = None
     try:
         manifest = load_manifest(target)
@@ -757,16 +903,23 @@ def main() -> int:
         body = str(pr.get("body") or "")
         resolved_task_id = first_match(TASK_ID, body)
         resolved_goal_id = first_match(GOAL_ID, body)
+        reconcile_mode = bool(GOAL_RECONCILE_MARKER.search(body))
         if args.expected_head_sha:
             pr_head = str(pr.get("headRefOid") or "")
             if not pr_head:
                 blocking.append("PR headRefOid is missing")
             elif pr_head != args.expected_head_sha:
                 blocking.append(f"PR headRefOid {pr_head} does not match expected checked-out HEAD {args.expected_head_sha}")
-        if not resolved_task_id:
-            blocking.append("PR body does not contain a Shiki task id like T-0001")
-        if not resolved_goal_id:
-            blocking.append("PR body does not contain a Shiki goal id like G-0001")
+        if reconcile_mode:
+            # A goal_reconcile PR is goal-scoped (frozen-plan task registration);
+            # it does not carry a single implementation task id.
+            if not resolved_goal_id:
+                blocking.append("goal_reconcile PR body does not contain a Shiki goal id like G-0001")
+        else:
+            if not resolved_task_id:
+                blocking.append("PR body does not contain a Shiki task id like T-0001")
+            if not resolved_goal_id:
+                blocking.append("PR body does not contain a Shiki goal id like G-0001")
         for heading in ["Scope", "Acceptance", "Evidence", "MergeGate"]:
             if heading.lower() not in body.lower() and not has_heading(body, heading):
                 blocking.append(f"PR body is missing {heading} section")
@@ -776,7 +929,21 @@ def main() -> int:
 
     task: dict[str, Any] | None = None
     ledger_entries: list[dict[str, Any]] = []
-    if resolved_task_id:
+    if reconcile_mode and pr:
+        # goal_reconcile is a goal-scoped, frozen-plan registration PR; it uses a
+        # dedicated deny-by-default validator instead of the single-task readiness
+        # flow (no implementation task, CCA, locks, or guardian gate).
+        files_status = parse_changed_files_status(
+            Path(args.changed_files_status), changed_files(Path(args.changed_files))
+        )
+        enforce_goal_reconcile(
+            target=target,
+            goal_id=resolved_goal_id or "",
+            changed_files_status=files_status,
+            blocking=blocking,
+            warnings=warnings,
+        )
+    elif resolved_task_id:
         task = load_task(target, resolved_task_id)
         if task is None:
             blocking.append(f"Task file not found for {resolved_task_id}")
