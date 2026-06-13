@@ -135,6 +135,15 @@ cases = [
         False,
         "review or current-head",
     ),
+    (
+        # B1(a): a configured-Guardian label plus an APPROVED review by an
+        # arbitrary unconfigured reviewer must NOT satisfy the secondary human
+        # review path; the stray review is explicitly fail-closed.
+        "unconfigured review does not satisfy secondary path",
+        approved(reviews=[{"state": "APPROVED", "author": {"login": "random-user"}}]),
+        False,
+        "review actor random-user is not configured",
+    ),
 ]
 
 _ai = (
@@ -157,6 +166,11 @@ _ai_other_repo = _ai.replace('"repo":"mizutani-140/shiki"', '"repo":"attacker/ev
 _ai_other_pr = _ai.replace('"pr":55', '"pr":999')
 # An artifact that falsely claims it is NOT distinct from operator approval.
 _ai_claims_operator = _ai.replace('"not_operator_approval":true', '"not_operator_approval":false')
+# Identity-boundary fields must fail closed when missing/null or wrong type.
+_ai_missing_noa = _ai.replace(',"not_operator_approval":true', '')
+_ai_null_noa = _ai.replace('"not_operator_approval":true', '"not_operator_approval":null')
+_ai_missing_type = _ai.replace('"type":"ai_model",', '')
+_ai_wrong_type = _ai.replace('"type":"ai_model"', '"type":"human"')
 ai_cases = [
     # AI guardian review approves with no human label; identity preserved.
     ("ai review approves", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": "External AI guardian review:\n" + _ai}]), True, ""),
@@ -182,8 +196,19 @@ ai_cases = [
     ("ai review cross-pr replay blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai_other_pr}]), False, "this PR"),
     # Fail closed when the evaluator is given no expected repository to bind to.
     ("ai review no expected repo fails closed", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai}], expected_repo=""), False, "this repository"),
-    # An artifact claiming it is operator approval must not take the AI path.
-    ("ai review claiming operator approval blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai_claims_operator}]), False, "must not claim operator approval"),
+    # An artifact explicitly claiming it IS operator approval must not take the
+    # AI path (folds into the same fail-closed not_operator_approval=true check).
+    ("ai review claiming operator approval blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai_claims_operator}]), False, "not_operator_approval=true"),
+    # B2 identity boundary: missing/null not_operator_approval fails closed.
+    ("ai review missing not_operator_approval blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai_missing_noa}]), False, "not_operator_approval=true"),
+    ("ai review null not_operator_approval blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai_null_noa}]), False, "not_operator_approval=true"),
+    # B2 identity boundary: reviewer.type must explicitly be ai_model.
+    ("ai review missing reviewer type blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai_missing_type}]), False, "reviewer.type must be ai_model"),
+    ("ai review non-ai_model reviewer blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai_wrong_type}]), False, "reviewer.type must be ai_model"),
+    # B1(b): a stray unconfigured GitHub review must NOT poison a valid AI approval.
+    ("ai review survives unconfigured stray review", approved(pr=ai_pr, events=[],
+        reviews=[{"state": "APPROVED", "author": {"login": "random-user"}}],
+        comments=[{"user": {"login": "mizutani-140"}, "body": _ai}]), True, ""),
 ]
 for name, result, expected, needle in ai_cases:
     if result.approved is not expected:

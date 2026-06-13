@@ -271,6 +271,12 @@ def _review_source(
                 # another authority already approved; fatal only when it is the
                 # sole approval attempt.
                 soft.append("Guardian team review could not be verified from PR review payload")
+            else:
+                # An arbitrary unconfigured reviewer is explicitly fail-closed and
+                # auditable (symmetric with the comment path): it never satisfies
+                # approval, is fatal when it is the sole attempt, and is demoted to
+                # a warning when another authority validly approved.
+                soft.append(f"Guardian review actor {actor} is not configured")
             continue
         if not _author_allowed(actor, pr_author, policy):
             # Soft: a PR author's own stray review must not poison a validly
@@ -398,10 +404,17 @@ def _external_ai_review_source(
                 # the explicit solo-maintainer escape hatch.
                 soft.append(f"PR author {relay} cannot relay external AI guardian review without solo maintainer policy")
                 continue
-            if artifact.get("not_operator_approval") is False:
-                warnings.append("external AI guardian review artifact must not claim operator approval")
+            # Identity boundary: this authority exists for identity honesty, so
+            # the artifact must EXPLICITLY declare itself a non-operator AI-model
+            # review. Missing/null fields fail closed (not just an explicit
+            # false), so a malformed or under-specified artifact never approves.
+            if artifact.get("not_operator_approval") is not True:
+                warnings.append("external AI guardian review artifact must explicitly declare not_operator_approval=true")
                 continue
             reviewer = artifact.get("reviewer") if isinstance(artifact.get("reviewer"), dict) else {}
+            if str(reviewer.get("type") or "").strip() != "ai_model":
+                warnings.append("external AI guardian review artifact reviewer.type must be ai_model")
+                continue
             model = str(reviewer.get("model") or "").strip()
             role = str(reviewer.get("role") or "").strip()
             if model not in policy.ai_review_allowed_models:
@@ -534,9 +547,7 @@ def evaluate_guardian_approval(
         else:
             blockers.extend(human_path_blockers)
 
-    approved = approved_path and not any("must not" in blocker for blocker in blockers)
-    if blockers:
-        approved = False
+    approved = approved_path and not blockers
     return GuardianApprovalResult(
         approved=approved,
         sources=tuple(dict.fromkeys(sources)),
