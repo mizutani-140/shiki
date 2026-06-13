@@ -445,8 +445,8 @@ def enforce_post_merge_reconcile(
             if entry.status == "D":
                 continue  # deleting the lock is a valid release
             lock = load_json(target / path)
-            if not (isinstance(lock, dict) and lock.get("released")):
-                blocking.append(f"post_merge_reconcile lock change to {path} must set released=true (or delete the lock)")
+            if not (isinstance(lock, dict) and lock.get("state") == "released"):
+                blocking.append(f"post_merge_reconcile lock change to {path} must set state=released (or delete the lock)")
         elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
             if entry.status != "A":
                 blocking.append(f"post_merge_reconcile must append, not modify, ledger {path}")

@@ -283,7 +283,7 @@ def _pm_seed(root: Path, *, base_status: str = "review", expected_pr: int = 99) 
                  "acceptance_checks": ["a"]}
     (root / ".shiki" / "base" / "tasks" / f"{PM_TASK}.json").write_text(json.dumps(base_task), encoding="utf-8")
     (root / ".shiki" / "locks" / f"{PM_TASK}.json").write_text(
-        json.dumps({"task_id": PM_TASK, "locks": ["path:scripts/x.py"], "released": True}), encoding="utf-8")
+        json.dumps({"task_id": PM_TASK, "locks": ["path:scripts/x.py"], "state": "released"}), encoding="utf-8")
     (root / ".shiki" / "ledger" / f"{PM_LOCK}.json").write_text(
         json.dumps({"id": PM_LOCK, "goal_id": GOAL, "task_id": PM_TASK, "type": "lock", "actor": "x",
                     "timestamp": "2026-06-13T00:00:00+00:00", "summary": "lock released post-merge", "evidence": []}),
@@ -358,13 +358,13 @@ class PostMergeReconcileTests(unittest.TestCase):
             base = _pm_seed(root)
             _pm_write_head_task(root, base, status="done")
             (root / ".shiki" / "locks" / f"{PM_TASK}.json").write_text(
-                json.dumps({"task_id": PM_TASK, "locks": ["path:scripts/x.py"], "released": False}), encoding="utf-8")
+                json.dumps({"task_id": PM_TASK, "locks": ["path:scripts/x.py"], "state": "active"}), encoding="utf-8")
             blocking = _pm_run(root, [
                 ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
                 ChangedFile("M", f".shiki/locks/{PM_TASK}.json"),
                 ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
             ])
-        self.assertTrue(any("must set released=true" in b for b in blocking))
+        self.assertTrue(any("must set state=released" in b for b in blocking))
 
     def test_missing_reconcile_ledger_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
