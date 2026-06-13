@@ -186,6 +186,11 @@ RUNTIMES = set(runtime_names())
 RISK_LEVELS = {"low", "medium", "high", "critical"}
 GOAL_STATUSES = {"planned", "ready", "blocked", "complete", "archived", "historical"}
 TASK_STATUSES = {"planned", "ready", "running", "blocked", "review", "repair-needed", "done"}
+# A DAG node is "terminal" when its work is finished one way or another. A goal
+# whose every DAG node is terminal must be marked complete; while any node is
+# non-terminal (planned/in-progress/blocked or not yet registered) the goal is
+# active. (cancelled/superseded are reserved terminal states.)
+TERMINAL_TASK_STATUSES = {"done", "cancelled", "superseded"}
 LEDGER_TYPES = {
     "goal-created",
     "context-impact",
@@ -1965,13 +1970,51 @@ def main() -> int:
 
         detect_cycles(Path(".shiki/tasks"), {task_id: deps for task_id, deps in task_dependencies.items()})
 
+        # A goal's child set is its frozen DAG node set, NOT just the task files
+        # currently registered. Using registered task files deadlocks a
+        # multi-task goal: trimming registration to one task makes that task look
+        # like the whole goal, so completing it forces goal-complete before the
+        # rest exist. The DAG is the source of truth for the child set.
+        dag_nodes_by_goal: dict[str, set[str]] = {}
+        for dag_path in dag_paths:
+            dag_data = load_json(dag_path)
+            if isinstance(dag_data, dict):
+                gid = str(dag_data.get("goal_id") or "")
+                nodes = dag_data.get("nodes")
+                if gid and isinstance(nodes, list):
+                    dag_nodes_by_goal[gid] = {str(n) for n in nodes if isinstance(n, str)}
+        task_status_by_id = {
+            str(task.get("id")): task.get("status")
+            for tasks in task_payloads_by_goal.values()
+            for task in tasks
+        }
+
         for goal_id, tasks in task_payloads_by_goal.items():
             goal = goal_payloads[goal_id]
             status = goal.get("status")
             if status in {"archived", "historical"}:
                 continue
-            if tasks and all(task.get("status") == "done" for task in tasks) and status != "complete":
-                raise ValidationError(f".shiki/goals/{goal_id}.json: active goal has all child tasks done but status is {status!r}, expected 'complete'")
+            dag_nodes = dag_nodes_by_goal.get(goal_id)
+            registered = {str(task.get("id")) for task in tasks}
+            if dag_nodes and registered <= dag_nodes:
+                # The DAG covers every registered task: the frozen DAG node set is
+                # the goal's child set. All nodes terminal (done/cancelled/
+                # superseded) => the goal must be complete. While any node is
+                # non-terminal — including a planned node not yet registered as a
+                # task file — the goal stays active. This is what lets a
+                # multi-task goal complete one task without forcing goal-complete.
+                node_statuses = [task_status_by_id.get(node) for node in dag_nodes]
+                all_terminal = all(s in TERMINAL_TASK_STATUSES for s in node_statuses)
+                if all_terminal and status != "complete":
+                    raise ValidationError(
+                        f".shiki/goals/{goal_id}.json: all DAG nodes are terminal but goal status is {status!r}, expected 'complete'"
+                    )
+            elif tasks and all(task.get("status") == "done" for task in tasks) and status != "complete":
+                # Legacy goals with no DAG, or with orphan task files outside the
+                # DAG, fall back to task-file completeness (unchanged behavior).
+                raise ValidationError(
+                    f".shiki/goals/{goal_id}.json: active goal has all child tasks done but status is {status!r}, expected 'complete'"
+                )
 
         for dag_path in dag_paths:
             data = load_json(dag_path)
