@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "docs/adr/0010-external-ai-guardian-review.md",
+    "CONTEXT.md"
+  ],
+  "goal_id": "G-20260613T035041766666Z-cfcc6734",
+  "id": "L-20260613T035129581125Z-0abc0ab5",
+  "links": [],
+  "summary": "Skill grill-with-docs: Requirements Definition via the operator's directive (autonomous authority-in-the-loop, AI identity must not be forged) + the CI-08 Context & Impact sweep over the guardian/mergegate approval surfaces; design recorded in ADR 0010.",
+  "task_id": "T-20260613T035102039128Z-9bef9375",
+  "timestamp": "2026-06-13T03:51:29+00:00",
+  "type": "check"
+}

@@ -93,8 +93,16 @@ An implementation, review, judgment, or orchestration engine used by Shiki, such
 _Avoid_: assuming one model provider owns the platform
 
 **Guardian**:
-A human or explicitly authorized governance role for high-risk decisions and exceptions.
-_Avoid_: letting automation approve critical changes silently
+A human or explicitly authorized governance role for high-risk decisions and exceptions. The approving Authority may be a human or an external AI guardian reviewer; approval is judged by authority kind, scope, head SHA, evidence, and audit trail.
+_Avoid_: letting automation approve critical changes silently, forging human approval
+
+**Authority**:
+The kind of approver that can grant a controlled transition: operator, repository maintainer, external AI guardian reviewer, policy engine, or verifier ensemble. Shiki is authority-in-the-loop, not human-in-the-loop. Each authority's approval is recorded under its own identity.
+_Avoid_: treating "human pressed the button" as the only valid authority, recording one authority's approval under another's identity
+
+**External AI Guardian Review**:
+A first-class Guardian approval authority (ADR 0010) by which an external AI reviewer authorizes autonomous merge of a high/critical-risk PR through a head-SHA-bound `external_ai_guardian_review` artifact, recorded with the AI reviewer's own model identity (reviewer_type=external_ai_model).
+_Avoid_: transforming an AI review into an operator approval, committed (forgeable) approval files, head-unbound approval
 
 ## Example Dialogue
 

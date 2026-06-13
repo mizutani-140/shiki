@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "scripts/test_shiki_guardian_policy.sh",
+    "tests/test_loop_engine.py"
+  ],
+  "goal_id": "G-20260613T035041766666Z-cfcc6734",
+  "id": "L-20260613T035129581596Z-362844c8",
+  "links": [],
+  "summary": "Skill tdd: test_shiki_guardian_policy.sh AI-approval fixtures (independent approval, identity preservation, poisoning-coexistence, wrong-head, non-guardian relay) + tests/test_loop_engine.py high-risk merge/stop cases; full suite of 31 contract tests + unittests green.",
+  "task_id": "T-20260613T035102039128Z-9bef9375",
+  "timestamp": "2026-06-13T03:51:29+00:00",
+  "type": "check"
+}

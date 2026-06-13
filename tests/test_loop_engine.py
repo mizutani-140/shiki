@@ -88,8 +88,22 @@ class TaskDecisionTests(unittest.TestCase):
         decision = decide(task("review", risk="medium"), pr_state={"merged": False}, checks=green())
         self.assertEqual(decision["action"], "merge")
 
-    def test_green_high_risk_stops_for_guardian(self) -> None:
+    def test_green_high_risk_merges_via_policy_guardian_gate(self) -> None:
+        # The MergeGate policy check (a required check) is the Guardian gate; when
+        # green, Guardian approval was recorded (human or external AI), so the
+        # loop may merge high/critical autonomously (ADR 0010).
         decision = decide(task("review", risk="high"), pr_state={"merged": False}, checks=green())
+        self.assertEqual(decision["action"], "merge")
+
+    def test_green_high_risk_without_policy_gate_stops_for_guardian(self) -> None:
+        decision = decide_task_action(
+            task("review", risk="high"),
+            checks={"Validate Shiki mirror": "pass"},
+            pr_state={"merged": False},
+            repair_attempts=0,
+            repair_limit=3,
+            required_checks=["Validate Shiki mirror"],
+        )
         self.assertEqual(decision["action"], "stop_guardian")
 
     def test_cca_only_failure_reruns(self) -> None:
@@ -98,6 +112,49 @@ class TaskDecisionTests(unittest.TestCase):
         checks["MergeGate policy check"] = "fail"
         decision = decide(task("review"), pr_state={"merged": False}, checks=checks)
         self.assertEqual(decision["action"], "rerun_cca")
+
+    def test_lone_policy_gate_failure_stops_for_guardian(self) -> None:
+        # CCA is green but the MergeGate policy Guardian gate failed on its own:
+        # the governance gate said NO. The loop must stop for a recorded
+        # authority, never rerun (CCA is already green) or auto-repair past it.
+        checks = green()
+        checks["MergeGate policy check"] = "fail"
+        decision = decide(task("review", risk="high"), pr_state={"merged": False}, checks=checks)
+        self.assertEqual(decision["action"], "stop_guardian")
+
+    def test_lone_policy_gate_failure_not_repaired_even_at_repair_budget(self) -> None:
+        # Even with repair budget remaining, a failing Guardian gate is never
+        # dispatched as a bounded repair.
+        checks = green()
+        checks["MergeGate policy check"] = "fail"
+        decision = decide(task("review", risk="low"), pr_state={"merged": False}, checks=checks, attempts=0)
+        self.assertEqual(decision["action"], "stop_guardian")
+
+    def test_policy_gate_stripped_from_mixed_failure_repair(self) -> None:
+        # When CCA AND a non-chain check AND the Guardian gate all fail, the loop
+        # repairs the genuine failures but NEVER hands the Guardian gate to the
+        # runner as a repair item (would re-enable the impersonation pathway).
+        checks = green()
+        checks["CCA verdict"] = "fail"
+        checks["MergeGate policy check"] = "fail"
+        checks["Validate Shiki mirror"] = "fail"
+        decision = decide(task("review", risk="critical"), pr_state={"merged": False}, checks=checks)
+        self.assertEqual(decision["action"], "dispatch_repair")
+        self.assertIn("Validate Shiki mirror", decision["failed_checks"])
+        self.assertIn("CCA verdict", decision["failed_checks"])
+        self.assertNotIn("MergeGate policy check", decision["failed_checks"])
+
+    def test_policy_gate_stripped_from_cca_race_repair_after_reruns(self) -> None:
+        # The sanctioned CCA-completion race ({CCA verdict, policy gate}) reruns
+        # while budget remains; once exhausted it repairs CCA but the Guardian
+        # gate is still never a repair item.
+        checks = green()
+        checks["CCA verdict"] = "fail"
+        checks["MergeGate policy check"] = "fail"
+        decision = decide(task("review", risk="high"), pr_state={"merged": False}, checks=checks, reruns=2)
+        self.assertEqual(decision["action"], "dispatch_repair")
+        self.assertEqual(decision["failed_checks"], ["CCA verdict"])
+        self.assertNotIn("MergeGate policy check", decision["failed_checks"])
 
     def test_cca_failure_with_pending_siblings_waits(self) -> None:
         checks = green()

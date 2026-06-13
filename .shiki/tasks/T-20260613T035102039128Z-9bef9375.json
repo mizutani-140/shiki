@@ -1,0 +1,48 @@
+{
+  "acceptance_checks": [
+    "A valid head-bound external_ai_guardian_review artifact approves without the human label, records reviewer_type=external_ai_model, and never records the human relay as approver (test_shiki_guardian_policy.sh)",
+    "A stale/short-SHA approval comment alongside a valid current-head approval does NOT block; a stale-only comment still blocks",
+    "shiki_loop merges high/critical when MergeGate policy check is green; stops_guardian when no policy gate is configured (tests/test_loop_engine.py)",
+    "python3 scripts/validate_shiki.py and all scripts/test_shiki_*.sh + unittests green; CI (Validate / Claude review / CCA / MergeGate) green",
+    "This PR carries pre-PR code-review ledger evidence (PR-12)"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/g-authority-external-ai-guardian",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260613T035041766666Z-cfcc6734",
+  "id": "T-20260613T035102039128Z-9bef9375",
+  "ledger_evidence": [
+    "L-20260613T035102039361Z-d0f7bfdd",
+    "L-20260613T035129452020Z-979e2e4b",
+    "L-20260613T035129580152Z-1af9329e",
+    "L-20260613T035129581125Z-0abc0ab5",
+    "L-20260613T035129581596Z-362844c8"
+  ],
+  "locks": [
+    "path:scripts/shiki_guardian.py",
+    "path:.shiki/guardian-policy.json",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/shiki_loop.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*",
+    "path:docs/**",
+    "path:CONTEXT.md",
+    "path:.shiki/**"
+  ],
+  "non_goals": [
+    "No removal of human approval paths",
+    "No committed approval files",
+    "No AI approval under human identity"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "guardian-policy.json external_ai_guardian_review block; shiki_guardian.py dataclass/parse/validate + _external_ai_review_source + poisoning fix + independent AI approval path with ai_reviewers identity; mergegate_check.py reviewer_type=external_ai_model; shiki_loop.py high/critical merge when MergeGate policy gate green; validate_shiki.py contract + doc needles; ADR 0010; CONTEXT.md authority glossary; docs/agents guardian-policy + decision-control; tests guardian_policy AI fixtures + loop high-risk merge. Guardian-approved autonomous implementation by Claude Code.",
+  "status": "planned",
+  "title": "Implement external_ai_guardian_review authority source, parser poisoning fix, loop high/critical merge, ADR 0010"
+}

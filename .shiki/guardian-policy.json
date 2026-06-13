@@ -25,6 +25,18 @@
       "enabled": true,
       "marker": "Guardian approval granted",
       "require_head_sha": true
+    },
+    "external_ai_guardian_review": {
+      "enabled": true,
+      "fence": "external-ai-guardian-review",
+      "require_head_sha": true,
+      "allowed_models": [
+        "GPT-5.5 Pro"
+      ],
+      "allowed_roles": [
+        "external_guardian_reviewer"
+      ],
+      "not_operator_approval": true
     }
   },
   "solo_maintainer": {

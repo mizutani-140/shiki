@@ -166,8 +166,12 @@ test "$(json_get_last /tmp/shiki-goal-loop-result.json outcome)" = "complete"
 grep '"status": "complete"' "$TARGET/.shiki/goals/$GOAL_ID.json" >/dev/null
 test "$(grep -c merged "$GH_STATE/gh-log")" = "2"
 
-# High/critical risk must stop for the Guardian even with green checks.
-python3 "$ROOT/scripts/shiki.py" goal create --target "$TARGET" --title "Guardian gate" --outcome "High risk stops" >/tmp/shiki-goal-loop-guardian-goal.json
+# High/critical risk merges autonomously when all required checks are green:
+# the "MergeGate policy check" required check IS the Guardian gate (it enforces
+# guardian-policy.json — human approval OR external AI guardian review, ADR
+# 0010), so green checks mean a recorded authority approved. The fake gh returns
+# green checks, simulating that the Guardian gate passed.
+python3 "$ROOT/scripts/shiki.py" goal create --target "$TARGET" --title "Guardian gate" --outcome "High risk merges via policy gate" >/tmp/shiki-goal-loop-guardian-goal.json
 GGOAL="$(json_get /tmp/shiki-goal-loop-guardian-goal.json goal_id)"
 python3 "$ROOT/scripts/shiki.py" issue plan --target "$TARGET" --goal-id "$GGOAL" \
   --title "High risk slice" --scope "Needs guardian" --risk-level high \
@@ -183,11 +187,8 @@ task["status"] = "review"
 task["expected_pr"] = 99
 json.dump(task, open(path, "w"), indent=2)
 PY
-if python3 "$ROOT/scripts/shiki.py" loop step --target "$TARGET" --goal-id "$GGOAL" >/tmp/shiki-goal-loop-guardian.json; then
-  echo "expected guardian stop to exit non-zero" >&2
-  exit 1
-fi
-test "$(json_get_last /tmp/shiki-goal-loop-guardian.json action)" = "stop_guardian"
+python3 "$ROOT/scripts/shiki.py" loop step --target "$TARGET" --goal-id "$GGOAL" >/tmp/shiki-goal-loop-guardian.json
+test "$(json_get_last /tmp/shiki-goal-loop-guardian.json action)" = "merge"
 
 # A failed required check dispatches a bounded repair through the runner.
 python3 "$ROOT/scripts/shiki.py" goal create --target "$TARGET" --title "Repair gate" --outcome "Failed check repairs" >/tmp/shiki-goal-loop-repair-goal.json

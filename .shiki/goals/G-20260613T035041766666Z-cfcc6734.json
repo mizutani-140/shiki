@@ -1,0 +1,33 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "guardian-policy.json + shiki_guardian.py recognize external_ai_guardian_review as an independent head-SHA-bound authority; AI identity is preserved (not operator approval)",
+    "the guardian-comment parser ignores stale/malformed approval comments once a valid exact-head approval exists, without weakening genuine-stale protection",
+    "mergegate records reviewer_type=external_ai_model; shiki_loop merges high/critical when the MergeGate policy gate is green; ADR 0010 + docs + CONTEXT.md authority glossary recorded",
+    "all contract tests + unittests green incl. AI-approval and poisoning-coexistence fixtures"
+  ],
+  "created_at": "2026-06-13T03:50:41+00:00",
+  "github_issue": null,
+  "id": "G-20260613T035041766666Z-cfcc6734",
+  "ledger_evidence": [
+    "L-20260613T035129580152Z-1af9329e"
+  ],
+  "non_goals": [
+    "No removal of the human Guardian approval paths",
+    "No committed (.shiki) approval files; artifact is a live PR comment",
+    "No recording of AI approval under a human identity"
+  ],
+  "outcome": "An external AI reviewer can authorize autonomous merge of high/critical PRs via a head-SHA-bound external_ai_guardian_review artifact, recorded under the AI reviewer's own identity (reviewer_type=external_ai_model) and never as operator approval; the guardian-comment poisoning bug is fixed; the goal loop merges high/critical when the MergeGate policy gate is green",
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "status": "planned",
+  "title": "Authority-in-the-loop: external AI guardian review as a first-class approval source (ADR 0010)"
+}

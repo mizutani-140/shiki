@@ -448,6 +448,7 @@ def enforce_guardian_policy(
     guardian_timeline: str,
     blocking: list[str],
     warnings: list[str],
+    expected_repository: str = "",
 ) -> None:
     risk_labels = _guardian_risk_labels(pr, task)
     requires_guardian = _builtin_guardian_risk_required(risk_labels)
@@ -507,16 +508,23 @@ def enforce_guardian_policy(
         comments=comments,
         label_events=events + timeline,
         head_sha=head_sha,
+        expected_repo=expected_repository,
     )
     warnings.extend(result.warnings)
     if not result.approved:
         blocking.extend(result.blockers or ("Guardian approval is required but policy-backed evidence is missing",))
     else:
+        approver_desc = ", ".join(result.approvers) if result.approvers else ""
+        if result.ai_reviewers:
+            # External AI guardian review: record the AI reviewer identity
+            # distinctly (reviewer_type=external_ai_model), never as a human.
+            ai_desc = "reviewer_type=external_ai_model (" + ", ".join(result.ai_reviewers) + ")"
+            approver_desc = (approver_desc + "; " + ai_desc) if approver_desc else ai_desc
         warnings.append(
             "Guardian approval satisfied by "
             + ", ".join(result.sources)
             + " from "
-            + ", ".join(result.approvers or ("<unknown>",))
+            + (approver_desc or "<unknown>")
         )
 
 
@@ -893,6 +901,7 @@ def main() -> int:
                 guardian_timeline=args.guardian_timeline,
                 blocking=blocking,
                 warnings=warnings,
+                expected_repository=args.expected_repository,
             )
     elif not args.allow_missing_cca:
         blocking.append(f"CCA verdict file not found at {args.cca_verdict}")

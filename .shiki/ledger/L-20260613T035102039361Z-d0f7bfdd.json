@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260613T035102039128Z-9bef9375.json"
+  ],
+  "goal_id": "G-20260613T035041766666Z-cfcc6734",
+  "id": "L-20260613T035102039361Z-d0f7bfdd",
+  "links": [],
+  "summary": "Task registered: Implement external_ai_guardian_review authority source, parser poisoning fix, loop high/critical merge, ADR 0010",
+  "task_id": "T-20260613T035102039128Z-9bef9375",
+  "timestamp": "2026-06-13T03:51:02+00:00",
+  "type": "task-registered"
+}

@@ -78,7 +78,7 @@ base_pr = {
 label_events = [{"event": "labeled", "label": {"name": "guardian:approved"}, "actor": {"login": "mizutani-140"}}]
 
 
-def approved(*, pr=None, reviews=None, comments=None, events=None, test_policy=policy):
+def approved(*, pr=None, reviews=None, comments=None, events=None, test_policy=policy, expected_repo="mizutani-140/shiki"):
     result = evaluate_guardian_approval(
         policy=test_policy,
         pr=pr or base_pr,
@@ -86,6 +86,7 @@ def approved(*, pr=None, reviews=None, comments=None, events=None, test_policy=p
         comments=comments or [],
         label_events=events if events is not None else label_events,
         head_sha=head,
+        expected_repo=expected_repo,
     )
     return result
 
@@ -135,6 +136,68 @@ cases = [
         "review or current-head",
     ),
 ]
+
+_ai = (
+    '```external-ai-guardian-review\n'
+    '{"kind":"external_ai_guardian_review","reviewer":{"type":"ai_model","model":"GPT-5.5 Pro","role":"external_guardian_reviewer"},'
+    '"repo":"mizutani-140/shiki","pr":55,"head_sha":"%s","verdict":"approve","merge_permission":"autonomous_merge_permitted","not_operator_approval":true}\n'
+    '```'
+) % head
+# A PR WITHOUT the human guardian label, so the AI path is the only authority
+# and identity preservation can be checked cleanly.
+ai_pr = {"number": 55, "headRefOid": head, "author": {"login": "mizutani-140"}, "labels": [{"name": "risk:critical"}]}
+# A second comment body carrying a malformed leading fence followed by the valid
+# artifact — the parser must scan ALL fenced blocks, not just the first.
+_ai_double = (
+    '```external-ai-guardian-review\n{ this is not json }\n```\n\nand then:\n\n' + _ai
+)
+# An artifact bound to a different repository (cross-repo replay).
+_ai_other_repo = _ai.replace('"repo":"mizutani-140/shiki"', '"repo":"attacker/evil"')
+# An artifact bound to a different PR number.
+_ai_other_pr = _ai.replace('"pr":55', '"pr":999')
+# An artifact that falsely claims it is NOT distinct from operator approval.
+_ai_claims_operator = _ai.replace('"not_operator_approval":true', '"not_operator_approval":false')
+ai_cases = [
+    # AI guardian review approves with no human label; identity preserved.
+    ("ai review approves", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": "External AI guardian review:\n" + _ai}]), True, ""),
+    # Stale short-SHA comment alongside a valid AI artifact must NOT poison the gate.
+    ("ai review survives stale comment", approved(pr=ai_pr, events=[], comments=[
+        {"user": {"login": "mizutani-140"}, "body": "Guardian approval granted for head SHA dead."},
+        {"user": {"login": "mizutani-140"}, "body": _ai},
+    ]), True, ""),
+    # A non-Guardian griefing comment must NOT block a valid AI approval.
+    ("ai review survives griefing comment", approved(pr=ai_pr, events=[], comments=[
+        {"user": {"login": "random-troll"}, "body": f"Guardian approval granted {head}"},
+        {"user": {"login": "mizutani-140"}, "body": _ai},
+    ]), True, ""),
+    # The parser scans every fenced block; a malformed leading fence does not hide a valid one.
+    ("ai review scans all fences", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai_double}]), True, ""),
+    # Wrong head SHA in the AI artifact does not approve.
+    ("ai review wrong head blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai.replace(head, "0" * 40)}]), False, "current head SHA"),
+    # AI artifact relayed by a non-Guardian does not approve.
+    ("ai review non-guardian relay blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "someone-else"}, "body": _ai}]), False, "non-Guardian"),
+    # Cross-repo replay: artifact bound to a different repository is rejected.
+    ("ai review cross-repo replay blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai_other_repo}]), False, "this repository"),
+    # Cross-PR replay: artifact bound to a different PR is rejected.
+    ("ai review cross-pr replay blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai_other_pr}]), False, "this PR"),
+    # Fail closed when the evaluator is given no expected repository to bind to.
+    ("ai review no expected repo fails closed", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai}], expected_repo=""), False, "this repository"),
+    # An artifact claiming it is operator approval must not take the AI path.
+    ("ai review claiming operator approval blocks", approved(pr=ai_pr, events=[], comments=[{"user": {"login": "mizutani-140"}, "body": _ai_claims_operator}]), False, "must not claim operator approval"),
+]
+for name, result, expected, needle in ai_cases:
+    if result.approved is not expected:
+        raise SystemExit(f"{name}: expected approved={expected}, got {result}")
+    if expected:
+        if "external_ai_guardian_review" not in result.sources:
+            raise SystemExit(f"{name}: external_ai_guardian_review missing from sources {result.sources}")
+        if "GPT-5.5 Pro" not in result.ai_reviewers:
+            raise SystemExit(f"{name}: AI reviewer identity not recorded: {result.ai_reviewers}")
+        if "mizutani-140" in result.approvers:
+            raise SystemExit(f"{name}: human relay must NOT be recorded as approver: {result.approvers}")
+    elif needle and not any(needle in msg for msg in (result.blockers + result.warnings)):
+        raise SystemExit(f"{name}: missing rejection reason {needle!r}: blockers={result.blockers} warnings={result.warnings}")
+
 for name, result, expected, needle in cases:
     if result.approved is not expected:
         raise SystemExit(f"{name}: expected approved={expected}, got {result}")
@@ -159,6 +222,63 @@ with tempfile.TemporaryDirectory() as tmp:
     )
     if result.approved or not any("PR author" in blocker for blocker in result.blockers):
         raise SystemExit(f"PR author should block when solo mode is disabled: {result}")
+
+    # BLOCKER regression: the external AI guardian path must be NO WEAKER than
+    # the human comment path. When solo-maintainer is disabled, a PR author who
+    # relays their own AI artifact must NOT be able to self-approve their own
+    # critical PR — exactly the PR-author guard every human path enforces.
+    ai_self_relay = approved(
+        pr=ai_pr,
+        events=[],
+        comments=[{"user": {"login": "mizutani-140"}, "body": _ai}],
+        test_policy=no_solo_policy,
+    )
+    if ai_self_relay.approved:
+        raise SystemExit(f"PR author self-relayed AI artifact must NOT approve when solo disabled: {ai_self_relay}")
+    if "external_ai_guardian_review" in ai_self_relay.sources:
+        raise SystemExit(f"PR-author self-relay must not register an AI approval source: {ai_self_relay}")
+    if not any("PR author" in msg for msg in (ai_self_relay.blockers + ai_self_relay.warnings)):
+        raise SystemExit(f"PR-author self-relay rejection must explain the PR-author guard: {ai_self_relay}")
+
+with tempfile.TemporaryDirectory() as tmp2:
+    # MAJOR regression (review-path poisoning): the poisoning fix must be
+    # symmetric across ALL human paths. With solo disabled and TWO configured
+    # guardians, a VALID external AI guardian review relayed by the second
+    # guardian must survive a stray APPROVED GitHub review left by the PR author
+    # (whose own review cannot satisfy approval). Before the fix, the PR-author
+    # review produced a HARD review-path blocker that poisoned the valid AI
+    # approval; now it is a soft signal demoted to a warning.
+    tmp2_root = Path(tmp2)
+    data2 = json.loads((root / ".shiki/guardian-policy.json").read_text(encoding="utf-8"))
+    data2["solo_maintainer"]["enabled"] = False
+    data2["solo_maintainer"]["allow_pr_author_as_guardian"] = False
+    data2["approvers"]["users"] = ["mizutani-140", "second-guardian"]
+    (tmp2_root / ".shiki").mkdir()
+    (tmp2_root / ".shiki/guardian-policy.json").write_text(json.dumps(data2), encoding="utf-8")
+    two_guardian_policy = load_guardian_policy(tmp2_root)
+
+    # Baseline: AI artifact relayed by the second (non-author) guardian approves.
+    ai_relayed = approved(
+        pr=ai_pr,
+        events=[],
+        comments=[{"user": {"login": "second-guardian"}, "body": _ai}],
+        test_policy=two_guardian_policy,
+    )
+    if not ai_relayed.approved or "external_ai_guardian_review" not in ai_relayed.sources:
+        raise SystemExit(f"AI artifact relayed by a second guardian should approve under solo disabled: {ai_relayed}")
+
+    # The stray PR-author APPROVED review must NOT poison that valid AI approval.
+    survives_review = approved(
+        pr=ai_pr,
+        events=[],
+        reviews=[{"state": "APPROVED", "author": {"login": "mizutani-140"}}],
+        comments=[{"user": {"login": "second-guardian"}, "body": _ai}],
+        test_policy=two_guardian_policy,
+    )
+    if not survives_review.approved:
+        raise SystemExit(f"stray PR-author review must NOT poison a valid AI approval: {survives_review}")
+    if "mizutani-140" in survives_review.approvers:
+        raise SystemExit(f"stray PR-author review must not be recorded as an approver: {survives_review}")
 
 print("guardian policy evaluator fixtures passed")
 PY

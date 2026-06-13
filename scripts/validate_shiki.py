@@ -679,6 +679,8 @@ def validate_guardian_policy_contracts(root: Path = ROOT) -> None:
         raise ValidationError(f"{GUARDIAN_POLICY_PATH}: CCA Review Bridge must not count as Guardian")
     if policy.advisory_claude_review_counts_as_guardian:
         raise ValidationError(f"{GUARDIAN_POLICY_PATH}: advisory Claude review must not count as Guardian")
+    if policy.ai_review_enabled and not policy.ai_review_require_head_sha:
+        raise ValidationError(f"{GUARDIAN_POLICY_PATH}: external_ai_guardian_review must bind to the head SHA (ADR 0010)")
 
     manifest = load_manifest(root)
     files = manifest.get("files")
@@ -727,8 +729,9 @@ def validate_guardian_policy_contracts(root: Path = ROOT) -> None:
             "Guardian approval granted",
             "CCA Review Bridge is not Guardian approval",
             "advisory Claude review is not Guardian approval",
+            "external_ai_guardian_review",
         ],
-        "docs/agents/decision-control.md": [GUARDIAN_POLICY_PATH, "current PR head SHA"],
+        "docs/agents/decision-control.md": [GUARDIAN_POLICY_PATH, "current PR head SHA", "external_ai_guardian_review"],
         "docs/agents/checklists.md": [GUARDIAN_POLICY_PATH, "policy-backed Guardian"],
         "docs/agents/completion-check-agent.md": [GUARDIAN_POLICY_PATH, "needs_guardian"],
         "docs/agents/shiki-doctor.md": ["doctor.guardian.policy", "doctor.guardian.github_events"],
