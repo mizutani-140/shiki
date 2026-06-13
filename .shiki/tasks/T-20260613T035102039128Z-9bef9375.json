@@ -22,7 +22,8 @@
     "L-20260613T035041767638Z-6292cd41",
     "L-20260613T035129527680Z-d4843fe2",
     "L-20260613T043733359467Z-9e878bdf",
-    "L-20260613T050917134820Z-5268d389"
+    "L-20260613T050917134820Z-5268d389",
+    "L-20260613T055215712290Z-5030d669"
   ],
   "locks": [
     "path:scripts/shiki_guardian.py",
@@ -34,7 +35,11 @@
     "path:tests/*",
     "path:docs/**",
     "path:CONTEXT.md",
-    "path:.shiki/**"
+    "path:.shiki/**",
+    "path:scripts/guardian_approval_signal.py",
+    "path:scripts/shiki_installer.py",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:.github/prompts/cca-completion-check.md"
   ],
   "non_goals": [
     "No removal of human approval paths",

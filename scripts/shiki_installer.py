@@ -44,6 +44,7 @@ TEMPLATE_PATHS = [
     "scripts/shiki_workflows.py",
     "scripts/enforce_cca_verdict.py",
     "scripts/build_cca_evidence_manifest.py",
+    "scripts/guardian_approval_signal.py",
     "scripts/mergegate_check.py",
     "scripts/shiki.py",
     "scripts/shiki_bootstrap.py",
