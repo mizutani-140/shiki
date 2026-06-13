@@ -62,6 +62,7 @@ TARGET_STATE_DIRECTORIES = (
     ".shiki/runner",
     ".shiki/smoke",
     ".shiki/starts",
+    ".shiki/memories",
 )
 
 SOURCE_OF_TRUTH_MARKER_START = "<!-- shiki-source-of-truth:start -->"

@@ -3,12 +3,34 @@
   "$id": "https://shiki.local/schemas/ledger.schema.json",
   "title": "Shiki Ledger Entry",
   "type": "object",
-  "required": ["id", "timestamp", "goal_id", "type", "actor", "summary", "evidence"],
+  "required": [
+    "id",
+    "timestamp",
+    "goal_id",
+    "type",
+    "actor",
+    "summary",
+    "evidence"
+  ],
   "properties": {
-    "id": { "type": "string", "pattern": "^L-[0-9]{4,}$" },
-    "timestamp": { "type": "string" },
-    "goal_id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
-    "task_id": { "type": ["string", "null"], "pattern": "^T-[0-9]{4,}$" },
+    "id": {
+      "type": "string",
+      "pattern": "^L-[0-9]{4,}$"
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "goal_id": {
+      "type": "string",
+      "pattern": "^G-[0-9]{4,}$"
+    },
+    "task_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^T-[0-9]{4,}$"
+    },
     "type": {
       "enum": [
         "goal-created",
@@ -21,25 +43,39 @@
         "repair",
         "mergegate",
         "completion",
-        "handoff"
+        "handoff",
+        "memory-transition"
       ]
     },
-    "actor": { "type": "string", "minLength": 1 },
-    "summary": { "type": "string", "minLength": 1 },
+    "actor": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
     "evidence": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "minItems": 1
     },
     "links": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "evidence_refs": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["kind"],
+        "required": [
+          "kind"
+        ],
         "properties": {
           "kind": {
             "enum": [
@@ -50,17 +86,39 @@
               "ledger-digest"
             ]
           },
-          "pr": { "type": "integer" },
-          "issue": { "type": "integer" },
-          "head_sha": { "type": "string" },
-          "workflow": { "type": "string" },
-          "run_id": { "type": "string" },
-          "run_attempt": { "type": "string" },
-          "name": { "type": "string" },
-          "manifest_path": { "type": "string" },
-          "manifest_sha256": { "type": "string" },
-          "algorithm": { "type": "string" },
-          "digest": { "type": "string" }
+          "pr": {
+            "type": "integer"
+          },
+          "issue": {
+            "type": "integer"
+          },
+          "head_sha": {
+            "type": "string"
+          },
+          "workflow": {
+            "type": "string"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "run_attempt": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "manifest_path": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string"
+          },
+          "digest": {
+            "type": "string"
+          }
         },
         "additionalProperties": true
       }
@@ -68,10 +126,18 @@
     "ledger_integrity": {
       "type": "object",
       "properties": {
-        "algorithm": { "type": "string" },
-        "canonical_digest": { "type": "string" },
-        "previous_task_ledger": { "type": "string" },
-        "previous_task_ledger_digest": { "type": "string" }
+        "algorithm": {
+          "type": "string"
+        },
+        "canonical_digest": {
+          "type": "string"
+        },
+        "previous_task_ledger": {
+          "type": "string"
+        },
+        "previous_task_ledger_digest": {
+          "type": "string"
+        }
       },
       "additionalProperties": true
     }

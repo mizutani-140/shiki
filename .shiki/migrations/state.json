@@ -50,6 +50,19 @@
       "id": "M-20260612-0001-spec-freeze",
       "status": "applied",
       "summary": "Backfilled spec_freeze into 1 stored plan(s); 0 already frozen."
+    },
+    {
+      "actor": "shiki-cli",
+      "applied_at": "2026-06-13T01:28:51Z",
+      "evidence": [
+        ".shiki/manifest.json declares .shiki/memories (mirror, create_on_demand).",
+        "manifest declaration present: True.",
+        ".shiki/memories directory ensured: True.",
+        "Memory audit trail is recorded in the ledger as memory-transition events."
+      ],
+      "id": "M-20260613-0001-memories",
+      "status": "applied",
+      "summary": "Accepted .shiki/memories as an on-demand mirror directory for the Memory Loop (proposal 0001 v2)."
     }
   ],
   "source_of_truth": "Repository-local Shiki migration state. GitHub operational state remains authoritative.",

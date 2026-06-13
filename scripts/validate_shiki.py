@@ -34,6 +34,7 @@ from shiki_evidence import (
 )
 from shiki_locks import known_shiki_semantic_locks, normalize_lock
 from shiki_jsonschema import UnsupportedJsonSchemaError, assert_supported_schema, validate_json_schema
+from shiki_memory import memory_entry_errors
 from shiki_installer import TEMPLATE_PATHS
 from shiki_guardian import GUARDIAN_POLICY_PATH, GuardianPolicyError, load_guardian_policy, validate_guardian_policy
 from shiki_manifest import (
@@ -122,6 +123,7 @@ EXEC_ID = control_id_pattern("EXEC")
 SMOKE_ID = control_id_pattern("SMOKE")
 START_ID = control_id_pattern("START")
 REPORT_ID = control_id_pattern("R")
+MEMORY_ID = control_id_pattern("MEM")
 
 TASK_REQUIRED = {
     "id",
@@ -196,6 +198,7 @@ LEDGER_TYPES = {
     "mergegate",
     "completion",
     "handoff",
+    "memory-transition",
 }
 KNOWN_SKILLS = {
     "setup-matt-pocock-skills",
@@ -302,6 +305,7 @@ SHIKI_CLI_MODULE_FILES = (
     "scripts/shiki_guardian.py",
     "scripts/shiki_installer.py",
     "scripts/shiki_loop.py",
+    "scripts/shiki_memory.py",
     "scripts/shiki_migrations.py",
     "scripts/shiki_provider.py",
     "scripts/shiki_process.py",
@@ -1903,6 +1907,16 @@ def main() -> int:
         validate_id_collection(ledger_paths, prefix="L", pattern=LEDGER_ID)
         validate_id_collection(dag_paths, prefix="G", pattern=GOAL_ID, field="goal_id")
         validate_id_collection(report_paths, prefix="R", pattern=REPORT_ID)
+
+        memory_paths = json_files(SHIKI / "memories")
+        validate_id_collection(memory_paths, prefix="MEM", pattern=MEMORY_ID)
+        for memory_path in memory_paths:
+            data = load_json(memory_path)
+            if not isinstance(data, dict):
+                raise ValidationError(f"{memory_path}: memory entry must be a JSON object")
+            memory_errors = memory_entry_errors(data, root=SHIKI.parent)
+            if memory_errors:
+                raise ValidationError(f"{memory_path}: {'; '.join(memory_errors)}")
 
         for goal_path in goal_paths:
             data = load_json(goal_path)

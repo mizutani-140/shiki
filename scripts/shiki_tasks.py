@@ -28,6 +28,7 @@ def scan_ids(target: Path, prefix: str) -> list[int]:
         "INBOX": ["inbox"],
         "RP": ["repairs"],
         "R": ["reports"],
+        "MEM": ["memories"],
     }.get(prefix, [])
     base = target / ".shiki"
     if not base.exists():
@@ -57,6 +58,7 @@ def next_control_id(target: Path, prefix: str) -> str:
         "INBOX": ["inbox"],
         "RP": ["repairs"],
         "R": ["reports"],
+        "MEM": ["memories"],
     }.get(prefix, [])
     base = target / ".shiki"
     for _ in range(10):
