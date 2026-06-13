@@ -362,6 +362,111 @@ def enforce_goal_reconcile(
         blocking.append(f"goal_reconcile must include a goal-scoped task-registered reconcile ledger event for {goal_id}")
 
 
+POST_MERGE_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:post_merge_reconcile\s*-->")
+POST_MERGE_RECONCILE_LABEL = "mergegate:post_merge_reconcile"
+# Only these task fields may move during a post-merge reconcile of a merged task.
+_POST_MERGE_TASK_FIELDS = {"status", "expected_pr", "ledger_evidence"}
+_POST_MERGE_TASK_STATUSES = {"review", "done"}
+
+
+def post_merge_reconcile_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
+    """Decide whether a PR runs in post_merge_reconcile mode (marker + label)."""
+    body = str(pr.get("body") or "")
+    marker = bool(POST_MERGE_RECONCILE_MARKER.search(body))
+    label = POST_MERGE_RECONCILE_LABEL in pr_label_names(pr)
+    if marker and not label:
+        return False, (
+            f"post_merge_reconcile requires the {POST_MERGE_RECONCILE_LABEL} label (a maintainer-applied "
+            "second factor) in addition to the body marker"
+        )
+    return (marker and label), None
+
+
+def enforce_post_merge_reconcile(
+    *,
+    target: Path,
+    task_id: str,
+    base_shiki: Path | None,
+    changed_files_status: list[ChangedFile],
+    blocking: list[str],
+    warnings: list[str],
+) -> None:
+    """Validate a post_merge_reconcile PR: reconcile a merged task's residual
+    state. Deny by default.
+
+    The autonomous loop normally releases a task's lock and marks it done the
+    moment its PR merges; when that did not happen (e.g. a manual merge), the
+    residual lock and expected_pr block all later control-plane work. This mode
+    lets one PR reconcile EXACTLY that residue for a single task: it may change
+    only the task's own status (to review/done) and/or expected_pr, release the
+    task's own lock, and append a reconcile ledger. It may NOT touch code, other
+    tasks, the goal file, the DAG, memories, reports, guardian-policy, other
+    locks, or any other task field (acceptance_checks, locks, scope, …). Partial
+    or unverifiable reconcile fails closed (blocks), never silent success.
+    """
+    if not task_id:
+        blocking.append("post_merge_reconcile PR must reference a Shiki task id")
+        return
+    head_task = load_task(target, task_id)
+    if head_task is None:
+        blocking.append(f"post_merge_reconcile: task {task_id} not found")
+        return
+    if base_shiki is None:
+        blocking.append("post_merge_reconcile requires a base .shiki snapshot to verify task-field immutability")
+        return
+    base_task = load_json(base_shiki / "tasks" / f"{task_id}.json")
+    if not isinstance(base_task, dict):
+        blocking.append(f"post_merge_reconcile: base snapshot has no task {task_id} to reconcile against")
+        return
+    # The reconcile target must be a task that actually went to a PR (the base,
+    # pre-reconcile, recorded an expected_pr); the reconcile clears it.
+    if not base_task.get("expected_pr"):
+        blocking.append(f"post_merge_reconcile: task {task_id} has no merged PR (no base expected_pr) to reconcile")
+
+    task_file = f".shiki/tasks/{task_id}.json"
+    lock_file = f".shiki/locks/{task_id}.json"
+    reconcile_ledger_seen = False
+
+    for entry in changed_files_status:
+        path = normalize_repo_path(entry.path)
+        if not path.startswith(".shiki/"):
+            blocking.append(f"post_merge_reconcile must not change non-Shiki (implementation) file {path}")
+            continue
+        if path == task_file:
+            if entry.status != "M":
+                blocking.append(f"post_merge_reconcile may only modify its task file {path}, not add/delete it")
+                continue
+            for key in set(base_task) | set(head_task):
+                if key not in _POST_MERGE_TASK_FIELDS and base_task.get(key) != head_task.get(key):
+                    blocking.append(f"post_merge_reconcile must not change task field {key!r} of {task_id}")
+            if head_task.get("status") not in _POST_MERGE_TASK_STATUSES:
+                blocking.append(f"post_merge_reconcile task {task_id} status must be review or done, not {head_task.get('status')!r}")
+        elif path == lock_file:
+            if entry.status == "D":
+                continue  # deleting the lock is a valid release
+            lock = load_json(target / path)
+            if not (isinstance(lock, dict) and lock.get("released")):
+                blocking.append(f"post_merge_reconcile lock change to {path} must set released=true (or delete the lock)")
+        elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
+            if entry.status != "A":
+                blocking.append(f"post_merge_reconcile must append, not modify, ledger {path}")
+                continue
+            led = load_json(target / path)
+            led_ok = isinstance(led, dict) and led.get("task_id") == task_id and led.get("type") in {"lock", "check"}
+            if not led_ok:
+                blocking.append(f"post_merge_reconcile ledger {path} must be a task-scoped lock/check reconcile event for {task_id}")
+                continue
+            reconcile_ledger_seen = True
+        else:
+            blocking.append(
+                f"post_merge_reconcile must not change {path}; only this task's status/expected_pr, its lock release, "
+                "and a reconcile ledger are allowed"
+            )
+
+    if not reconcile_ledger_seen:
+        blocking.append(f"post_merge_reconcile must include a task-scoped reconcile ledger event for {task_id}")
+
+
 def blocking_checklist_failures(verdict: dict[str, Any]) -> list[str]:
     failures: list[str] = []
     for item in verdict.get("checklist") or []:
@@ -941,6 +1046,7 @@ def main() -> int:
     resolved_task_id: str | None = None
     resolved_goal_id: str | None = None
     reconcile_mode = False
+    post_merge_mode = False
     manifest: dict[str, Any] | None = None
     try:
         manifest = load_manifest(target)
@@ -954,8 +1060,13 @@ def main() -> int:
         resolved_task_id = first_match(TASK_ID, body)
         resolved_goal_id = first_match(GOAL_ID, body)
         reconcile_mode, reconcile_error = goal_reconcile_decision(pr)
+        post_merge_mode, post_merge_error = post_merge_reconcile_decision(pr)
         if reconcile_error:
             blocking.append(reconcile_error)
+        if post_merge_error:
+            blocking.append(post_merge_error)
+        if reconcile_mode and post_merge_mode:
+            blocking.append("a PR cannot be both goal_reconcile and post_merge_reconcile")
         if args.expected_head_sha:
             pr_head = str(pr.get("headRefOid") or "")
             if not pr_head:
@@ -967,6 +1078,10 @@ def main() -> int:
             # it does not carry a single implementation task id.
             if not resolved_goal_id:
                 blocking.append("goal_reconcile PR body does not contain a Shiki goal id like G-0001")
+        elif post_merge_mode:
+            # A post_merge_reconcile PR is task-scoped (reconcile a merged task).
+            if not resolved_task_id:
+                blocking.append("post_merge_reconcile PR body does not contain a Shiki task id like T-0001")
         else:
             if not resolved_task_id:
                 blocking.append("PR body does not contain a Shiki task id like T-0001")
@@ -991,6 +1106,20 @@ def main() -> int:
         enforce_goal_reconcile(
             target=target,
             goal_id=resolved_goal_id or "",
+            changed_files_status=files_status,
+            blocking=blocking,
+            warnings=warnings,
+        )
+    elif post_merge_mode and pr:
+        # post_merge_reconcile is a task-scoped reconcile of a merged task's
+        # residual lock / status; a dedicated deny-by-default validator.
+        files_status = parse_changed_files_status(
+            Path(args.changed_files_status), changed_files(Path(args.changed_files))
+        )
+        enforce_post_merge_reconcile(
+            target=target,
+            task_id=resolved_task_id or "",
+            base_shiki=Path(args.base_shiki) if args.base_shiki else None,
             changed_files_status=files_status,
             blocking=blocking,
             warnings=warnings,

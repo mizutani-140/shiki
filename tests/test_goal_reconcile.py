@@ -15,7 +15,13 @@ from pathlib import Path
 
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
-from mergegate_check import ChangedFile, enforce_goal_reconcile, goal_reconcile_decision
+from mergegate_check import (
+    ChangedFile,
+    enforce_goal_reconcile,
+    enforce_post_merge_reconcile,
+    goal_reconcile_decision,
+    post_merge_reconcile_decision,
+)
 
 GOAL = "G-20260613T000000000000Z-0000aaaa"
 PLAN = "P-20260613T000000000000Z-0000pppp"
@@ -261,6 +267,154 @@ class ReconcileDecisionTests(unittest.TestCase):
         mode, err = goal_reconcile_decision({"body": "T-0001 normal work", "labels": []})
         self.assertFalse(mode)
         self.assertIsNone(err)
+
+
+PM_TASK = "T-20260613T000000000000Z-0000pm01"
+PM_LOCK = "L-20260613T000000000000Z-0000pml1"
+
+
+def _pm_seed(root: Path, *, base_status: str = "review", expected_pr: int = 99) -> None:
+    """Seed a merged-task residue: base task (review, expected_pr) + its lock."""
+    for d in ("tasks", "locks", "ledger"):
+        (root / ".shiki" / d).mkdir(parents=True, exist_ok=True)
+    (root / ".shiki" / "base" / "tasks").mkdir(parents=True, exist_ok=True)
+    base_task = {"id": PM_TASK, "goal_id": GOAL, "title": "t", "status": base_status,
+                 "risk_level": "high", "expected_pr": expected_pr, "locks": ["path:scripts/x.py"],
+                 "acceptance_checks": ["a"]}
+    (root / ".shiki" / "base" / "tasks" / f"{PM_TASK}.json").write_text(json.dumps(base_task), encoding="utf-8")
+    (root / ".shiki" / "locks" / f"{PM_TASK}.json").write_text(
+        json.dumps({"task_id": PM_TASK, "locks": ["path:scripts/x.py"], "released": True}), encoding="utf-8")
+    (root / ".shiki" / "ledger" / f"{PM_LOCK}.json").write_text(
+        json.dumps({"id": PM_LOCK, "goal_id": GOAL, "task_id": PM_TASK, "type": "lock", "actor": "x",
+                    "timestamp": "2026-06-13T00:00:00+00:00", "summary": "lock released post-merge", "evidence": []}),
+        encoding="utf-8")
+    return base_task
+
+
+def _pm_write_head_task(root: Path, base_task: dict, **changes) -> None:
+    head = dict(base_task)
+    head.update(changes)
+    (root / ".shiki" / "tasks" / f"{PM_TASK}.json").write_text(json.dumps(head), encoding="utf-8")
+
+
+def _pm_run(root: Path, changes: list[ChangedFile]) -> list[str]:
+    blocking: list[str] = []
+    enforce_post_merge_reconcile(target=root, task_id=PM_TASK, base_shiki=root / ".shiki" / "base",
+                                 changed_files_status=changes, blocking=blocking, warnings=[])
+    return blocking
+
+
+class PostMergeReconcileTests(unittest.TestCase):
+    def test_lock_release_and_expected_pr_clear_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, expected_pr=None)  # cleared
+            blocking = _pm_run(root, [
+                ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                ChangedFile("M", f".shiki/locks/{PM_TASK}.json"),
+                ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
+            ])
+        self.assertEqual(blocking, [])
+
+    def test_status_done_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            blocking = _pm_run(root, [
+                ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                ChangedFile("D", f".shiki/locks/{PM_TASK}.json"),
+                ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
+            ])
+        self.assertEqual(blocking, [])
+
+    def test_changing_other_task_field_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="done", acceptance_checks=["a", "sneaky"])
+            blocking = _pm_run(root, [
+                ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
+            ])
+        self.assertTrue(any("must not change task field 'acceptance_checks'" in b for b in blocking))
+
+    def test_code_change_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="done")
+            blocking = _pm_run(root, [
+                ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
+                ChangedFile("M", "scripts/mergegate_check.py"),
+            ])
+        self.assertTrue(any("non-Shiki" in b for b in blocking))
+
+    def test_lock_not_released_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="done")
+            (root / ".shiki" / "locks" / f"{PM_TASK}.json").write_text(
+                json.dumps({"task_id": PM_TASK, "locks": ["path:scripts/x.py"], "released": False}), encoding="utf-8")
+            blocking = _pm_run(root, [
+                ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                ChangedFile("M", f".shiki/locks/{PM_TASK}.json"),
+                ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
+            ])
+        self.assertTrue(any("must set released=true" in b for b in blocking))
+
+    def test_missing_reconcile_ledger_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="done")
+            blocking = _pm_run(root, [ChangedFile("D", f".shiki/locks/{PM_TASK}.json")])
+        self.assertTrue(any("reconcile ledger" in b for b in blocking))
+
+    def test_unrelated_and_authority_changes_are_rejected(self) -> None:
+        for forbidden in (".shiki/locks/T-20260613T000000000000Z-0000other.json",
+                          ".shiki/guardian-policy.json",
+                          ".shiki/memories/MEM-20260613T000000000000Z-0000m001.json"):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                base = _pm_seed(root)
+                _pm_write_head_task(root, base, status="done")
+                blocking = _pm_run(root, [
+                    ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
+                    ChangedFile("A", forbidden),
+                ])
+            self.assertTrue(any("must not change" in b for b in blocking), f"{forbidden} not rejected")
+
+    def test_no_expected_pr_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root, expected_pr=0)
+            (root / ".shiki" / "tasks" / f"{PM_TASK}.json").write_text(
+                json.dumps({**base, "expected_pr": None}), encoding="utf-8")
+            blocking = _pm_run(root, [ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json")])
+        self.assertTrue(any("no merged PR" in b for b in blocking))
+
+    def test_missing_base_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="done")
+            blocking: list[str] = []
+            enforce_post_merge_reconcile(target=root, task_id=PM_TASK, base_shiki=None,
+                                         changed_files_status=[], blocking=blocking, warnings=[])
+        self.assertTrue(any("requires a base" in b for b in blocking))
+
+    def test_decision_marker_and_label(self) -> None:
+        m = "<!-- shiki:post_merge_reconcile -->"
+        lab = {"name": "mergegate:post_merge_reconcile"}
+        self.assertEqual(post_merge_reconcile_decision({"body": m, "labels": [lab]}), (True, None))
+        mode, err = post_merge_reconcile_decision({"body": m, "labels": []})
+        self.assertFalse(mode)
+        self.assertIn("label", err)
+        self.assertEqual(post_merge_reconcile_decision({"body": "x", "labels": [lab]}), (False, None))
 
 
 if __name__ == "__main__":
