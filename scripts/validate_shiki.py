@@ -186,11 +186,13 @@ RUNTIMES = set(runtime_names())
 RISK_LEVELS = {"low", "medium", "high", "critical"}
 GOAL_STATUSES = {"planned", "ready", "blocked", "complete", "archived", "historical"}
 TASK_STATUSES = {"planned", "ready", "running", "blocked", "review", "repair-needed", "done"}
-# A DAG node is "terminal" when its work is finished one way or another. A goal
-# whose every DAG node is terminal must be marked complete; while any node is
-# non-terminal (planned/in-progress/blocked or not yet registered) the goal is
-# active. (cancelled/superseded are reserved terminal states.)
-TERMINAL_TASK_STATUSES = {"done", "cancelled", "superseded"}
+# A DAG node is "terminal" when its work is finished. A goal whose every DAG node
+# is terminal must be marked complete; while any node is non-terminal
+# (planned/in-progress/blocked or not yet registered) the goal is active. Only
+# "done" is a valid task status today (see TASK_STATUSES); cancelled/superseded
+# are not in the task schema, so adding them here would be dead code — they
+# would be introduced together with the schema in a separate change.
+TERMINAL_TASK_STATUSES = {"done"}
 LEDGER_TYPES = {
     "goal-created",
     "context-impact",
