@@ -360,6 +360,7 @@ def enforce_goal_reconcile(
             if not isinstance(nodes, list):
                 blocking.append(f"goal_reconcile DAG {path} must have a nodes list")
                 continue
+            node_titles: set[str] = set()
             for node in nodes:
                 node_task = load_task(target, str(node))
                 if node_task is None:
@@ -371,6 +372,17 @@ def enforce_goal_reconcile(
                 node_title = str(node_task.get("title") or "").strip()
                 if node_title not in frozen_titles:
                     blocking.append(f"goal_reconcile DAG node {node} title {node_title!r} is not in the goal's frozen plan")
+                else:
+                    node_titles.add(node_title)
+            # The restored DAG must COVER the full frozen plan, not a subset: a
+            # truncated DAG (dropping frozen tasks) would later let validate force
+            # premature goal-complete once the registered subset finishes, while
+            # frozen tasks that were never registered are silently abandoned.
+            missing = frozen_titles - node_titles
+            if missing:
+                blocking.append(
+                    f"goal_reconcile DAG must cover every frozen plan task; missing {sorted(missing)}"
+                )
         elif path.startswith(".shiki/dag/") and path.endswith(".json"):
             blocking.append(f"goal_reconcile must not change another goal's DAG {path}")
         elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
@@ -1325,9 +1337,20 @@ def main() -> int:
         if pr:
             enforce_required_checks(pr, target, blocking, warnings)
             enforce_review_policy(pr, target, blocking)
+            # Reconcile PRs carry no `task`, so the guardian gate would otherwise
+            # miss the reconciled work's risk. Derive a risk-bearing task so a
+            # high/critical merged task (post_merge) or goal (goal_reconcile)
+            # still forces Guardian evaluation for its reconcile.
+            guardian_task = task
+            if guardian_task is None and post_merge_mode and resolved_task_id:
+                guardian_task = load_task(target, resolved_task_id)
+            elif guardian_task is None and reconcile_mode and resolved_goal_id:
+                goal = load_goal(target, resolved_goal_id)
+                if isinstance(goal, dict) and goal.get("risk_level"):
+                    guardian_task = {"risk_level": goal.get("risk_level")}
             enforce_guardian_policy(
                 pr=pr,
-                task=task,
+                task=guardian_task,
                 target=target,
                 guardian_policy=args.guardian_policy,
                 guardian_comments=args.guardian_comments,

@@ -252,6 +252,23 @@ class GoalReconcileTests(unittest.TestCase):
         self.assertTrue(any("risk_level" in b and "frozen plan definition" in b for b in blocking))
         self.assertTrue(any("acceptance_checks" in b and "frozen plan definition" in b for b in blocking))
 
+    def test_truncated_dag_missing_frozen_task_is_rejected(self) -> None:
+        # The restored DAG must cover every frozen-plan task; a subset DAG (which
+        # could later force premature goal-complete) is rejected.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed(root)
+            _write_task(root, T_A, title=TITLE_A)
+            _write_ledger(root, LEDGER)
+            (root / ".shiki" / "dag" / f"{GOAL}.json").write_text(
+                json.dumps({"goal_id": GOAL, "nodes": [T_A], "edges": []}), encoding="utf-8")  # drops TITLE_B
+            blocking = _run(root, [
+                ChangedFile("A", f".shiki/tasks/{T_A}.json"),
+                ChangedFile("A", f".shiki/dag/{GOAL}.json"),
+                ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
+            ])
+        self.assertTrue(any("must cover every frozen plan task" in b for b in blocking))
+
     def test_duplicate_frozen_title_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
