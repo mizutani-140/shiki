@@ -6,7 +6,8 @@
   "goal_id": "G-20260612T152357704854Z-8a5508cf",
   "id": "L-20260615T091003873307Z-7d4b6c40",
   "links": [
-    "https://github.com/mizutani-140/shiki/pull/129"
+    "https://github.com/mizutani-140/shiki/pull/129",
+    "https://github.com/mizutani-140/shiki/pull/135"
   ],
   "summary": "T1 closeout: Memory state foundation merged in PR #129 (commit cc616d0) and its lock was released (PR #133); marking the task done now that it is reconciled. T2/T3 remain planned so the goal stays active (DAG-based goal-complete).",
   "task_id": "T-20260612T152357706392Z-75f529da",
