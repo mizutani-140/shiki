@@ -7,7 +7,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t1-lock-reconcile",
+  "expected_branch": "shiki/t1-closeout-done",
   "expected_pr": null,
   "github_issue": null,
   "goal_id": "G-20260612T152357704854Z-8a5508cf",
@@ -26,7 +26,8 @@
     "L-20260613T015525020346Z-9c716ad4",
     "L-20260613T022924287537Z-06fe8144",
     "L-20260613T070335944116Z-c369a581",
-    "L-20260615T010503358988Z-021a8cf6"
+    "L-20260615T010503358988Z-021a8cf6",
+    "L-20260615T091003873307Z-7d4b6c40"
   ],
   "locks": [
     "path:.shiki/**",
@@ -52,6 +53,6 @@
   ],
   "risk_level": "high",
   "scope": "Implement proposal 0001 v2 sections 3.1, 3.2, 3.4: .shiki/memories mirror directory (manifest directories + install.create_directories AND shiki_contracts.TARGET_STATE_DIRECTORIES in identical order, .shiki/README.md layout block regenerated, migration M-20260613-0001-memories registered AND applied in the same PR); memory_transition added to LEDGER_TYPES and ledger.schema.json enum together; MEM prefix in shiki_tasks scan_ids/next_control_id dicts; .shiki/schemas/memory-entry.schema.json; validate_memory in validate_shiki.py enforcing status-specific required/prohibited fields, strict transitions raw->investigated->verified->distilled with no skipping, structured evidence with at least one local evidence (ledger/report/exec) for verified, approval_ledger+approved_by for distilled, active/supersede/revoke lifecycle fields, filename==id, fail-closed; new module scripts/shiki_memory.py with CLI subcommands memory capture/list/investigate/promote/distill/revoke/supersede where distill/revoke/supersede require operator context (refused when the SHIKI autonomous-execution context variable set by runner/loop is present) and write memory_transition ledger events plus operator approval ledger events; sync TEMPLATE_PATHS, SHIKI_CLI_MODULE_FILES, module-boundaries/staging lists; tests tests/test_memory_promotion.py (state machine unit tests incl. the 5 rejection acceptance checks) and scripts/test_shiki_memory_loop.sh part 1 (CLI + validator contract). Also commit docs/proposals/0001-memory-loop-spec-freeze-review.md as the frozen archive on this branch.",
-  "status": "review",
+  "status": "done",
   "title": "Memory state foundation"
 }
