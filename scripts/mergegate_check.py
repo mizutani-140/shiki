@@ -450,6 +450,11 @@ def enforce_goal_reconcile(
     # encodes. Only checked once every frozen task is covered (ids resolvable).
     if not head_missing:
         expected_edges: set[tuple[str, str]] = set()
+        # Per dependent task id, the exact set of dependency task ids the frozen
+        # plan declares — used to bind BOTH the DAG edges AND the task file's own
+        # `dependencies` field (the normal MergeGate path gates dependency-done
+        # from task.dependencies, so the DAG alone is insufficient).
+        expected_task_deps: dict[str, set[str]] = {tid: set() for tid in title_to_id.values()}
         edge_errors: list[str] = []
         for title, frozen in frozen_tasks.items():
             for dep_title in frozen.get("dependencies") or []:
@@ -460,6 +465,7 @@ def enforce_goal_reconcile(
                     )
                     continue
                 expected_edges.add((title_to_id[dep_title], title_to_id[title]))
+                expected_task_deps[title_to_id[title]].add(title_to_id[dep_title])
         blocking.extend(edge_errors)
         head_edges: set[tuple[str, str]] = set()
         for edge in (head_dag.get("edges") if isinstance(head_dag, dict) else None) or []:
@@ -472,6 +478,18 @@ def enforce_goal_reconcile(
                 f"goal_reconcile DAG edges must match the frozen plan dependencies; "
                 f"missing {sorted(missing_edges)}, unexpected {sorted(extra_edges)}"
             )
+        # Bind each registered task's own `dependencies` field to the frozen plan
+        # (mapped to ids), so the normal dependency-done gate that reads
+        # task.dependencies cannot be bypassed by a divergent/absent field.
+        if not edge_errors:
+            for tid, expected_deps in expected_task_deps.items():
+                tdata = load_task(target, tid)
+                actual_deps = {str(d) for d in (tdata.get("dependencies") if isinstance(tdata, dict) else None) or []}
+                if actual_deps != expected_deps:
+                    blocking.append(
+                        f"goal_reconcile task {tid} dependencies {sorted(actual_deps)} do not match the frozen plan "
+                        f"{sorted(expected_deps)}"
+                    )
 
 
 POST_MERGE_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:post_merge_reconcile\s*-->")

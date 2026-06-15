@@ -50,13 +50,20 @@ def _seed(root: Path, *, frozen: bool = True) -> None:
         encoding="utf-8")
 
 
+# Canonical test mapping of frozen titles -> registered task ids.
+_TITLE_TO_ID = {TITLE_A: T_A, TITLE_B: T_B}
+
+
 def _write_task(root: Path, tid: str, *, title: str, status: str = "planned", goal: str = GOAL, **overrides) -> None:
-    # By default register a task that MATCHES the frozen definition for its title.
+    # By default register a task that MATCHES the frozen definition for its title,
+    # including the id-based dependencies derived from the frozen dependency titles.
     frozen = {TITLE_A: FROZEN_A, TITLE_B: FROZEN_B}.get(title, {})
+    deps = [_TITLE_TO_ID[d] for d in frozen.get("dependencies", []) if d in _TITLE_TO_ID]
     task = {"id": tid, "goal_id": goal, "title": title, "status": status,
             "scope": frozen.get("scope", "scope-x"), "risk_level": frozen.get("risk_level", "high"),
             "acceptance_checks": frozen.get("acceptance_checks", ["x"]),
-            "assigned_runtime": frozen.get("runtime", "claude-code")}
+            "assigned_runtime": frozen.get("runtime", "claude-code"),
+            "dependencies": deps}
     task.update(overrides)
     (root / ".shiki" / "tasks" / f"{tid}.json").write_text(json.dumps(task), encoding="utf-8")
 
@@ -205,6 +212,44 @@ class GoalReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             blocking = self._full_registration(Path(tmp), edges=[{"from": T_A, "to": T_B, "reason": "dep"}])
         self.assertEqual(blocking, [])
+
+    def test_task_dependencies_field_missing_is_rejected(self) -> None:
+        # The registered task file's own dependencies must also match the frozen
+        # plan (the normal dependency-done gate reads task.dependencies).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed(root)
+            _write_task(root, T_A, title=TITLE_A)
+            _write_task(root, T_B, title=TITLE_B, dependencies=[])  # frozen says [TITLE_A]
+            _write_ledger(root, LEDGER)
+            (root / ".shiki" / "dag" / f"{GOAL}.json").write_text(
+                json.dumps({"goal_id": GOAL, "nodes": [T_A, T_B],
+                            "edges": [{"from": T_A, "to": T_B}]}), encoding="utf-8")
+            blocking = _run(root, [
+                ChangedFile("A", f".shiki/tasks/{T_A}.json"),
+                ChangedFile("A", f".shiki/tasks/{T_B}.json"),
+                ChangedFile("A", f".shiki/dag/{GOAL}.json"),
+                ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
+            ])
+        self.assertTrue(any("dependencies" in b and "do not match the frozen plan" in b for b in blocking))
+
+    def test_wrong_task_dependency_id_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed(root)
+            _write_task(root, T_A, title=TITLE_A)
+            _write_task(root, T_B, title=TITLE_B, dependencies=["T-0000000000000000000Z-0000dead"])
+            _write_ledger(root, LEDGER)
+            (root / ".shiki" / "dag" / f"{GOAL}.json").write_text(
+                json.dumps({"goal_id": GOAL, "nodes": [T_A, T_B],
+                            "edges": [{"from": T_A, "to": T_B}]}), encoding="utf-8")
+            blocking = _run(root, [
+                ChangedFile("A", f".shiki/tasks/{T_A}.json"),
+                ChangedFile("A", f".shiki/tasks/{T_B}.json"),
+                ChangedFile("A", f".shiki/dag/{GOAL}.json"),
+                ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
+            ])
+        self.assertTrue(any("do not match the frozen plan" in b for b in blocking))
 
     def test_runtime_mismatch_is_rejected(self) -> None:
         # A registered task whose assigned_runtime differs from the frozen runtime.
