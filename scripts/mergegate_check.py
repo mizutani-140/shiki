@@ -262,6 +262,14 @@ def _frozen_task_match_errors(task_id: str, task: dict[str, Any], frozen: dict[s
             errors.append(
                 f"goal_reconcile task {task_id} field {field!r} does not match its frozen plan definition"
             )
+    # Runtime assignment is governance-relevant (it picks the execution adapter):
+    # the frozen plan's `runtime` must equal the registered task's
+    # `assigned_runtime` (the field names differ; the value must match).
+    if frozen.get("runtime") and task.get("assigned_runtime") != frozen.get("runtime"):
+        errors.append(
+            f"goal_reconcile task {task_id} assigned_runtime {task.get('assigned_runtime')!r} "
+            f"does not match the frozen plan runtime {frozen.get('runtime')!r}"
+        )
     return errors
 
 
@@ -420,16 +428,50 @@ def enforce_goal_reconcile(
     head_dag = load_dag(target, goal_id)
     head_nodes = head_dag.get("nodes") if isinstance(head_dag, dict) else None
     covered_titles: set[str] = set()
+    title_to_id: dict[str, str] = {}
     if isinstance(head_nodes, list):
         for node in head_nodes:
             node_task = load_task(target, str(node))
             if isinstance(node_task, dict) and str(node_task.get("goal_id") or "") == goal_id:
-                covered_titles.add(str(node_task.get("title") or "").strip())
+                node_title = str(node_task.get("title") or "").strip()
+                covered_titles.add(node_title)
+                title_to_id[node_title] = str(node)
     head_missing = frozen_titles - covered_titles
     if head_missing:
         blocking.append(
             f"goal_reconcile must leave the goal's DAG covering every frozen plan task; missing {sorted(head_missing)}"
         )
+
+    # Bind frozen dependency semantics to the DAG edges: the frozen plan declares
+    # dependencies by title; the restored DAG edges must be EXACTLY the set of
+    # those dependencies mapped to registered task ids (from -> dependency, to ->
+    # dependent). Otherwise a reconcile could register all tasks/nodes but drop or
+    # invent dependency edges, weakening the dependency-done ordering the DAG
+    # encodes. Only checked once every frozen task is covered (ids resolvable).
+    if not head_missing:
+        expected_edges: set[tuple[str, str]] = set()
+        edge_errors: list[str] = []
+        for title, frozen in frozen_tasks.items():
+            for dep_title in frozen.get("dependencies") or []:
+                dep_title = str(dep_title).strip()
+                if dep_title not in title_to_id:
+                    edge_errors.append(
+                        f"goal_reconcile frozen dependency {dep_title!r} of task {title!r} does not resolve to a registered task"
+                    )
+                    continue
+                expected_edges.add((title_to_id[dep_title], title_to_id[title]))
+        blocking.extend(edge_errors)
+        head_edges: set[tuple[str, str]] = set()
+        for edge in (head_dag.get("edges") if isinstance(head_dag, dict) else None) or []:
+            if isinstance(edge, dict) and edge.get("from") and edge.get("to"):
+                head_edges.add((str(edge["from"]), str(edge["to"])))
+        if not edge_errors and head_edges != expected_edges:
+            missing_edges = expected_edges - head_edges
+            extra_edges = head_edges - expected_edges
+            blocking.append(
+                f"goal_reconcile DAG edges must match the frozen plan dependencies; "
+                f"missing {sorted(missing_edges)}, unexpected {sorted(extra_edges)}"
+            )
 
 
 POST_MERGE_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:post_merge_reconcile\s*-->")

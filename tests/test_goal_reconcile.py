@@ -33,8 +33,10 @@ TITLE_B = "Consult injection and docs"
 
 
 # The frozen plan task definitions; a registered task must match these exactly.
-FROZEN_A = {"title": TITLE_A, "scope": "scope-a", "risk_level": "high", "acceptance_checks": ["a"]}
-FROZEN_B = {"title": TITLE_B, "scope": "scope-b", "risk_level": "high", "acceptance_checks": ["b"]}
+# B depends on A (by title), and both declare a runtime — exercising the
+# dependency-edge and runtime bindings.
+FROZEN_A = {"title": TITLE_A, "scope": "scope-a", "risk_level": "high", "acceptance_checks": ["a"], "runtime": "claude-code"}
+FROZEN_B = {"title": TITLE_B, "scope": "scope-b", "risk_level": "high", "acceptance_checks": ["b"], "runtime": "claude-code", "dependencies": [TITLE_A]}
 
 
 def _seed(root: Path, *, frozen: bool = True) -> None:
@@ -53,7 +55,8 @@ def _write_task(root: Path, tid: str, *, title: str, status: str = "planned", go
     frozen = {TITLE_A: FROZEN_A, TITLE_B: FROZEN_B}.get(title, {})
     task = {"id": tid, "goal_id": goal, "title": title, "status": status,
             "scope": frozen.get("scope", "scope-x"), "risk_level": frozen.get("risk_level", "high"),
-            "acceptance_checks": frozen.get("acceptance_checks", ["x"])}
+            "acceptance_checks": frozen.get("acceptance_checks", ["x"]),
+            "assigned_runtime": frozen.get("runtime", "claude-code")}
     task.update(overrides)
     (root / ".shiki" / "tasks" / f"{tid}.json").write_text(json.dumps(task), encoding="utf-8")
 
@@ -80,8 +83,10 @@ class GoalReconcileTests(unittest.TestCase):
             _write_task(root, T_A, title=TITLE_A)
             _write_task(root, T_B, title=TITLE_B)
             _write_ledger(root, LEDGER)
+            # B depends on A (frozen), so the DAG must carry the A->B edge.
             (root / ".shiki" / "dag" / f"{GOAL}.json").write_text(
-                json.dumps({"goal_id": GOAL, "nodes": [T_A, T_B], "edges": []}), encoding="utf-8")
+                json.dumps({"goal_id": GOAL, "nodes": [T_A, T_B],
+                            "edges": [{"from": T_A, "to": T_B, "reason": "declared plan dependency"}]}), encoding="utf-8")
             blocking = _run(root, [
                 ChangedFile("A", f".shiki/tasks/{T_A}.json"),
                 ChangedFile("A", f".shiki/tasks/{T_B}.json"),
@@ -167,6 +172,74 @@ class GoalReconcileTests(unittest.TestCase):
                 ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
             ])
         self.assertTrue(any("DAG node" in b and "frozen plan" in b for b in blocking))
+
+    def _full_registration(self, root, edges):
+        # Register both frozen tasks + DAG with the given edges + ledger.
+        _seed(root)
+        _write_task(root, T_A, title=TITLE_A)
+        _write_task(root, T_B, title=TITLE_B)
+        _write_ledger(root, LEDGER)
+        (root / ".shiki" / "dag" / f"{GOAL}.json").write_text(
+            json.dumps({"goal_id": GOAL, "nodes": [T_A, T_B], "edges": edges}), encoding="utf-8")
+        return _run(root, [
+            ChangedFile("A", f".shiki/tasks/{T_A}.json"),
+            ChangedFile("A", f".shiki/tasks/{T_B}.json"),
+            ChangedFile("A", f".shiki/dag/{GOAL}.json"),
+            ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
+        ])
+
+    def test_missing_frozen_dependency_edge_is_rejected(self) -> None:
+        # Frozen B depends on A, but the DAG omits the A->B edge.
+        with tempfile.TemporaryDirectory() as tmp:
+            blocking = self._full_registration(Path(tmp), edges=[])
+        self.assertTrue(any("DAG edges must match the frozen plan dependencies" in b for b in blocking))
+
+    def test_extra_dag_edge_not_in_frozen_plan_is_rejected(self) -> None:
+        # An edge B->A that the frozen plan does not declare.
+        with tempfile.TemporaryDirectory() as tmp:
+            blocking = self._full_registration(
+                Path(tmp), edges=[{"from": T_A, "to": T_B}, {"from": T_B, "to": T_A}])
+        self.assertTrue(any("DAG edges must match the frozen plan dependencies" in b for b in blocking))
+
+    def test_correct_dependency_edge_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            blocking = self._full_registration(Path(tmp), edges=[{"from": T_A, "to": T_B, "reason": "dep"}])
+        self.assertEqual(blocking, [])
+
+    def test_runtime_mismatch_is_rejected(self) -> None:
+        # A registered task whose assigned_runtime differs from the frozen runtime.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed(root)
+            _write_task(root, T_A, title=TITLE_A, assigned_runtime="codex")  # frozen is claude-code
+            _write_ledger(root, LEDGER)
+            blocking = _run(root, [
+                ChangedFile("A", f".shiki/tasks/{T_A}.json"),
+                ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
+            ])
+        self.assertTrue(any("assigned_runtime" in b and "frozen plan runtime" in b for b in blocking))
+
+    def test_unresolvable_frozen_dependency_is_rejected(self) -> None:
+        # Frozen plan declares a dependency title that is not itself a frozen task.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for d in ("goals", "plans", "tasks", "dag", "ledger"):
+                (root / ".shiki" / d).mkdir(parents=True, exist_ok=True)
+            (root / ".shiki" / "goals" / f"{GOAL}.json").write_text(
+                json.dumps({"id": GOAL, "status": "planned", "source_plan": PLAN, "title": "g"}), encoding="utf-8")
+            (root / ".shiki" / "plans" / f"{PLAN}.json").write_text(
+                json.dumps({"id": PLAN, "spec_freeze": {"status": "frozen"},
+                            "tasks": [{**FROZEN_A, "dependencies": ["Nonexistent task"]}]}), encoding="utf-8")
+            _write_task(root, T_A, title=TITLE_A)
+            _write_ledger(root, LEDGER)
+            (root / ".shiki" / "dag" / f"{GOAL}.json").write_text(
+                json.dumps({"goal_id": GOAL, "nodes": [T_A], "edges": []}), encoding="utf-8")
+            blocking = _run(root, [
+                ChangedFile("A", f".shiki/tasks/{T_A}.json"),
+                ChangedFile("A", f".shiki/dag/{GOAL}.json"),
+                ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
+            ])
+        self.assertTrue(any("does not resolve to a registered task" in b for b in blocking))
 
     def test_missing_reconcile_ledger_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
