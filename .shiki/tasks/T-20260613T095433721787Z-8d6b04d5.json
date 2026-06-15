@@ -10,7 +10,8 @@
     "path:scripts/mergegate_check.py",
     "path:scripts/validate_shiki.py",
     "path:tests/*",
-    "path:.shiki/**"
+    "path:.shiki/**",
+    "path:.github/workflows/shiki-cca-completion.yml"
   ],
   "required_skills": [
     "tdd",
