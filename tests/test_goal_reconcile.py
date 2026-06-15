@@ -447,7 +447,22 @@ class PostMergeReconcileTests(unittest.TestCase):
             ])
         self.assertEqual(blocking, [])
 
-    def test_status_done_passes(self) -> None:
+    def test_status_review_with_lock_delete_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="review", expected_pr=None)
+            blocking = _pm_run(root, [
+                ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                ChangedFile("D", f".shiki/locks/{PM_TASK}.json"),
+                ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
+            ])
+        self.assertEqual(blocking, [])
+
+    def test_status_done_is_rejected(self) -> None:
+        # Marking the reconciled task terminal (done) is rejected: it would make
+        # validate demand the goal be complete on the same HEAD (which the mode
+        # cannot satisfy), re-deadlocking the final task. Only 'review' is allowed.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)
@@ -457,13 +472,13 @@ class PostMergeReconcileTests(unittest.TestCase):
                 ChangedFile("D", f".shiki/locks/{PM_TASK}.json"),
                 ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
             ])
-        self.assertEqual(blocking, [])
+        self.assertTrue(any("status must be review" in b for b in blocking))
 
     def test_changing_other_task_field_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)
-            _pm_write_head_task(root, base, status="done", acceptance_checks=["a", "sneaky"])
+            _pm_write_head_task(root, base, status="review", acceptance_checks=["a", "sneaky"])
             blocking = _pm_run(root, [
                 ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
                 ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
@@ -474,7 +489,7 @@ class PostMergeReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)
-            _pm_write_head_task(root, base, status="done")
+            _pm_write_head_task(root, base, status="review")
             blocking = _pm_run(root, [
                 ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
                 ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
@@ -486,7 +501,7 @@ class PostMergeReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)
-            _pm_write_head_task(root, base, status="done")
+            _pm_write_head_task(root, base, status="review")
             (root / ".shiki" / "locks" / f"{PM_TASK}.json").write_text(
                 json.dumps({"task_id": PM_TASK, "locks": ["path:scripts/x.py"], "state": "active"}), encoding="utf-8")
             blocking = _pm_run(root, [
@@ -500,7 +515,7 @@ class PostMergeReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)
-            _pm_write_head_task(root, base, status="done")
+            _pm_write_head_task(root, base, status="review")
             blocking = _pm_run(root, [ChangedFile("D", f".shiki/locks/{PM_TASK}.json")])
         self.assertTrue(any("reconcile ledger" in b for b in blocking))
 
@@ -511,7 +526,7 @@ class PostMergeReconcileTests(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 base = _pm_seed(root)
-                _pm_write_head_task(root, base, status="done")
+                _pm_write_head_task(root, base, status="review")
                 blocking = _pm_run(root, [
                     ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
                     ChangedFile("A", forbidden),
@@ -531,7 +546,7 @@ class PostMergeReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)
-            _pm_write_head_task(root, base, status="done")
+            _pm_write_head_task(root, base, status="review")
             blocking: list[str] = []
             enforce_post_merge_reconcile(target=root, task_id=PM_TASK, base_shiki=None,
                                          changed_files_status=[], blocking=blocking, warnings=[])
@@ -542,7 +557,7 @@ class PostMergeReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)
-            _pm_write_head_task(root, base, status="done")  # expected_pr left at 99
+            _pm_write_head_task(root, base, status="review")  # expected_pr left at 99
             blocking = _pm_run(root, [
                 ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
                 ChangedFile("D", f".shiki/locks/{PM_TASK}.json"),
@@ -555,7 +570,7 @@ class PostMergeReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)  # base expected_pr=99
-            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            _pm_write_head_task(root, base, status="review", expected_pr=None)
             blocking = _pm_run(root, [
                 ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
                 ChangedFile("D", f".shiki/locks/{PM_TASK}.json"),
@@ -568,7 +583,7 @@ class PostMergeReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)
-            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            _pm_write_head_task(root, base, status="review", expected_pr=None)
             # Lock stays active and is NOT in the changed files.
             (root / ".shiki" / "locks" / f"{PM_TASK}.json").write_text(
                 json.dumps({"task_id": PM_TASK, "locks": ["path:scripts/x.py"], "state": "active"}), encoding="utf-8")
@@ -584,7 +599,7 @@ class PostMergeReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)
-            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            _pm_write_head_task(root, base, status="review", expected_pr=None)
             blocking: list[str] = []
             enforce_post_merge_reconcile(
                 target=root, task_id=PM_TASK, base_shiki=root / ".shiki" / "base",
@@ -599,7 +614,7 @@ class PostMergeReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)
-            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            _pm_write_head_task(root, base, status="review", expected_pr=None)
             blocking: list[str] = []
             enforce_post_merge_reconcile(
                 target=root, task_id=PM_TASK, base_shiki=root / ".shiki" / "base",
@@ -618,7 +633,7 @@ class PostMergeReconcileTests(unittest.TestCase):
             base = _pm_seed(root)
             (root / ".shiki" / "base" / "tasks" / f"{PM_TASK}.json").write_text(
                 json.dumps({**base, "expected_pr": "not-a-number"}), encoding="utf-8")
-            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            _pm_write_head_task(root, base, status="review", expected_pr=None)
             blocking: list[str] = []
             try:
                 enforce_post_merge_reconcile(
@@ -637,7 +652,7 @@ class PostMergeReconcileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             base = _pm_seed(root)
-            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            _pm_write_head_task(root, base, status="review", expected_pr=None)
             blocking: list[str] = []
             enforce_post_merge_reconcile(
                 target=root, task_id=PM_TASK, base_shiki=root / ".shiki" / "base",

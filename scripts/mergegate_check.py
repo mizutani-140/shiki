@@ -478,7 +478,12 @@ POST_MERGE_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:post_merge_reconcile\s*-
 POST_MERGE_RECONCILE_LABEL = "mergegate:post_merge_reconcile"
 # Only these task fields may move during a post-merge reconcile of a merged task.
 _POST_MERGE_TASK_FIELDS = {"status", "expected_pr", "ledger_evidence"}
-_POST_MERGE_TASK_STATUSES = {"review", "done"}
+# The reconcile may only set the task to 'review' — NOT a terminal status. If it
+# marked a goal's last DAG node 'done', validate_shiki on the same HEAD would
+# demand the goal be 'complete' (all DAG nodes terminal), which the mode forbids
+# touching — re-deadlocking the final task. Leaving it 'review' keeps the node
+# non-terminal and lets the existing goal-complete flow close the goal.
+_POST_MERGE_TASK_STATUSES = {"review"}
 
 
 def post_merge_reconcile_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
@@ -592,7 +597,7 @@ def enforce_post_merge_reconcile(
                 if key not in _POST_MERGE_TASK_FIELDS and base_task.get(key) != head_task.get(key):
                     blocking.append(f"post_merge_reconcile must not change task field {key!r} of {task_id}")
             if head_task.get("status") not in _POST_MERGE_TASK_STATUSES:
-                blocking.append(f"post_merge_reconcile task {task_id} status must be review or done, not {head_task.get('status')!r}")
+                blocking.append(f"post_merge_reconcile task {task_id} status must be review (not terminal), not {head_task.get('status')!r}")
         elif path == lock_file:
             if entry.status == "D":
                 lock_reconciled = True
