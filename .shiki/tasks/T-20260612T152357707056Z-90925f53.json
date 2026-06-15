@@ -14,8 +14,8 @@
   "dependencies": [
     "T-20260612T152357706392Z-75f529da"
   ],
-  "expected_branch": "shiki/t2-capture-scorecard",
-  "expected_pr": 131,
+  "expected_branch": "shiki/t2-closeout-done",
+  "expected_pr": 136,
   "github_issue": null,
   "goal_id": "G-20260612T152357704854Z-8a5508cf",
   "id": "T-20260612T152357707056Z-90925f53",
@@ -24,7 +24,8 @@
     "L-20260613T082220087542Z-6b73ca1a",
     "L-20260613T082220087639Z-9fc30cf6",
     "L-20260615T084806676650Z-f9b4121a",
-    "L-20260615T110012777801Z-cc4ccb77"
+    "L-20260615T110012777801Z-cc4ccb77",
+    "L-20260615T114144026262Z-570a2007"
   ],
   "locks": [
     "path:.shiki/**",
@@ -46,6 +47,6 @@
   ],
   "risk_level": "high",
   "scope": "Implement proposal 0001 v2 sections 3.3 and 3.6: redacting capture helpers in shiki_memory.py (no stdout/stderr bodies, structured evidence refs plus short claim, skip-with-warning when unredactable, schema-validate before write, never raise into callers); hook the four capture points (create_repair_packet after guards, shiki_loop execute_action on the post-execution result including synthesized stop conversions, CCA-fail observation from the structured checks snapshot, record_runner_result on non-zero returncode); scorecard in cmd_goal_complete reports computed only from ledger/task/report state with ledger-id dedup, zeros plus warnings for missing sources, per-goal repair filtering by packet goal_id, duration window, and suggestions array that never changes memory status; keep loop stdout json_get_last compatible; failure-tolerant generation.",
-  "status": "review",
+  "status": "done",
   "title": "Capture hooks and scorecard"
 }

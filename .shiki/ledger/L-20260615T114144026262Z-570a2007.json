@@ -1,0 +1,16 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260612T152357707056Z-90925f53.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260615T114144026262Z-570a2007",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/131",
+    "https://github.com/mizutani-140/shiki/pull/136"
+  ],
+  "summary": "T2 closeout: Capture hooks and scorecard (proposal 0001 v2 sections 3.3+3.6) implementation merged in PR #131 (commit 6b2d5a8); marking the task done now that it is on main. Self-references PR #136 (MergeGate self-reference). T3 remains planned so the Memory Loop goal stays active by the DAG-based completion rule.",
+  "task_id": "T-20260612T152357707056Z-90925f53",
+  "timestamp": "2026-06-15T11:41:44.026262+00:00",
+  "type": "check"
+}
