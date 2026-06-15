@@ -1,0 +1,17 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/locks/T-20260612T152357706392Z-75f529da.json",
+    ".shiki/tasks/T-20260612T152357706392Z-75f529da.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260615T010503358988Z-021a8cf6",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/129",
+    "https://github.com/mizutani-140/shiki/pull/133"
+  ],
+  "summary": "Stale post-merge reconcile: T1 PR #129 merged (commit cc616d0) without the loop releasing the lock; releasing the T1 lock and clearing expected_pr so dependent control-plane work is unblocked. T1 is NOT marked done here (closeout is a separate PR) (reconcile delivered via PR #133).",
+  "task_id": "T-20260612T152357706392Z-75f529da",
+  "timestamp": "2026-06-15T01:05:03+00:00",
+  "type": "lock"
+}
