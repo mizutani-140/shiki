@@ -1,0 +1,45 @@
+{
+  "id": "T-20260612T152357707056Z-90925f53",
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "title": "Capture hooks and scorecard",
+  "status": "planned",
+  "scope": "Implement proposal 0001 v2 sections 3.3 and 3.6: redacting capture helpers in shiki_memory.py (no stdout/stderr bodies, structured evidence refs plus short claim, skip-with-warning when unredactable, schema-validate before write, never raise into callers); hook the four capture points (create_repair_packet after guards, shiki_loop execute_action on the post-execution result including synthesized stop conversions, CCA-fail observation from the structured checks snapshot, record_runner_result on non-zero returncode); scorecard in cmd_goal_complete reports computed only from ledger/task/report state with ledger-id dedup, zeros plus warnings for missing sources, per-goal repair filtering by packet goal_id, duration window, and suggestions array that never changes memory status; keep loop stdout json_get_last compatible; failure-tolerant generation.",
+  "non_goals": [
+    "No promotion logic changes (T1)",
+    "No handoff changes (T3)"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "locks": [
+    "path:.shiki/**",
+    "path:scripts/shiki_memory.py",
+    "path:scripts/shiki_loop.py",
+    "path:scripts/shiki_runtime.py",
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*",
+    "path:docs/**"
+  ],
+  "acceptance_checks": [
+    "Capture writes valid redacted raw memories at all four points in the goal-loop contract test; invalid capture writes nothing and warns; runner stdout/stderr bodies never appear in memory files",
+    "goal complete report contains the scorecard schema from proposal 3.6 computed from ledger with dedup; suggestions present; memory statuses unchanged; loop stdout stays json_get_last compatible",
+    "python3 scripts/validate_shiki.py and the full contract suite pass; CI green; PR carries PR-12 evidence"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260612T152357706392Z-75f529da"
+  ],
+  "expected_branch": "shiki/t-90925f53-placeholder",
+  "cca_checklist_profile": [
+    "PR",
+    "TDD",
+    "V",
+    "CCA"
+  ],
+  "ledger_evidence": [
+    "L-20260615T084806676650Z-f9b4121a"
+  ]
+}
