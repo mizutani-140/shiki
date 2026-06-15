@@ -5,18 +5,25 @@
     "python3 scripts/validate_shiki.py and the full contract suite pass; CI green; PR carries PR-12 evidence"
   ],
   "assigned_runtime": "claude-code",
+  "cca_checklist_profile": [
+    "PR",
+    "TDD",
+    "V",
+    "CCA"
+  ],
   "dependencies": [
     "T-20260612T152357706392Z-75f529da"
   ],
-  "expected_branch": "shiki/t-20260612t152357707056z-90925f53-capture-hooks-and-scorecard",
-  "expected_pr": null,
+  "expected_branch": "shiki/t2-capture-scorecard",
+  "expected_pr": 131,
   "github_issue": null,
   "goal_id": "G-20260612T152357704854Z-8a5508cf",
   "id": "T-20260612T152357707056Z-90925f53",
   "ledger_evidence": [
     "L-20260613T082220087093Z-83a63686",
     "L-20260613T082220087542Z-6b73ca1a",
-    "L-20260613T082220087639Z-9fc30cf6"
+    "L-20260613T082220087639Z-9fc30cf6",
+    "L-20260615T084806676650Z-f9b4121a"
   ],
   "locks": [
     "path:.shiki/**",

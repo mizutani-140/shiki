@@ -1,0 +1,45 @@
+{
+  "id": "T-20260613T095433721787Z-8d6b04d5",
+  "goal_id": "G-20260613T095433721642Z-2e5e71fd",
+  "title": "goal_reconcile PR type and DAG-based goal-complete",
+  "status": "review",
+  "risk_level": "high",
+  "expected_pr": null,
+  "dependencies": [],
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:scripts/validate_shiki.py",
+    "path:tests/*",
+    "path:.shiki/**",
+    "path:.github/workflows/shiki-cca-completion.yml"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "scope": "validate_shiki goal-complete uses the frozen DAG node set (terminal=done/cancelled/superseded; legacy no-DAG/orphan-task goals unchanged) + DAG node goal-ownership; mergegate_check goal_reconcile mode (<!-- shiki:goal_reconcile --> marker + mergegate:goal_reconcile maintainer label second factor; deny-by-default enforce_goal_reconcile: planned frozen-plan-title task additions 1:1, DAG restore with goal-anchored frozen nodes, task-registered reconcile ledger; forbids code/done/existing-task-M/goal-file/goal-complete/locks/repairs/memories/reports/guardian-policy).",
+  "non_goals": [
+    "No change to normal task PR per-task scope",
+    "No manual admin bypass"
+  ],
+  "acceptance_checks": [
+    "normal task PR still allows exactly one task file",
+    "goal_reconcile allows multiple planned frozen-plan registrations",
+    "code/done/cross-goal-DAG/goal-file/wrong-ledger-type/duplicate-title/forbidden-surface are rejected",
+    "DAG-based goal-complete: planned remaining => not complete; all terminal => complete; legacy unchanged",
+    "adversarial review 0 confirmed findings"
+  ],
+  "cca_checklist_profile": [
+    "PR",
+    "TDD",
+    "V",
+    "CCA"
+  ],
+  "ledger_evidence": [
+    "L-20260613T095433722130Z-0d5b50f9",
+    "L-20260613T095433722222Z-a4c61e7a",
+    "L-20260613T095433722299Z-464236e3"
+  ],
+  "assigned_runtime": "claude-code",
+  "expected_branch": "shiki/goal-reconcile-platform-fix"
+}

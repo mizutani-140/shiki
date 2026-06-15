@@ -167,6 +167,488 @@ def load_goal(target: Path, goal_id: str) -> dict[str, Any] | None:
     return load_json(target / ".shiki" / "goals" / f"{goal_id}.json")
 
 
+def load_dag(target: Path, goal_id: str) -> dict[str, Any] | None:
+    return load_json(target / ".shiki" / "dag" / f"{goal_id}.json")
+
+
+def goal_reconcile_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
+    """Decide whether a PR runs in goal_reconcile mode.
+
+    Requires BOTH the body marker (declares intent) AND a maintainer-applied
+    label (authorizes the relaxed scope). A marker without the label fails closed
+    with an error so untrusted PR text cannot self-grant the relaxed mode.
+    """
+    body = str(pr.get("body") or "")
+    marker = bool(GOAL_RECONCILE_MARKER.search(body))
+    label = GOAL_RECONCILE_LABEL in pr_label_names(pr)
+    if marker and not label:
+        return False, (
+            f"goal_reconcile requires the {GOAL_RECONCILE_LABEL} label (a maintainer-applied "
+            "second factor) in addition to the body marker"
+        )
+    return (marker and label), None
+
+
+def load_plan(target: Path, plan_id: str) -> dict[str, Any] | None:
+    return load_json(target / ".shiki" / "plans" / f"{plan_id}.json")
+
+
+# A goal_reconcile PR declares itself with this exact HTML-comment marker. A
+# comment marker (not a heading) is required because heading detection is
+# substring-permissive and forgeable; the marker is precise and cannot be
+# accidentally triggered by prose.
+GOAL_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:goal_reconcile\s*-->")
+# Relaxed reconcile scope must not be self-authorizable from the PR body alone.
+# A second factor — this label, which only a write-access maintainer/Guardian can
+# apply — is required in addition to the body marker.
+GOAL_RECONCILE_LABEL = "mergegate:goal_reconcile"
+
+
+# Governance-relevant fields of a frozen plan task that, when present in the
+# plan, a goal_reconcile-registered task MUST match exactly. Plan tasks carry no
+# ids, so title is the lookup key; everything else binds the task definition so a
+# reconcile cannot register a frozen title with a weakened risk/locks/criteria.
+# (Plan `runtime` -> task `assigned_runtime` and plan title-based `dependencies`
+# are representation-mismatched and are not field-compared here.)
+_FROZEN_TASK_MATCH_FIELDS = (
+    "scope",
+    "non_goals",
+    "required_skills",
+    "risk_level",
+    "locks",
+    "acceptance_checks",
+)
+
+
+def _frozen_plan_tasks(target: Path, goal_id: str) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    """Return (frozen tasks by title, errors) for a goal's spec-frozen source plan.
+
+    The frozen authority is the goal's source_plan with spec_freeze.status=frozen.
+    Plan tasks are keyed by title (no ids in the plan schema). Duplicate titles
+    fail closed, because title is the only binding key and an ambiguous key would
+    let a registration match the wrong frozen definition.
+    """
+    errors: list[str] = []
+    goal = load_goal(target, goal_id)
+    if goal is None:
+        return {}, [f"goal_reconcile: goal {goal_id} not found"]
+    plan_id = str(goal.get("source_plan") or "")
+    if not plan_id:
+        return {}, [f"goal_reconcile: goal {goal_id} has no source_plan to bind to"]
+    plan = load_plan(target, plan_id)
+    if plan is None:
+        return {}, [f"goal_reconcile: source_plan {plan_id} not found"]
+    spec_freeze = plan.get("spec_freeze")
+    if not isinstance(spec_freeze, dict) or spec_freeze.get("status") != "frozen":
+        return {}, [f"goal_reconcile: source_plan {plan_id} is not spec-frozen"]
+    tasks: dict[str, dict[str, Any]] = {}
+    for t in plan.get("tasks") or []:
+        if not isinstance(t, dict) or not t.get("title"):
+            continue
+        title = str(t.get("title")).strip()
+        if title in tasks:
+            errors.append(f"goal_reconcile: frozen plan {plan_id} has duplicate task title {title!r}; cannot bind")
+            continue
+        tasks[title] = t
+    return tasks, errors
+
+
+def _frozen_task_match_errors(task_id: str, task: dict[str, Any], frozen: dict[str, Any]) -> list[str]:
+    """A registered task must match its frozen plan task on every governance
+    field the plan declares (frozen-definition binding, not just title)."""
+    errors: list[str] = []
+    for field in _FROZEN_TASK_MATCH_FIELDS:
+        if field in frozen and task.get(field) != frozen.get(field):
+            errors.append(
+                f"goal_reconcile task {task_id} field {field!r} does not match its frozen plan definition"
+            )
+    # Runtime assignment is governance-relevant (it picks the execution adapter):
+    # the frozen plan's `runtime` must equal the registered task's
+    # `assigned_runtime` (the field names differ; the value must match).
+    if frozen.get("runtime") and task.get("assigned_runtime") != frozen.get("runtime"):
+        errors.append(
+            f"goal_reconcile task {task_id} assigned_runtime {task.get('assigned_runtime')!r} "
+            f"does not match the frozen plan runtime {frozen.get('runtime')!r}"
+        )
+    return errors
+
+
+def enforce_goal_reconcile(
+    *,
+    target: Path,
+    goal_id: str,
+    changed_files_status: list[ChangedFile],
+    blocking: list[str],
+    warnings: list[str],
+) -> None:
+    """Validate a goal_reconcile PR: register frozen-plan tasks into main state.
+
+    Deny by default. A goal_reconcile PR may ONLY: add planned task files whose
+    title is in the goal's spec-frozen plan (each title covered at most once) and
+    whose goal_id is this goal; restore the goal's DAG so every node resolves to a
+    frozen-plan task anchored to this goal; and append a goal-scoped
+    task-registered reconcile ledger. Everything else — code, marking a task
+    done/cancelled/superseded, modifying an existing task (e.g. acceptance_checks),
+    the goal file itself (its source_plan binding and status must not move),
+    goal-complete reports, locks, repairs, runner records, memories, authority
+    artifacts (guardian-policy, distilled rules), or the frozen plan — is
+    forbidden. This relaxes the per-task one-file rule into a narrow,
+    frozen-plan-bound registration mode, never a general multi-file bypass.
+    """
+    if not goal_id:
+        blocking.append("goal_reconcile PR must reference a Shiki goal id")
+        return
+    frozen_tasks, frozen_errors = _frozen_plan_tasks(target, goal_id)
+    if frozen_errors:
+        blocking.extend(frozen_errors)
+        return
+    frozen_titles = set(frozen_tasks)
+
+    dag_file = f".shiki/dag/{goal_id}.json"
+    reconcile_ledger_seen = False
+    # Each frozen plan title may be registered exactly once. Seed the consumed
+    # set with titles of tasks ALREADY registered for the goal (excluding the
+    # ones this PR adds, which are present in the HEAD checkout) so a reconcile
+    # cannot re-register or double-cover a frozen plan task.
+    added_task_ids = {
+        Path(normalize_repo_path(e.path)).stem
+        for e in changed_files_status
+        if e.status == "A" and normalize_repo_path(e.path).startswith(".shiki/tasks/") and e.path.endswith(".json")
+    }
+    consumed_titles: set[str] = set()
+    tasks_dir = target / ".shiki" / "tasks"
+    if tasks_dir.is_dir():
+        for existing in tasks_dir.glob("T-*.json"):
+            if existing.stem in added_task_ids:
+                continue
+            existing_data = load_json(existing)
+            if isinstance(existing_data, dict) and str(existing_data.get("goal_id") or "") == goal_id:
+                consumed_titles.add(str(existing_data.get("title") or "").strip())
+
+    for entry in changed_files_status:
+        path = normalize_repo_path(entry.path)
+        if not path.startswith(".shiki/"):
+            blocking.append(f"goal_reconcile must not change non-Shiki (implementation) file {path}")
+            continue
+        if entry.status == "D":
+            blocking.append(f"goal_reconcile must not delete {path}")
+            continue
+        if path.startswith(".shiki/tasks/") and path.endswith(".json"):
+            if entry.status != "A":
+                blocking.append(f"goal_reconcile may only ADD planned task files, not modify {path}")
+                continue
+            data = load_json(target / path)
+            if not isinstance(data, dict):
+                blocking.append(f"goal_reconcile task file {path} is not a JSON object")
+                continue
+            task_id = Path(path).stem
+            if str(data.get("id") or "") != task_id:
+                blocking.append(f"goal_reconcile task filename {path} does not match its id {data.get('id')!r}")
+            if str(data.get("goal_id") or "") != goal_id:
+                blocking.append(f"goal_reconcile task {task_id} is not anchored to goal {goal_id}")
+            if data.get("status") != "planned":
+                blocking.append(f"goal_reconcile task {task_id} must be registered as status=planned, not {data.get('status')!r}")
+            title = str(data.get("title") or "").strip()
+            if title not in frozen_titles:
+                blocking.append(f"goal_reconcile task {task_id} title {title!r} is not in the goal's frozen plan")
+            elif title in consumed_titles:
+                blocking.append(f"goal_reconcile task {task_id} re-registers frozen plan title {title!r} (already covered)")
+            else:
+                consumed_titles.add(title)
+                # Bind to the FROZEN TASK DEFINITION, not just the title: a
+                # registered task must match every governance field the frozen
+                # plan declares (risk_level, locks, acceptance_checks, ...).
+                blocking.extend(_frozen_task_match_errors(task_id, data, frozen_tasks[title]))
+        elif path == dag_file:
+            # DAG restore is allowed; every node must resolve to a frozen-plan
+            # task ANCHORED TO THIS GOAL (existing or added in this PR), so a
+            # foreign task with a colliding title cannot be wired in (poisoning).
+            dag = load_json(target / path)
+            nodes = dag.get("nodes") if isinstance(dag, dict) else None
+            if not isinstance(nodes, list):
+                blocking.append(f"goal_reconcile DAG {path} must have a nodes list")
+                continue
+            node_titles: set[str] = set()
+            for node in nodes:
+                node_task = load_task(target, str(node))
+                if node_task is None:
+                    blocking.append(f"goal_reconcile DAG node {node} has no task file")
+                    continue
+                if str(node_task.get("goal_id") or "") != goal_id:
+                    blocking.append(f"goal_reconcile DAG node {node} is not anchored to goal {goal_id}")
+                    continue
+                node_title = str(node_task.get("title") or "").strip()
+                if node_title not in frozen_titles:
+                    blocking.append(f"goal_reconcile DAG node {node} title {node_title!r} is not in the goal's frozen plan")
+                else:
+                    node_titles.add(node_title)
+            # The restored DAG must COVER the full frozen plan, not a subset: a
+            # truncated DAG (dropping frozen tasks) would later let validate force
+            # premature goal-complete once the registered subset finishes, while
+            # frozen tasks that were never registered are silently abandoned.
+            missing = frozen_titles - node_titles
+            if missing:
+                blocking.append(
+                    f"goal_reconcile DAG must cover every frozen plan task; missing {sorted(missing)}"
+                )
+        elif path.startswith(".shiki/dag/") and path.endswith(".json"):
+            blocking.append(f"goal_reconcile must not change another goal's DAG {path}")
+        elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
+            if entry.status != "A":
+                blocking.append(f"goal_reconcile must append, not modify, ledger {path}")
+                continue
+            led = load_json(target / path)
+            if not isinstance(led, dict) or str(led.get("goal_id") or "") != goal_id:
+                blocking.append(f"goal_reconcile ledger {path} must be scoped to goal {goal_id}")
+                continue
+            # The reconcile event must be a registration ledger, not any
+            # goal-scoped ledger, so the requirement proves an actual reconcile.
+            if led.get("type") == "task-registered":
+                reconcile_ledger_seen = True
+        else:
+            # Deny by default. The goal file itself is forbidden: a reconcile must
+            # not move the goal's source_plan binding (it is validated against),
+            # change its status, or touch any other field. Also forbidden:
+            # memories, reports, guardian-policy, locks, repairs, runner, plans,
+            # and everything else.
+            blocking.append(
+                f"goal_reconcile must not change {path}; only frozen-plan task registration, "
+                f"DAG restore for {goal_id}, and a task-registered reconcile ledger are allowed"
+            )
+
+    if not reconcile_ledger_seen:
+        blocking.append(f"goal_reconcile must include a goal-scoped task-registered reconcile ledger event for {goal_id}")
+
+    # HEAD invariant (independent of whether the DAG file is in this diff): after
+    # the reconcile, the goal's DAG must cover every frozen-plan task. Without
+    # this, a PR could register a subset of tasks and simply OMIT the DAG; a
+    # legacy DAG-less goal would then let validate force premature goal-complete
+    # on the registered subset, abandoning the unregistered frozen tasks. This
+    # makes "the reconcile restores the goal's DAG" a hard invariant.
+    head_dag = load_dag(target, goal_id)
+    head_nodes = head_dag.get("nodes") if isinstance(head_dag, dict) else None
+    covered_titles: set[str] = set()
+    title_to_id: dict[str, str] = {}
+    if isinstance(head_nodes, list):
+        for node in head_nodes:
+            node_task = load_task(target, str(node))
+            if isinstance(node_task, dict) and str(node_task.get("goal_id") or "") == goal_id:
+                node_title = str(node_task.get("title") or "").strip()
+                covered_titles.add(node_title)
+                title_to_id[node_title] = str(node)
+    head_missing = frozen_titles - covered_titles
+    if head_missing:
+        blocking.append(
+            f"goal_reconcile must leave the goal's DAG covering every frozen plan task; missing {sorted(head_missing)}"
+        )
+
+    # Bind frozen dependency semantics to the DAG edges: the frozen plan declares
+    # dependencies by title; the restored DAG edges must be EXACTLY the set of
+    # those dependencies mapped to registered task ids (from -> dependency, to ->
+    # dependent). Otherwise a reconcile could register all tasks/nodes but drop or
+    # invent dependency edges, weakening the dependency-done ordering the DAG
+    # encodes. Only checked once every frozen task is covered (ids resolvable).
+    if not head_missing:
+        expected_edges: set[tuple[str, str]] = set()
+        # Per dependent task id, the exact set of dependency task ids the frozen
+        # plan declares — used to bind BOTH the DAG edges AND the task file's own
+        # `dependencies` field (the normal MergeGate path gates dependency-done
+        # from task.dependencies, so the DAG alone is insufficient).
+        expected_task_deps: dict[str, set[str]] = {tid: set() for tid in title_to_id.values()}
+        edge_errors: list[str] = []
+        for title, frozen in frozen_tasks.items():
+            for dep_title in frozen.get("dependencies") or []:
+                dep_title = str(dep_title).strip()
+                if dep_title not in title_to_id:
+                    edge_errors.append(
+                        f"goal_reconcile frozen dependency {dep_title!r} of task {title!r} does not resolve to a registered task"
+                    )
+                    continue
+                expected_edges.add((title_to_id[dep_title], title_to_id[title]))
+                expected_task_deps[title_to_id[title]].add(title_to_id[dep_title])
+        blocking.extend(edge_errors)
+        head_edges: set[tuple[str, str]] = set()
+        for edge in (head_dag.get("edges") if isinstance(head_dag, dict) else None) or []:
+            if isinstance(edge, dict) and edge.get("from") and edge.get("to"):
+                head_edges.add((str(edge["from"]), str(edge["to"])))
+        if not edge_errors and head_edges != expected_edges:
+            missing_edges = expected_edges - head_edges
+            extra_edges = head_edges - expected_edges
+            blocking.append(
+                f"goal_reconcile DAG edges must match the frozen plan dependencies; "
+                f"missing {sorted(missing_edges)}, unexpected {sorted(extra_edges)}"
+            )
+        # Bind each registered task's own `dependencies` field to the frozen plan
+        # (mapped to ids), so the normal dependency-done gate that reads
+        # task.dependencies cannot be bypassed by a divergent/absent field.
+        if not edge_errors:
+            for tid, expected_deps in expected_task_deps.items():
+                tdata = load_task(target, tid)
+                actual_deps = {str(d) for d in (tdata.get("dependencies") if isinstance(tdata, dict) else None) or []}
+                if actual_deps != expected_deps:
+                    blocking.append(
+                        f"goal_reconcile task {tid} dependencies {sorted(actual_deps)} do not match the frozen plan "
+                        f"{sorted(expected_deps)}"
+                    )
+
+
+POST_MERGE_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:post_merge_reconcile\s*-->")
+POST_MERGE_RECONCILE_LABEL = "mergegate:post_merge_reconcile"
+# Only these task fields may move during a post-merge reconcile of a merged task.
+_POST_MERGE_TASK_FIELDS = {"status", "expected_pr", "ledger_evidence"}
+# The reconcile may only set the task to 'review' — NOT a terminal status. If it
+# marked a goal's last DAG node 'done', validate_shiki on the same HEAD would
+# demand the goal be 'complete' (all DAG nodes terminal), which the mode forbids
+# touching — re-deadlocking the final task. Leaving it 'review' keeps the node
+# non-terminal and lets the existing goal-complete flow close the goal.
+_POST_MERGE_TASK_STATUSES = {"review"}
+
+
+def post_merge_reconcile_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
+    """Decide whether a PR runs in post_merge_reconcile mode (marker + label)."""
+    body = str(pr.get("body") or "")
+    marker = bool(POST_MERGE_RECONCILE_MARKER.search(body))
+    label = POST_MERGE_RECONCILE_LABEL in pr_label_names(pr)
+    if marker and not label:
+        return False, (
+            f"post_merge_reconcile requires the {POST_MERGE_RECONCILE_LABEL} label (a maintainer-applied "
+            "second factor) in addition to the body marker"
+        )
+    return (marker and label), None
+
+
+def enforce_post_merge_reconcile(
+    *,
+    target: Path,
+    task_id: str,
+    base_shiki: Path | None,
+    changed_files_status: list[ChangedFile],
+    blocking: list[str],
+    warnings: list[str],
+    merged_pr_numbers: set[int] | None = None,
+    pr_body: str | None = None,
+) -> None:
+    """Validate a post_merge_reconcile PR: reconcile a MERGED task's residual
+    state. Deny by default.
+
+    The autonomous loop normally releases a task's lock and marks it done the
+    moment its PR merges; when that did not happen (e.g. a manual merge), the
+    residual lock and expected_pr block all later control-plane work. This mode
+    lets one PR reconcile EXACTLY that residue for a single task whose PR is
+    PROVEN merged: it must clear the task's expected_pr, must release the task's
+    lock (state=released or delete) when a lock file exists, may set status to
+    review/done, and appends a reconcile ledger. It may NOT touch code, other
+    tasks, the goal file, the DAG, memories, reports, guardian-policy, other
+    locks, or any other task field (acceptance_checks, locks, scope, …). Without
+    proof the referenced PR merged, or if the residue is not actually cleaned up,
+    it fails closed — never a generic status-mutation mode.
+    """
+    if not task_id:
+        blocking.append("post_merge_reconcile PR must reference a Shiki task id")
+        return
+    # The PR body must reference EXACTLY ONE Shiki task id. Otherwise the merge
+    # proof (computed by the workflow) and the task this validator mutates could
+    # resolve to different ids, breaking the 1:1 binding between "the PR proven
+    # merged" and "the task whose lock/status is cleared".
+    if pr_body is not None:
+        body_task_ids = {m.group(0) for m in TASK_ID.finditer(pr_body)}
+        if len(body_task_ids) > 1:
+            blocking.append(
+                f"post_merge_reconcile PR body must reference exactly one task id; found {sorted(body_task_ids)}"
+            )
+            return
+    head_task = load_task(target, task_id)
+    if head_task is None:
+        blocking.append(f"post_merge_reconcile: task {task_id} not found")
+        return
+    if base_shiki is None:
+        blocking.append("post_merge_reconcile requires a base .shiki snapshot to verify task-field immutability")
+        return
+    base_task = load_json(base_shiki / "tasks" / f"{task_id}.json")
+    if not isinstance(base_task, dict):
+        blocking.append(f"post_merge_reconcile: base snapshot has no task {task_id} to reconcile against")
+        return
+    # The reconcile target must be a task whose PR ACTUALLY MERGED. The base
+    # (pre-reconcile) expected_pr names that PR; merged_pr_numbers proves it
+    # merged. Without that proof this mode fails closed (it is not a generic
+    # status-mutation mode).
+    base_expected_pr = base_task.get("expected_pr")
+    # No proof set (None) is treated as "no proof" and fails closed, so the
+    # function never fail-opens on its own default for a future/library caller.
+    proven_merged = merged_pr_numbers or set()
+    if not base_expected_pr:
+        blocking.append(f"post_merge_reconcile: task {task_id} has no merged PR (no base expected_pr) to reconcile")
+    else:
+        try:
+            base_pr_num = int(base_expected_pr)
+        except (TypeError, ValueError):
+            # A malformed base expected_pr becomes a deterministic blocker, not
+            # an opaque CI crash.
+            blocking.append(f"post_merge_reconcile: task {task_id} base expected_pr {base_expected_pr!r} is not a PR number")
+            base_pr_num = None
+        if base_pr_num is not None and base_pr_num not in proven_merged:
+            blocking.append(
+                f"post_merge_reconcile: task {task_id} references PR #{base_expected_pr}, which is not proven merged"
+            )
+    # The residue MUST be cleaned up: expected_pr cleared on the head task.
+    if head_task.get("expected_pr") is not None:
+        blocking.append(f"post_merge_reconcile must clear expected_pr on task {task_id} (still {head_task.get('expected_pr')!r})")
+
+    task_file = f".shiki/tasks/{task_id}.json"
+    lock_file = f".shiki/locks/{task_id}.json"
+    reconcile_ledger_seen = False
+    lock_reconciled = False
+    # If a lock file exists for the task, the reconcile MUST release it; a stale
+    # active lock is exactly the residue this mode exists to clear.
+    lock_exists_at_head = (target / ".shiki" / "locks" / f"{task_id}.json").is_file()
+
+    for entry in changed_files_status:
+        path = normalize_repo_path(entry.path)
+        if not path.startswith(".shiki/"):
+            blocking.append(f"post_merge_reconcile must not change non-Shiki (implementation) file {path}")
+            continue
+        if path == task_file:
+            if entry.status != "M":
+                blocking.append(f"post_merge_reconcile may only modify its task file {path}, not add/delete it")
+                continue
+            for key in set(base_task) | set(head_task):
+                if key not in _POST_MERGE_TASK_FIELDS and base_task.get(key) != head_task.get(key):
+                    blocking.append(f"post_merge_reconcile must not change task field {key!r} of {task_id}")
+            if head_task.get("status") not in _POST_MERGE_TASK_STATUSES:
+                blocking.append(f"post_merge_reconcile task {task_id} status must be review (not terminal), not {head_task.get('status')!r}")
+        elif path == lock_file:
+            if entry.status == "D":
+                lock_reconciled = True
+                continue  # deleting the lock is a valid release
+            lock = load_json(target / path)
+            if not (isinstance(lock, dict) and lock.get("state") == "released"):
+                blocking.append(f"post_merge_reconcile lock change to {path} must set state=released (or delete the lock)")
+            else:
+                lock_reconciled = True
+        elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
+            if entry.status != "A":
+                blocking.append(f"post_merge_reconcile must append, not modify, ledger {path}")
+                continue
+            led = load_json(target / path)
+            led_ok = isinstance(led, dict) and led.get("task_id") == task_id and led.get("type") in {"lock", "check"}
+            if not led_ok:
+                blocking.append(f"post_merge_reconcile ledger {path} must be a task-scoped lock/check reconcile event for {task_id}")
+                continue
+            reconcile_ledger_seen = True
+        else:
+            blocking.append(
+                f"post_merge_reconcile must not change {path}; only this task's status/expected_pr, its lock release, "
+                "and a reconcile ledger are allowed"
+            )
+
+    if not reconcile_ledger_seen:
+        blocking.append(f"post_merge_reconcile must include a task-scoped reconcile ledger event for {task_id}")
+    # A stale active lock is the residue this mode exists to clear: if a lock
+    # file exists for the task, the PR must release it.
+    if lock_exists_at_head and not lock_reconciled:
+        blocking.append(f"post_merge_reconcile must release the task lock {lock_file} (it is the residue being reconciled)")
+
+
 def blocking_checklist_failures(verdict: dict[str, Any]) -> list[str]:
     failures: list[str] = []
     for item in verdict.get("checklist") or []:
@@ -732,6 +1214,11 @@ def main() -> int:
     parser.add_argument("--expected-repository", default="")
     parser.add_argument("--expected-head-sha")
     parser.add_argument("--base-shiki")
+    parser.add_argument(
+        "--merged-prs",
+        default="",
+        help="Comma-separated PR numbers proven merged (used by post_merge_reconcile to verify the referenced PR actually merged).",
+    )
     parser.add_argument("--guardian-policy", default=".shiki/guardian-policy.json")
     parser.add_argument("--guardian-comments", default=".shiki/gha/live-guardian-comments.json")
     parser.add_argument("--guardian-events", default=".shiki/gha/live-guardian-events.json")
@@ -745,6 +1232,8 @@ def main() -> int:
     warnings: list[str] = []
     resolved_task_id: str | None = None
     resolved_goal_id: str | None = None
+    reconcile_mode = False
+    post_merge_mode = False
     manifest: dict[str, Any] | None = None
     try:
         manifest = load_manifest(target)
@@ -757,16 +1246,34 @@ def main() -> int:
         body = str(pr.get("body") or "")
         resolved_task_id = first_match(TASK_ID, body)
         resolved_goal_id = first_match(GOAL_ID, body)
+        reconcile_mode, reconcile_error = goal_reconcile_decision(pr)
+        post_merge_mode, post_merge_error = post_merge_reconcile_decision(pr)
+        if reconcile_error:
+            blocking.append(reconcile_error)
+        if post_merge_error:
+            blocking.append(post_merge_error)
+        if reconcile_mode and post_merge_mode:
+            blocking.append("a PR cannot be both goal_reconcile and post_merge_reconcile")
         if args.expected_head_sha:
             pr_head = str(pr.get("headRefOid") or "")
             if not pr_head:
                 blocking.append("PR headRefOid is missing")
             elif pr_head != args.expected_head_sha:
                 blocking.append(f"PR headRefOid {pr_head} does not match expected checked-out HEAD {args.expected_head_sha}")
-        if not resolved_task_id:
-            blocking.append("PR body does not contain a Shiki task id like T-0001")
-        if not resolved_goal_id:
-            blocking.append("PR body does not contain a Shiki goal id like G-0001")
+        if reconcile_mode:
+            # A goal_reconcile PR is goal-scoped (frozen-plan task registration);
+            # it does not carry a single implementation task id.
+            if not resolved_goal_id:
+                blocking.append("goal_reconcile PR body does not contain a Shiki goal id like G-0001")
+        elif post_merge_mode:
+            # A post_merge_reconcile PR is task-scoped (reconcile a merged task).
+            if not resolved_task_id:
+                blocking.append("post_merge_reconcile PR body does not contain a Shiki task id like T-0001")
+        else:
+            if not resolved_task_id:
+                blocking.append("PR body does not contain a Shiki task id like T-0001")
+            if not resolved_goal_id:
+                blocking.append("PR body does not contain a Shiki goal id like G-0001")
         for heading in ["Scope", "Acceptance", "Evidence", "MergeGate"]:
             if heading.lower() not in body.lower() and not has_heading(body, heading):
                 blocking.append(f"PR body is missing {heading} section")
@@ -776,7 +1283,42 @@ def main() -> int:
 
     task: dict[str, Any] | None = None
     ledger_entries: list[dict[str, Any]] = []
-    if resolved_task_id:
+    if reconcile_mode and pr:
+        # goal_reconcile is a goal-scoped, frozen-plan registration PR; it uses a
+        # dedicated deny-by-default validator instead of the single-task readiness
+        # flow (no implementation task, CCA, locks, or guardian gate).
+        files_status = parse_changed_files_status(
+            Path(args.changed_files_status), changed_files(Path(args.changed_files))
+        )
+        enforce_goal_reconcile(
+            target=target,
+            goal_id=resolved_goal_id or "",
+            changed_files_status=files_status,
+            blocking=blocking,
+            warnings=warnings,
+        )
+    elif post_merge_mode and pr:
+        # post_merge_reconcile is a task-scoped reconcile of a merged task's
+        # residual lock / status; a dedicated deny-by-default validator.
+        files_status = parse_changed_files_status(
+            Path(args.changed_files_status), changed_files(Path(args.changed_files))
+        )
+        merged_prs = {
+            int(token.strip())
+            for token in str(args.merged_prs or "").split(",")
+            if token.strip().isdigit()
+        }
+        enforce_post_merge_reconcile(
+            target=target,
+            task_id=resolved_task_id or "",
+            base_shiki=Path(args.base_shiki) if args.base_shiki else None,
+            changed_files_status=files_status,
+            blocking=blocking,
+            warnings=warnings,
+            merged_pr_numbers=merged_prs,
+            pr_body=body,
+        )
+    elif resolved_task_id:
         task = load_task(target, resolved_task_id)
         if task is None:
             blocking.append(f"Task file not found for {resolved_task_id}")
@@ -891,9 +1433,20 @@ def main() -> int:
         if pr:
             enforce_required_checks(pr, target, blocking, warnings)
             enforce_review_policy(pr, target, blocking)
+            # Reconcile PRs carry no `task`, so the guardian gate would otherwise
+            # miss the reconciled work's risk. Derive a risk-bearing task so a
+            # high/critical merged task (post_merge) or goal (goal_reconcile)
+            # still forces Guardian evaluation for its reconcile.
+            guardian_task = task
+            if guardian_task is None and post_merge_mode and resolved_task_id:
+                guardian_task = load_task(target, resolved_task_id)
+            elif guardian_task is None and reconcile_mode and resolved_goal_id:
+                goal = load_goal(target, resolved_goal_id)
+                if isinstance(goal, dict) and goal.get("risk_level"):
+                    guardian_task = {"risk_level": goal.get("risk_level")}
             enforce_guardian_policy(
                 pr=pr,
-                task=task,
+                task=guardian_task,
                 target=target,
                 guardian_policy=args.guardian_policy,
                 guardian_comments=args.guardian_comments,
