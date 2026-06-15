@@ -896,7 +896,10 @@ def write_task_handoff(target: Path, task_id: str) -> tuple[Path, str]:
     # applicable" so handoff generation can never break dispatch.
     try:
         goal = load_goal(target, task["goal_id"])
-    except (OSError, ValueError, KeyError):
+    except Exception:
+        # A missing/desynced goal mirror (read_json raises ShikiError) must
+        # degrade to "none applicable", never crash the now-unconditional
+        # dispatch regeneration.
         goal = None
     try:
         distilled = select_distilled_rules(task, goal, load_all_memories(target))

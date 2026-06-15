@@ -127,23 +127,52 @@ class SelectDistilledRulesTests(unittest.TestCase):
         rules = select_distilled_rules(_task(locks=["path:scripts/shiki_memory.py"]), _goal(), mems)
         self.assertEqual([r["id"] for r in rules], ["MEM-0014"])
 
-    def test_exclude_unscoped_rule(self):
-        # active distilled rule with no overlapping selector is excluded
+    def test_exclude_no_overlap_rule(self):
+        # active distilled rule whose selectors do not overlap is excluded
         rules = select_distilled_rules(
             _task(locks=["path:scripts/shiki_memory.py"]), _goal(),
             [_rule("MEM-0020", area="cca", applies_to=[], tags=[])],
         )
         self.assertEqual(rules, [])
 
+    def test_exclude_revoked_alone(self):
+        # revoked_at set must exclude on its own, independent of the active flag
+        rules = select_distilled_rules(
+            _task(locks=["path:scripts/shiki_memory.py"]), _goal(),
+            [_rule("MEM-0021", area="memory", active=True,
+                   revoked_at="2026-06-11T00:00:00+00:00")],
+        )
+        self.assertEqual(rules, [])
+
+    def test_exclude_zero_selector_rule(self):
+        # a rule with NO selectors (area/applies_to/tags all empty) never matches,
+        # even against a context that would otherwise overlap.
+        rules = select_distilled_rules(
+            _task(locks=["path:scripts/shiki_memory.py"]), _goal(),
+            [_rule("MEM-0022", area="", applies_to=[], tags=[])],
+        )
+        self.assertEqual(rules, [])
+
     def test_stable_sort_last_verified_desc_then_id_asc(self):
+        # The tied pair (same last_verified) is fed in id-DESCENDING order so the
+        # assertion can only hold if the selector actively re-sorts by id asc on
+        # the tie (stable sort alone would keep MEM-c before MEM-a).
         mems = [
             _rule("MEM-b", area="memory", last_verified="2026-06-01T00:00:00+00:00"),
-            _rule("MEM-a", area="memory", last_verified="2026-06-09T00:00:00+00:00"),
             _rule("MEM-c", area="memory", last_verified="2026-06-09T00:00:00+00:00"),
+            _rule("MEM-a", area="memory", last_verified="2026-06-09T00:00:00+00:00"),
             _rule("MEM-d", area="memory", last_verified=None),  # missing -> last
         ]
         rules = select_distilled_rules(_task(locks=["path:scripts/shiki_memory.py"]), _goal(), mems)
         self.assertEqual([r["id"] for r in rules], ["MEM-a", "MEM-c", "MEM-b", "MEM-d"])
+
+    def test_match_is_case_insensitive(self):
+        # case-variant applies_to/tags must still match the normalized context
+        rules = select_distilled_rules(
+            _task(locks=["path:scripts/shiki_memory.py"], skills=["TDD"]), _goal(),
+            [_rule("MEM-0023", area="Memory", applies_to=["MEMORY"], tags=["Tdd"])],
+        )
+        self.assertEqual([r["id"] for r in rules], ["MEM-0023"])
 
     def test_selector_does_not_mutate_inputs(self):
         mems = [_rule("MEM-0030", area="memory")]

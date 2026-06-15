@@ -81,6 +81,35 @@ class HandoffConsultTests(unittest.TestCase):
             body = write_task_handoff(root, TASK_ID)[0].read_text(encoding="utf-8")
             self.assertIn("none applicable", body)
 
+    def test_missing_goal_degrades_to_none_applicable(self):
+        # A desynced mirror (goal file absent) must degrade, never crash the
+        # now-unconditional dispatch regeneration.
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            _seed(root, locks=["path:scripts/shiki_memory.py"])
+            (root / ".shiki" / "goals" / f"{GOAL_ID}.json").unlink()
+            handoff_file, _ = write_task_handoff(root, TASK_ID)  # must not raise
+            body = handoff_file.read_text(encoding="utf-8")
+            self.assertIn("## Distilled Rules", body)
+            self.assertIn("none applicable", body)
+
+    def test_writer_overwrites_stale_handoff(self):
+        # The write-if-missing cache is removed: regenerating always overwrites a
+        # stale on-disk handoff with the freshly injected section.
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            _seed(root, locks=["path:scripts/shiki_memory.py"])
+            handoff_path = root / ".shiki" / "handoffs" / f"{TASK_ID}-task.md"
+            handoff_path.parent.mkdir(parents=True, exist_ok=True)
+            handoff_path.write_text("STALE — no distilled rules here\n", encoding="utf-8")
+            _write_rule(root, "MEM-20260612T143733349559Z-fe72ae6a",
+                        area="memory", rule="Declare ledger self-references")
+            write_task_handoff(root, TASK_ID)
+            body = handoff_path.read_text(encoding="utf-8")
+            self.assertNotIn("STALE", body)
+            self.assertIn("## Distilled Rules", body)
+            self.assertIn("(MEM-20260612T143733349559Z-fe72ae6a)", body)
+
     def test_regenerates_and_does_not_mutate_state(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

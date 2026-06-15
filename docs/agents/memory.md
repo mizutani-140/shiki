@@ -11,8 +11,9 @@ behavior (proposal `docs/proposals/0001-memory-loop-spec-freeze-review.md`).
 A memory is a current-state document at `.shiki/memories/MEM-<id>.json`
 (`filename == id`, enforced by the validator). The audit trail is **not** the
 file — it is the append-only `memory_transition` ledger events. Schema:
-`.shiki/schemas/memory-entry.schema.json`; cross-file rules: `validate_memory`
-in `scripts/validate_shiki.py` (fail-closed).
+`.shiki/schemas/memory-entry.schema.json`; cross-file rules are enforced by the
+memory-validation block in `scripts/validate_shiki.py`, which calls
+`memory_entry_errors` from `scripts/shiki_memory.py` (fail-closed).
 
 Key fields: `status`, `area` (coarse enum), `tags` (free strings), `applies_to`
 (Consult-target areas), `claim`, `evidence`, `source`, and the distilled-only

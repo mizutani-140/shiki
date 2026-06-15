@@ -447,9 +447,12 @@ def select_distilled_rules(
     for memory in memories:
         if not _rule_is_eligible(memory):
             continue
-        rule_areas = {memory["area"]} if memory.get("area") else set()
-        rule_areas |= {str(a) for a in (memory.get("applies_to") or [])}
-        rule_tags = {str(t) for t in (memory.get("tags") or [])}
+        # Normalize rule selectors symmetrically with the derived context
+        # (which is lowercased/stripped) so a case-variant area/applies_to/tag
+        # is never silently dropped.
+        rule_areas = {str(memory["area"]).strip().lower()} if memory.get("area") else set()
+        rule_areas |= {str(a).strip().lower() for a in (memory.get("applies_to") or [])}
+        rule_tags = {str(t).strip().lower() for t in (memory.get("tags") or [])}
         if (rule_areas & ctx_areas) or (rule_tags & ctx_tags):
             matched.append(memory)
     # Stable sort: id ascending first, then last_verified descending. Python's
