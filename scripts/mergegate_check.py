@@ -411,6 +411,26 @@ def enforce_goal_reconcile(
     if not reconcile_ledger_seen:
         blocking.append(f"goal_reconcile must include a goal-scoped task-registered reconcile ledger event for {goal_id}")
 
+    # HEAD invariant (independent of whether the DAG file is in this diff): after
+    # the reconcile, the goal's DAG must cover every frozen-plan task. Without
+    # this, a PR could register a subset of tasks and simply OMIT the DAG; a
+    # legacy DAG-less goal would then let validate force premature goal-complete
+    # on the registered subset, abandoning the unregistered frozen tasks. This
+    # makes "the reconcile restores the goal's DAG" a hard invariant.
+    head_dag = load_dag(target, goal_id)
+    head_nodes = head_dag.get("nodes") if isinstance(head_dag, dict) else None
+    covered_titles: set[str] = set()
+    if isinstance(head_nodes, list):
+        for node in head_nodes:
+            node_task = load_task(target, str(node))
+            if isinstance(node_task, dict) and str(node_task.get("goal_id") or "") == goal_id:
+                covered_titles.add(str(node_task.get("title") or "").strip())
+    head_missing = frozen_titles - covered_titles
+    if head_missing:
+        blocking.append(
+            f"goal_reconcile must leave the goal's DAG covering every frozen plan task; missing {sorted(head_missing)}"
+        )
+
 
 POST_MERGE_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:post_merge_reconcile\s*-->")
 POST_MERGE_RECONCILE_LABEL = "mergegate:post_merge_reconcile"

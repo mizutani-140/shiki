@@ -252,6 +252,21 @@ class GoalReconcileTests(unittest.TestCase):
         self.assertTrue(any("risk_level" in b and "frozen plan definition" in b for b in blocking))
         self.assertTrue(any("acceptance_checks" in b and "frozen plan definition" in b for b in blocking))
 
+    def test_subset_registration_without_dag_is_rejected(self) -> None:
+        # Registering a subset of frozen tasks while OMITTING the DAG file must
+        # still fail the HEAD frozen-plan coverage invariant (a legacy DAG-less
+        # goal could otherwise be forced to premature goal-complete).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed(root)
+            _write_task(root, T_A, title=TITLE_A)  # only A, no DAG file touched
+            _write_ledger(root, LEDGER)
+            blocking = _run(root, [
+                ChangedFile("A", f".shiki/tasks/{T_A}.json"),
+                ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
+            ])
+        self.assertTrue(any("DAG covering every frozen plan task" in b for b in blocking))
+
     def test_truncated_dag_missing_frozen_task_is_rejected(self) -> None:
         # The restored DAG must cover every frozen-plan task; a subset DAG (which
         # could later force premature goal-complete) is rejected.
