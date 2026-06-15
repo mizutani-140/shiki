@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260612T152357707653Z-e200274d.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260615T124011083875Z-d5de6168",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/137"
+  ],
+  "summary": "T3 task-registered: reference PR #137 for the MergeGate self-reference check. Consult injection + docs implementation; required skills tdd and code-review exercised. T3 moves planned->review (not done); no goal-complete; no T1/T2 change.",
+  "task_id": "T-20260612T152357707653Z-e200274d",
+  "timestamp": "2026-06-15T12:40:11.083875+00:00",
+  "type": "check"
+}

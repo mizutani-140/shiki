@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260612T152357707653Z-e200274d.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260615T124011081676Z-89172cca",
+  "links": [],
+  "summary": "T3 Context & Impact: 5-agent Workflow exploration sweep (CI-08) over proposal 0001 v2 \u00a73.5/\u00a73.7 vs current main. CI-08 assumption (operator-approved, NOT a spec amendment): the frozen spec selects distilled rules on task.area/goal.area but neither the task nor goal schema defines area/tags; T3 implements those operands as a DERIVED, non-persisted consult context computed from task lock paths (->areas) and required_skills (->tags). No task/goal schema change; a test asserts the schemas do not gain area/tags. Plan spec_freeze.amendments stays empty.",
+  "task_id": "T-20260612T152357707653Z-e200274d",
+  "timestamp": "2026-06-15T12:40:11.081676+00:00",
+  "type": "context-impact"
+}

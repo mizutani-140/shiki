@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260612T152357707653Z-e200274d.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260615T124011083774Z-5f942ca1",
+  "links": [],
+  "summary": "Skill code-review: pre-PR adversarial multi-agent review (5 dimensions: selector correctness, handoff/cache, acceptance/tests, safety, docs/scope). Found 1 blocking (missing-goal crash in write_task_handoff \u2014 ShikiError escaped the goal-load guard), 3 major (stable-sort tiebreak unproven; revoked-alone exclusion unproven; failure-tolerance gap), and minors (symmetric normalization, doc symbol, extra tests). All fixed and regression-tested; 0 confirmed findings remain. Evidence: review against main...e150ca6.",
+  "task_id": "T-20260612T152357707653Z-e200274d",
+  "timestamp": "2026-06-15T12:40:11.083774+00:00",
+  "type": "check"
+}
