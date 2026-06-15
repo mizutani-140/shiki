@@ -416,7 +416,30 @@ jobs:
       - name: Enforce MergeGate
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
         run: |
+          set -euo pipefail
+
+          # For a post_merge_reconcile PR, prove the referenced (base) PR merged
+          # so the mode cannot pass as a generic status-mutation. Read the base
+          # task's expected_pr and check its merge state; pass it as --merged-prs.
+          MERGED_PRS=""
+          body="$(jq -r '.body // ""' .shiki/gha/live-pr.json)"
+          if printf '%s' "$body" | grep -q '<!-- shiki:post_merge_reconcile -->'; then
+            task_id="$(printf '%s' "$body" | grep -oE 'T-[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8}' | head -1 || true)"
+            base_task=".shiki/gha/base-shiki/.shiki/tasks/${task_id}.json"
+            if [ -n "$task_id" ] && [ -f "$base_task" ]; then
+              base_pr="$(jq -r '.expected_pr // empty' "$base_task")"
+              if [ -n "$base_pr" ]; then
+                state="$(gh pr view "$base_pr" --repo "$REPOSITORY" --json state -q .state 2>/dev/null || echo UNKNOWN)"
+                if [ "$state" = "MERGED" ]; then
+                  MERGED_PRS="$base_pr"
+                fi
+              fi
+            fi
+          fi
+
           python3 scripts/mergegate_check.py \
             --pr-json .shiki/gha/live-pr.json \
             --changed-files .shiki/gha/live-changed-files.txt \
@@ -426,6 +449,7 @@ jobs:
             --expected-repository "${{ github.repository }}" \
             --expected-head-sha "$EXPECTED_HEAD_SHA" \
             --base-shiki .shiki/gha/base-shiki/.shiki \
+            --merged-prs "$MERGED_PRS" \
             --guardian-policy .shiki/guardian-policy.json \
             --guardian-comments .shiki/gha/live-guardian-comments.json \
             --guardian-events .shiki/gha/live-guardian-events.json \

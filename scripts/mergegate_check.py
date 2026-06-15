@@ -204,32 +204,65 @@ GOAL_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:goal_reconcile\s*-->")
 GOAL_RECONCILE_LABEL = "mergegate:goal_reconcile"
 
 
-def _frozen_plan_titles(target: Path, goal_id: str) -> tuple[set[str], list[str]]:
-    """Return (frozen task titles, errors) for a goal's spec-frozen source plan.
+# Governance-relevant fields of a frozen plan task that, when present in the
+# plan, a goal_reconcile-registered task MUST match exactly. Plan tasks carry no
+# ids, so title is the lookup key; everything else binds the task definition so a
+# reconcile cannot register a frozen title with a weakened risk/locks/criteria.
+# (Plan `runtime` -> task `assigned_runtime` and plan title-based `dependencies`
+# are representation-mismatched and are not field-compared here.)
+_FROZEN_TASK_MATCH_FIELDS = (
+    "scope",
+    "non_goals",
+    "required_skills",
+    "risk_level",
+    "locks",
+    "acceptance_checks",
+)
+
+
+def _frozen_plan_tasks(target: Path, goal_id: str) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    """Return (frozen tasks by title, errors) for a goal's spec-frozen source plan.
 
     The frozen authority is the goal's source_plan with spec_freeze.status=frozen.
-    Plan tasks are identified by title (no ids in the plan schema), so the frozen
-    SET that a goal_reconcile may register is the plan's task-title set.
+    Plan tasks are keyed by title (no ids in the plan schema). Duplicate titles
+    fail closed, because title is the only binding key and an ambiguous key would
+    let a registration match the wrong frozen definition.
     """
     errors: list[str] = []
     goal = load_goal(target, goal_id)
     if goal is None:
-        return set(), [f"goal_reconcile: goal {goal_id} not found"]
+        return {}, [f"goal_reconcile: goal {goal_id} not found"]
     plan_id = str(goal.get("source_plan") or "")
     if not plan_id:
-        return set(), [f"goal_reconcile: goal {goal_id} has no source_plan to bind to"]
+        return {}, [f"goal_reconcile: goal {goal_id} has no source_plan to bind to"]
     plan = load_plan(target, plan_id)
     if plan is None:
-        return set(), [f"goal_reconcile: source_plan {plan_id} not found"]
+        return {}, [f"goal_reconcile: source_plan {plan_id} not found"]
     spec_freeze = plan.get("spec_freeze")
     if not isinstance(spec_freeze, dict) or spec_freeze.get("status") != "frozen":
-        return set(), [f"goal_reconcile: source_plan {plan_id} is not spec-frozen"]
-    titles = {
-        str(t.get("title")).strip()
-        for t in (plan.get("tasks") or [])
-        if isinstance(t, dict) and t.get("title")
-    }
-    return titles, errors
+        return {}, [f"goal_reconcile: source_plan {plan_id} is not spec-frozen"]
+    tasks: dict[str, dict[str, Any]] = {}
+    for t in plan.get("tasks") or []:
+        if not isinstance(t, dict) or not t.get("title"):
+            continue
+        title = str(t.get("title")).strip()
+        if title in tasks:
+            errors.append(f"goal_reconcile: frozen plan {plan_id} has duplicate task title {title!r}; cannot bind")
+            continue
+        tasks[title] = t
+    return tasks, errors
+
+
+def _frozen_task_match_errors(task_id: str, task: dict[str, Any], frozen: dict[str, Any]) -> list[str]:
+    """A registered task must match its frozen plan task on every governance
+    field the plan declares (frozen-definition binding, not just title)."""
+    errors: list[str] = []
+    for field in _FROZEN_TASK_MATCH_FIELDS:
+        if field in frozen and task.get(field) != frozen.get(field):
+            errors.append(
+                f"goal_reconcile task {task_id} field {field!r} does not match its frozen plan definition"
+            )
+    return errors
 
 
 def enforce_goal_reconcile(
@@ -257,10 +290,11 @@ def enforce_goal_reconcile(
     if not goal_id:
         blocking.append("goal_reconcile PR must reference a Shiki goal id")
         return
-    frozen_titles, frozen_errors = _frozen_plan_titles(target, goal_id)
+    frozen_tasks, frozen_errors = _frozen_plan_tasks(target, goal_id)
     if frozen_errors:
         blocking.extend(frozen_errors)
         return
+    frozen_titles = set(frozen_tasks)
 
     dag_file = f".shiki/dag/{goal_id}.json"
     reconcile_ledger_seen = False
@@ -313,6 +347,10 @@ def enforce_goal_reconcile(
                 blocking.append(f"goal_reconcile task {task_id} re-registers frozen plan title {title!r} (already covered)")
             else:
                 consumed_titles.add(title)
+                # Bind to the FROZEN TASK DEFINITION, not just the title: a
+                # registered task must match every governance field the frozen
+                # plan declares (risk_level, locks, acceptance_checks, ...).
+                blocking.extend(_frozen_task_match_errors(task_id, data, frozen_tasks[title]))
         elif path == dag_file:
             # DAG restore is allowed; every node must resolve to a frozen-plan
             # task ANCHORED TO THIS GOAL (existing or added in this PR), so a
@@ -390,19 +428,22 @@ def enforce_post_merge_reconcile(
     changed_files_status: list[ChangedFile],
     blocking: list[str],
     warnings: list[str],
+    merged_pr_numbers: set[int] | None = None,
 ) -> None:
-    """Validate a post_merge_reconcile PR: reconcile a merged task's residual
+    """Validate a post_merge_reconcile PR: reconcile a MERGED task's residual
     state. Deny by default.
 
     The autonomous loop normally releases a task's lock and marks it done the
     moment its PR merges; when that did not happen (e.g. a manual merge), the
     residual lock and expected_pr block all later control-plane work. This mode
-    lets one PR reconcile EXACTLY that residue for a single task: it may change
-    only the task's own status (to review/done) and/or expected_pr, release the
-    task's own lock, and append a reconcile ledger. It may NOT touch code, other
+    lets one PR reconcile EXACTLY that residue for a single task whose PR is
+    PROVEN merged: it must clear the task's expected_pr, must release the task's
+    lock (state=released or delete) when a lock file exists, may set status to
+    review/done, and appends a reconcile ledger. It may NOT touch code, other
     tasks, the goal file, the DAG, memories, reports, guardian-policy, other
-    locks, or any other task field (acceptance_checks, locks, scope, …). Partial
-    or unverifiable reconcile fails closed (blocks), never silent success.
+    locks, or any other task field (acceptance_checks, locks, scope, …). Without
+    proof the referenced PR merged, or if the residue is not actually cleaned up,
+    it fails closed — never a generic status-mutation mode.
     """
     if not task_id:
         blocking.append("post_merge_reconcile PR must reference a Shiki task id")
@@ -418,14 +459,28 @@ def enforce_post_merge_reconcile(
     if not isinstance(base_task, dict):
         blocking.append(f"post_merge_reconcile: base snapshot has no task {task_id} to reconcile against")
         return
-    # The reconcile target must be a task that actually went to a PR (the base,
-    # pre-reconcile, recorded an expected_pr); the reconcile clears it.
-    if not base_task.get("expected_pr"):
+    # The reconcile target must be a task whose PR ACTUALLY MERGED. The base
+    # (pre-reconcile) expected_pr names that PR; merged_pr_numbers proves it
+    # merged. Without that proof this mode fails closed (it is not a generic
+    # status-mutation mode).
+    base_expected_pr = base_task.get("expected_pr")
+    if not base_expected_pr:
         blocking.append(f"post_merge_reconcile: task {task_id} has no merged PR (no base expected_pr) to reconcile")
+    elif merged_pr_numbers is not None and int(base_expected_pr) not in merged_pr_numbers:
+        blocking.append(
+            f"post_merge_reconcile: task {task_id} references PR #{base_expected_pr}, which is not proven merged"
+        )
+    # The residue MUST be cleaned up: expected_pr cleared on the head task.
+    if head_task.get("expected_pr") is not None:
+        blocking.append(f"post_merge_reconcile must clear expected_pr on task {task_id} (still {head_task.get('expected_pr')!r})")
 
     task_file = f".shiki/tasks/{task_id}.json"
     lock_file = f".shiki/locks/{task_id}.json"
     reconcile_ledger_seen = False
+    lock_reconciled = False
+    # If a lock file exists for the task, the reconcile MUST release it; a stale
+    # active lock is exactly the residue this mode exists to clear.
+    lock_exists_at_head = (target / ".shiki" / "locks" / f"{task_id}.json").is_file()
 
     for entry in changed_files_status:
         path = normalize_repo_path(entry.path)
@@ -443,10 +498,13 @@ def enforce_post_merge_reconcile(
                 blocking.append(f"post_merge_reconcile task {task_id} status must be review or done, not {head_task.get('status')!r}")
         elif path == lock_file:
             if entry.status == "D":
+                lock_reconciled = True
                 continue  # deleting the lock is a valid release
             lock = load_json(target / path)
             if not (isinstance(lock, dict) and lock.get("state") == "released"):
                 blocking.append(f"post_merge_reconcile lock change to {path} must set state=released (or delete the lock)")
+            else:
+                lock_reconciled = True
         elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
             if entry.status != "A":
                 blocking.append(f"post_merge_reconcile must append, not modify, ledger {path}")
@@ -465,6 +523,10 @@ def enforce_post_merge_reconcile(
 
     if not reconcile_ledger_seen:
         blocking.append(f"post_merge_reconcile must include a task-scoped reconcile ledger event for {task_id}")
+    # A stale active lock is the residue this mode exists to clear: if a lock
+    # file exists for the task, the PR must release it.
+    if lock_exists_at_head and not lock_reconciled:
+        blocking.append(f"post_merge_reconcile must release the task lock {lock_file} (it is the residue being reconciled)")
 
 
 def blocking_checklist_failures(verdict: dict[str, Any]) -> list[str]:
@@ -1032,6 +1094,11 @@ def main() -> int:
     parser.add_argument("--expected-repository", default="")
     parser.add_argument("--expected-head-sha")
     parser.add_argument("--base-shiki")
+    parser.add_argument(
+        "--merged-prs",
+        default="",
+        help="Comma-separated PR numbers proven merged (used by post_merge_reconcile to verify the referenced PR actually merged).",
+    )
     parser.add_argument("--guardian-policy", default=".shiki/guardian-policy.json")
     parser.add_argument("--guardian-comments", default=".shiki/gha/live-guardian-comments.json")
     parser.add_argument("--guardian-events", default=".shiki/gha/live-guardian-events.json")
@@ -1116,6 +1183,11 @@ def main() -> int:
         files_status = parse_changed_files_status(
             Path(args.changed_files_status), changed_files(Path(args.changed_files))
         )
+        merged_prs = {
+            int(token.strip())
+            for token in str(args.merged_prs or "").split(",")
+            if token.strip().isdigit()
+        }
         enforce_post_merge_reconcile(
             target=target,
             task_id=resolved_task_id or "",
@@ -1123,6 +1195,7 @@ def main() -> int:
             changed_files_status=files_status,
             blocking=blocking,
             warnings=warnings,
+            merged_pr_numbers=merged_prs,
         )
     elif resolved_task_id:
         task = load_task(target, resolved_task_id)

@@ -32,6 +32,11 @@ TITLE_A = "Capture hooks and scorecard"
 TITLE_B = "Consult injection and docs"
 
 
+# The frozen plan task definitions; a registered task must match these exactly.
+FROZEN_A = {"title": TITLE_A, "scope": "scope-a", "risk_level": "high", "acceptance_checks": ["a"]}
+FROZEN_B = {"title": TITLE_B, "scope": "scope-b", "risk_level": "high", "acceptance_checks": ["b"]}
+
+
 def _seed(root: Path, *, frozen: bool = True) -> None:
     for d in ("goals", "plans", "tasks", "dag", "ledger"):
         (root / ".shiki" / d).mkdir(parents=True, exist_ok=True)
@@ -39,15 +44,18 @@ def _seed(root: Path, *, frozen: bool = True) -> None:
         json.dumps({"id": GOAL, "status": "planned", "source_plan": PLAN, "title": "g"}), encoding="utf-8")
     (root / ".shiki" / "plans" / f"{PLAN}.json").write_text(
         json.dumps({"id": PLAN, "spec_freeze": {"status": "frozen" if frozen else "draft"},
-                    "tasks": [{"title": TITLE_A, "scope": "x", "acceptance_checks": ["x"]},
-                              {"title": TITLE_B, "scope": "x", "acceptance_checks": ["x"]}]}),
+                    "tasks": [FROZEN_A, FROZEN_B]}),
         encoding="utf-8")
 
 
-def _write_task(root: Path, tid: str, *, title: str, status: str = "planned", goal: str = GOAL) -> None:
-    (root / ".shiki" / "tasks" / f"{tid}.json").write_text(
-        json.dumps({"id": tid, "goal_id": goal, "title": title, "status": status, "risk_level": "high"}),
-        encoding="utf-8")
+def _write_task(root: Path, tid: str, *, title: str, status: str = "planned", goal: str = GOAL, **overrides) -> None:
+    # By default register a task that MATCHES the frozen definition for its title.
+    frozen = {TITLE_A: FROZEN_A, TITLE_B: FROZEN_B}.get(title, {})
+    task = {"id": tid, "goal_id": goal, "title": title, "status": status,
+            "scope": frozen.get("scope", "scope-x"), "risk_level": frozen.get("risk_level", "high"),
+            "acceptance_checks": frozen.get("acceptance_checks", ["x"])}
+    task.update(overrides)
+    (root / ".shiki" / "tasks" / f"{tid}.json").write_text(json.dumps(task), encoding="utf-8")
 
 
 def _write_ledger(root: Path, lid: str, *, goal: str = GOAL, ltype: str = "task-registered") -> None:
@@ -228,6 +236,22 @@ class GoalReconcileTests(unittest.TestCase):
             ])
         self.assertTrue(any("reconcile ledger" in b for b in blocking))
 
+    def test_frozen_definition_mismatch_is_rejected(self) -> None:
+        # A task whose title is frozen but whose risk_level/acceptance_checks
+        # differ from the frozen plan definition must be rejected (binding is to
+        # the frozen task definition, not just the title).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed(root)
+            _write_task(root, T_A, title=TITLE_A, risk_level="low", acceptance_checks=["weakened"])
+            _write_ledger(root, LEDGER)
+            blocking = _run(root, [
+                ChangedFile("A", f".shiki/tasks/{T_A}.json"),
+                ChangedFile("A", f".shiki/ledger/{LEDGER}.json"),
+            ])
+        self.assertTrue(any("risk_level" in b and "frozen plan definition" in b for b in blocking))
+        self.assertTrue(any("acceptance_checks" in b and "frozen plan definition" in b for b in blocking))
+
     def test_duplicate_frozen_title_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -297,10 +321,11 @@ def _pm_write_head_task(root: Path, base_task: dict, **changes) -> None:
     (root / ".shiki" / "tasks" / f"{PM_TASK}.json").write_text(json.dumps(head), encoding="utf-8")
 
 
-def _pm_run(root: Path, changes: list[ChangedFile]) -> list[str]:
+def _pm_run(root: Path, changes: list[ChangedFile], *, merged=frozenset({99})) -> list[str]:
     blocking: list[str] = []
     enforce_post_merge_reconcile(target=root, task_id=PM_TASK, base_shiki=root / ".shiki" / "base",
-                                 changed_files_status=changes, blocking=blocking, warnings=[])
+                                 changed_files_status=changes, blocking=blocking, warnings=[],
+                                 merged_pr_numbers=set(merged))
     return blocking
 
 
@@ -406,6 +431,47 @@ class PostMergeReconcileTests(unittest.TestCase):
             enforce_post_merge_reconcile(target=root, task_id=PM_TASK, base_shiki=None,
                                          changed_files_status=[], blocking=blocking, warnings=[])
         self.assertTrue(any("requires a base" in b for b in blocking))
+
+    def test_expected_pr_not_cleared_is_rejected(self) -> None:
+        # The residue MUST be cleaned up: leaving expected_pr set is rejected.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="done")  # expected_pr left at 99
+            blocking = _pm_run(root, [
+                ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                ChangedFile("D", f".shiki/locks/{PM_TASK}.json"),
+                ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
+            ])
+        self.assertTrue(any("must clear expected_pr" in b for b in blocking))
+
+    def test_unmerged_referenced_pr_is_rejected(self) -> None:
+        # Fail closed unless the referenced PR is proven merged.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)  # base expected_pr=99
+            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            blocking = _pm_run(root, [
+                ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                ChangedFile("D", f".shiki/locks/{PM_TASK}.json"),
+                ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
+            ], merged=frozenset())  # PR #99 NOT in the merged set
+        self.assertTrue(any("not proven merged" in b for b in blocking))
+
+    def test_lock_left_active_is_rejected(self) -> None:
+        # A lock file exists at head but is not released → residue not cleaned.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            # Lock stays active and is NOT in the changed files.
+            (root / ".shiki" / "locks" / f"{PM_TASK}.json").write_text(
+                json.dumps({"task_id": PM_TASK, "locks": ["path:scripts/x.py"], "state": "active"}), encoding="utf-8")
+            blocking = _pm_run(root, [
+                ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
+            ])
+        self.assertTrue(any("must release the task lock" in b for b in blocking))
 
     def test_decision_marker_and_label(self) -> None:
         m = "<!-- shiki:post_merge_reconcile -->"
