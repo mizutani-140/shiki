@@ -311,9 +311,9 @@ def _unblock_ready_tasks(target: Path, goal_id: str) -> list[str]:
             continue
         if worktree_record(target, task["id"]) is None:
             allocate_worktree_record(target, task["id"])
-        handoff = shiki_path(target, "handoffs", f"{task['id']}-task.md")
-        if not handoff.exists():
-            write_task_handoff(target, task["id"])
+        # Regenerate unconditionally: the handoff embeds the live Distilled
+        # Rules section, so a stale cached handoff must never be reused (§3.7).
+        write_task_handoff(target, task["id"])
         unblocked.append(task["id"])
     return unblocked
 
@@ -321,7 +321,10 @@ def _unblock_ready_tasks(target: Path, goal_id: str) -> list[str]:
 def _dispatch(target: Path, task: dict[str, Any], *, repair_id: str | None = None) -> int:
     runtime = str(task.get("assigned_runtime", "claude-code"))
     adapter = get_runner_adapter(runtime)
-    if not repair_id and not shiki_path(target, "handoffs", f"{task['id']}-task.md").exists():
+    # Dispatch always regenerates the task handoff so injected distilled rules are
+    # never stale (§3.7 — the write-if-missing cache is removed). Repair dispatch
+    # uses its own repair handoff and is left untouched.
+    if not repair_id:
         write_task_handoff(target, task["id"])
     args = argparse.Namespace(
         target=str(target),

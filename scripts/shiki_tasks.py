@@ -882,7 +882,26 @@ def write_handoff(target: Path, name: str, body: str) -> Path:
 
 
 def write_task_handoff(target: Path, task_id: str) -> tuple[Path, str]:
+    # Lazy import keeps the shiki_tasks <-> shiki_memory edge deferred (shiki_memory
+    # imports shiki_tasks at module load), matching the capture/scorecard hooks.
+    from shiki_memory import (
+        load_all_memories,
+        render_distilled_rules_section,
+        select_distilled_rules,
+    )
+
     task = load_task(target, task_id)
+    # Consult injection (proposal 0001 v2 §3.5): always emit a Distilled Rules
+    # section. Selection is failure-tolerant — any read error degrades to "none
+    # applicable" so handoff generation can never break dispatch.
+    try:
+        goal = load_goal(target, task["goal_id"])
+    except (OSError, ValueError, KeyError):
+        goal = None
+    try:
+        distilled = select_distilled_rules(task, goal, load_all_memories(target))
+    except Exception:
+        distilled = []
     body = "\n".join(
         [
             f"# Codex Task Handoff: {task['id']}",
@@ -903,6 +922,8 @@ def write_task_handoff(target: Path, task_id: str) -> tuple[Path, str]:
             "",
             "## Required Skills",
             *[f"- {skill}" for skill in task.get("required_skills", [])],
+            "",
+            *render_distilled_rules_section(distilled),
         ]
     )
     handoff_file = write_handoff(target, f"{task['id']}-task.md", body + "\n")

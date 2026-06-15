@@ -105,6 +105,7 @@ Blocking values:
 | H-09 | Verification commands are included. | blocking |
 | H-10 | Evidence the implementer must produce is included. | blocking |
 | H-11 | Prohibited changes are stated. | blocking |
+| H-12 | The handoff includes a `## Distilled Rules` section that either lists the applicable active distilled rules (each with its MEM id) or states `none applicable`. CCA verifies only the section's presence and the applicable / none-applicable marker — never the rule selection or rule content (no double authority between distilled rules and checklists). | blocking when applicable |
 
 ## TDD — Implementation Checklist
 

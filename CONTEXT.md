@@ -104,6 +104,18 @@ _Avoid_: treating "human pressed the button" as the only valid authority, record
 A first-class Guardian approval authority (ADR 0010) by which an external AI reviewer authorizes autonomous merge of a high/critical-risk PR through a head-SHA-bound `external_ai_guardian_review` artifact, recorded with the AI reviewer's own model identity (reviewer_type=external_ai_model).
 _Avoid_: transforming an AI review into an operator approval, committed (forgeable) approval files, head-unbound approval
 
+**Memory**:
+A current-state document under `.shiki/memories/MEM-*.json` recording a learned fact, promoted fail-closed through `raw -> investigated -> verified -> distilled`; the audit trail lives in `memory_transition` ledger events, not the file. Captured automatically from repair, loop-stop, CCA-fail, and runner-fail points with redaction.
+_Avoid_: append-only log, storing raw command output or secrets, treating the file as the audit trail
+
+**Distilled Rule**:
+A `distilled`-status Memory carrying an operator-approved, generalized one-line `rule`, revocable and supersedable; only active, non-revoked, non-superseded distilled rules are injected into handoffs (Consult, §3.5).
+_Avoid_: unapproved rule, auto-distillation, a rule that mutates on consult
+
+**Scorecard**:
+The ledger-derived, machine-computed summary emitted in the goal-complete report (§3.6) with distillation suggestions; computed only from ledger/task/report state and never changes Memory status.
+_Avoid_: recomputing from live state, mutating memories, scorecard on stdout
+
 ## Example Dialogue
 
 Operator: "Create a Goal for the new intake workflow."

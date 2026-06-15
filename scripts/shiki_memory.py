@@ -352,6 +352,125 @@ def load_memory(target: Path, memory_id: str) -> dict[str, Any]:
     return read_json(_memory_path(target, memory_id))
 
 
+def load_all_memories(target: Path) -> list[dict[str, Any]]:
+    """Read every memory entry from .shiki/memories (pure; never mutates)."""
+    mem_dir = shiki_path(target, "memories")
+    if not mem_dir.exists():
+        return []
+    return [read_json(path) for path in sorted(mem_dir.glob("MEM-*.json"))]
+
+
+# --- Consult: deterministic distilled-rule selection (proposal 0001 v2 §3.5) ---
+#
+# CI-08 assumption (operator-approved): the frozen spec selects rules on
+# task.area / goal.area / applies_to / tags, but neither the task nor goal schema
+# defines area/tags and no record carries them. Rather than amend those schemas,
+# T3 derives a non-persisted "consult context" from existing task/goal metadata:
+# task locks (path -> area) and required_skills (-> tags). A distilled rule is
+# selected when it is active/non-revoked/non-superseded, carries at least one
+# selector (area/applies_to/tags), and any selector OR-overlaps the derived
+# context. Reading never mutates state.
+
+# Substring (in a lock path, lowercased) -> coarse MEMORY_AREAS value. Order is
+# irrelevant: every match is unioned into a set, so the derivation is stable.
+_LOCK_AREA_SUBSTRINGS: tuple[tuple[str, str], ...] = (
+    ("mergegate", "mergegate"),
+    ("shiki_loop", "loop"),
+    ("shiki_runtime", "runner"),
+    ("runner", "runner"),
+    ("shiki_memory", "memory"),
+    ("shiki_contracts", "contracts"),
+    ("shiki_migrations", "migrations"),
+    ("validate_shiki", "validator"),
+    ("shiki_tasks", "planning"),
+    ("handoff", "handoff"),
+    ("locks", "locks"),
+    ("cca", "cca"),
+    ("manifest", "manifest"),
+    ("docs/", "docs"),
+    ("context.md", "docs"),
+    ("claude.md", "docs"),
+)
+
+
+def derive_consult_context(task: dict[str, Any], goal: dict[str, Any] | None) -> dict[str, set]:
+    """Derive the non-persisted consult context (areas, tags) for a task/goal.
+
+    Areas come from the task's lock paths; tags come from task and goal
+    required_skills (lowercased). Identifiers/titles are descriptive only and
+    are never used as match input.
+    """
+    areas: set[str] = set()
+    for lock in task.get("locks") or []:
+        path = str(lock).lower()
+        for needle, area in _LOCK_AREA_SUBSTRINGS:
+            if needle in path:
+                areas.add(area)
+    tags: set[str] = set()
+    for skill in (task.get("required_skills") or []):
+        tags.add(str(skill).strip().lower())
+    for skill in ((goal or {}).get("required_skills") or []):
+        tags.add(str(skill).strip().lower())
+    return {"areas": areas, "tags": tags}
+
+
+def _rule_is_eligible(memory: dict[str, Any]) -> bool:
+    """Active, non-revoked, non-superseded distilled rule with >=1 selector."""
+    if memory.get("status") != "distilled":
+        return False
+    if memory.get("active") is not True:
+        return False
+    if memory.get("superseded_by") is not None:
+        return False
+    if memory.get("revoked_at") is not None:
+        return False
+    has_selector = bool(memory.get("area") or memory.get("applies_to") or memory.get("tags"))
+    return has_selector
+
+
+def select_distilled_rules(
+    task: dict[str, Any],
+    goal: dict[str, Any] | None,
+    memories: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Pure, deterministic selection of distilled rules for a handoff.
+
+    Returns active/non-revoked/non-superseded distilled rules whose area /
+    applies_to (matched against the derived areas) or tags (matched against the
+    derived tags) OR-overlap the consult context, stable-sorted by last_verified
+    descending then MEM id ascending (entries missing last_verified sort last).
+    Never mutates ``memories`` or any input.
+    """
+    context = derive_consult_context(task, goal)
+    ctx_areas, ctx_tags = context["areas"], context["tags"]
+    matched: list[dict[str, Any]] = []
+    for memory in memories:
+        if not _rule_is_eligible(memory):
+            continue
+        rule_areas = {memory["area"]} if memory.get("area") else set()
+        rule_areas |= {str(a) for a in (memory.get("applies_to") or [])}
+        rule_tags = {str(t) for t in (memory.get("tags") or [])}
+        if (rule_areas & ctx_areas) or (rule_tags & ctx_tags):
+            matched.append(memory)
+    # Stable sort: id ascending first, then last_verified descending. Python's
+    # sort is stable, so equal last_verified keeps id-ascending order; an empty
+    # last_verified is the smallest key, so reverse=True places it last.
+    matched = sorted(matched, key=lambda m: str(m.get("id") or ""))
+    matched = sorted(matched, key=lambda m: str(m.get("last_verified") or ""), reverse=True)
+    return matched
+
+
+def render_distilled_rules_section(rules: list[dict[str, Any]]) -> list[str]:
+    """Render the always-present ``## Distilled Rules`` handoff section."""
+    lines = ["## Distilled Rules", ""]
+    if not rules:
+        lines.append("none applicable")
+        return lines
+    for rule in rules:
+        lines.append(f"- {str(rule.get('rule', '')).strip()} ({rule.get('id')})")
+    return lines
+
+
 def _save(target: Path, memory: dict[str, Any]) -> None:
     write_json(_memory_path(target, memory["id"]), memory)
 
