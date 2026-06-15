@@ -508,9 +508,12 @@ def enforce_post_merge_reconcile(
     # merged. Without that proof this mode fails closed (it is not a generic
     # status-mutation mode).
     base_expected_pr = base_task.get("expected_pr")
+    # No proof set (None) is treated as "no proof" and fails closed, so the
+    # function never fail-opens on its own default for a future/library caller.
+    proven_merged = merged_pr_numbers or set()
     if not base_expected_pr:
         blocking.append(f"post_merge_reconcile: task {task_id} has no merged PR (no base expected_pr) to reconcile")
-    elif merged_pr_numbers is not None and int(base_expected_pr) not in merged_pr_numbers:
+    elif int(base_expected_pr) not in proven_merged:
         blocking.append(
             f"post_merge_reconcile: task {task_id} references PR #{base_expected_pr}, which is not proven merged"
         )

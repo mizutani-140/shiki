@@ -537,6 +537,22 @@ class PostMergeReconcileTests(unittest.TestCase):
                 pr_body=f"reconcile {PM_TASK} <!-- shiki:post_merge_reconcile -->")
         self.assertEqual(blocking, [])
 
+    def test_none_merge_proof_fails_closed(self) -> None:
+        # The default merged_pr_numbers=None must fail closed (no proof), not
+        # silently skip the merge-proof gate.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            blocking: list[str] = []
+            enforce_post_merge_reconcile(
+                target=root, task_id=PM_TASK, base_shiki=root / ".shiki" / "base",
+                changed_files_status=[ChangedFile("D", f".shiki/locks/{PM_TASK}.json"),
+                                      ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                                      ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json")],
+                blocking=blocking, warnings=[])  # merged_pr_numbers omitted -> None
+        self.assertTrue(any("not proven merged" in b for b in blocking))
+
     def test_decision_marker_and_label(self) -> None:
         m = "<!-- shiki:post_merge_reconcile -->"
         lab = {"name": "mergegate:post_merge_reconcile"}
