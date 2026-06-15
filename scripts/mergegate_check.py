@@ -429,6 +429,7 @@ def enforce_post_merge_reconcile(
     blocking: list[str],
     warnings: list[str],
     merged_pr_numbers: set[int] | None = None,
+    pr_body: str | None = None,
 ) -> None:
     """Validate a post_merge_reconcile PR: reconcile a MERGED task's residual
     state. Deny by default.
@@ -448,6 +449,17 @@ def enforce_post_merge_reconcile(
     if not task_id:
         blocking.append("post_merge_reconcile PR must reference a Shiki task id")
         return
+    # The PR body must reference EXACTLY ONE Shiki task id. Otherwise the merge
+    # proof (computed by the workflow) and the task this validator mutates could
+    # resolve to different ids, breaking the 1:1 binding between "the PR proven
+    # merged" and "the task whose lock/status is cleared".
+    if pr_body is not None:
+        body_task_ids = {m.group(0) for m in TASK_ID.finditer(pr_body)}
+        if len(body_task_ids) > 1:
+            blocking.append(
+                f"post_merge_reconcile PR body must reference exactly one task id; found {sorted(body_task_ids)}"
+            )
+            return
     head_task = load_task(target, task_id)
     if head_task is None:
         blocking.append(f"post_merge_reconcile: task {task_id} not found")
@@ -1196,6 +1208,7 @@ def main() -> int:
             blocking=blocking,
             warnings=warnings,
             merged_pr_numbers=merged_prs,
+            pr_body=body,
         )
     elif resolved_task_id:
         task = load_task(target, resolved_task_id)

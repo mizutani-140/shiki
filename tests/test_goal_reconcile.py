@@ -293,8 +293,8 @@ class ReconcileDecisionTests(unittest.TestCase):
         self.assertIsNone(err)
 
 
-PM_TASK = "T-20260613T000000000000Z-0000pm01"
-PM_LOCK = "L-20260613T000000000000Z-0000pml1"
+PM_TASK = "T-20260613T000000000000Z-0000ab01"
+PM_LOCK = "L-20260613T000000000000Z-0000abc1"
 
 
 def _pm_seed(root: Path, *, base_status: str = "review", expected_pr: int = 99) -> None:
@@ -472,6 +472,38 @@ class PostMergeReconcileTests(unittest.TestCase):
                 ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json"),
             ])
         self.assertTrue(any("must release the task lock" in b for b in blocking))
+
+    def test_multiple_task_ids_in_body_is_rejected(self) -> None:
+        # The body must reference exactly one task id, else the workflow's merge
+        # proof and the validator's task could resolve to different ids.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            blocking: list[str] = []
+            enforce_post_merge_reconcile(
+                target=root, task_id=PM_TASK, base_shiki=root / ".shiki" / "base",
+                changed_files_status=[ChangedFile("D", f".shiki/locks/{PM_TASK}.json"),
+                                      ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                                      ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json")],
+                blocking=blocking, warnings=[], merged_pr_numbers={99},
+                pr_body=f"reconcile {PM_TASK} but also T-0001 <!-- shiki:post_merge_reconcile -->")
+        self.assertTrue(any("exactly one task id" in b for b in blocking))
+
+    def test_single_task_id_body_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            blocking: list[str] = []
+            enforce_post_merge_reconcile(
+                target=root, task_id=PM_TASK, base_shiki=root / ".shiki" / "base",
+                changed_files_status=[ChangedFile("D", f".shiki/locks/{PM_TASK}.json"),
+                                      ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                                      ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json")],
+                blocking=blocking, warnings=[], merged_pr_numbers={99},
+                pr_body=f"reconcile {PM_TASK} <!-- shiki:post_merge_reconcile -->")
+        self.assertEqual(blocking, [])
 
     def test_decision_marker_and_label(self) -> None:
         m = "<!-- shiki:post_merge_reconcile -->"
