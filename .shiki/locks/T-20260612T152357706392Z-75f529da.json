@@ -15,6 +15,7 @@
     "path:docs/**"
   ],
   "owner": "shiki-run",
-  "state": "active",
-  "task_id": "T-20260612T152357706392Z-75f529da"
+  "state": "released",
+  "task_id": "T-20260612T152357706392Z-75f529da",
+  "released_at": "2026-06-15T01:05:03+00:00"
 }
