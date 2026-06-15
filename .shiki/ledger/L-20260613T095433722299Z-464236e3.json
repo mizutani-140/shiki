@@ -1,0 +1,14 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/mergegate_check.py",
+    "scripts/validate_shiki.py"
+  ],
+  "goal_id": "G-20260613T095433721642Z-2e5e71fd",
+  "id": "L-20260613T095433722299Z-464236e3",
+  "links": [],
+  "summary": "Skill code-review: two-round multi-agent adversarial pre-PR review of the scope-relaxation diff against the guardian blocker list found 1 blocker + 3 major + minors (round 1); all fixed; round 2 confirmed 0 findings.",
+  "task_id": "T-20260613T095433721787Z-8d6b04d5",
+  "timestamp": "2026-06-13T09:54:33+00:00",
+  "type": "check"
+}

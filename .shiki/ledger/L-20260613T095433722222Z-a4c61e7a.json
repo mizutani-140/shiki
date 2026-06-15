@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "tests/test_goal_reconcile.py"
+  ],
+  "goal_id": "G-20260613T095433721642Z-2e5e71fd",
+  "id": "L-20260613T095433722222Z-a4c61e7a",
+  "links": [],
+  "summary": "Skill tdd: DAG-based goal-complete and the deny-by-default enforce_goal_reconcile validator were driven by failing rejection tests first in tests/test_goal_reconcile.py (17 cases).",
+  "task_id": "T-20260613T095433721787Z-8d6b04d5",
+  "timestamp": "2026-06-13T09:54:33+00:00",
+  "type": "check"
+}

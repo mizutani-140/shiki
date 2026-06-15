@@ -1,0 +1,27 @@
+{
+  "id": "G-20260613T095433721642Z-2e5e71fd",
+  "github_issue": null,
+  "title": "Control-plane: goal_reconcile PR type and DAG-based goal-complete",
+  "outcome": "A multi-task goal can complete one task without forcing goal-complete, and a goal's frozen-plan tasks can be registered into main state through a narrow, frozen-plan-bound goal_reconcile PR type — resolving the per-task-scope x dependency-done x goal-complete deadlock without weakening per-task scope.",
+  "completion_conditions": [
+    "validate goal-complete uses the frozen DAG node set",
+    "goal_reconcile metadata mode is deny-by-default and frozen-plan-bound",
+    "pre-PR adversarial review of the scope relaxation finds 0 confirmed defects"
+  ],
+  "non_goals": [
+    "No change to normal task PR per-task scope",
+    "No manual admin bypass of the deadlock"
+  ],
+  "risk_level": "high",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "acceptance_evidence": [
+    "validate_shiki.py + full suite green",
+    "goal_reconcile rejection tests",
+    "adversarial review 0 findings"
+  ],
+  "status": "planned",
+  "created_at": "2026-06-13T09:54:33+00:00"
+}
