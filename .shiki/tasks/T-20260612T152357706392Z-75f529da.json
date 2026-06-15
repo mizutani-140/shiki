@@ -7,7 +7,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t1-lock-reconcile",
+  "expected_branch": "shiki/t1-closeout-done",
   "expected_pr": null,
   "github_issue": null,
   "goal_id": "G-20260612T152357704854Z-8a5508cf",
