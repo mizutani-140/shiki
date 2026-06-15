@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260612T152357707056Z-90925f53.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260613T082220087093Z-83a63686",
+  "links": [],
+  "summary": "Task registered: T2 Capture hooks and scorecard (proposal 0001 v2 sections 3.3 + 3.6).",
+  "task_id": "T-20260612T152357707056Z-90925f53",
+  "timestamp": "2026-06-13T08:22:20+00:00",
+  "type": "task-registered"
+}

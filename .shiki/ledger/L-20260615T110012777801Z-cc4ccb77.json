@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260612T152357707056Z-90925f53.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260615T110012777801Z-cc4ccb77",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/131"
+  ],
+  "summary": "T2 task-registered: reference PR #131 for the MergeGate self-reference check. Capture hooks and scorecard (proposal 0001 v2 sections 3.3+3.6) updated onto main (base b492568) at merge head; full local suite green (validate_shiki, py_compile, 194 unit tests, 32 shell contract tests). No T3 changes; no goal-complete.",
+  "task_id": "T-20260612T152357707056Z-90925f53",
+  "timestamp": "2026-06-15T11:00:12.777801+00:00",
+  "type": "check"
+}

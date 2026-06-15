@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -443,6 +444,236 @@ def capture_memory(
     _save(target, memory)
     ledger_id = _record_transition(target, memory, f"Memory {memory['id']} captured (raw, area={area}, source={source_kind})")
     return {"memory_id": memory["id"], "status": "raw", "written": True, "ledger_id": ledger_id}
+
+
+# Secret-like patterns that must never reach a committed memory file (B10). The
+# auto-capture claim is a short, structured summary; these are a defense layer in
+# case a reason/diagnostic string embeds a credential.
+_SECRET_PATTERNS = (
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),                    # GitHub tokens
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),                 # GitHub fine-grained PAT
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),                             # AWS access key id
+    re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"),                 # Slack token
+    re.compile(r"\bsk-[A-Za-z0-9]{20,}\b"),                          # OpenAI-style key
+    re.compile(r"\beyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\b"),  # JWT
+    re.compile(r"-----BEGIN[ A-Z]*PRIVATE KEY-----.*?-----END[ A-Z]*PRIVATE KEY-----", re.DOTALL),
+    re.compile(
+        r"(?i)\b[A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|ACCESS[_-]?KEY|PRIVATE[_-]?KEY|CREDENTIAL)[A-Za-z0-9_]*\s*[=:]\s*\S+"
+    ),
+)
+
+
+def redact_text(text: str) -> tuple[str, bool]:
+    """Replace secret-like tokens with ``[REDACTED]``.
+
+    Returns ``(redacted_text, found)`` where ``found`` is True when any secret
+    pattern matched. Pure and side-effect free.
+    """
+    redacted = str(text or "")
+    found = False
+    for pattern in _SECRET_PATTERNS:
+        new_text = pattern.sub("[REDACTED]", redacted)
+        if new_text != redacted:
+            found = True
+            redacted = new_text
+    return redacted, found
+
+
+@dataclass(frozen=True)
+class CaptureResult:
+    """The single contract every auto-capture hook receives.
+
+    Hooks call ``capture_failure`` and inspect this result; they must NOT add
+    their own exception handling or file checks — that would re-open the
+    fail-open boundary. ``written`` is True only when a raw memory was persisted;
+    ``skipped_reason`` explains a deliberate no-write; ``warnings`` carries any
+    non-fatal diagnostics.
+    """
+
+    written: bool
+    memory_id: str | None = None
+    skipped_reason: str | None = None
+    warnings: tuple[str, ...] = ()
+
+
+def capture_failure(
+    target: Path,
+    *,
+    source_kind: str,
+    area: str,
+    claim: str,
+    goal_id: str | None,
+    task_id: str | None = None,
+    evidence_refs: list[str] | None = None,
+    applies_to: list[str] | None = None,
+    tags: list[str] | None = None,
+) -> CaptureResult:
+    """Fail-open auto-capture of a failure as a raw memory (proposal 3.3).
+
+    Contract:
+      - NEVER raises into the caller — a capture failure must not stop the loop (M5);
+      - requires an existing ``source.goal_id`` (no sentinel fallback);
+      - writes only a raw memory;
+      - never stores stdout/stderr bodies — only the structured evidence refs
+        passed in plus a short redacted claim;
+      - redacts secret-like content and records redaction.status;
+      - returns a skip (writes nothing) when the goal anchor is missing, the
+        evidence is invalid, or no safe claim remains.
+    """
+    try:
+        redacted, found = redact_text(claim)
+        # Unsalvageable: the input was essentially only a secret, leaving no
+        # meaningful claim after redaction — write nothing (B10).
+        if not redacted.replace("[REDACTED]", "").strip():
+            reason = "redaction left no safe claim"
+            return CaptureResult(written=False, skipped_reason=reason, warnings=(reason + "; capture writes no memory entry",))
+        outcome = capture_memory(
+            target,
+            area=area,
+            claim=redacted,
+            source_kind=source_kind,
+            goal_id=goal_id,
+            task_id=task_id,
+            applies_to=applies_to,
+            tags=tags,
+            evidence=list(evidence_refs or []),
+            redaction="redacted" if found else "clean",
+        )
+        if outcome.get("written"):
+            return CaptureResult(written=True, memory_id=outcome.get("memory_id"))
+        warnings = tuple(outcome.get("warnings") or ())
+        return CaptureResult(
+            written=False,
+            memory_id=outcome.get("memory_id"),
+            skipped_reason=warnings[0] if warnings else "capture not written",
+            warnings=warnings,
+        )
+    except Exception as error:  # noqa: BLE001 - fail-open is mandated (M5); never break the loop
+        reason = f"capture failed: {error}"
+        return CaptureResult(written=False, skipped_reason=reason, warnings=(reason,))
+
+
+def _safe_json(path: Path) -> Any:
+    """Load JSON, returning None on any read/parse error (scorecard is failure
+    tolerant and must never raise on a malformed state file)."""
+    import json as _json
+    try:
+        return _json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _parse_iso(value: Any) -> Any:
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def compute_scorecard(target: Path, goal_id: str, *, tasks: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Goal-completion scorecard (proposal 3.6).
+
+    Counts come ONLY from ledger events and task state — never from raw memories
+    (that would create a failure -> memory -> scorecard -> suggestion -> memory
+    cycle). Ledger events are deduplicated by their event id. Uncomputable
+    categories are 0 (never null) with a warning. Failure tolerant: any error
+    degrades to a minimal scorecard plus a warning rather than raising.
+    """
+    warnings: list[str] = []
+    tasks = tasks or []
+    repairs_total = 0
+    lock_amendments = 0
+    cca_reruns = 0
+    window_from = window_to = None
+    try:
+        ledger_dir = target / ".shiki" / "ledger"
+        entries: dict[str, dict[str, Any]] = {}
+        if ledger_dir.is_dir():
+            for path in ledger_dir.glob("L-*.json"):
+                data = _safe_json(path)
+                if isinstance(data, dict) and data.get("goal_id") == goal_id and data.get("id"):
+                    entries[str(data["id"])] = data  # dedup by ledger event id
+        for entry in entries.values():
+            etype = entry.get("type")
+            if etype == "repair":
+                repairs_total += 1
+            elif etype == "lock":
+                lock_amendments += 1
+            stamp = _parse_iso(entry.get("timestamp"))
+            if stamp is not None:
+                window_from = stamp if window_from is None or stamp < window_from else window_from
+                window_to = stamp if window_to is None or stamp > window_to else window_to
+        cca_reruns = sum(int(task.get("cca_rerun_count") or 0) for task in tasks)
+    except Exception as error:  # noqa: BLE001 - scorecard generation is failure tolerant (3.6)
+        warnings.append(f"scorecard ledger aggregation degraded: {error}")
+
+    completed = sum(1 for task in tasks if task.get("status") == "done")
+    failed = sum(1 for task in tasks if task.get("status") == "repair-needed")
+    # Loop stops are captured as memories, not ledger events; counting them from
+    # raw memory would be the forbidden circular source, so they are reported as
+    # 0 with a warning rather than guessed.
+    warnings.append("loop_stops are captured as raw memories and are not counted by the ledger-only scorecard")
+    if repairs_total:
+        warnings.append("repairs.by_area is not derivable from ledger events; reported empty")
+
+    duration_ms = 0
+    if window_from is not None and window_to is not None:
+        duration_ms = int((window_to - window_from).total_seconds() * 1000)
+
+    return {
+        "goal_id": goal_id,
+        "generated_at": utc_now(),
+        "window": {
+            "from": window_from.isoformat() if window_from is not None else None,
+            "to": window_to.isoformat() if window_to is not None else None,
+        },
+        "tasks": {"total": len(tasks), "completed": completed, "failed": failed},
+        "repairs": {"total": repairs_total, "by_area": {}},
+        "cca_reruns": {"total": cca_reruns},
+        "loop_stops": {"total": 0, "by_reason": {}},
+        "lock_amendments": {"total": lock_amendments},
+        "duration_ms": duration_ms,
+        "warnings": warnings,
+        "suggestions": distillation_suggestions(target, goal_id),
+    }
+
+
+def distillation_suggestions(target: Path, goal_id: str, *, min_group: int = 2) -> list[dict[str, Any]]:
+    """Operator-facing distillation suggestions (proposal 3.6, B5).
+
+    A suggestion is advisory only: it NEVER changes a memory's status and NEVER
+    creates a distilled rule. Adoption still requires the normal
+    investigate -> promote -> distill flow. Recurring failures in the same area
+    (>= min_group raw/verified memories anchored to this goal) become one
+    suggestion that names the source MEM ids.
+    """
+    suggestions: list[dict[str, Any]] = []
+    try:
+        mem_dir = target / ".shiki" / "memories"
+        if not mem_dir.is_dir():
+            return suggestions
+        by_area: dict[str, list[str]] = {}
+        for path in sorted(mem_dir.glob("MEM-*.json")):
+            data = _safe_json(path)
+            if not isinstance(data, dict):
+                continue
+            source = data.get("source") or {}
+            if source.get("goal_id") != goal_id:
+                continue
+            if data.get("status") not in ("raw", "investigated", "verified"):
+                continue
+            by_area.setdefault(str(data.get("area") or "other"), []).append(str(data.get("id")))
+        for area, ids in sorted(by_area.items()):
+            if len(ids) >= min_group:
+                suggestions.append({
+                    "from_memories": ids,
+                    "proposed_rule": f"Recurring {area} failures in this goal suggest a generalizable rule.",
+                    "note": "採用には verified 経由の distill が必要（suggestion は memory status を変えない）",
+                })
+    except Exception:  # noqa: BLE001 - suggestions are advisory and failure tolerant
+        return suggestions
+    return suggestions
 
 
 def investigate_memory(target: Path, memory_id: str, *, summary: str, refs: list[str] | None = None) -> dict[str, Any]:

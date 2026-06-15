@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "tests/test_memory_capture.py",
+    "tests/test_memory_hooks.py",
+    "tests/test_memory_scorecard.py"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260613T082220087542Z-6b73ca1a",
+  "links": [],
+  "summary": "Skill tdd: redaction + capture hook + scorecard behavior fixed by failing tests first in tests/test_memory_capture.py, tests/test_memory_hooks.py, tests/test_memory_scorecard.py (149 unit green).",
+  "task_id": "T-20260612T152357707056Z-90925f53",
+  "timestamp": "2026-06-13T08:22:20+00:00",
+  "type": "check"
+}

@@ -447,6 +447,20 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
         task.setdefault("ledger_evidence", []).append(ledger_id)
         task["cca_rerun_count"] = int(task.get("cca_rerun_count") or 0) + 1
         _save_task(target, task)
+        # Auto-capture (proposal 3.3, source=cca_fail). The structured check
+        # state — not free-text gh output — drove this rerun; the memory stores a
+        # short claim and the rerun ledger reference only.
+        from shiki_memory import capture_failure
+
+        capture_failure(
+            target,
+            source_kind="cca_fail",
+            area="cca",
+            claim=f"CCA verdict failed for {task_id}; loop reran CCA (rerun {task['cca_rerun_count']}).",
+            goal_id=goal_id,
+            task_id=task_id,
+            evidence_refs=[f".shiki/ledger/{ledger_id}.json"],
+        )
     elif action == "dispatch_repair":
         attempt = repair_attempts_for(target, task_id) + 1
         result.update(_dispatch_repair(target, task, decision.get("failed_checks", []), attempt))
@@ -522,7 +536,23 @@ def goal_loop_step(target: Path, goal_id: str) -> dict[str, Any]:
             )
         )
     decision = decide_goal_action(decisions, tasks)
-    return execute_action(target, goal_id, decision, repair_limit=repair_limit)
+    result = execute_action(target, goal_id, decision, repair_limit=repair_limit)
+    # Auto-capture (proposal 3.3, source=loop_stop). Captured from the POST-result
+    # action so that merge-failure / unblock-failure conversions to a stop are
+    # recorded with their real stop kind. capture_failure is fail-open.
+    if result.get("action") in STOP_ACTIONS:
+        from shiki_memory import capture_failure
+
+        capture_failure(
+            target,
+            source_kind="loop_stop",
+            area="loop",
+            claim=f"Goal loop stopped: {result.get('action')} for task {result.get('task_id')} ({result.get('reason')}).",
+            goal_id=goal_id,
+            task_id=result.get("task_id"),
+            evidence_refs=[],
+        )
+    return result
 
 
 def cmd_loop_step(args: argparse.Namespace) -> int:

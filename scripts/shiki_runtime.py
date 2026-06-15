@@ -232,6 +232,21 @@ def record_runner_result(target: Path, task: dict[str, Any], command: str, retur
         summary=f"Runner command exited {returncode} for {task['id']}",
         evidence=[str(record_file.relative_to(target))],
     )
+    if returncode != 0:
+        # Auto-capture (proposal 3.3, source=runner_fail). The EXEC record holds
+        # the stdout/stderr bodies; the memory stores only a reference to it and
+        # a short claim — never the output itself. capture_failure is fail-open.
+        from shiki_memory import capture_failure
+
+        capture_failure(
+            target,
+            source_kind="runner_fail",
+            area="runner",
+            claim=f"Runner execution failed with a non-zero return code ({returncode}).",
+            goal_id=task.get("goal_id"),
+            task_id=task.get("id"),
+            evidence_refs=[str(record_file.relative_to(target))],
+        )
     return record_file, ledger_id
 
 
