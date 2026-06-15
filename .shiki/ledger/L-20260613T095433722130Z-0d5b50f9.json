@@ -5,7 +5,9 @@
   ],
   "goal_id": "G-20260613T095433721642Z-2e5e71fd",
   "id": "L-20260613T095433722130Z-0d5b50f9",
-  "links": [],
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/132"
+  ],
   "summary": "Task registered: control-plane goal_reconcile PR type + DAG-based goal-complete (multi-task goal deadlock fix).",
   "task_id": "T-20260613T095433721787Z-8d6b04d5",
   "timestamp": "2026-06-13T09:54:33+00:00",
