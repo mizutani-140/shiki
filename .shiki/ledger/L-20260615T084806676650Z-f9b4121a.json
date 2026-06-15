@@ -7,7 +7,9 @@
   ],
   "goal_id": "G-20260612T152357704854Z-8a5508cf",
   "id": "L-20260615T084806676650Z-f9b4121a",
-  "links": [],
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/134"
+  ],
   "summary": "goal_reconcile: restore the frozen Memory Loop DAG and register planned T2 (Capture hooks and scorecard) and T3 (Consult injection and docs) task files matching the spec-frozen plan; no implementation, no done, no goal-complete.",
   "task_id": null,
   "timestamp": "2026-06-15T08:48:06+00:00",
