@@ -537,6 +537,27 @@ class PostMergeReconcileTests(unittest.TestCase):
                 pr_body=f"reconcile {PM_TASK} <!-- shiki:post_merge_reconcile -->")
         self.assertEqual(blocking, [])
 
+    def test_non_numeric_base_expected_pr_is_deterministic_block(self) -> None:
+        # A malformed base expected_pr must yield a deterministic blocker, not an
+        # unhandled ValueError crash.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = _pm_seed(root)
+            (root / ".shiki" / "base" / "tasks" / f"{PM_TASK}.json").write_text(
+                json.dumps({**base, "expected_pr": "not-a-number"}), encoding="utf-8")
+            _pm_write_head_task(root, base, status="done", expected_pr=None)
+            blocking: list[str] = []
+            try:
+                enforce_post_merge_reconcile(
+                    target=root, task_id=PM_TASK, base_shiki=root / ".shiki" / "base",
+                    changed_files_status=[ChangedFile("D", f".shiki/locks/{PM_TASK}.json"),
+                                          ChangedFile("M", f".shiki/tasks/{PM_TASK}.json"),
+                                          ChangedFile("A", f".shiki/ledger/{PM_LOCK}.json")],
+                    blocking=blocking, warnings=[], merged_pr_numbers={99})
+            except Exception as error:  # noqa: BLE001
+                self.fail(f"enforce_post_merge_reconcile raised instead of blocking: {error}")
+        self.assertTrue(any("is not a PR number" in b for b in blocking))
+
     def test_none_merge_proof_fails_closed(self) -> None:
         # The default merged_pr_numbers=None must fail closed (no proof), not
         # silently skip the merge-proof gate.

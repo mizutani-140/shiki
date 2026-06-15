@@ -513,10 +513,18 @@ def enforce_post_merge_reconcile(
     proven_merged = merged_pr_numbers or set()
     if not base_expected_pr:
         blocking.append(f"post_merge_reconcile: task {task_id} has no merged PR (no base expected_pr) to reconcile")
-    elif int(base_expected_pr) not in proven_merged:
-        blocking.append(
-            f"post_merge_reconcile: task {task_id} references PR #{base_expected_pr}, which is not proven merged"
-        )
+    else:
+        try:
+            base_pr_num = int(base_expected_pr)
+        except (TypeError, ValueError):
+            # A malformed base expected_pr becomes a deterministic blocker, not
+            # an opaque CI crash.
+            blocking.append(f"post_merge_reconcile: task {task_id} base expected_pr {base_expected_pr!r} is not a PR number")
+            base_pr_num = None
+        if base_pr_num is not None and base_pr_num not in proven_merged:
+            blocking.append(
+                f"post_merge_reconcile: task {task_id} references PR #{base_expected_pr}, which is not proven merged"
+            )
     # The residue MUST be cleaned up: expected_pr cleared on the head task.
     if head_task.get("expected_pr") is not None:
         blocking.append(f"post_merge_reconcile must clear expected_pr on task {task_id} (still {head_task.get('expected_pr')!r})")
