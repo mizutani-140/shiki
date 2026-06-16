@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260612T152357707653Z-e200274d.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260616T005111705595Z-d691531f",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/138"
+  ],
+  "summary": "T3 closeout + Memory Loop goal completion: Consult injection (\u00a73.5/\u00a73.7) merged in PR #137 (commit 38b25e5); marking T3 done. With T1/T2/T3 all done this is the forced DAG-completion transition (validate_shiki:2024) \u2014 the goal also completes in this PR. Self-references PR #138 (MergeGate self-reference).",
+  "task_id": "T-20260612T152357707653Z-e200274d",
+  "timestamp": "2026-06-16T00:51:11.705595+00:00",
+  "type": "check"
+}

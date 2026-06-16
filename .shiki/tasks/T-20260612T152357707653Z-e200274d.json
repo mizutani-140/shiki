@@ -14,8 +14,8 @@
   "dependencies": [
     "T-20260612T152357706392Z-75f529da"
   ],
-  "expected_branch": "shiki/t3-consult-injection",
-  "expected_pr": 137,
+  "expected_branch": "shiki/memory-loop-complete",
+  "expected_pr": 138,
   "goal_id": "G-20260612T152357704854Z-8a5508cf",
   "id": "T-20260612T152357707653Z-e200274d",
   "ledger_evidence": [
@@ -23,7 +23,8 @@
     "L-20260615T124011081676Z-89172cca",
     "L-20260615T124011083651Z-c9a43f50",
     "L-20260615T124011083774Z-5f942ca1",
-    "L-20260615T124011083875Z-d5de6168"
+    "L-20260615T124011083875Z-d5de6168",
+    "L-20260616T005111705595Z-d691531f"
   ],
   "locks": [
     "path:.shiki/**",
@@ -49,6 +50,6 @@
   ],
   "risk_level": "high",
   "scope": "Implement proposal 0001 v2 sections 3.5 and 3.7: write_task_handoff always emits a Distilled Rules section (none applicable explicit) selecting only active, non-superseded, non-revoked distilled rules matched on task.area/goal.area/applies_to/tags, stable-sorted last_verified desc then id asc, each with its MEM id; dispatch regenerates the handoff every time (remove the write-if-missing cache in shiki_loop and runner paths); add H-12 to docs/agents/checklists.md as blocking-when-applicable with the section-presence-only CCA wording from proposal 3.5; add session-start memory reading to .claude/commands/shiki.md and CLAUDE.md without touching the source-of-truth blocks; add CONTEXT.md glossary entries Memory, Distilled Rule, Scorecard; add a docs/agents memory document following ledger/state-classes conventions; update docs/agents/shiki-cli-architecture.md module table.",
-  "status": "review",
+  "status": "done",
   "title": "Consult injection and docs"
 }

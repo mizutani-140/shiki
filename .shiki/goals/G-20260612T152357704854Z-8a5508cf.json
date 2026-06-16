@@ -27,7 +27,8 @@
   "id": "G-20260612T152357704854Z-8a5508cf",
   "ledger_evidence": [
     "L-20260612T152357705670Z-448aa8b2",
-    "L-20260612T152456078460Z-be384f60"
+    "L-20260612T152456078460Z-be384f60",
+    "L-20260616T005111896533Z-9538aea6"
   ],
   "non_goals": [
     "No CCA core prompt or independence changes",
@@ -44,6 +45,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260612T152357625042Z-b25b41ec",
-  "status": "planned",
+  "status": "complete",
   "title": "Memory Loop: capture, promotion, consult, and scorecard for the Shiki platform"
 }

@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260616T005111862978Z-7cdb63da.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260616T005111896533Z-9538aea6",
+  "links": [],
+  "summary": "Memory Loop complete: capture, promotion, consult injection (Distilled Rules in handoffs), and the ledger-derived scorecard are live; T1/T2/T3 all done.",
+  "task_id": null,
+  "timestamp": "2026-06-16T00:51:11+00:00",
+  "type": "completion"
+}
