@@ -1,0 +1,53 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-16T00:51:11+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260612T152357706392Z-75f529da.json",
+    ".shiki/tasks/T-20260612T152357707056Z-90925f53.json",
+    ".shiki/tasks/T-20260612T152357707653Z-e200274d.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "R-20260616T005111862978Z-7cdb63da",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "high"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 293234705,
+    "generated_at": "2026-06-16T00:51:11+00:00",
+    "goal_id": "G-20260612T152357704854Z-8a5508cf",
+    "lock_amendments": {
+      "total": 2
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 0
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 3,
+      "failed": 0,
+      "total": 3
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard"
+    ],
+    "window": {
+      "from": "2026-06-12T15:23:57+00:00",
+      "to": "2026-06-16T00:51:11.705595+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "Memory Loop complete: capture, promotion, consult injection (Distilled Rules in handoffs), and the ledger-derived scorecard are live; T1/T2/T3 all done."
+}
