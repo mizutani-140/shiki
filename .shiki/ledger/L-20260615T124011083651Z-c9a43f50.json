@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260612T152357707653Z-e200274d.json"
+  ],
+  "goal_id": "G-20260612T152357704854Z-8a5508cf",
+  "id": "L-20260615T124011083651Z-c9a43f50",
+  "links": [],
+  "summary": "Skill tdd: red-green-refactor for the Consult selector and handoff injection \u2014 failing tests written first in tests/test_memory_consult.py and tests/test_handoff_consult.py (deterministic injection with MEM ids, revoked/superseded/inactive/zero-selector exclusion, none-applicable, stable sort last_verified desc/id asc, no-mutation, no-schema-change, regeneration), then minimal implementation in scripts/shiki_memory.py + shiki_tasks.py + shiki_loop.py. 217 unit tests + 32 shell contract tests + validate_shiki green.",
+  "task_id": "T-20260612T152357707653Z-e200274d",
+  "timestamp": "2026-06-15T12:40:11.083651+00:00",
+  "type": "check"
+}

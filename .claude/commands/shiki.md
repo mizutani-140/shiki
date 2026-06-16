@@ -130,6 +130,7 @@ the selected skills directory in the start record, plan, and handoff evidence.
 
 ## Operating Rules
 
+- At session start, read active distilled rules from `.shiki/memories/` (status `distilled`, `active: true`, not revoked or superseded) for applicable guidance; the same rules are injected deterministically into task handoffs as the `## Distilled Rules` section (§3.5).
 - Treat the assigned implementer runtime (Claude Code by default, Codex when assigned) as implementer, CCA as completion judge, and MergeGate as merge authorization.
 - Treat `/shiki` as a guided one-command entrypoint. Do not ask the user to run multiple setup commands.
 - For non-trivial goals, use `grill-with-docs`, then Context and Impact, then PRD/issues/triage.

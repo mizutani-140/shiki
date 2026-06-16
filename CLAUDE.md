@@ -59,10 +59,11 @@ At the start of a Shiki session:
 1. Read `AGENTS.md`.
 2. Read `CONTEXT.md` and relevant ADRs.
 3. Read active `.shiki/` Goal/task/ledger state when present.
-4. Read the GitHub Issue or PR when the task is GitHub-backed.
-5. Identify your role: Planner, Reviewer, Completion Check Agent, Repairer, Implementer, or Guardian-assist.
-6. Identify required skills using the Skill Gate.
-7. State missing prerequisites before taking action.
+4. Read active distilled rules from `.shiki/memories/` (status `distilled`, `active: true`, not revoked or superseded) for applicable guidance; the same rules are injected deterministically into task handoffs as the `## Distilled Rules` section (§3.5).
+5. Read the GitHub Issue or PR when the task is GitHub-backed.
+6. Identify your role: Planner, Reviewer, Completion Check Agent, Repairer, Implementer, or Guardian-assist.
+7. Identify required skills using the Skill Gate.
+8. State missing prerequisites before taking action.
 
 If direct GitHub state and `.shiki/` disagree, surface the conflict and prefer GitHub until the mirror is repaired.
 
