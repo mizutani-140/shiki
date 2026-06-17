@@ -51,17 +51,38 @@ def _write(path: Path, obj):
 
 class ReviewerAdapterTests(unittest.TestCase):
     def test_reviewer_is_read_only_and_distinct_from_implementer(self):
-        argv = " ".join(REVIEWER_ADAPTER.exec_argv)
-        # Read-only confinement: an --allowedTools restriction with NO edit tools.
-        self.assertIn("--allowedTools", argv)
-        self.assertIn("Read", argv)
-        self.assertNotIn("Edit", argv)
-        self.assertNotIn("Write", argv)
-        # Structured-verdict contract.
+        # Confinement must be enforced by the ACTUAL restriction mechanisms, not
+        # by --allowedTools (which only auto-approves; it does not remove tools).
+        # Verify the contract by flag, reading each flag's value.
+        argv = list(REVIEWER_ADAPTER.exec_argv)
+
+        def flag_value(name):
+            return argv[argv.index(name) + 1] if name in argv else None
+
+        MUTATORS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
+
+        # (1) --tools restricts the AVAILABLE built-in set to read tools only, so
+        # the mutating tools do not exist in the reviewer's context.
+        available = flag_value("--tools")
+        self.assertIsNotNone(available, "reviewer must use --tools to restrict availability")
+        available_set = {t.strip() for t in available.split(",")}
+        self.assertIn("Read", available_set)
+        for mutator in MUTATORS:
+            self.assertNotIn(mutator, available_set, f"{mutator} must not be an available tool")
+
+        # (2) --disallowedTools hard-denies the mutating tools (belt-and-suspenders).
+        disallowed = flag_value("--disallowedTools")
+        self.assertIsNotNone(disallowed, "reviewer must use --disallowedTools to deny mutators")
+        disallowed_set = {t.strip() for t in disallowed.split(",")}
+        for mutator in MUTATORS:
+            self.assertIn(mutator, disallowed_set, f"{mutator} must be explicitly disallowed")
+
+        # (3) Headless deny-by-default so an unmatched tool can never run.
+        self.assertEqual(flag_value("--permission-mode"), "dontAsk")
+
+        # (4) Structured-verdict contract; never the bypassPermissions implementer.
         self.assertIn("--json-schema", argv)
-        # NEVER the bypassPermissions implementer mode.
-        self.assertNotIn("bypassPermissions", argv)
-        # Distinct from the implementer adapter.
+        self.assertNotIn("bypassPermissions", " ".join(argv))
         self.assertNotEqual(REVIEWER_ADAPTER.exec_argv, CLAUDE_ADAPTER.exec_argv)
         self.assertIn("bypassPermissions", " ".join(CLAUDE_ADAPTER.exec_argv))
 

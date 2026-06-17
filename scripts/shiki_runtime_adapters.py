@@ -157,13 +157,23 @@ CLAUDE_ADAPTER = RunnerAdapter(
 )
 
 # The independent pre-PR code-review verifier (ADR 0011). It is the SAME model as
-# the implementer but in a SEPARATE context with read-only confinement — the
+# the implementer but in a SEPARATE context with HARD read-only confinement — the
 # independence IS the context boundary, exactly as for CCA. It is NEVER the
-# bypassPermissions implementer: --allowedTools restricts it to read tools (no
-# Edit/Write/MultiEdit), and --json-schema binds it to a structured verdict the
-# loop parses deterministically. A reviewer that cannot mutate the tree cannot
-# forge a "0 findings" by editing evidence.
-CODE_REVIEW_ALLOWED_TOOLS = "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*)"
+# bypassPermissions implementer. A reviewer that cannot mutate the tree cannot
+# forge a "0 findings" by editing the implementation or the evidence.
+#
+# Confinement is enforced by the documented restriction mechanisms, NOT by
+# --allowedTools (which only auto-APPROVES; it does not remove tools):
+#   --tools           restricts the AVAILABLE built-in set to read tools only, so
+#                     Edit/Write/MultiEdit/NotebookEdit do not exist in context.
+#   --disallowedTools belt-and-suspenders: hard-removes the mutating tools even
+#                     if a future --tools change re-adds them.
+#   --permission-mode dontAsk: in headless -p mode (no interactive approver) any
+#                     unmatched tool is denied, never prompted/hung.
+#   --allowedTools    auto-approves the read ops so the review does not stall.
+CODE_REVIEW_AVAILABLE_TOOLS = "Read,Grep,Glob,Bash"
+CODE_REVIEW_DISALLOWED_TOOLS = "Edit,Write,MultiEdit,NotebookEdit"
+CODE_REVIEW_ALLOWED_TOOLS = "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git status:*)"
 
 # Minimal structured-verdict contract. `verdict` is the only field the loop gates
 # on; `findings`/`summary` carry the (non-load-bearing) detail rendered into the
@@ -201,6 +211,16 @@ REVIEWER_ADAPTER = RunnerAdapter(
     exec_argv=(
         "claude",
         "-p",
+        # Hard read-only confinement (see CODE_REVIEW_* notes above): --tools
+        # restricts availability, --disallowedTools removes mutating tools,
+        # --permission-mode dontAsk denies anything unmatched in headless mode,
+        # --allowedTools only auto-approves the read ops.
+        "--tools",
+        CODE_REVIEW_AVAILABLE_TOOLS,
+        "--disallowedTools",
+        CODE_REVIEW_DISALLOWED_TOOLS,
+        "--permission-mode",
+        "dontAsk",
         "--allowedTools",
         CODE_REVIEW_ALLOWED_TOOLS,
         "--json-schema",

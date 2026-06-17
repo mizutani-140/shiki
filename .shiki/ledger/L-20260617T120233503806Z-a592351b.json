@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739480720Z-04c7582b.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T120233503806Z-a592351b",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/145"
+  ],
+  "summary": "Repair (external AI guardian finding T3-RO-TOOLS-001, BLOCKING): the reviewer's read-only confinement used --allowedTools, which only AUTO-APPROVES tools and does not restrict availability (confirmed via Claude Code CLI reference + claude-code-guide). The mutating tools were still available, defeating the core safety property. Fix: REVIEWER_ADAPTER now uses --tools Read,Grep,Glob,Bash (restrict available set), --disallowedTools Edit,Write,MultiEdit,NotebookEdit (hard deny), --permission-mode dontAsk (headless deny-by-default), keeping --allowedTools only to auto-approve the read ops. Regression test rewritten to assert the ACTUAL restriction contract (mutators absent from --tools, present in --disallowedTools, dontAsk mode) rather than absence from --allowedTools. 252 unit + shell + validate green.",
+  "task_id": "T-20260617T090739480720Z-04c7582b",
+  "timestamp": "2026-06-17T12:02:33.503806+00:00",
+  "type": "check"
+}
