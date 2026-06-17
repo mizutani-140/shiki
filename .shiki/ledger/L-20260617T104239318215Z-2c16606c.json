@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T031753971551Z-24f8c42f.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T104239318215Z-2c16606c",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/144"
+  ],
+  "summary": "T1 closeout: branch plumbing merged in PR #141; mark T1 done and release its lock so the sibling slices T2-T5 (which share .shiki/**, shiki_loop.py, tests/* locks) can land. Self-references PR #144. T2-T5 remain planned/review so the goal stays active (DAG-based).",
+  "task_id": "T-20260617T031753971551Z-24f8c42f",
+  "timestamp": "2026-06-17T10:42:39.318215+00:00",
+  "type": "check"
+}
