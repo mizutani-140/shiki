@@ -1,0 +1,44 @@
+{
+  "acceptance_checks": [
+    "The stubbed contract test exercises the full dispatch->PR->merge->repair path and is green in CI.",
+    "A live shiki loop run on a low-risk task reaches auto-merge + goal complete with zero manual pre-clearing, recorded as durable evidence."
+  ],
+  "assigned_runtime": "claude-code",
+  "cca_checklist_profile": [
+    "PR",
+    "TDD",
+    "V",
+    "CCA"
+  ],
+  "dependencies": [
+    "T-20260617T031753971551Z-24f8c42f",
+    "T-20260617T090739479224Z-cfdbfa06",
+    "T-20260617T090739480720Z-04c7582b",
+    "T-20260617T090739482036Z-c92b21b3"
+  ],
+  "expected_branch": "shiki/t-20260617t090739483386z-2a275071-placeholder",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "T-20260617T090739483386Z-2a275071",
+  "ledger_evidence": [
+    "L-20260617T090810876145Z-90a16965"
+  ],
+  "locks": [
+    "path:.shiki/**",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*",
+    "path:docs/**"
+  ],
+  "non_goals": [
+    "No new product behavior beyond verification."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Prove the loop self-drives. Add a stubbed-runner + stubbed-reviewer contract test (pattern: scripts/test_shiki_runner_claude.sh / scripts/test_shiki_goal_loop.sh) driving dispatch -> tdd-evidence -> code-review -> commit/push -> create_pr -> checks -> merge -> done, including the failure -> repair branch. Then the acceptance gate: a live shiki loop run on a low-risk claude-code task self-drives to auto-merge + goal complete with no manual pre-clearing (recorded as evidence).",
+  "status": "planned",
+  "title": "End-to-end verification: stubbed contract test + live loop self-drive"
+}

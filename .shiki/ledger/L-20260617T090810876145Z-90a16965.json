@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739483386Z-2a275071.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T090810876145Z-90a16965",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/142"
+  ],
+  "summary": "goal_reconcile: register frozen-plan task T-20260617T090739483386Z-2a275071 ('End-to-end verification: stubbed contract test + live loop self-drive') as planned for #140. Frozen-plan-bound; self-references PR #142.",
+  "task_id": "T-20260617T090739483386Z-2a275071",
+  "timestamp": "2026-06-17T09:08:10.876145+00:00",
+  "type": "task-registered"
+}

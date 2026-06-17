@@ -1,7 +1,47 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "from": "T-20260617T031753971551Z-24f8c42f",
+      "reason": "declared plan dependency",
+      "to": "T-20260617T090739479224Z-cfdbfa06"
+    },
+    {
+      "from": "T-20260617T031753971551Z-24f8c42f",
+      "reason": "declared plan dependency",
+      "to": "T-20260617T090739480720Z-04c7582b"
+    },
+    {
+      "from": "T-20260617T031753971551Z-24f8c42f",
+      "reason": "declared plan dependency",
+      "to": "T-20260617T090739482036Z-c92b21b3"
+    },
+    {
+      "from": "T-20260617T031753971551Z-24f8c42f",
+      "reason": "declared plan dependency",
+      "to": "T-20260617T090739483386Z-2a275071"
+    },
+    {
+      "from": "T-20260617T090739479224Z-cfdbfa06",
+      "reason": "declared plan dependency",
+      "to": "T-20260617T090739483386Z-2a275071"
+    },
+    {
+      "from": "T-20260617T090739480720Z-04c7582b",
+      "reason": "declared plan dependency",
+      "to": "T-20260617T090739483386Z-2a275071"
+    },
+    {
+      "from": "T-20260617T090739482036Z-c92b21b3",
+      "reason": "declared plan dependency",
+      "to": "T-20260617T090739483386Z-2a275071"
+    }
+  ],
   "goal_id": "G-20260617T031753970001Z-1de3b322",
   "nodes": [
-    "T-20260617T031753971551Z-24f8c42f"
+    "T-20260617T031753971551Z-24f8c42f",
+    "T-20260617T090739479224Z-cfdbfa06",
+    "T-20260617T090739480720Z-04c7582b",
+    "T-20260617T090739482036Z-c92b21b3",
+    "T-20260617T090739483386Z-2a275071"
   ]
 }

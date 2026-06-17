@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739482036Z-c92b21b3.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T090810874696Z-5cd634bb",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/142"
+  ],
+  "summary": "goal_reconcile: register frozen-plan task T-20260617T090739482036Z-c92b21b3 ('Loop task-lock guard: auto-include .shiki/** + validator hint') as planned for #140. Frozen-plan-bound; self-references PR #142.",
+  "task_id": "T-20260617T090739482036Z-c92b21b3",
+  "timestamp": "2026-06-17T09:08:10.874696+00:00",
+  "type": "task-registered"
+}

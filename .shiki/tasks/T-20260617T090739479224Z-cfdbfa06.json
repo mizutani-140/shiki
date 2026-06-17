@@ -1,0 +1,45 @@
+{
+  "acceptance_checks": [
+    "The loop runs the task's tests in the worktree and records a type:check ledger naming tdd with an EXEC evidence ref; a red run blocks (no PR) fail-closed.",
+    "A structured per-task test_command field exists with a safe unittest-discover default; acceptance_checks is never exec'd directly.",
+    "github_pr_body carries the loop-observed TDD section; MergeGate required_skill=tdd + CCA V-01 pass; suite green."
+  ],
+  "assigned_runtime": "claude-code",
+  "cca_checklist_profile": [
+    "PR",
+    "TDD",
+    "V",
+    "CCA"
+  ],
+  "dependencies": [
+    "T-20260617T031753971551Z-24f8c42f"
+  ],
+  "expected_branch": "shiki/t-20260617t090739479224z-cfdbfa06-placeholder",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "T-20260617T090739479224Z-cfdbfa06",
+  "ledger_evidence": [
+    "L-20260617T090810869784Z-a4e7326b"
+  ],
+  "locks": [
+    "path:.shiki/**",
+    "path:scripts/shiki_loop.py",
+    "path:scripts/shiki_github.py",
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*"
+  ],
+  "non_goals": [
+    "No code-review verifier (T3).",
+    "No branch-plumbing change (T1)."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Insert a loop-owned step at the top of the create_pr action (before create_github_pr_for_task) that runs the task's tests in the worktree and records a type:check ledger (EXEC record + a ledger naming skill tdd, evidence=EXEC ref) \u2014 loop-observed green (ADR 0011, Q3). Add a structured per-task test_command field (Assumption Log: acceptance_checks is free-form prose+commands and unsafe to exec; default to 'python3 -m unittest discover -s tests'). Thread a '## TDD evidence (loop-observed)' line into github_pr_body. Fail-closed: a red pre-PR test run does NOT open the PR (stop_blocked, since dispatch_repair is PR-gated).",
+  "status": "planned",
+  "title": "Loop-observed TDD evidence + per-task test command"
+}
