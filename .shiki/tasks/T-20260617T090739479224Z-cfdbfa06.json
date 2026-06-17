@@ -11,9 +11,7 @@
     "V",
     "CCA"
   ],
-  "dependencies": [
-    "T-20260617T031753971551Z-24f8c42f"
-  ],
+  "dependencies": [],
   "expected_branch": "shiki/t-20260617t090739479224z-cfdbfa06-placeholder",
   "expected_pr": null,
   "github_issue": null,
