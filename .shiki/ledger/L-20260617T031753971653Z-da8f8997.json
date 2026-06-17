@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260617T031753971551Z-24f8c42f.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T031753971653Z-da8f8997",
+  "links": [],
+  "summary": "Task registered from plan: Branch plumbing: commit+push implementation + full ledger-evidence sync",
+  "task_id": "T-20260617T031753971551Z-24f8c42f",
+  "timestamp": "2026-06-17T03:17:53+00:00",
+  "type": "task-registered"
+}
