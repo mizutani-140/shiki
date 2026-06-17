@@ -248,6 +248,20 @@ def pre_pr_code_review_section(task: dict[str, Any]) -> list[str]:
     else:
         lines.append("- Findings: none")
     return lines
+def _task_test_command_for_body(task: dict[str, Any]) -> str:
+    """The structured test command for the PR body's loop-observed TDD line.
+
+    Mirrors the loop's ``task_test_command`` selection (the task's
+    ``test_command`` or the safe unittest-discover default) so the PR records
+    exactly what the loop exec'd. ``acceptance_checks`` is free-form prose and is
+    never exec'd, so it is never shown here as the command.
+    """
+    from shiki_tasks import DEFAULT_TEST_COMMAND
+
+    command = task.get("test_command")
+    if isinstance(command, str) and command.strip():
+        return command
+    return DEFAULT_TEST_COMMAND
 
 
 def github_pr_body(task: dict[str, Any]) -> str:
@@ -268,6 +282,11 @@ def github_pr_body(task: dict[str, Any]) -> str:
             *[f"- {check}" for check in task.get("acceptance_checks", [])],
             "",
             *pre_pr_code_review_section(task),
+            "## TDD evidence (loop-observed)",
+            "- The goal loop ran the task's tests in the worktree and recorded a "
+            "type:check ledger (skill tdd, EXEC evidence) before opening this PR "
+            "(ADR 0011); a red run blocks the PR.",
+            f"- Test command: {_task_test_command_for_body(task)}",
             "",
             "## Evidence",
             "- python3 scripts/validate_shiki.py",
