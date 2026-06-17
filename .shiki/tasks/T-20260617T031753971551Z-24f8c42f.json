@@ -12,8 +12,8 @@
     "CCA"
   ],
   "dependencies": [],
-  "expected_branch": "shiki/t1-loop-branch-plumbing",
-  "expected_pr": 141,
+  "expected_branch": "shiki/t1-closeout",
+  "expected_pr": 144,
   "github_issue": null,
   "goal_id": "G-20260617T031753970001Z-1de3b322",
   "id": "T-20260617T031753971551Z-24f8c42f",
@@ -24,7 +24,8 @@
     "L-20260617T031753976357Z-05c002c1",
     "L-20260617T034222726208Z-95e3c688",
     "L-20260617T034222728376Z-4f3f7e65",
-    "L-20260617T034222728493Z-23f42f48"
+    "L-20260617T034222728493Z-23f42f48",
+    "L-20260617T104239318215Z-2c16606c"
   ],
   "locks": [
     "path:.shiki/**",
@@ -45,6 +46,6 @@
   ],
   "risk_level": "high",
   "scope": "Land the implementer's work and complete evidence on the task branch before create_pr (gaps #1/#2). Add a loop-owned commit+push-implementation step after a green dispatch (commit the worktree source changes; git push -u origin <expected_branch>). Rewrite _sync_state_to_branch (scripts/shiki_loop.py) to copy EVERY file referenced by the reloaded task.ledger_evidence (each .shiki/ledger/<id>.json plus every .shiki-relative path in that ledger's evidence list, e.g. .shiki/runner/EXEC-*, .shiki/reports/R-*) into the worktree, then add/commit/push; reorder so the branch is pushable before create_github_pr_for_task (scripts/shiki_github.py:293). Deterministic, fail-closed, loop-owned.",
-  "status": "review",
+  "status": "done",
   "title": "Branch plumbing: commit+push implementation + full ledger-evidence sync"
 }
