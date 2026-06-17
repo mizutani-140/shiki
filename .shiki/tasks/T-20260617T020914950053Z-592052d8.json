@@ -19,6 +19,7 @@
     "L-20260617T021950746394Z-c6050121"
   ],
   "locks": [
+    "path:.shiki/**",
     "path:tests/*"
   ],
   "non_goals": [
