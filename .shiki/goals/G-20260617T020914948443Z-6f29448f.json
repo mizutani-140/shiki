@@ -1,0 +1,26 @@
+{
+  "id": "G-20260617T020914948443Z-6f29448f",
+  "github_issue": null,
+  "title": "Add slugify unit tests",
+  "outcome": "The pure helper slugify(value) in scripts/shiki_process.py is characterized by a unittest suite in tests/test_slugify.py, covering its observable behavior without any production code change.",
+  "completion_conditions": [
+    "tests/test_slugify.py exists and asserts slugify('Hello, World!')=='hello-world', non-alphanumeric runs collapse to a single '-', leading/trailing separators are stripped, empty/all-symbol input returns 'task', and the result is truncated to at most 48 characters.",
+    "python3 -m unittest discover -s tests passes.",
+    "python3 scripts/validate_shiki.py passes."
+  ],
+  "non_goals": [
+    "No production code change.",
+    "No change to any file outside tests/."
+  ],
+  "risk_level": "low",
+  "required_skills": [
+    "tdd"
+  ],
+  "acceptance_evidence": [
+    "python3 -m unittest discover -s tests output showing tests/test_slugify.py passing.",
+    "python3 scripts/validate_shiki.py passing.",
+    "GitHub PR #139 required checks green."
+  ],
+  "status": "ready",
+  "created_at": "2026-06-17T02:09:14+00:00"
+}
