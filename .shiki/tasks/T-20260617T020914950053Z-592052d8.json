@@ -1,0 +1,35 @@
+{
+  "acceptance_checks": [
+    "tests/test_slugify.py exists and asserts slugify('Hello, World!')=='hello-world', empty/all-symbol input -> 'task', non-alphanumeric runs collapse to one '-', and the 48-character cap.",
+    "python3 -m unittest discover -s tests passes.",
+    "python3 scripts/validate_shiki.py passes."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260617t020914950053z-592052d8-add-slugify-unit-tests",
+  "expected_pr": 139,
+  "github_issue": null,
+  "goal_id": "G-20260617T020914948443Z-6f29448f",
+  "id": "T-20260617T020914950053Z-592052d8",
+  "ledger_evidence": [
+    "L-20260617T020914950171Z-36422459",
+    "L-20260617T020914953397Z-28dd133d",
+    "L-20260617T020914954531Z-e76875f9",
+    "L-20260617T021201021557Z-78c8426d",
+    "L-20260617T021950746394Z-c6050121"
+  ],
+  "locks": [
+    "path:tests/*"
+  ],
+  "non_goals": [
+    "No production code change.",
+    "No change to any file outside tests/."
+  ],
+  "required_skills": [
+    "tdd"
+  ],
+  "risk_level": "low",
+  "scope": "Add a new test file tests/test_slugify.py with unittest cases covering the existing pure helper slugify(value) in scripts/shiki_process.py. Cover: slugify('Hello, World!') == 'hello-world'; runs of non-alphanumeric characters collapse to a single '-'; leading/trailing separators are stripped; empty or all-symbol input returns 'task'; the result is truncated to at most 48 characters. Do not modify any production code; add only the test file.",
+  "status": "review",
+  "title": "Add slugify unit tests"
+}
