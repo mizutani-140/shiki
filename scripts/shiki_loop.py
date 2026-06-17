@@ -416,9 +416,19 @@ def _evidence_relatives_for_task(target: Path, task: dict[str, Any]) -> list[str
     """
     task_id = str(task.get("id"))
     relatives: list[str] = []
+    shiki_root = (target / ".shiki").resolve()
 
     def add(rel: str) -> None:
-        if rel not in relatives and (target / rel).is_file():
+        # Containment: a ledger evidence ref is untrusted input. A prefix check
+        # alone (`startswith('.shiki/')`) does NOT stop traversal — '.shiki/../x'
+        # passes it but resolves outside the subtree. Resolve and require the
+        # path to stay within target/.shiki before it is synced/copied.
+        candidate = (target / rel).resolve()
+        try:
+            candidate.relative_to(shiki_root)
+        except ValueError:
+            return  # escapes the .shiki subtree — reject
+        if rel not in relatives and candidate.is_file():
             relatives.append(rel)
 
     add(f".shiki/tasks/{task_id}.json")
@@ -466,10 +476,20 @@ def _sync_state_to_branch(target: Path, task_id: str, ledger_id: str | None) -> 
         extra = f".shiki/ledger/{ledger_id}.json"
         if extra not in relatives and (target / extra).is_file():
             relatives.append(extra)
+    shiki_root = (target / ".shiki").resolve()
+    worktree_shiki_root = (worktree_path / ".shiki").resolve()
     for relative in relatives:
-        source = target / relative
-        destination = worktree_path / relative
-        if source.exists():
+        source = (target / relative).resolve()
+        destination = (worktree_path / relative).resolve()
+        # Belt-and-suspenders containment: never read from outside the
+        # coordinator's .shiki nor write outside the worktree's .shiki, whatever
+        # produced `relatives` (defense in depth against a traversal ref).
+        try:
+            source.relative_to(shiki_root)
+            destination.relative_to(worktree_shiki_root)
+        except ValueError:
+            continue
+        if source.is_file():
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
     run(["git", "add", ".shiki"], cwd=worktree_path, check=False)

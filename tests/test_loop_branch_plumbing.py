@@ -82,6 +82,22 @@ class EvidenceRelativesTests(unittest.TestCase):
             self.assertNotIn(".shiki/runner/EXEC-missing.json", rel)  # missing -> excluded
             self.assertNotIn("https://example/pr/1", rel)            # non-.shiki -> excluded
 
+    def test_traversal_evidence_ref_is_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d)
+            task = _seed_evidence(target)
+            # a ledger whose evidence escapes the .shiki subtree via ../ — the
+            # prefix check would pass it; containment must reject it.
+            _write(target / ".shiki" / "ledger" / "L-EVIL.json",
+                   {"id": "L-EVIL", "type": "check", "goal_id": GOAL, "task_id": TASK,
+                    "evidence": [".shiki/../../escape.txt", ".shiki/runner/EXEC-1.json"]})
+            (target.parent / "escape.txt").write_text("secret")  # exists OUTSIDE the subtree
+            task["ledger_evidence"].append("L-EVIL")
+            _write(target / ".shiki" / "tasks" / f"{TASK}.json", task)
+            rel = set(_evidence_relatives_for_task(target, task))
+            self.assertNotIn(".shiki/../../escape.txt", rel)   # traversal -> rejected
+            self.assertIn(".shiki/runner/EXEC-1.json", rel)    # legit ref still included
+
     def test_non_dict_ledger_does_not_crash(self):
         with tempfile.TemporaryDirectory() as d:
             target = Path(d)
