@@ -1,0 +1,44 @@
+{
+  "acceptance_checks": [
+    "A read-only claude -p reviewer is dispatched before create_pr and emits a structured verdict; parse/dispatch failure is fail-closed (blocks, never passes).",
+    "The loop records a code-review ledger + writes the ## Pre-PR code review PR-body section; CCA PR-12 + MergeGate required_skill=code-review pass.",
+    "Blocking findings drive the existing repair loop (3-limit); contract test covers clean + blocking-findings paths; suite green."
+  ],
+  "assigned_runtime": "claude-code",
+  "cca_checklist_profile": [
+    "PR",
+    "TDD",
+    "V",
+    "CCA"
+  ],
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260617t090739480720z-04c7582b-placeholder",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "T-20260617T090739480720Z-04c7582b",
+  "ledger_evidence": [
+    "L-20260617T090810873217Z-9cb9e627"
+  ],
+  "locks": [
+    "path:.shiki/**",
+    "path:scripts/shiki_runtime_adapters.py",
+    "path:scripts/shiki_runtime.py",
+    "path:scripts/shiki_loop.py",
+    "path:scripts/shiki_github.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*"
+  ],
+  "non_goals": [
+    "No change to CCA semantics.",
+    "No branch-plumbing/TDD-evidence change (T1/T2)."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Add an independent read-only code-review verifier run before create_pr (ADR 0011, Q1/Q2): a reviewer dispatch (claude -p, --allowedTools restricted to read tools, --json-schema structured findings verdict) in a separate context, as a reviewer runtime distinct from the bypassPermissions implementer adapter (scripts/shiki_runtime_adapters.py). The loop parses the verdict deterministically (parse/dispatch failure = fail-closed -> block), records a code-review ledger, and writes the '## Pre-PR code review' PR-body section (scripts/shiki_github.py github_pr_body) from it. Blocking findings feed the existing repair loop (verdict -> repair packet -> fix -> re-review), bounded by the 3-attempt limit.",
+  "status": "planned",
+  "title": "Independent code-review verifier (read-only claude -p)"
+}
