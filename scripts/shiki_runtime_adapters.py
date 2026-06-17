@@ -166,13 +166,22 @@ CLAUDE_ADAPTER = RunnerAdapter(
 # --allowedTools (which only auto-APPROVES; it does not remove tools):
 #   --tools           restricts the AVAILABLE built-in set to read tools only, so
 #                     Edit/Write/MultiEdit/NotebookEdit do not exist in context.
-#   --disallowedTools belt-and-suspenders: hard-removes the mutating tools even
-#                     if a future --tools change re-adds them.
+#                     NOTE: --tools restricts BUILT-IN tools only; MCP tools are
+#                     unaffected and must be denied separately (below).
+#   --disallowedTools belt-and-suspenders: hard-removes the mutating built-ins
+#                     AND every MCP tool (mcp__*), so no ambient MCP/user/managed
+#                     server surface escapes the read-only boundary.
+#   --strict-mcp-config  load MCP servers ONLY from --mcp-config; with none
+#                     passed, NO MCP servers load — the reviewer is hermetic to
+#                     ambient MCP configuration.
+#   --setting-sources ""  ignore user/project/local settings so the reviewer is
+#                     independent of ambient customizations (allowed tools, hooks).
 #   --permission-mode dontAsk: in headless -p mode (no interactive approver) any
 #                     unmatched tool is denied, never prompted/hung.
 #   --allowedTools    auto-approves the read ops so the review does not stall.
 CODE_REVIEW_AVAILABLE_TOOLS = "Read,Grep,Glob,Bash"
-CODE_REVIEW_DISALLOWED_TOOLS = "Edit,Write,MultiEdit,NotebookEdit"
+# Hard-deny the mutating built-ins AND all MCP tools (mcp__* — T3-RO-MCP-002).
+CODE_REVIEW_DISALLOWED_TOOLS = "Edit,Write,MultiEdit,NotebookEdit,mcp__*"
 CODE_REVIEW_ALLOWED_TOOLS = "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git status:*)"
 
 # Minimal structured-verdict contract. `verdict` is the only field the loop gates
@@ -212,13 +221,18 @@ REVIEWER_ADAPTER = RunnerAdapter(
         "claude",
         "-p",
         # Hard read-only confinement (see CODE_REVIEW_* notes above): --tools
-        # restricts availability, --disallowedTools removes mutating tools,
-        # --permission-mode dontAsk denies anything unmatched in headless mode,
-        # --allowedTools only auto-approves the read ops.
+        # restricts built-in availability; --disallowedTools removes the mutating
+        # built-ins AND all MCP tools (mcp__*); --strict-mcp-config with no
+        # --mcp-config loads zero MCP servers; --setting-sources "" ignores
+        # ambient user/project settings; --permission-mode dontAsk denies anything
+        # unmatched in headless mode; --allowedTools only auto-approves read ops.
         "--tools",
         CODE_REVIEW_AVAILABLE_TOOLS,
         "--disallowedTools",
         CODE_REVIEW_DISALLOWED_TOOLS,
+        "--strict-mcp-config",
+        "--setting-sources",
+        "",
         "--permission-mode",
         "dontAsk",
         "--allowedTools",

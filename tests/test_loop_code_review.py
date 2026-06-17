@@ -70,14 +70,23 @@ class ReviewerAdapterTests(unittest.TestCase):
         for mutator in MUTATORS:
             self.assertNotIn(mutator, available_set, f"{mutator} must not be an available tool")
 
-        # (2) --disallowedTools hard-denies the mutating tools (belt-and-suspenders).
+        # (2) --disallowedTools hard-denies the mutating built-ins AND all MCP
+        # tools (mcp__*) — --tools restricts built-ins only, so MCP must be denied
+        # separately or it escapes the read-only boundary (T3-RO-MCP-002).
         disallowed = flag_value("--disallowedTools")
         self.assertIsNotNone(disallowed, "reviewer must use --disallowedTools to deny mutators")
         disallowed_set = {t.strip() for t in disallowed.split(",")}
         for mutator in MUTATORS:
             self.assertIn(mutator, disallowed_set, f"{mutator} must be explicitly disallowed")
+        self.assertIn("mcp__*", disallowed_set, "MCP tools must be denied (--tools does not affect MCP)")
 
-        # (3) Headless deny-by-default so an unmatched tool can never run.
+        # (3) Hermetic to ambient MCP / user-project config: no MCP servers load
+        # and ambient settings are ignored, so the environment cannot widen the
+        # reviewer's read-only surface.
+        self.assertIn("--strict-mcp-config", argv)
+        self.assertEqual(flag_value("--setting-sources"), "")
+
+        # (4) Headless deny-by-default so an unmatched tool can never run.
         self.assertEqual(flag_value("--permission-mode"), "dontAsk")
 
         # (4) Structured-verdict contract; never the bypassPermissions implementer.
