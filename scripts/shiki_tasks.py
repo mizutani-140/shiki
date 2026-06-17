@@ -13,6 +13,13 @@ from shiki_locks import active_lock_conflicts
 from shiki_process import ShikiError, print_json, read_json, run, shiki_path, slugify, target_path, utc_now, write_json, ensure_control_dirs
 from shiki_state import append_ledger_entry, new_control_id
 
+# Safe default for the loop-observed TDD gate (ADR 0011): the command the goal
+# loop exec's in the task worktree before opening the PR. A task may override it
+# with its own structured `test_command`; the loop NEVER exec's the free-form
+# `acceptance_checks` prose.
+DEFAULT_TEST_COMMAND = "python3 -m unittest discover -s tests"
+
+
 def scan_ids(target: Path, prefix: str) -> list[int]:
     pattern = re.compile(rf"\b{re.escape(prefix)}-([0-9]{{4,}})\b")
     numbers: list[int] = []
@@ -250,6 +257,11 @@ def register_task_from_plan(
         "risk_level": task_plan.get("risk_level", "low"),
         "required_skills": task_plan.get("required_skills") or ["tdd", "code-review"],
         "acceptance_checks": task_plan["acceptance_checks"],
+        # The loop-observed TDD gate (ADR 0011) exec's THIS structured command in
+        # the worktree before opening the PR. acceptance_checks is free-form
+        # prose+commands and is never exec'd; test_command is the safe, explicit
+        # surface (default: the repo's unittest-discover suite).
+        "test_command": task_plan.get("test_command") or DEFAULT_TEST_COMMAND,
         "expected_branch": branch,
         "expected_pr": task_plan.get("expected_pr"),
         "ledger_evidence": [ledger_id],
@@ -560,6 +572,9 @@ def cmd_issue_plan(args: argparse.Namespace) -> int:
         "risk_level": args.risk_level,
         "required_skills": args.required_skill or [],
         "acceptance_checks": args.acceptance_check,
+        # Structured loop-observed TDD command (ADR 0011); falls back to the safe
+        # unittest-discover default when the CLI did not supply one.
+        "test_command": getattr(args, "test_command", None) or DEFAULT_TEST_COMMAND,
         "expected_branch": branch,
         "expected_pr": args.expected_pr,
         "ledger_evidence": [ledger_id],

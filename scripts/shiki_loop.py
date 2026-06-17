@@ -506,6 +506,114 @@ def _sync_state_to_branch(target: Path, task_id: str, ledger_id: str | None) -> 
     return "PR evidence committed and pushed to the task branch"
 
 
+def task_test_command(task: dict[str, Any]) -> str:
+    """The structured command the loop exec's for the task's TDD gate.
+
+    Reads the task's ``test_command`` field, falling back to the safe unittest
+    discover default when it is absent or blank. ``acceptance_checks`` is
+    free-form prose+commands and is deliberately NOT consulted here — it must
+    never be handed to a shell (ADR 0011: a deterministic observable command,
+    not narrative, is what the independent verifier runs).
+    """
+    # Lazy import keeps the shiki_loop <-> shiki_tasks edge one-directional.
+    from shiki_tasks import DEFAULT_TEST_COMMAND
+
+    command = task.get("test_command")
+    if isinstance(command, str) and command.strip():
+        return command
+    return DEFAULT_TEST_COMMAND
+
+
+def _run_task_tests_in_worktree(
+    target: Path, task_id: str
+) -> tuple[bool, str | None, str | None, str]:
+    """Loop-observed TDD gate (ADR 0011): run the task's tests in its worktree.
+
+    The loop — an independent verifier, not the implementer — runs the task's
+    structured ``test_command`` in the registered worktree and records the run
+    as durable evidence, mirroring ``record_runner_result``'s EXEC pattern:
+    write ``.shiki/runner/EXEC-*.json`` with the captured output, then a
+    ``type:"check"`` ledger naming skill ``tdd`` whose evidence points at that
+    EXEC record, and append the ledger id to ``task.ledger_evidence``.
+
+    Returns ``(ok, ledger_id, exec_rel, summary)``. ``ok`` is True only when the
+    command exited 0 — a green run the loop OBSERVED, never the implementer's
+    self-attestation. Fail-closed: any inability to observe a green run (no
+    worktree, missing path, exec error) returns ``ok=False`` with
+    ``ledger_id``/``exec_rel`` None. This effector never raises into the loop.
+    """
+    try:
+        # Lazy import keeps shiki_loop's edges one-directional: shiki_runtime
+        # imports shiki_github -> shiki_tasks, so importing it at module load
+        # would re-enter the shiki_loop <-> shiki_github <-> shiki_tasks cycle.
+        import subprocess
+
+        from shiki_process import shiki_path, utc_now, write_json
+        from shiki_tasks import append_ledger, next_control_id
+
+        record = worktree_record(target, task_id)
+        if not record:
+            return False, None, None, "no worktree record; TDD gate cannot observe the tests"
+        worktree_path = Path(record["path"]).expanduser().resolve()
+        if not worktree_path.exists() or worktree_path == target.resolve():
+            return False, None, None, "worktree unavailable; TDD gate cannot observe the tests"
+        task = load_task(target, task_id)
+        command = task_test_command(task)
+
+        process = subprocess.run(
+            command,
+            cwd=str(worktree_path),
+            shell=True,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        # Mirror record_runner_result's EXEC pattern (shiki_runtime): an
+        # EXEC-*.json record holds the raw command + captured stdout/stderr; the
+        # type:check ledger names skill tdd and references that EXEC file, so the
+        # run is durable, branch-syncable evidence. The EXEC `command` stays the
+        # exact command run — the "tdd" naming lives in the ledger summary.
+        record_id = next_control_id(target, "EXEC")
+        record_file = shiki_path(target, "runner", f"{record_id}.json")
+        write_json(
+            record_file,
+            {
+                "id": record_id,
+                "task_id": task["id"],
+                "goal_id": task["goal_id"],
+                "command": command,
+                "returncode": process.returncode,
+                "stdout": process.stdout,
+                "stderr": process.stderr,
+                "created_at": utc_now(),
+            },
+        )
+        exec_rel = str(record_file.relative_to(target))
+        ledger_id = append_ledger(
+            target,
+            goal_id=task["goal_id"],
+            task_id=task["id"],
+            ledger_type="check",
+            summary=(
+                f"Loop-observed TDD gate (skill: tdd) exited {process.returncode} "
+                f"for {task['id']}: {command}"
+            ),
+            evidence=[exec_rel],
+        )
+        task = load_task(target, task_id)
+        task.setdefault("ledger_evidence", []).append(ledger_id)
+        _save_task(target, task)
+        ok = process.returncode == 0
+        summary = (
+            f"loop-observed TDD gate green ({command})"
+            if ok
+            else f"loop-observed TDD gate RED (exit {process.returncode}: {command})"
+        )
+        return ok, ledger_id, exec_rel, summary
+    except Exception as error:  # never raise into the loop
+        return False, None, None, f"TDD gate could not run: {error}"
+
+
 def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repair_limit: int) -> dict[str, Any]:
     action = decision["action"]
     task_id = decision.get("task_id")
@@ -521,6 +629,20 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
     if action == "dispatch":
         result["returncode"] = _dispatch(target, task)
     elif action == "create_pr":
+        # Loop-owned TDD gate FIRST (ADR 0011): the loop — an independent
+        # verifier, not the implementer — runs the task's tests in the worktree
+        # and records a type:check ledger naming skill tdd (EXEC evidence ref)
+        # BEFORE any PR exists. Fail-closed: a RED run does NOT open the PR. We
+        # stop_blocked rather than dispatch_repair because repair packets require
+        # an existing PR (dispatch_repair is PR-gated) — there is none yet.
+        tdd_ok, tdd_ledger_id, tdd_exec, tdd_summary = _run_task_tests_in_worktree(target, task_id)
+        result["tdd_observed"] = tdd_summary
+        result["tdd_ledger_id"] = tdd_ledger_id
+        result["tdd_exec"] = tdd_exec
+        if not tdd_ok:
+            result["action"] = "stop_blocked"
+            result["reason"] = f"loop-observed TDD gate did not pass ({tdd_summary}); no PR opened"
+            return result
         # Persist the implementer runtime's work to the branch before opening the
         # PR — the runner implements in the worktree but does not commit/push
         # (gap #1). Only open the PR once the branch actually has the pushed

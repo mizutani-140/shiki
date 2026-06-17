@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739479224Z-cfdbfa06.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T103704019147Z-dc11ea91",
+  "links": [],
+  "summary": "Skill tdd: red-green for T2 loop-observed TDD evidence \u2014 failing tests first in tests/test_loop_tdd_evidence.py (green run records a tdd check ledger + EXEC ref; red run fail-closes to stop_blocked, no PR; per-task test_command default/override; never raises), then the create_pr-branch gate in scripts/shiki_loop.py + test_command field + github_pr_body TDD section. Implemented in parallel via Dynamic Workflow (isolated worktree); full unit + goal_loop shell + validate_shiki green.",
+  "task_id": "T-20260617T090739479224Z-cfdbfa06",
+  "timestamp": "2026-06-17T10:37:04.019147+00:00",
+  "type": "check"
+}
