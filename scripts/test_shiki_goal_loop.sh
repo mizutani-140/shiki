@@ -46,9 +46,19 @@ python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-goal-
 
 cd "$TARGET"
 git init -b main >/tmp/shiki-goal-loop-git-init.out
+# Configure a repo user so the goal loop's create_pr commit+push step (which
+# commits the implementer's worktree work) can commit, and a real bare origin so
+# its `git push` succeeds (the loop now pushes the implementation to the branch).
+git config user.name "Shiki Test"
+git config user.email "shiki@example.test"
+git init --bare "$TMP_ROOT/origin.git" >/dev/null
+# origin keeps a GitHub fetch URL (Shiki requires a GitHub origin) but pushes go
+# to a real local bare repo so the loop's create_pr commit+push step succeeds.
 git remote add origin https://github.com/example/shiki-goal-loop-test.git
+git remote set-url --push origin "$TMP_ROOT/origin.git"
 git add .
-git -c user.name="Shiki Test" -c user.email="shiki@example.test" commit -m "init" >/tmp/shiki-goal-loop-commit.out
+git commit -m "init" >/tmp/shiki-goal-loop-commit.out
+git push -u origin main >/dev/null 2>&1
 
 cat >"$FAKE_BIN/claude" <<'SH'
 #!/usr/bin/env bash
