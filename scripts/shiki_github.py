@@ -218,6 +218,38 @@ def github_issue_body(task: dict[str, Any]) -> str:
     )
 
 
+def pre_pr_code_review_section(task: dict[str, Any]) -> list[str]:
+    """The PR-12 ``## Pre-PR code review`` body section (ADR 0011).
+
+    Rendered from the loop-recorded ``pre_pr_code_review`` block — the verdict of
+    the independent read-only reviewer the loop ran before opening the PR. A PR is
+    only ever opened on a ``clean`` verdict (a blocking/failed review fail-closes
+    the loop before create_pr), so this section documents that the independent
+    gate passed and links its ledger; it is never the implementer self-attesting.
+    """
+    review = task.get("pre_pr_code_review") or {}
+    lines = ["## Pre-PR code review"]
+    if not review:
+        # Defensive: the section is always present for CCA PR-12, even when the
+        # verdict block was not recorded (e.g. a manually opened PR).
+        lines.append("- No independent pre-PR review verdict recorded.")
+        return lines
+    verdict = str(review.get("verdict", "unknown"))
+    lines.append(f"- Verdict: {verdict}")
+    lines.append("- Independent read-only reviewer (claude -p, read tools only) — ADR 0011")
+    ledger_id = review.get("ledger_id")
+    if ledger_id:
+        lines.append(f"- Ledger: {ledger_id}")
+    findings = review.get("findings") or []
+    if findings:
+        for finding in findings:
+            title = str(finding.get("title", "finding")) if isinstance(finding, dict) else str(finding)
+            lines.append(f"- Finding: {title}")
+    else:
+        lines.append("- Findings: none")
+    return lines
+
+
 def github_pr_body(task: dict[str, Any]) -> str:
     return "\n".join(
         [
@@ -234,6 +266,8 @@ def github_pr_body(task: dict[str, Any]) -> str:
             "",
             "## Acceptance",
             *[f"- {check}" for check in task.get("acceptance_checks", [])],
+            "",
+            *pre_pr_code_review_section(task),
             "",
             "## Evidence",
             "- python3 scripts/validate_shiki.py",

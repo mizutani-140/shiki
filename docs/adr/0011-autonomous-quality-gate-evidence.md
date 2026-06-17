@@ -47,10 +47,15 @@ self-attesting.
   **fail-closed** (review-not-done → block; never silently pass). Same model as
   the implementer, separate context — the independence is the context boundary,
   exactly as for CCA.
-- **Blocking review findings feed the existing repair loop** (the verdict
-  becomes a repair packet; the implementer fixes; the reviewer re-runs), bounded
-  by the standard 3-attempt repair limit. The reviewer is never asked to "make
-  the gate pass"; it only judges.
+- **A blocking pre-PR review stops the loop for diagnosis** (no PR exists yet to
+  anchor a repair). The pre-PR reviewer runs at `create_pr` time, *before* any PR
+  is opened — and a Shiki repair packet, by construction, requires an existing PR
+  (`_dispatch_repair` raises without one). So a blocking verdict fails closed to
+  `stop_blocked`: the loop halts for an operator/Guardian to diagnose or
+  re-dispatch, rather than dispatching an unanchorable repair. The repair loop
+  applies to *post-PR* check failures (CCA, validate, MergeGate), where a PR
+  already exists; those still flow through the standard 3-attempt repair limit.
+  The reviewer is never asked to "make the gate pass"; it only judges.
 - The implementer runtime is never instructed to write its own skill-evidence
   ledgers or PR-12 section. Those are loop-owned state transitions.
 
