@@ -150,7 +150,8 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
       "scope": "Smallest end-to-end slice",
       "acceptance_checks": ["Slice one verified"],
       "locks": ["path:slice-one.txt"],
-      "required_skills": ["tdd"]
+      "required_skills": ["tdd"],
+      "test_command": "true"
     },
     {
       "title": "Second slice",
@@ -158,7 +159,8 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
       "acceptance_checks": ["Slice two verified"],
       "dependencies": ["First slice"],
       "locks": ["path:slice-two.txt"],
-      "required_skills": ["tdd"]
+      "required_skills": ["tdd"],
+      "test_command": "true"
     }
   ]
 }
