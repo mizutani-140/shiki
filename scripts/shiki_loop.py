@@ -361,12 +361,96 @@ def _dispatch_repair(target: Path, task: dict[str, Any], failed_checks: list[str
     return {"repair_id": repair_id, "returncode": returncode}
 
 
-def _sync_state_to_branch(target: Path, task_id: str, ledger_id: str | None) -> str:
-    """Commit the PR-linkage .shiki state into the task branch.
+def _commit_and_push_implementation(target: Path, task_id: str) -> str:
+    """Commit and push the implementer runtime's work to the task branch.
 
-    MergeGate judges the PR HEAD checkout, so expected_pr, the worktree PR
-    field, and the PR-created ledger entry must ride on the task branch, not
-    only in the coordinator checkout.
+    The headless runner (``claude -p`` / ``codex exec``) writes its changes into
+    the task worktree but does not commit; ``create_github_pr_for_task`` opens
+    the PR with ``gh pr create`` and needs a pushed branch that has commits.
+    Stage everything the runner produced (the worktree is task-scoped), commit
+    it, and push the branch (setting upstream) so the PR can be opened and
+    later ``.shiki`` syncs can ``git push`` without arguments. Returns a status
+    string and never raises into the loop.
+    """
+    record = worktree_record(target, task_id)
+    if not record:
+        return "no worktree record; implementation commit skipped"
+    worktree_path = Path(record["path"]).expanduser().resolve()
+    if not worktree_path.exists() or worktree_path == target.resolve():
+        return "worktree unavailable; commit the implementation manually"
+    task = load_task(target, task_id)
+    branch = str(task.get("expected_branch") or "")
+    if not branch:
+        return "task has no expected_branch; cannot push the implementation"
+    run(["git", "add", "-A"], cwd=worktree_path, check=False)
+    # The commit may be a no-op when the runner already committed its own work;
+    # that is fine — we decide whether to push from the commit count ahead of
+    # main, not from this commit's return code.
+    run(
+        ["git", "commit", "-m", f"shiki: {task.get('title', task_id)} ({task_id})"],
+        cwd=worktree_path,
+        check=False,
+    )
+    ahead = run(["git", "rev-list", "--count", "main..HEAD"], cwd=worktree_path, check=False)
+    try:
+        count = int((ahead.stdout or "0").strip())
+    except (TypeError, ValueError):
+        count = 1  # fail open: attempt the push rather than silently skip
+    if count == 0:
+        return "no implementation changes to commit"
+    push = run(["git", "push", "-u", "origin", branch], cwd=worktree_path, check=False)
+    if push.returncode != 0:
+        return "implementation committed; push failed — push the task branch manually"
+    return "implementation committed and pushed to the task branch"
+
+
+def _evidence_relatives_for_task(target: Path, task: dict[str, Any]) -> list[str]:
+    """Every ``.shiki``-relative path that must ride on the task branch.
+
+    MergeGate judges the PR HEAD checkout and fails closed when a referenced
+    ledger (or a ``.shiki`` file that ledger's evidence points at) is absent on
+    the branch. So the branch needs the task file, its worktree record, every
+    ledger in ``task.ledger_evidence``, AND every ``.shiki``-relative path those
+    ledgers reference (e.g. ``runner/EXEC``, ``reports/R``) — not a hardcoded
+    subset. Only existing files are returned; deduped, deterministically ordered.
+    """
+    task_id = str(task.get("id"))
+    relatives: list[str] = []
+
+    def add(rel: str) -> None:
+        if rel not in relatives and (target / rel).is_file():
+            relatives.append(rel)
+
+    add(f".shiki/tasks/{task_id}.json")
+    add(f".shiki/worktrees/{task_id}.json")
+    for ledger_id in task.get("ledger_evidence") or []:
+        ledger_rel = f".shiki/ledger/{ledger_id}.json"
+        add(ledger_rel)
+        ledger_path = target / ledger_rel
+        if not ledger_path.is_file():
+            continue
+        try:
+            entry = read_json(ledger_path)
+        except Exception:
+            # read_json raises ShikiError (not OSError/ValueError) on a non-dict
+            # ledger; a malformed ledger must never crash the sync.
+            continue
+        for ref in entry.get("evidence") or []:
+            ref = str(ref)
+            if ref.startswith(".shiki/"):
+                add(ref)
+    return relatives
+
+
+def _sync_state_to_branch(target: Path, task_id: str, ledger_id: str | None) -> str:
+    """Commit the full ledger-evidence set into the task branch.
+
+    MergeGate judges the PR HEAD checkout, so the task file, worktree record,
+    and EVERY file referenced by ``task.ledger_evidence`` (each ledger plus the
+    ``.shiki`` paths those ledgers point at) must ride on the task branch — not
+    only in the coordinator checkout. ``ledger_id`` is the just-created PR ledger
+    (already appended to ``ledger_evidence`` by ``create_github_pr_for_task``);
+    it is included defensively.
     """
     import shutil
 
@@ -376,9 +460,12 @@ def _sync_state_to_branch(target: Path, task_id: str, ledger_id: str | None) -> 
     worktree_path = Path(record["path"]).expanduser().resolve()
     if not worktree_path.exists() or worktree_path == target.resolve():
         return "worktree unavailable for state sync; reconcile the PR branch manually"
-    relatives = [f".shiki/tasks/{task_id}.json", f".shiki/worktrees/{task_id}.json"]
+    task = load_task(target, task_id)
+    relatives = _evidence_relatives_for_task(target, task)
     if ledger_id:
-        relatives.append(f".shiki/ledger/{ledger_id}.json")
+        extra = f".shiki/ledger/{ledger_id}.json"
+        if extra not in relatives and (target / extra).is_file():
+            relatives.append(extra)
     for relative in relatives:
         source = target / relative
         destination = worktree_path / relative
@@ -414,6 +501,17 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
     if action == "dispatch":
         result["returncode"] = _dispatch(target, task)
     elif action == "create_pr":
+        # Persist the implementer runtime's work to the branch before opening the
+        # PR — the runner implements in the worktree but does not commit/push
+        # (gap #1). Only open the PR once the branch actually has the pushed
+        # implementation; otherwise `gh pr create` would raise on an empty/
+        # unpushed branch and crash the loop, so fail closed to stop_blocked.
+        impl = _commit_and_push_implementation(target, task_id)
+        result["impl_commit"] = impl
+        if "pushed to the task branch" not in impl:
+            result["action"] = "stop_blocked"
+            result["reason"] = f"implementation is not on the task branch ({impl}); diagnose or re-dispatch"
+            return result
         result.update(create_github_pr_for_task(target, task_id, base="main"))
         result["state_sync"] = _sync_state_to_branch(target, task_id, result.get("ledger_id"))
     elif action == "rerun_cca":

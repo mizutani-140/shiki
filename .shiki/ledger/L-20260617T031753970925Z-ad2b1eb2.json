@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260617T031753970001Z-1de3b322.json",
+    ".shiki/plans/P-20260617T031753871099Z-bac3fdc7.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T031753970925Z-ad2b1eb2",
+  "links": [],
+  "summary": "Goal registered from plan: Complete the autonomous post-freeze loop (finish #119 G-D)",
+  "task_id": null,
+  "timestamp": "2026-06-17T03:17:53+00:00",
+  "type": "goal-created"
+}

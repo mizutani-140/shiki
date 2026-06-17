@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260617T031753973356Z-b5ca8be7.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T031753973377Z-2a3d94fc",
+  "links": [],
+  "summary": "Task registered from plan: Loop task-lock guard: auto-include .shiki/** + validator hint",
+  "task_id": "T-20260617T031753973356Z-b5ca8be7",
+  "timestamp": "2026-06-17T03:17:53+00:00",
+  "type": "task-registered"
+}

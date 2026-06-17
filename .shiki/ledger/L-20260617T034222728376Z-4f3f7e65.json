@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T031753971551Z-24f8c42f.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T034222728376Z-4f3f7e65",
+  "links": [],
+  "summary": "Skill code-review: high-effort pre-PR review (line-by-line + removed-behavior + cross-file). Found 2 CONFIRMED loop-crashing bugs \u2014 (1) create_pr ran gh pr create unconditionally even when the impl was not pushed (check=True -> ShikiError crashes the loop) and the already-committed runner case never pushed; (2) _evidence_relatives_for_task caught (OSError,ValueError) but read_json raises ShikiError on a non-dict ledger. Both fixed (push-if-ahead + create_pr stop_blocked guard + except Exception) and regression-tested. 0 findings remain.",
+  "task_id": "T-20260617T031753971551Z-24f8c42f",
+  "timestamp": "2026-06-17T03:42:22.728376+00:00",
+  "type": "check"
+}

@@ -1,0 +1,55 @@
+{
+  "acceptance_checks": [
+    "create_pr commits+pushes the runner's worktree implementation; the PR opens with the implementation diff present.",
+    "_sync_state_to_branch copies the full task.ledger_evidence set plus referenced .shiki evidence files to the branch (MergeGate metadata passes).",
+    "tests/test_loop_engine.py covers the new effectors; python3 scripts/validate_shiki.py and the suite are green."
+  ],
+  "assigned_runtime": "claude-code",
+  "cca_checklist_profile": [
+    "PR",
+    "TDD",
+    "V",
+    "CCA"
+  ],
+  "dependencies": [],
+  "expected_branch": "shiki/t1-loop-branch-plumbing",
+  "expected_pr": 141,
+  "github_issue": null,
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "T-20260617T031753971551Z-24f8c42f",
+  "ledger_evidence": [
+    "L-20260617T031753970925Z-ad2b1eb2",
+    "L-20260617T031753971653Z-da8f8997",
+    "L-20260617T031753972222Z-12831234",
+    "L-20260617T031753972821Z-e2f9abad",
+    "L-20260617T031753973377Z-2a3d94fc",
+    "L-20260617T031753973853Z-c8bc37b9",
+    "L-20260617T031753975415Z-0aa956b5",
+    "L-20260617T031753976357Z-05c002c1",
+    "L-20260617T031753979476Z-5b480f1b",
+    "L-20260617T034222726208Z-95e3c688",
+    "L-20260617T034222728376Z-4f3f7e65",
+    "L-20260617T034222728493Z-23f42f48"
+  ],
+  "locks": [
+    "path:.shiki/**",
+    "path:scripts/shiki_loop.py",
+    "path:scripts/shiki_github.py",
+    "path:scripts/shiki_runtime.py",
+    "path:scripts/test_shiki_*.sh",
+    "path:tests/*",
+    "path:docs/**"
+  ],
+  "non_goals": [
+    "No TDD/code-review evidence (T2/T3).",
+    "No runtime auth change."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Land the implementer's work and complete evidence on the task branch before create_pr (gaps #1/#2). Add a loop-owned commit+push-implementation step after a green dispatch (commit the worktree source changes; git push -u origin <expected_branch>). Rewrite _sync_state_to_branch (scripts/shiki_loop.py) to copy EVERY file referenced by the reloaded task.ledger_evidence (each .shiki/ledger/<id>.json plus every .shiki-relative path in that ledger's evidence list, e.g. .shiki/runner/EXEC-*, .shiki/reports/R-*) into the worktree, then add/commit/push; reorder so the branch is pushable before create_github_pr_for_task (scripts/shiki_github.py:293). Deterministic, fail-closed, loop-owned.",
+  "status": "review",
+  "title": "Branch plumbing: commit+push implementation + full ledger-evidence sync"
+}

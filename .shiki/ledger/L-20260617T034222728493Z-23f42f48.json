@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T031753971551Z-24f8c42f.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T034222728493Z-23f42f48",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/141"
+  ],
+  "summary": "T1 task-registered: reference PR #141 for the MergeGate self-reference. Goal-kickoff PR lands ADR 0011 + PRD 0002 + frozen plan + .shiki Goal/DAG/5-tasks + T1 branch-plumbing implementation. T1 -> review; no goal-complete.",
+  "task_id": "T-20260617T031753971551Z-24f8c42f",
+  "timestamp": "2026-06-17T03:42:22.728493+00:00",
+  "type": "check"
+}

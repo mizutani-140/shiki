@@ -1,0 +1,44 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A stubbed-runner + stubbed-reviewer contract test drives the full dispatch->tdd-evidence->code-review->commit/push->create_pr->merge->done path including the failure->repair branch.",
+    "A live shiki loop run on a low-risk claude-code task self-drives to auto-merge + goal complete with no manual pre-clearing.",
+    "validate_shiki.py + the unit/contract suite stay green."
+  ],
+  "created_at": "2026-06-17T03:17:53+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "Q1: autonomous quality-gate evidence = deterministic observable facts + an independent verifier, never runner self-attestation (ADR 0011).",
+      "Q2: read-only claude -p code-review verifier, structured verdict, fail-closed, blocking->repair loop.",
+      "Q3: TDD evidence = loop-observed green; red-first not gated.",
+      "Q4: create_pr syncs the full ledger_evidence set to the branch.",
+      "Q5: loop-task registration auto-includes path:.shiki/** + validator hint."
+    ],
+    "source": "Requirements Definition session 2026-06-17 (/shiki Goal mode) for #140; live loop verification + CI-08 Workflow sweep + ADR 0011.",
+    "status": "complete"
+  },
+  "id": "G-20260617T031753970001Z-1de3b322",
+  "ledger_evidence": [
+    "L-20260617T031753970925Z-ad2b1eb2"
+  ],
+  "non_goals": [
+    "High/critical-risk auto-merge (remains Guardian-gated, ADR 0010).",
+    "Changing CCA verdict semantics, the MergeGate required-check set, branch-protection contexts, or the Guardian policy.",
+    "bypassPermissions bounding for the implementer.",
+    "Deterministic red->green verification (ADR 0011 future enhancement)."
+  ],
+  "outcome": "shiki loop run self-drives a low/medium-risk task from ready to auto-merged done with zero manual pre-clearing: implement -> loop-observed TDD evidence -> independent code-review -> commit/push -> PR -> checks+CCA pass -> MergeGate green -> auto-merge -> done -> goal complete.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260617T031753871099Z-bac3fdc7",
+  "status": "planned",
+  "title": "Complete the autonomous post-freeze loop (finish #119 G-D)"
+}
