@@ -9,6 +9,10 @@
   "created_at": "2026-06-18T03:16:46+00:00",
   "github_issue": 140,
   "id": "G-20260618T031646698067Z-0084bd63",
+  "ledger_evidence": [
+    "L-20260618T040550512970Z-a1c93ca8",
+    "L-20260618T040603981209Z-2757d8d3"
+  ],
   "non_goals": [
     "No change to the reviewer's read-only confinement contract (--tools allowlist, --strict-mcp-config, --setting-sources, --permission-mode dontAsk unchanged).",
     "No product source change outside the reviewer adapter/parser and its tests."
@@ -20,6 +24,6 @@
     "code-review"
   ],
   "risk_level": "medium",
-  "status": "planned",
+  "status": "complete",
   "title": "Repair: autonomous code-review gate could not parse the reviewer verdict (#140 T5 prerequisite)"
 }

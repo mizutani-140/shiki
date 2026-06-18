@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260618T040603973878Z-d8c5fa0b.json"
+  ],
+  "goal_id": "G-20260618T031646698067Z-0084bd63",
+  "id": "L-20260618T040603981209Z-2757d8d3",
+  "links": [],
+  "summary": "Reviewer structured-output emission + parsing fixed and merged in PR #148; the autonomous code-review gate now parses a real claude -p verdict via --output-format json + structured_output. Unblocks the #140 T5 live self-drive.",
+  "task_id": null,
+  "timestamp": "2026-06-18T04:06:03+00:00",
+  "type": "completion"
+}
