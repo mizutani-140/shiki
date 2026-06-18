@@ -181,7 +181,14 @@ CLAUDE_ADAPTER = RunnerAdapter(
 #   --allowedTools    auto-approves the read ops so the review does not stall.
 CODE_REVIEW_AVAILABLE_TOOLS = "Read,Grep,Glob,Bash"
 # Hard-deny the mutating built-ins AND all MCP tools (mcp__* — T3-RO-MCP-002).
-CODE_REVIEW_DISALLOWED_TOOLS = "Edit,Write,MultiEdit,NotebookEdit,mcp__*"
+# --tools above is the PRIMARY mechanism: it is an allowlist, so any built-in not
+# named there (every current OR future mutator) is already unavailable. This deny
+# list is belt-and-suspenders and must therefore name only mutators the runtime
+# actually recognizes — a deny rule for an unknown name is a no-op that emits a
+# spurious "matches no known tool" warning on stderr. `MultiEdit` is not a known
+# tool name in headless `claude -p`, so it is intentionally omitted here; the
+# allowlist still bars it. (T3-RO-DENYNAME-003.)
+CODE_REVIEW_DISALLOWED_TOOLS = "Edit,Write,NotebookEdit,mcp__*"
 CODE_REVIEW_ALLOWED_TOOLS = "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git status:*)"
 
 # Minimal structured-verdict contract. `verdict` is the only field the loop gates
@@ -237,27 +244,67 @@ REVIEWER_ADAPTER = RunnerAdapter(
         "dontAsk",
         "--allowedTools",
         CODE_REVIEW_ALLOWED_TOOLS,
+        # Structured-verdict contract. --json-schema validates the model's
+        # structured output against the schema; --output-format json is REQUIRED
+        # for that validated object to be emitted — it surfaces in the result
+        # envelope's `structured_output` field. Without --output-format json the
+        # run returns prose (the `result` text), which carries no parseable
+        # verdict and forces the loop to fail closed. (T3-JSON-OUT-004.)
         "--json-schema",
         CODE_REVIEW_VERDICT_SCHEMA,
+        "--output-format",
+        "json",
     ),
     auth_status=claude_auth_status,
     auth_remediation="Run `claude auth login` in a terminal or `/login` inside Claude Code before dispatch.",
 )
 
 
+def _valid_verdict(obj: Any) -> dict[str, Any] | None:
+    """Return ``obj`` iff it is a dict carrying a recognized ``verdict``."""
+    if isinstance(obj, dict):
+        verdict = obj.get("verdict")
+        if isinstance(verdict, str) and verdict in CODE_REVIEW_VALID_VERDICTS:
+            return obj
+    return None
+
+
 def parse_code_review_verdict(stdout: str) -> dict[str, Any] | None:
     """Deterministically extract the reviewer's structured verdict.
 
-    ``claude -p --json-schema`` returns a JSON object but may wrap it in log
-    lines, so we try the whole output first and then every balanced ``{...}``
-    span, accepting the first that carries a recognized ``verdict``. Returns the
-    parsed dict, or ``None`` on ANY failure — the caller treats ``None`` as
-    fail-closed (review-not-done -> block), never a silent pass.
+    The reviewer runs ``claude -p --json-schema ... --output-format json``, whose
+    single result envelope carries the schema-validated object in its
+    ``structured_output`` field (documented contract — not prose). We read that
+    field directly. A result envelope only carries a trustworthy verdict when
+    ``subtype == "success"``; any other subtype (e.g.
+    ``error_max_structured_output_retries``) is fail-closed.
+
+    Returns the verdict dict, or ``None`` on ANY deviation — the caller treats
+    ``None`` as fail-closed (review-not-proven -> block), never a silent pass.
     """
     text = (stdout or "").strip()
     if not text:
         return None
-    candidates: list[str] = [text]
+
+    # Primary contract: the --output-format json result envelope.
+    try:
+        envelope = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        envelope = None
+    if isinstance(envelope, dict):
+        if envelope.get("type") == "result" and envelope.get("subtype") != "success":
+            return None
+        structured = _valid_verdict(envelope.get("structured_output"))
+        if structured is not None:
+            return structured
+        # Bare schema object emitted without the envelope is also accepted.
+        bare = _valid_verdict(envelope)
+        if bare is not None:
+            return bare
+
+    # Fallback: a bare verdict object prefixed by non-JSON log lines. (Kept for
+    # robustness; the primary path covers the documented --output-format json
+    # contract.)
     start = text.find("{")
     while start != -1:
         depth = 0
@@ -268,19 +315,14 @@ def parse_code_review_verdict(stdout: str) -> dict[str, Any] | None:
             elif char == "}":
                 depth -= 1
                 if depth == 0:
-                    candidates.append(text[start : index + 1])
+                    try:
+                        candidate = _valid_verdict(json.loads(text[start : index + 1]))
+                    except (json.JSONDecodeError, ValueError):
+                        candidate = None
+                    if candidate is not None:
+                        return candidate
                     break
         start = text.find("{", start + 1)
-    for candidate in candidates:
-        try:
-            data = json.loads(candidate)
-        except (json.JSONDecodeError, ValueError):
-            continue
-        if not isinstance(data, dict):
-            continue
-        verdict = data.get("verdict")
-        if isinstance(verdict, str) and verdict in CODE_REVIEW_VALID_VERDICTS:
-            return data
     return None
 
 

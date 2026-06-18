@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260618T031646698067Z-0084bd63.json"
+  ],
+  "goal_id": "G-20260618T031646698067Z-0084bd63",
+  "id": "L-20260618T031646698968Z-b60d0d6b",
+  "links": [],
+  "summary": "Goal registered: Repair: autonomous code-review gate could not parse the reviewer verdict (#140 T5 prerequisite)",
+  "task_id": null,
+  "timestamp": "2026-06-18T03:16:46+00:00",
+  "type": "goal-created"
+}
