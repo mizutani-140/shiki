@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260618T044720078664Z-7502dbd0.json"
+  ],
+  "goal_id": "G-20260618T044709324112Z-bc9365c6",
+  "id": "L-20260618T050611429383Z-b17861d5",
+  "links": [],
+  "summary": "Task T-20260618T044720078664Z-7502dbd0 status changed to done",
+  "task_id": "T-20260618T044720078664Z-7502dbd0",
+  "timestamp": "2026-06-18T05:06:11+00:00",
+  "type": "check"
+}

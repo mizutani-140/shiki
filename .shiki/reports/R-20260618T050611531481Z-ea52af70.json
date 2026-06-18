@@ -1,0 +1,51 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-18T05:06:11+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260618T044720078664Z-7502dbd0.json"
+  ],
+  "goal_id": "G-20260618T044709324112Z-bc9365c6",
+  "id": "R-20260618T050611531481Z-ea52af70",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "medium"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 1142000,
+    "generated_at": "2026-06-18T05:06:11+00:00",
+    "goal_id": "G-20260618T044709324112Z-bc9365c6",
+    "lock_amendments": {
+      "total": 0
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 0
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard"
+    ],
+    "window": {
+      "from": "2026-06-18T04:47:09+00:00",
+      "to": "2026-06-18T05:06:11+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "Gap A (sync goal/dag/lock to the task branch) implemented and merged in PR #151; the loop's task PR is now self-contained for a locally-started goal. Unblocks Gap B + the #140 T5 live self-drive."
+}
