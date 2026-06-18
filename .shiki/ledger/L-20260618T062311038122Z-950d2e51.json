@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260618T062311037333Z-0c9a58e7.json"
+  ],
+  "goal_id": "G-20260618T062311037333Z-0c9a58e7",
+  "id": "L-20260618T062311038122Z-950d2e51",
+  "links": [],
+  "summary": "Goal registered: Gap B: loop pushes goal completion to main via a closeout PR (#140 T5; ADR 0012)",
+  "task_id": null,
+  "timestamp": "2026-06-18T06:23:11+00:00",
+  "type": "goal-created"
+}

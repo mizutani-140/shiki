@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "tests/test_loop_engine.py",
+    "tests/test_loop_branch_plumbing.py",
+    "scripts/test_shiki_goal_loop.sh"
+  ],
+  "goal_id": "G-20260618T062311037333Z-0c9a58e7",
+  "id": "L-20260618T063113497198Z-1ee7b48d",
+  "links": [],
+  "summary": "tdd: added 6 decision-engine cases (merged-impl->create_closeout_pr, merged-closeout->mark_done, closeout-phase pending/green/fail/cca-race) in tests/test_loop_engine.py, 2 effector integration tests (terminal state pushed + expected_pr repointed; interrupted-PR stop) in tests/test_loop_branch_plumbing.py, and rewrote scripts/test_shiki_goal_loop.sh to drive the FULL single-task self-drive (impl merge -> create_closeout_pr -> closeout merge -> mark_done -> goal_complete). 279 unittests + 33 shell contract tests green.",
+  "task_id": "T-20260618T062324783813Z-f62d375b",
+  "timestamp": "2026-06-18T06:31:13+00:00",
+  "type": "check"
+}

@@ -1,0 +1,26 @@
+{
+  "acceptance_evidence": [
+    "279 unittests + 33 shell contract tests + validate green; adversarial verification workflow (8 agents) confirmed + fixed defects; live: shiki loop run self-drives to goal-complete on main."
+  ],
+  "completion_conditions": [
+    "decide_task_action routes merged-impl -> create_closeout_pr and merged-closeout -> mark_done; _create_closeout_pr builds the terminal state in a worktree from origin/main, repoints expected_pr on the branch, and is fail-closed/never-raises; goal_complete syncs the coordinator from main.",
+    "unittest discover (incl. new decision + effector tests) + all scripts/test_shiki_*.sh (incl. goal_loop.sh driving the full self-drive) + validate_shiki are green."
+  ],
+  "created_at": "2026-06-18T06:23:11+00:00",
+  "github_issue": 140,
+  "id": "G-20260618T062311037333Z-0c9a58e7",
+  "non_goals": [
+    "Multi-task closeout sequencing (deferred per ADR 0012; single-task / last-task scope).",
+    "No force-push or branch deletion (mid-effector interruption stops for operator reconcile)."
+  ],
+  "outcome": "shiki loop run reaches goal-complete on main, durably and autonomously: after the impl PR merges, the loop opens and auto-merges a normal-mode closeout PR that pushes task=done + lock=released + goal=complete (scorecard) to main \u2014 closing the Gap B local-only-completion gap.",
+  "required_skills": [
+    "grill-with-docs",
+    "diagnose",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "status": "planned",
+  "title": "Gap B: loop pushes goal completion to main via a closeout PR (#140 T5; ADR 0012)"
+}
