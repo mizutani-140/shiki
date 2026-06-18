@@ -1,0 +1,43 @@
+{
+  "acceptance_checks": [
+    "A new test in tests/test_handoff_consult.py asserts the handoff contains '## Execution Protocol' before '## Scope' and forbids git commit/push and gh/PR creation, passing under python3 -m unittest discover -s tests"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260618t110731105287z-5276602e-handoff-execution-protocol-guardrail",
+  "expected_pr": 163,
+  "github_issue": null,
+  "goal_id": "G-20260618T110721108316Z-295dc805",
+  "id": "T-20260618T110731105287Z-5276602e",
+  "ledger_evidence": [
+    "L-20260618T110731105612Z-f04f5cd8",
+    "L-20260618T110759242412Z-be24b4d1",
+    "L-20260618T110759243619Z-02f9c021",
+    "L-20260618T111023667315Z-d74ba5a8",
+    "L-20260618T111059880324Z-fb8a0e8f",
+    "L-20260618T111104108127Z-45c5574d",
+    "L-20260618T111107900155Z-865c0596"
+  ],
+  "locks": [
+    "path:scripts/shiki_tasks.py",
+    "path:tests/test_handoff_consult.py",
+    "path:.shiki/**"
+  ],
+  "non_goals": [
+    "No loop state-machine, CCA, MergeGate, or Guardian-policy change."
+  ],
+  "pre_pr_code_review": {
+    "findings": [],
+    "ledger_id": "L-20260618T111059880324Z-fb8a0e8f",
+    "verdict": "clean"
+  },
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "low",
+  "scope": "In write_task_handoff (scripts/shiki_tasks.py), emit a new '## Execution Protocol' section BEFORE the '## Scope' section instructing the implementer to: edit only files in the worktree; NOT run git commit/push/checkout or any gh command; NOT create/update/merge a pull request (the Shiki loop owns commit/push/PR creation/merge); stay within declared locks. Add a regression test in tests/test_handoff_consult.py asserting the section is present, mentions git commit and git push and gh and 'pull request', and precedes '## Scope'.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Handoff Execution Protocol guardrail"
+}
