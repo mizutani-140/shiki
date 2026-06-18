@@ -1,0 +1,16 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/shiki_loop.py",
+    "tests/test_loop_branch_plumbing.py"
+  ],
+  "goal_id": "G-20260618T044709324112Z-bc9365c6",
+  "id": "L-20260618T045627360645Z-bb765a78",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/151"
+  ],
+  "summary": "PR opened for the Gap A loop sync fix: https://github.com/mizutani-140/shiki/pull/151 (/pull/151). Task status=review; awaiting CCA + MergeGate. Risk medium (auto-merge tier).",
+  "task_id": "T-20260618T044720078664Z-7502dbd0",
+  "timestamp": "2026-06-18T04:56:27+00:00",
+  "type": "mergegate"
+}

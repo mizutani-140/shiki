@@ -1,0 +1,26 @@
+{
+  "created_at": "2026-06-18T03:22:39+00:00",
+  "goal_id": "G-20260618T031646698067Z-0084bd63",
+  "locks": [
+    "path:scripts/shiki_runtime_adapters.py",
+    "path:tests/test_loop_code_review.py",
+    "path:.shiki/goals/G-20260618T031646698067Z-0084bd63.json",
+    "path:.shiki/dag/G-20260618T031646698067Z-0084bd63.json",
+    "path:.shiki/tasks/T-20260618T031710137746Z-dfb3c451.json",
+    "path:.shiki/locks/T-20260618T031710137746Z-dfb3c451.json",
+    "path:.shiki/ledger/L-20260618T031646698968Z-b60d0d6b.json",
+    "path:.shiki/ledger/L-20260618T031710138071Z-24cefbfb.json",
+    "path:.shiki/ledger/L-20260618T032206018471Z-78648909.json",
+    "path:.shiki/ledger/L-20260618T032206018852Z-cd731abb.json",
+    "path:.shiki/ledger/L-20260618T032206018961Z-da44606a.json",
+    "path:.shiki/ledger/L-20260618T032206019050Z-75ca3116.json",
+    "path:.shiki/ledger/L-20260618T032426797953Z-a3b7b2d1.json",
+    "path:.shiki/ledger/L-20260618T040603881128Z-43bcdfc0.json",
+    "path:.shiki/ledger/L-20260618T040603981209Z-2757d8d3.json",
+    "path:.shiki/reports/R-20260618T040603973878Z-d8c5fa0b.json",
+    "path:.shiki/ledger/L-20260618T040754056327Z-18d94150.json"
+  ],
+  "owner": "claude-code",
+  "state": "released",
+  "task_id": "T-20260618T031710137746Z-dfb3c451"
+}

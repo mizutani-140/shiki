@@ -1,0 +1,16 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/locks/T-20260618T051732214442Z-bae28ee3.json",
+    ".shiki/tasks/T-20260618T051732214442Z-bae28ee3.json"
+  ],
+  "goal_id": "G-20260618T051732213600Z-07292ac0",
+  "id": "L-20260618T052838950440Z-63e90baf",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/154"
+  ],
+  "summary": "Closeout reconcile in PR #154 (/pull/154): smoke task done, lock released, goal completed with scorecard. The loop auto-merged the impl in PR #153 (live Gap A self-drive). Frees the tests/* + .shiki/** lock for the Gap B repair.",
+  "task_id": "T-20260618T051732214442Z-bae28ee3",
+  "timestamp": "2026-06-18T05:28:38+00:00",
+  "type": "lock"
+}

@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260618T050611531481Z-ea52af70.json"
+  ],
+  "goal_id": "G-20260618T044709324112Z-bc9365c6",
+  "id": "L-20260618T050611540032Z-0c1a7fe9",
+  "links": [],
+  "summary": "Gap A (sync goal/dag/lock to the task branch) implemented and merged in PR #151; the loop's task PR is now self-contained for a locally-started goal. Unblocks Gap B + the #140 T5 live self-drive.",
+  "task_id": null,
+  "timestamp": "2026-06-18T05:06:11+00:00",
+  "type": "completion"
+}

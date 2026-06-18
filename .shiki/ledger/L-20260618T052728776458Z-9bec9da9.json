@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260618T052728767806Z-a4721faf.json"
+  ],
+  "goal_id": "G-20260618T051732213600Z-07292ac0",
+  "id": "L-20260618T052728776458Z-9bec9da9",
+  "links": [],
+  "summary": "Live #140 T5 Gap A validation: the autonomous loop self-drove this smoke task to AUTO-MERGE (PR #153, zero manual intervention). Completion is pushed to main via this closeout (the loop's local goal_complete did not yet push to main \u2014 that is Gap B). tests/test_loop_smoke.py is merged.",
+  "task_id": null,
+  "timestamp": "2026-06-18T05:27:28+00:00",
+  "type": "completion"
+}

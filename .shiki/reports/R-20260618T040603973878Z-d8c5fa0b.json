@@ -1,0 +1,51 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-18T04:06:03+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260618T031710137746Z-dfb3c451.json"
+  ],
+  "goal_id": "G-20260618T031646698067Z-0084bd63",
+  "id": "R-20260618T040603973878Z-d8c5fa0b",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "medium"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 2957000,
+    "generated_at": "2026-06-18T04:06:03+00:00",
+    "goal_id": "G-20260618T031646698067Z-0084bd63",
+    "lock_amendments": {
+      "total": 0
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 0
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard"
+    ],
+    "window": {
+      "from": "2026-06-18T03:16:46+00:00",
+      "to": "2026-06-18T04:06:03+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "Reviewer structured-output emission + parsing fixed and merged in PR #148; the autonomous code-review gate now parses a real claude -p verdict via --output-format json + structured_output. Unblocks the #140 T5 live self-drive."
+}

@@ -1,0 +1,25 @@
+{
+  "acceptance_evidence": [
+    "Captured shiki loop run JSONL transcript reaching outcome: complete, the merged smoke-task PR, and loop-owned tdd + code-review ledgers."
+  ],
+  "completion_conditions": [
+    "The single trivial-test task is auto-merged by the loop and this smoke goal reaches status complete with no manual pre-clearing."
+  ],
+  "created_at": "2026-06-18T09:31:12+00:00",
+  "github_issue": null,
+  "id": "G-20260618T093112319886Z-a4f768c5",
+  "ledger_evidence": [
+    "L-20260618T093616883655Z-ad2a14f7"
+  ],
+  "non_goals": [
+    "No production-loop code change; no change to CCA/MergeGate/Guardian policy; not a substitute for the stubbed contract test."
+  ],
+  "outcome": "shiki loop run self-drives a single low-risk task from ready to auto-merged done with zero manual pre-clearing: dispatch -> independent code-review -> loop-observed TDD -> commit/push -> PR -> checks+CCA green -> MergeGate -> auto-merge -> done -> goal complete.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "low",
+  "status": "complete",
+  "title": "Live loop e2e smoke: self-drive a low-risk task to auto-merge (#140 T5 evidence)"
+}

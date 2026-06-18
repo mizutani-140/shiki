@@ -1,0 +1,59 @@
+{
+  "acceptance_checks": [
+    "REVIEWER_ADAPTER.exec_argv includes --output-format json; parse_code_review_verdict returns the verdict from a result envelope's structured_output and fails closed on non-success subtype or prose-only result.",
+    "python3 -m unittest discover -s tests passes (incl. the new regression tests) and python3 scripts/validate_shiki.py passes.",
+    "A real claude -p reviewer run with the adapter argv parses to a valid verdict via parse_code_review_verdict."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-dfb3c451-closeout",
+  "expected_pr": 149,
+  "github_issue": null,
+  "goal_id": "G-20260618T031646698067Z-0084bd63",
+  "id": "T-20260618T031710137746Z-dfb3c451",
+  "ledger_evidence": [
+    "L-20260618T031646698968Z-b60d0d6b",
+    "L-20260618T031710138071Z-24cefbfb",
+    "L-20260618T032206018471Z-78648909",
+    "L-20260618T032206018852Z-cd731abb",
+    "L-20260618T032206018961Z-da44606a",
+    "L-20260618T032206019050Z-75ca3116",
+    "L-20260618T032426797953Z-a3b7b2d1",
+    "L-20260618T040603881128Z-43bcdfc0",
+    "L-20260618T040603981209Z-2757d8d3",
+    "L-20260618T040754056327Z-18d94150"
+  ],
+  "locks": [
+    "path:scripts/shiki_runtime_adapters.py",
+    "path:tests/test_loop_code_review.py",
+    "path:.shiki/goals/G-20260618T031646698067Z-0084bd63.json",
+    "path:.shiki/dag/G-20260618T031646698067Z-0084bd63.json",
+    "path:.shiki/tasks/T-20260618T031710137746Z-dfb3c451.json",
+    "path:.shiki/locks/T-20260618T031710137746Z-dfb3c451.json",
+    "path:.shiki/ledger/L-20260618T031646698968Z-b60d0d6b.json",
+    "path:.shiki/ledger/L-20260618T031710138071Z-24cefbfb.json",
+    "path:.shiki/ledger/L-20260618T032206018471Z-78648909.json",
+    "path:.shiki/ledger/L-20260618T032206018852Z-cd731abb.json",
+    "path:.shiki/ledger/L-20260618T032206018961Z-da44606a.json",
+    "path:.shiki/ledger/L-20260618T032206019050Z-75ca3116.json",
+    "path:.shiki/ledger/L-20260618T032426797953Z-a3b7b2d1.json",
+    "path:.shiki/ledger/L-20260618T040603881128Z-43bcdfc0.json",
+    "path:.shiki/ledger/L-20260618T040603981209Z-2757d8d3.json",
+    "path:.shiki/reports/R-20260618T040603973878Z-d8c5fa0b.json",
+    "path:.shiki/ledger/L-20260618T040754056327Z-18d94150.json"
+  ],
+  "non_goals": [
+    "No change to the read-only confinement contract (--tools allowlist, --disallowedTools for real mutators + mcp__*, --strict-mcp-config, --setting-sources, --permission-mode dontAsk unchanged).",
+    "No product source change outside scripts/shiki_runtime_adapters.py and its tests."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "scope": "Add --output-format json to REVIEWER_ADAPTER so claude -p emits the schema-validated object in the result envelope's structured_output field; rewrite parse_code_review_verdict to read structured_output (subtype-gated, fail-closed); drop the unknown deny-name MultiEdit (the --tools allowlist already bars it); add regression tests for the --output-format json contract, the structured_output envelope, subtype fail-close, and prose-without-structured-output fail-close.",
+  "status": "done",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Fix reviewer structured-output emission and parsing in the pre-PR code-review gate"
+}

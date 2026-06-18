@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/shiki_loop.py"
+  ],
+  "goal_id": "G-20260618T044709324112Z-bc9365c6",
+  "id": "L-20260618T045513326736Z-0bd0ddcc",
+  "links": [],
+  "summary": "diagnose: the live #140 T5 self-drive created task PR #150 but validate_shiki failed fast on the HEAD checkout: 'task ... goal_id ... has no matching goal file' (validate_shiki.py:2010-2012). Root cause: _evidence_relatives_for_task synced task+worktree+ledgers but NOT the goal/dag/lock files (it assumed those were already on main). A locally-started goal (created by `shiki run`, never committed to main) therefore had no goal file on the branch.",
+  "task_id": "T-20260618T044720078664Z-7502dbd0",
+  "timestamp": "2026-06-18T04:55:13+00:00",
+  "type": "check"
+}

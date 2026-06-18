@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260618T044720078664Z-7502dbd0.json"
+  ],
+  "goal_id": "G-20260618T044709324112Z-bc9365c6",
+  "id": "L-20260618T044720079100Z-eda0cad1",
+  "links": [],
+  "summary": "Task registered: Sync goal + guarded dag + lock to the task branch in _evidence_relatives_for_task",
+  "task_id": "T-20260618T044720078664Z-7502dbd0",
+  "timestamp": "2026-06-18T04:47:20+00:00",
+  "type": "task-registered"
+}

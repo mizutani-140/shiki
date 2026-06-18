@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-06-18T09:31:40+00:00",
+  "goal_id": "G-20260618T093112319886Z-a4f768c5",
+  "locks": [
+    "path:tests/**",
+    "path:.shiki/**"
+  ],
+  "owner": "shiki-run",
+  "state": "released",
+  "task_id": "T-20260618T093119138788Z-867546d0"
+}

@@ -25,7 +25,7 @@ from typing import Any
 
 from shiki_config import configured_required_checks
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
-from shiki_github import create_github_pr_for_task, github_env, target_provider_config
+from shiki_github import create_github_pr_for_task, github_env, parse_github_number, target_provider_config
 from shiki_process import ShikiError, print_json, read_json, run, shiki_path, target_path, write_json
 from shiki_runtime import dispatch_runner_task
 from shiki_runtime_adapters import REVIEWER_ADAPTER, get_runner_adapter, parse_code_review_verdict
@@ -33,6 +33,7 @@ from shiki_tasks import (
     append_ledger,
     allocate_worktree_record,
     cmd_goal_complete,
+    load_goal,
     load_task,
     tasks_for_goal,
     try_acquire_locks,
@@ -52,6 +53,7 @@ MAX_CCA_RERUNS = 2
 # Engine action names, in execution priority order for a goal pass.
 ACTION_PRIORITY = (
     "mark_done",
+    "create_closeout_pr",
     "merge",
     "rerun_cca",
     "dispatch_repair",
@@ -107,7 +109,48 @@ def decide_task_action(
     if not pr_state:
         return {"action": "create_pr", "task_id": task_id, "reason": "implementation is in review with no PR"}
     if pr_state.get("merged"):
-        return {"action": "mark_done", "task_id": task_id, "reason": "PR is merged"}
+        if task.get("closeout_pr"):
+            # expected_pr was repointed to the closeout PR; its merge means
+            # task=done + goal=complete + lock=released are now durable on main.
+            return {"action": "mark_done", "task_id": task_id, "reason": "closeout PR merged; completion is on main"}
+        # The IMPL PR merged. Do NOT mark done locally — that would complete the
+        # goal only in the coordinator mirror (Gap B / ADR 0012). Drive a closeout
+        # PR to push the terminal state to main instead.
+        return {"action": "create_closeout_pr", "task_id": task_id, "reason": "impl PR merged; push completion to main via a closeout PR"}
+
+    # Closeout PR phase: expected_pr points at the (unmerged) closeout PR. A
+    # bookkeeping closeout has no implementation to repair, so the only recoverable
+    # failure is the CCA same-head race (one rerun); everything else fails closed.
+    if task.get("closeout_pr"):
+        checks = checks or {}
+        results = {name: checks.get(name, "pending") for name in required_checks}
+        failed = sorted(name for name, value in results.items() if value == "fail")
+        pending = sorted(name for name, value in results.items() if value == "pending")
+        # The MergeGate policy (Guardian) gate is gated behind CCA, so it reports
+        # skipped/missing/pending whenever CCA is red. Strip it before the CCA-race
+        # decision EXACTLY like the impl-PR path (below); otherwise a lone CCA
+        # failure against a pending/skipped policy gate looks like a multi-check
+        # failure and drops to stop_blocked instead of the promised single rerun.
+        repairable_failed = sorted(name for name in failed if name != POLICY_GATE)
+        repairable_pending = sorted(name for name in pending if name != POLICY_GATE)
+        policy_failed = POLICY_GATE in failed
+        if repairable_failed:
+            cca_completion_race = set(repairable_failed) == {CCA_VERDICT_CHECK}
+            if cca_completion_race and repairable_pending:
+                return {"action": "wait_checks", "task_id": task_id, "reason": f"closeout: CCA judged early; waiting for pending checks: {', '.join(pending)}"}
+            if cca_completion_race and cca_reruns < MAX_CCA_RERUNS:
+                return {"action": "rerun_cca", "task_id": task_id, "reason": "closeout: only the CCA verdict failed against green siblings; rerun after green"}
+            return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout PR checks failed ({', '.join(repairable_failed)}); no auto-repair for a bookkeeping PR — diagnose"}
+        if policy_failed:
+            # The closeout's Guardian/policy gate said NO (or no authority yet);
+            # never auto-repaired (CCA is green here). A recorded authority resolves.
+            return {"action": "stop_guardian", "task_id": task_id, "reason": "closeout PR Guardian/policy gate failing with all other checks green; a recorded authority must resolve it"}
+        if pending:
+            return {"action": "wait_checks", "task_id": task_id, "reason": f"closeout PR checks pending: {', '.join(pending)}"}
+        risk = str(task.get("risk_level") or "low")
+        if risk in AUTO_MERGE_RISKS or POLICY_GATE in required_checks:
+            return {"action": "merge", "task_id": task_id, "reason": "closeout PR checks green; merge to push completion to main"}
+        return {"action": "stop_guardian", "task_id": task_id, "reason": f"closeout PR green but risk {risk} needs Guardian and no policy gate is configured"}
 
     checks = checks or {}
     results = {name: checks.get(name, "pending") for name in required_checks}
@@ -433,6 +476,35 @@ def _evidence_relatives_for_task(target: Path, task: dict[str, Any]) -> list[str
 
     add(f".shiki/tasks/{task_id}.json")
     add(f".shiki/worktrees/{task_id}.json")
+    # A locally-started goal (created by `shiki run`, never committed to main) has
+    # its goal / DAG / lock only in the coordinator checkout. The task branch is
+    # cut from main, so it lacks them and validate_shiki fails closed on the PR
+    # HEAD with "goal_id <G> has no matching goal file" (the live #140 T5 failure).
+    # Carry the goal's own goal file and this task's lock — both are goal-id /
+    # task-id specific, so they stay inside MergeGate's per-file goal/lock scope
+    # (mergegate_check.py:1127-1137). They must ALSO be covered by the task's
+    # declared `locks` or MergeGate's separate files_outside_locks gate (:1357)
+    # blocks them; loop-executed tasks declare `path:.shiki/**` (the synced
+    # tasks/ledger files already rely on the same coverage). `add` no-ops on a
+    # missing file and is idempotent when these already rode in from main.
+    goal_id = str(task.get("goal_id") or "")
+    if goal_id:
+        add(f".shiki/goals/{goal_id}.json")
+        # The DAG lists EVERY task node of the goal. Syncing it onto a branch that
+        # carries only THIS task's file would trip validate_dag ("node <sibling>
+        # has no matching task file") for a multi-task goal. Sync the DAG only when
+        # its node set is covered by the task file(s) on the branch — i.e. a
+        # single-task goal whose one node is this task. For registered multi-task
+        # goals the DAG already rides in from main.
+        try:
+            dag = read_json(target / ".shiki" / "dag" / f"{goal_id}.json")
+        except Exception:
+            dag = None
+        if isinstance(dag, dict):
+            nodes = {str(node) for node in (dag.get("nodes") or [])}
+            if nodes and nodes <= {task_id}:
+                add(f".shiki/dag/{goal_id}.json")
+    add(f".shiki/locks/{task_id}.json")
     for ledger_id in task.get("ledger_evidence") or []:
         ledger_rel = f".shiki/ledger/{ledger_id}.json"
         add(ledger_rel)
@@ -716,6 +788,182 @@ def _run_task_tests_in_worktree(
         return False, None, None, f"TDD gate could not run: {error}"
 
 
+def _closeout_pr_body(task: dict[str, Any], goal_id: str, *, completes_goal: bool) -> str:
+    """PR body for an autonomous closeout PR (ADR 0012). Must contain the literal
+    Scope/Acceptance/Evidence/MergeGate headings the MergeGate metadata check
+    requires plus the task and goal ids."""
+    goal_line = "goal `complete` (scorecard)" if completes_goal else "goal stays active (not the last task)"
+    accept_goal = ", goal `complete` with scorecard" if completes_goal else ""
+    return (
+        f"## Shiki\n"
+        f"- Task: `{task['id']}`\n"
+        f"- Goal: `{goal_id}`\n"
+        f"- Risk: `{task.get('risk_level', 'low')}`\n\n"
+        f"## Scope\n"
+        f"Autonomous loop closeout (ADR 0012): the implementation PR for this task "
+        f"already merged, but the loop's `mark_done` / `goal_complete` write only the "
+        f"local mirror. This PR pushes that completion to main — task `done`, lock "
+        f"`released`, and {goal_line} — so completion is durable on `main`, not "
+        f"local-only.\n\n"
+        f"## Non-goals\n- No code change (the implementation already merged).\n\n"
+        f"## Acceptance\n- Task `done`, lock `released`{accept_goal}; `validate_shiki` passes "
+        f"(the goal-completion coupling is satisfied on this HEAD).\n\n"
+        f"## Pre-PR code review\n- No code changes in this closeout PR; the "
+        f"implementation was reviewed in the task's impl PR (the loop's pre-PR "
+        f"code-review gate, ADR 0011) before that PR merged. This PR carries only "
+        f"`.shiki` completion bookkeeping.\n\n"
+        f"## Evidence\n- Opened autonomously by the goal loop after the impl PR merged; "
+        f"the self-reference ledger records `/pull/<this PR>`.\n\n"
+        f"## MergeGate\n- Normal-mode closeout (no special label); risk inherits the task "
+        f"(low/medium auto-merges). The loop-task `path:.shiki/**` lock covers every staged "
+        f"`.shiki` file.\n\n"
+        f"\U0001f916 Generated by the Shiki goal loop (ADR 0012)\n"
+    )
+
+
+def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, Any]:
+    """Open a normal-mode closeout PR pushing task=done + lock=released +
+    (goal=complete iff this task completes the goal) to main — Gap B / ADR 0012.
+
+    The loop's `mark_done`/`goal_complete` otherwise mutate only the coordinator
+    mirror, so completion never reaches GitHub (the source of truth). This builds
+    the terminal state in a FRESH worktree cut from ``origin/main`` (the impl
+    worktree's branch already merged), opens the PR, and in the coordinator records
+    ``task.closeout_pr`` and repoints ``expected_pr`` so the existing snapshot/merge
+    machinery drives the closeout PR to auto-merge. Fails closed to ``stop_blocked``
+    (never raises into the loop)."""
+    import contextlib
+    import io
+    import tempfile
+
+    branch = f"shiki/{task_id.lower()}-closeout"
+    worktree = None
+    try:
+        # Re-entrancy: this is reached only when closeout_pr is unset, so a PR for
+        # this deterministic branch means a PRIOR run was interrupted mid-effector
+        # (before recording closeout_pr) and its HEAD may be incomplete (missing the
+        # /pull ledger or the repointed expected_pr). Don't silently adopt a possibly
+        # broken PR (it would block MergeGate forever with no repair path); stop for
+        # a recorded operator reconcile instead.
+        listing = _gh(target, ["pr", "list", "--head", branch, "--state", "open",
+                               "--json", "number", "--limit", "1"], check=False)
+        if listing.returncode == 0 and listing.stdout.strip():
+            try:
+                rows = json.loads(listing.stdout)
+            except (json.JSONDecodeError, ValueError):
+                rows = []
+            if rows:
+                num = int(rows[0]["number"])
+                return {"action": "stop_blocked", "task_id": task_id,
+                        "reason": (f"a closeout PR #{num} already exists for {branch} from an interrupted run; "
+                                   f"verify it carries expected_pr={num} + a /pull/{num} ledger and set task.closeout_pr={num}, "
+                                   "or close it and re-run")}
+
+        run(["git", "fetch", "origin", "main"], cwd=target, check=False)
+        worktree = Path(tempfile.mkdtemp(prefix="shiki-closeout-"))
+        add = run(["git", "worktree", "add", "--force", "-B", branch, str(worktree), "origin/main"], cwd=target, check=False)
+        if add.returncode != 0:
+            return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout worktree add failed: {(add.stderr or '').strip()[-200:]}"}
+        # Build the terminal state in the worktree (cut from main: task=review).
+        wt_task = load_task(worktree, task_id)
+        wt_task["status"] = "done"
+        wt_task["expected_branch"] = branch
+        _save_task(worktree, wt_task)
+        _release_lock(worktree, task_id)
+
+        completes_goal = all(t.get("status") == "done" for t in tasks_for_goal(worktree, goal_id))
+        if completes_goal:
+            # Complete the goal IN THE WORKTREE so the scorecard report + goal=complete
+            # land on the HEAD (validate_shiki's coupling requires it there). Suppress
+            # cmd_goal_complete's stdout so it never pollutes the loop's JSON result.
+            with contextlib.redirect_stdout(io.StringIO()):
+                cmd_goal_complete(argparse.Namespace(
+                    target=str(worktree), goal_id=goal_id,
+                    summary="Autonomous loop closeout: push goal completion to main (ADR 0012)."))
+            # cmd_goal_complete records the completion ledger on the GOAL only; the
+            # task PR's MergeGate requires every PR-changed ledger to be in the
+            # TASK's ledger_evidence, so mirror the completion ledger across.
+            wt_goal = load_goal(worktree, goal_id) or {}
+            wt_task = load_task(worktree, task_id)
+            for lid in wt_goal.get("ledger_evidence", []):
+                lpath = worktree / ".shiki" / "ledger" / f"{lid}.json"
+                if not lpath.is_file():
+                    continue
+                try:
+                    led = read_json(lpath)
+                except Exception:
+                    continue
+                if led.get("type") == "completion" and lid not in (wt_task.get("ledger_evidence") or []):
+                    wt_task.setdefault("ledger_evidence", []).append(lid)
+            _save_task(worktree, wt_task)
+
+        run(["git", "add", "-A"], cwd=worktree, check=False)
+        commit = run(["git", "commit", "-m", f"shiki: closeout {task_id} — push completion to main (goal loop, ADR 0012)"], cwd=worktree, check=False)
+        if commit.returncode != 0:
+            return {"action": "stop_blocked", "task_id": task_id, "reason": "closeout produced no diff (already reconciled on main?)"}
+        push = run(["git", "push", "-u", "origin", branch], cwd=worktree, check=False)
+        if push.returncode != 0:
+            return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout branch push failed: {(push.stderr or '').strip()[-200:]}"}
+
+        task = load_task(worktree, task_id)
+        create = _gh(
+            target,
+            ["pr", "create", "--base", "main", "--head", branch,
+             "--title", f"Closeout {task_id}: push goal completion to main (ADR 0012)",
+             "--body", _closeout_pr_body(task, goal_id, completes_goal=completes_goal)],
+            check=False,
+        )
+        url = (create.stdout or "").strip().splitlines()[-1] if create.stdout.strip() else ""
+        try:
+            num = parse_github_number(url, "pull")
+        except Exception:
+            num = None
+        if not num:
+            return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout PR create failed: {(create.stderr or create.stdout or '').strip()[-200:]}"}
+
+        # Self-reference ledger (/pull/N) — MergeGate requires the ledger evidence to
+        # name this PR. Append it on the branch and push (a second commit).
+        pull_ledger = append_ledger(
+            worktree, goal_id=goal_id, task_id=task_id, ledger_type="lock",
+            summary=(f"Autonomous closeout PR #{num} (/pull/{num}): task done + lock released"
+                     + (" + goal complete (scorecard)" if completes_goal else "")
+                     + " pushed to main by the goal loop (ADR 0012)."),
+            evidence=[f".shiki/tasks/{task_id}.json", f".shiki/locks/{task_id}.json"],
+            links=[url])
+        wt_task = load_task(worktree, task_id)
+        # CRITICAL: MergeGate matches the branch HEAD's task.expected_pr to the PR
+        # number (mergegate_check.py ~1334). The branch was cut from main where
+        # expected_pr is the IMPL PR; repoint it to the closeout PR here, or the
+        # metadata check fails and the closeout never merges.
+        wt_task["expected_pr"] = num
+        if pull_ledger not in wt_task.get("ledger_evidence", []):
+            wt_task.setdefault("ledger_evidence", []).append(pull_ledger)
+        _save_task(worktree, wt_task)
+        run(["git", "add", "-A"], cwd=worktree, check=False)
+        commit2 = run(["git", "commit", "-m", f"shiki: link closeout PR #{num} (goal loop)"], cwd=worktree, check=False)
+        if commit2.returncode != 0:
+            return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout PR #{num} opened but its /pull-ledger commit produced no diff; reconcile the branch manually"}
+        push2 = run(["git", "push"], cwd=worktree, check=False)
+        if push2.returncode != 0:
+            return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout PR #{num} opened but pushing its /pull ledger + expected_pr failed: {(push2.stderr or '').strip()[-160:]}; re-run to reconcile"}
+
+        # Coordinator: record the closeout PR and repoint expected_pr so the loop's
+        # snapshot/merge machinery drives the closeout PR (the impl PR is done).
+        # Set closeout_pr LAST: it is the re-entrancy anchor, so it must only be
+        # recorded once the closeout PR HEAD is complete (ledger + expected_pr).
+        task = load_task(target, task_id)
+        task["closeout_pr"] = num
+        task["expected_pr"] = num
+        task["expected_branch"] = branch
+        _save_task(target, task)
+        return {"action": "create_closeout_pr", "task_id": task_id, "closeout_pr": num, "completes_goal": completes_goal, "url": url}
+    except Exception as error:  # noqa: BLE001 — the effector must NEVER raise into the loop
+        return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout effector error: {str(error)[:180]}"}
+    finally:
+        if worktree is not None:
+            run(["git", "worktree", "remove", "--force", str(worktree)], cwd=target, check=False)
+
+
 def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repair_limit: int) -> dict[str, Any]:
     action = decision["action"]
     task_id = decision.get("task_id")
@@ -723,7 +971,24 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
 
     if action in WAIT_ACTIONS or action in STOP_ACTIONS or action == "goal_complete":
         if action == "goal_complete":
-            cmd_goal_complete(argparse.Namespace(target=str(target), goal_id=goal_id, summary=None))
+            # The completing task's closeout PR already pushed goal=complete (with
+            # the scorecard report + completion ledger) to main (ADR 0012). Sync the
+            # coordinator mirror to main's authoritative state so it is not left
+            # diverged (goal=complete locally but missing the scorecard/ledger), and
+            # do NOT re-run cmd_goal_complete (which would mint a duplicate scorecard).
+            run(["git", "fetch", "origin", "main"], cwd=target, check=False)
+            synced = run(["git", "checkout", "origin/main", "--", ".shiki"], cwd=target, check=False)
+            result["mirror_synced"] = synced.returncode == 0
+            if synced.returncode != 0:
+                # Fail open: at least reflect completion locally so the run reports
+                # the durable truth (the closeout merged; main is authoritative).
+                try:
+                    goal = load_goal(target, goal_id)
+                except ShikiError:
+                    goal = None
+                if goal and goal.get("status") != "complete":
+                    goal["status"] = "complete"
+                    write_json(shiki_path(target, "goals", f"{goal_id}.json"), goal)
             result["goal_status"] = "complete"
         return result
 
@@ -824,6 +1089,12 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
     elif action == "dispatch_repair":
         attempt = repair_attempts_for(target, task_id) + 1
         result.update(_dispatch_repair(target, task, decision.get("failed_checks", []), attempt))
+    elif action == "create_closeout_pr":
+        # ADR 0012: the impl PR merged; open a closeout PR that pushes the terminal
+        # state (task=done + lock=released + goal=complete) to main. The effector
+        # repoints expected_pr to the closeout PR, so the snapshot/merge path drives
+        # it next. Fails closed to stop_blocked inside the effector.
+        result.update(_create_closeout_pr(target, goal_id, task_id))
     elif action == "merge":
         pr = task.get("expected_pr")
         merge = _gh(target, ["pr", "merge", str(pr), "--merge"], check=False)
@@ -843,8 +1114,10 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
         task = load_task(target, task_id)
         task.setdefault("ledger_evidence", []).append(ledger_id)
         _save_task(target, task)
-        result.update(_mark_done(target, task_id, f"PR #{pr} merged by the goal loop"))
-        result["unblocked"] = _unblock_ready_tasks(target, goal_id)
+        # ADR 0012: done-marking is DEFERRED. The loop never records `done` locally
+        # until it is durable on main. After the IMPL PR merges the task stays
+        # `review` and the next decision routes to create_closeout_pr; after the
+        # CLOSEOUT PR merges, the `mark_done` action (below) records done + unblocks.
     elif action == "mark_done":
         result.update(_mark_done(target, task_id, "PR already merged"))
         result["unblocked"] = _unblock_ready_tasks(target, goal_id)

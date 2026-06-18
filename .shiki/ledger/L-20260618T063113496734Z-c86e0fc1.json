@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "docs/adr/0012-autonomous-loop-closeout-to-main.md"
+  ],
+  "goal_id": "G-20260618T062311037333Z-0c9a58e7",
+  "id": "L-20260618T063113496734Z-c86e0fc1",
+  "links": [],
+  "summary": "grill-with-docs: the B1-vs-B2 design was settled by an 8-agent design+verify workflow + ADR 0012. Chose B2 (separate post-merge closeout PR) because B1 (self-contained impl PR) conflicts with the loop's review->CCA->merge->done ordering, and #149 empirically proved a pure-bookkeeping closeout PR obtains a complete CCA verdict. Scoped to single-task / last-task; multi-task deferred. Recorded in docs/adr/0012-autonomous-loop-closeout-to-main.md.",
+  "task_id": "T-20260618T062324783813Z-f62d375b",
+  "timestamp": "2026-06-18T06:31:13+00:00",
+  "type": "context-impact"
+}

@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260618T051732214442Z-bae28ee3.json"
+  ],
+  "goal_id": "G-20260618T051732213600Z-07292ac0",
+  "id": "L-20260618T051732214569Z-47d2c5a1",
+  "links": [],
+  "summary": "Task registered from plan: Add a trivial smoke test",
+  "task_id": "T-20260618T051732214442Z-bae28ee3",
+  "timestamp": "2026-06-18T05:17:32+00:00",
+  "type": "task-registered"
+}

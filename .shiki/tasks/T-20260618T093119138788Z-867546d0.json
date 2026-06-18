@@ -1,0 +1,44 @@
+{
+  "acceptance_checks": [
+    "tests/test_loop_smoke3.py is collected and passes under python3 -m unittest discover -s tests"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260618t093119138788z-867546d0-closeout",
+  "expected_pr": 161,
+  "github_issue": null,
+  "goal_id": "G-20260618T093112319886Z-a4f768c5",
+  "id": "T-20260618T093119138788Z-867546d0",
+  "ledger_evidence": [
+    "L-20260618T093119139066Z-5564a814",
+    "L-20260618T093140689809Z-132a55dc",
+    "L-20260618T093140690746Z-d1fc714a",
+    "L-20260618T093244376992Z-a2af1d76",
+    "L-20260618T093251323134Z-f86e815e",
+    "L-20260618T093255463346Z-d1012153",
+    "L-20260618T093258956835Z-4fa4baea",
+    "L-20260618T093616883655Z-ad2a14f7",
+    "L-20260618T093620324583Z-dd9bd556"
+  ],
+  "locks": [
+    "path:tests/**",
+    "path:.shiki/**"
+  ],
+  "non_goals": [
+    "Do not modify production code, existing tests, workflows, schemas, or any .shiki governance; only add the one test file."
+  ],
+  "pre_pr_code_review": {
+    "findings": [],
+    "ledger_id": "L-20260618T093251323134Z-f86e815e",
+    "verdict": "clean"
+  },
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "low",
+  "scope": "Add a new self-contained test file tests/test_loop_smoke3.py with a single trivial passing unittest, matching tests/test_loop_smoke.py and tests/test_loop_smoke2.py. No other files.",
+  "status": "done",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Add a third trivial smoke test"
+}

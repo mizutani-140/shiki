@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260618T062324783813Z-f62d375b.json"
+  ],
+  "goal_id": "G-20260618T062311037333Z-0c9a58e7",
+  "id": "L-20260618T062324784100Z-6c5138c8",
+  "links": [],
+  "summary": "Task registered: Automate the post-merge closeout PR in the goal loop (ADR 0012)",
+  "task_id": "T-20260618T062324783813Z-f62d375b",
+  "timestamp": "2026-06-18T06:23:24+00:00",
+  "type": "task-registered"
+}

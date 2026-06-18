@@ -1,0 +1,27 @@
+{
+  "acceptance_evidence": [
+    "unittest discover green (incl. new EvidenceRelatives tests); validate_shiki green; live: the loop's impl PR validates + auto-merges."
+  ],
+  "completion_conditions": [
+    "_evidence_relatives_for_task adds .shiki/goals/<goal>.json + .shiki/locks/<task>.json always, and .shiki/dag/<goal>.json only when its node set is the synced task; tests + validate green."
+  ],
+  "created_at": "2026-06-18T04:47:09+00:00",
+  "github_issue": 140,
+  "id": "G-20260618T044709324112Z-bc9365c6",
+  "ledger_evidence": [
+    "L-20260618T050611540032Z-0c1a7fe9"
+  ],
+  "non_goals": [
+    "No change to the loop's completion semantics (Gap B / pushing goal-complete to main is separate).",
+    "No multi-task DAG sync (guarded off to avoid validate_dag node-mismatch)."
+  ],
+  "outcome": "The autonomous loop's task PR is self-contained for a locally-started goal: _evidence_relatives_for_task carries the goal file, this task's lock, and (for a single-task goal) the DAG onto the branch, so validate_shiki passes on the PR HEAD instead of failing 'goal_id has no matching goal file' \u2014 letting the loop auto-merge the impl PR.",
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "status": "complete",
+  "title": "Repair: loop must sync goal/dag/lock to the task branch (Gap A; #140 T5 self-drive)"
+}
