@@ -984,6 +984,17 @@ def write_task_handoff(target: Path, task_id: str) -> tuple[Path, str]:
             f"Runtime: {task.get('assigned_runtime')}",
             f"Branch: {task.get('expected_branch')}",
             "",
+            # Loop-owns-delivery guardrail (precedes Scope so the implementer reads
+            # the constraints first): the Shiki goal loop owns the commit/push/PR/
+            # merge state transitions. An implementer that opens its own commit or
+            # PR breaks the loop's create_pr transition and fails MergeGate.
+            "## Execution Protocol (the Shiki loop owns delivery)",
+            "- Implement ONLY by editing files in this worktree to satisfy the Scope and Acceptance Checks below.",
+            "- Do NOT run `git commit`, `git push`, `git checkout`/`git switch`, or any `gh` command.",
+            "- Do NOT create, update, comment on, or merge a pull request.",
+            "- The Shiki goal loop owns commit, push, PR creation (with the required MergeGate PR body) and merge; opening your own commit or PR breaks the loop's create_pr state transition and fails MergeGate.",
+            "- Stay strictly within the declared Locks below; touch no files outside them.",
+            "",
             "## Scope",
             task["scope"],
             "",
