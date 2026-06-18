@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739480720Z-04c7582b.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T114319948291Z-2e149644",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/145"
+  ],
+  "summary": "T3 task-registered for implementation: reference PR #145 (MergeGate self-reference). Independent read-only code-review verifier + ADR 0011 update. T3 -> review; no goal-complete. Integrated on T2's create_pr seam.",
+  "task_id": "T-20260617T090739480720Z-04c7582b",
+  "timestamp": "2026-06-17T11:43:19.948291+00:00",
+  "type": "check"
+}

@@ -207,10 +207,14 @@ class CreatePrBranchTests(unittest.TestCase):
             shiki_loop._commit_and_push_implementation,
             shiki_loop.create_github_pr_for_task,
             shiki_loop._sync_state_to_branch,
+            shiki_loop._run_pre_pr_code_review,
         )
         shiki_loop._commit_and_push_implementation = stubs.commit
         shiki_loop.create_github_pr_for_task = stubs.create_pr
         shiki_loop._sync_state_to_branch = stubs.sync
+        # T3's pre-PR code-review gate now runs first in create_pr; these tests
+        # target the TDD gate, so stub the upstream review to a clean verdict.
+        shiki_loop._run_pre_pr_code_review = lambda target, task_id: {"status": "clean"}
 
     def tearDown(self) -> None:
         if hasattr(self, "_orig"):
@@ -218,6 +222,7 @@ class CreatePrBranchTests(unittest.TestCase):
                 shiki_loop._commit_and_push_implementation,
                 shiki_loop.create_github_pr_for_task,
                 shiki_loop._sync_state_to_branch,
+                shiki_loop._run_pre_pr_code_review,
             ) = self._orig
 
     def test_green_tests_record_tdd_ledger_then_open_the_pr(self) -> None:

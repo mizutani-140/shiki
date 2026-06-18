@@ -28,7 +28,7 @@ from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_github import create_github_pr_for_task, github_env, target_provider_config
 from shiki_process import ShikiError, print_json, read_json, run, shiki_path, target_path, write_json
 from shiki_runtime import dispatch_runner_task
-from shiki_runtime_adapters import get_runner_adapter
+from shiki_runtime_adapters import REVIEWER_ADAPTER, get_runner_adapter, parse_code_review_verdict
 from shiki_tasks import (
     append_ledger,
     allocate_worktree_record,
@@ -506,6 +506,108 @@ def _sync_state_to_branch(target: Path, task_id: str, ledger_id: str | None) -> 
     return "PR evidence committed and pushed to the task branch"
 
 
+# The independent read-only reviewer's prompt. The diff is the ONLY thing it
+# judges; it returns the structured verdict the loop parses. It is explicitly
+# told it is read-only and may not edit — the --allowedTools confinement is the
+# real guarantee, this is belt-and-suspenders.
+_CODE_REVIEW_PROMPT = (
+    "You are an INDEPENDENT pre-PR code reviewer running read-only in a separate "
+    "context (ADR 0011). Review ONLY the diff below for correctness bugs, broken "
+    "contracts, security issues, data loss, and missing tests. You may use read "
+    "tools to inspect the worktree; you may NOT edit anything. Emit a single JSON "
+    'object matching the verdict schema: verdict "clean" when nothing blocking is '
+    'found, "blocking" when a blocking issue exists, with a findings array. Do not '
+    "wrap the JSON in prose.\n\n## Task diff (git diff main...HEAD)\n"
+)
+
+
+def _run_pre_pr_code_review(target: Path, task_id: str) -> dict[str, Any]:
+    """Run the independent read-only code-review verifier over the task diff.
+
+    Loop-owned quality-gate step (ADR 0011): the reviewer is the same model as the
+    implementer but in a separate context, confined to read tools (no edit tools),
+    bound to a structured verdict. The loop parses that verdict deterministically.
+
+    Returns a dict with ``status`` in {clean, blocking, fail}:
+
+    * ``clean``    — verdict parsed as clean; a type:"check" "code-review" ledger
+      is recorded and ``pre_pr_code_review`` is written onto the task so the
+      PR-12 ``## Pre-PR code review`` body section renders from it.
+    * ``blocking`` — verdict parsed as blocking. Fail-closed: a blocking pre-PR
+      review CANNOT anchor a repair packet (no PR exists yet at create_pr time by
+      construction), so the caller stops the loop for diagnosis. NOT a repair.
+    * ``fail``     — dispatch failed, the worktree/diff is unavailable, or the
+      verdict could not be parsed. Fail-closed: review-not-done is never silently
+      passed.
+
+    Never raises into the loop.
+    """
+    record = worktree_record(target, task_id)
+    if not record:
+        return {"status": "fail", "reason": "no worktree record; pre-PR code review skipped"}
+    worktree_path = Path(record["path"]).expanduser().resolve()
+    if not worktree_path.exists() or worktree_path == target.resolve():
+        return {"status": "fail", "reason": "worktree unavailable; cannot run the pre-PR code review"}
+
+    # The review runs BEFORE commit/push, so the implementer's work may still be
+    # uncommitted (and new test files untracked) in the worktree. Stage everything
+    # first (non-destructive — the commit/push step re-stages anyway) so the diff
+    # is complete, then diff the index against main. This shows the FULL task
+    # change set the reviewer must judge, committed or not, tracked or new.
+    run(["git", "add", "-A"], cwd=worktree_path, check=False)
+    diff = run(["git", "diff", "--cached", "main"], cwd=worktree_path, check=False)
+    if diff.returncode != 0:
+        # Fall back to the committed-only diff (e.g. main is unrelated/missing).
+        diff = run(["git", "diff", "main...HEAD"], cwd=worktree_path, check=False)
+        if diff.returncode != 0:
+            return {"status": "fail", "reason": "could not compute the task diff for review"}
+    prompt = _CODE_REVIEW_PROMPT + (diff.stdout or "")
+
+    try:
+        exec_result = REVIEWER_ADAPTER.execute(worktree_path, prompt)
+    except Exception:
+        # Effectors fail closed and never raise into the loop (T1 style).
+        return {"status": "fail", "reason": "reviewer dispatch raised; failing closed"}
+    if exec_result.returncode != 0:
+        return {"status": "fail", "reason": f"reviewer exited {exec_result.returncode}; failing closed"}
+
+    verdict = parse_code_review_verdict(exec_result.stdout)
+    if verdict is None:
+        return {"status": "fail", "reason": "reviewer verdict could not be parsed; failing closed"}
+
+    if verdict.get("verdict") == "blocking":
+        # Record the blocking verdict as a check ledger for the audit trail, then
+        # fail closed. No PR exists yet, so this cannot become a repair packet.
+        findings = verdict.get("findings") or []
+        ledger_id = append_ledger(
+            target,
+            goal_id=load_task(target, task_id)["goal_id"],
+            task_id=task_id,
+            ledger_type="check",
+            summary=f"Pre-PR code-review verdict BLOCKING for {task_id} ({len(findings)} finding(s)); loop stops for diagnosis",
+            evidence=["independent read-only reviewer (claude -p) — ADR 0011"],
+        )
+        task = load_task(target, task_id)
+        task.setdefault("ledger_evidence", []).append(ledger_id)
+        task["pre_pr_code_review"] = {"verdict": "blocking", "findings": findings, "ledger_id": ledger_id}
+        _save_task(target, task)
+        return {"status": "blocking", "reason": "independent pre-PR code review found blocking issues", "ledger_id": ledger_id}
+
+    # Clean verdict: record the code-review check ledger and the PR-12 evidence.
+    findings = verdict.get("findings") or []
+    ledger_id = append_ledger(
+        target,
+        goal_id=load_task(target, task_id)["goal_id"],
+        task_id=task_id,
+        ledger_type="check",
+        summary=f"Pre-PR code-review verdict CLEAN for {task_id} (independent read-only reviewer, code-review skill)",
+        evidence=["independent read-only reviewer (claude -p) — ADR 0011"],
+    )
+    task = load_task(target, task_id)
+    task.setdefault("ledger_evidence", []).append(ledger_id)
+    task["pre_pr_code_review"] = {"verdict": "clean", "findings": findings, "ledger_id": ledger_id}
+    _save_task(target, task)
+    return {"status": "clean", "reason": "independent pre-PR code review passed", "ledger_id": ledger_id}
 def task_test_command(task: dict[str, Any]) -> str:
     """The structured command the loop exec's for the task's TDD gate.
 
@@ -629,6 +731,21 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
     if action == "dispatch":
         result["returncode"] = _dispatch(target, task)
     elif action == "create_pr":
+        # (a) Pre-PR code-review gate (ADR 0011). An INDEPENDENT read-only
+        # reviewer judges the diff in a separate context BEFORE the PR exists.
+        # A blocking verdict OR any dispatch/parse failure fails closed to
+        # stop_blocked: a blocking pre-PR review cannot anchor a repair packet
+        # (no PR exists yet by construction), so the loop stops for diagnosis
+        # rather than dispatching a repair. Only a clean verdict proceeds.
+        review = _run_pre_pr_code_review(target, task_id)
+        result["code_review"] = review.get("status")
+        if review.get("status") != "clean":
+            result["action"] = "stop_blocked"
+            result["reason"] = (
+                f"pre-PR code review did not pass ({review.get('reason')}); "
+                "no PR exists to anchor a repair — diagnose or re-dispatch"
+            )
+            return result
         # Loop-owned TDD gate FIRST (ADR 0011): the loop — an independent
         # verifier, not the implementer — runs the task's tests in the worktree
         # and records a type:check ledger naming skill tdd (EXEC evidence ref)

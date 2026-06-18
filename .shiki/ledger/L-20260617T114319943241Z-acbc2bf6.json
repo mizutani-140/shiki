@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739480720Z-04c7582b.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T114319943241Z-acbc2bf6",
+  "links": [],
+  "summary": "Skill tdd: red-green for T3 independent code-review verifier \u2014 failing tests first in tests/test_loop_code_review.py (stubbed reviewer: clean\u2192code-review ledger+PR-12 section+PR opens; blocking\u2192stop_blocked no PR; parse-failure\u2192fail-closed), then the reviewer adapter + create_pr gate. Parallel Dynamic Workflow. Integrated onto T2 (create_pr order: code-review\u2192TDD\u2192commit/push); 252 unit + shell + validate green.",
+  "task_id": "T-20260617T090739480720Z-04c7582b",
+  "timestamp": "2026-06-17T11:43:19.943241+00:00",
+  "type": "check"
+}
