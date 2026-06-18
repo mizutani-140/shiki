@@ -109,6 +109,48 @@ class EvidenceRelativesTests(unittest.TestCase):
             rel = set(_evidence_relatives_for_task(target, task))  # must not raise
             self.assertIn(".shiki/ledger/L-D.json", rel)
 
+    def test_includes_goal_and_lock_so_branch_is_self_contained(self):
+        # Gap A: a locally-started goal's goal file + the task lock must ride on
+        # the branch, else validate_shiki fails "goal_id has no matching goal file".
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d)
+            task = _seed_evidence(target)
+            _write(target / ".shiki" / "goals" / f"{GOAL}.json", {"id": GOAL, "status": "planned"})
+            _write(target / ".shiki" / "locks" / f"{TASK}.json",
+                   {"task_id": TASK, "state": "active", "locks": []})
+            rel = set(_evidence_relatives_for_task(target, task))
+            self.assertIn(f".shiki/goals/{GOAL}.json", rel)
+            self.assertIn(f".shiki/locks/{TASK}.json", rel)
+
+    def test_syncs_dag_when_node_set_is_just_this_task(self):
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d)
+            task = _seed_evidence(target)
+            _write(target / ".shiki" / "dag" / f"{GOAL}.json",
+                   {"goal_id": GOAL, "nodes": [TASK], "edges": []})
+            rel = set(_evidence_relatives_for_task(target, task))
+            self.assertIn(f".shiki/dag/{GOAL}.json", rel)
+
+    def test_skips_multitask_dag_to_avoid_validate_dag_break(self):
+        # Syncing a multi-task goal's DAG onto a branch carrying only THIS task's
+        # file would trip validate_dag ("node <sibling> has no matching task file").
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d)
+            task = _seed_evidence(target)
+            _write(target / ".shiki" / "dag" / f"{GOAL}.json",
+                   {"goal_id": GOAL, "nodes": [TASK, "T-20260101T000000000000Z-sibling0"], "edges": []})
+            rel = set(_evidence_relatives_for_task(target, task))
+            self.assertNotIn(f".shiki/dag/{GOAL}.json", rel)
+
+    def test_missing_goal_dag_lock_do_not_crash_or_appear(self):
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d)
+            task = _seed_evidence(target)  # no goal/dag/lock files written
+            rel = set(_evidence_relatives_for_task(target, task))  # must not raise
+            self.assertNotIn(f".shiki/goals/{GOAL}.json", rel)
+            self.assertNotIn(f".shiki/dag/{GOAL}.json", rel)
+            self.assertNotIn(f".shiki/locks/{TASK}.json", rel)
+
 
 class _GitEnv:
     """A temp git repo with a bare origin and a task-branch worktree."""

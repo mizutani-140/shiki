@@ -433,6 +433,35 @@ def _evidence_relatives_for_task(target: Path, task: dict[str, Any]) -> list[str
 
     add(f".shiki/tasks/{task_id}.json")
     add(f".shiki/worktrees/{task_id}.json")
+    # A locally-started goal (created by `shiki run`, never committed to main) has
+    # its goal / DAG / lock only in the coordinator checkout. The task branch is
+    # cut from main, so it lacks them and validate_shiki fails closed on the PR
+    # HEAD with "goal_id <G> has no matching goal file" (the live #140 T5 failure).
+    # Carry the goal's own goal file and this task's lock — both are goal-id /
+    # task-id specific, so they stay inside MergeGate's per-file goal/lock scope
+    # (mergegate_check.py:1127-1137). They must ALSO be covered by the task's
+    # declared `locks` or MergeGate's separate files_outside_locks gate (:1357)
+    # blocks them; loop-executed tasks declare `path:.shiki/**` (the synced
+    # tasks/ledger files already rely on the same coverage). `add` no-ops on a
+    # missing file and is idempotent when these already rode in from main.
+    goal_id = str(task.get("goal_id") or "")
+    if goal_id:
+        add(f".shiki/goals/{goal_id}.json")
+        # The DAG lists EVERY task node of the goal. Syncing it onto a branch that
+        # carries only THIS task's file would trip validate_dag ("node <sibling>
+        # has no matching task file") for a multi-task goal. Sync the DAG only when
+        # its node set is covered by the task file(s) on the branch — i.e. a
+        # single-task goal whose one node is this task. For registered multi-task
+        # goals the DAG already rides in from main.
+        try:
+            dag = read_json(target / ".shiki" / "dag" / f"{goal_id}.json")
+        except Exception:
+            dag = None
+        if isinstance(dag, dict):
+            nodes = {str(node) for node in (dag.get("nodes") or [])}
+            if nodes and nodes <= {task_id}:
+                add(f".shiki/dag/{goal_id}.json")
+    add(f".shiki/locks/{task_id}.json")
     for ledger_id in task.get("ledger_evidence") or []:
         ledger_rel = f".shiki/ledger/{ledger_id}.json"
         add(ledger_rel)

@@ -1,0 +1,14 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/shiki_loop.py",
+    "tests/test_loop_branch_plumbing.py"
+  ],
+  "goal_id": "G-20260618T044709324112Z-bc9365c6",
+  "id": "L-20260618T045513327354Z-85f8a408",
+  "links": [],
+  "summary": "code-review: dogfooded the fixed read-only reviewer adapter on `git diff main...HEAD`. Structured verdict = clean. One non-blocking medium finding (the safety comment over-claimed 'always safe', omitting that the synced goal/dag/lock must also be covered by the task's declared locks for files_outside_locks, mergegate_check.py:1357) -- ADDRESSED by tightening the comment to note the path:.shiki/** loop-task coverage dependency. Satisfies acceptance check 1 (a real claude -p reviewer parses to a valid verdict).",
+  "task_id": "T-20260618T044720078664Z-7502dbd0",
+  "timestamp": "2026-06-18T04:55:13+00:00",
+  "type": "review"
+}
