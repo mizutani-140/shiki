@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "tests/test_loop_branch_plumbing.py"
+  ],
+  "goal_id": "G-20260618T044709324112Z-bc9365c6",
+  "id": "L-20260618T045513327225Z-41b85411",
+  "links": [],
+  "summary": "tdd: added 4 EvidenceRelatives regression tests in tests/test_loop_branch_plumbing.py that fail pre-fix and pass after -- goal+lock are synced; the dag is synced for a single-task node set; a multi-task dag is SKIPPED (would trip validate_dag node-mismatch); missing goal/dag/lock do not crash and are not added. Full suite: 271 tests OK.",
+  "task_id": "T-20260618T044720078664Z-7502dbd0",
+  "timestamp": "2026-06-18T04:55:13+00:00",
+  "type": "check"
+}

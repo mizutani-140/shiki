@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260618T044709324112Z-bc9365c6.json"
+  ],
+  "goal_id": "G-20260618T044709324112Z-bc9365c6",
+  "id": "L-20260618T044709324729Z-7c2f6597",
+  "links": [],
+  "summary": "Goal registered: Repair: loop must sync goal/dag/lock to the task branch (Gap A; #140 T5 self-drive)",
+  "task_id": null,
+  "timestamp": "2026-06-18T04:47:09+00:00",
+  "type": "goal-created"
+}

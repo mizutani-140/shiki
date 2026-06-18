@@ -1,0 +1,50 @@
+{
+  "acceptance_checks": [
+    "_evidence_relatives_for_task returns the goal file + lock for a locally-started goal, syncs the dag only for a single-task node set, and never crashes on missing goal/dag/lock.",
+    "python3 -m unittest discover -s tests passes (incl. 4 new EvidenceRelatives tests) and python3 scripts/validate_shiki.py passes.",
+    "Live: the loop's impl PR validates on the HEAD checkout and auto-merges."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260618t044720078664z-7502dbd0-sync-goal-guarded-dag-lock-to-the-task-branch-in",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260618T044709324112Z-bc9365c6",
+  "id": "T-20260618T044720078664Z-7502dbd0",
+  "ledger_evidence": [
+    "L-20260618T044709324729Z-7c2f6597",
+    "L-20260618T044720079100Z-eda0cad1",
+    "L-20260618T045513326736Z-0bd0ddcc",
+    "L-20260618T045513327225Z-41b85411",
+    "L-20260618T045513327354Z-85f8a408",
+    "L-20260618T045513327444Z-58814daa"
+  ],
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_loop_branch_plumbing.py",
+    "path:.shiki/goals/G-20260618T044709324112Z-bc9365c6.json",
+    "path:.shiki/dag/G-20260618T044709324112Z-bc9365c6.json",
+    "path:.shiki/tasks/T-20260618T044720078664Z-7502dbd0.json",
+    "path:.shiki/locks/T-20260618T044720078664Z-7502dbd0.json",
+    "path:.shiki/ledger/L-20260618T044709324729Z-7c2f6597.json",
+    "path:.shiki/ledger/L-20260618T044720079100Z-eda0cad1.json",
+    "path:.shiki/ledger/L-20260618T045513326736Z-0bd0ddcc.json",
+    "path:.shiki/ledger/L-20260618T045513327225Z-41b85411.json",
+    "path:.shiki/ledger/L-20260618T045513327354Z-85f8a408.json",
+    "path:.shiki/ledger/L-20260618T045513327444Z-58814daa.json"
+  ],
+  "non_goals": [
+    "No change to loop completion semantics (Gap B is separate).",
+    "No unconditional multi-task DAG sync."
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "scope": "In _evidence_relatives_for_task (scripts/shiki_loop.py), add .shiki/goals/<goal_id>.json and .shiki/locks/<task_id>.json to the synced set, and .shiki/dag/<goal_id>.json only when the DAG's node set is a subset of {this task_id} (single-task safety; multi-task DAG sync would trip validate_dag). add()'s is_file guard no-ops on missing files. Add EvidenceRelatives tests.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Sync goal + guarded dag + lock to the task branch in _evidence_relatives_for_task"
+}
