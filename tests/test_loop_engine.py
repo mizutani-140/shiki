@@ -104,6 +104,40 @@ class TaskDecisionTests(unittest.TestCase):
         decision = decide(t, pr_state={"merged": False}, checks=checks, reruns=0)
         self.assertEqual(decision["action"], "rerun_cca")
 
+    def test_closeout_pr_cca_fail_policy_skipped_reruns(self) -> None:
+        # The actual #155 shape: CCA red, MergeGate policy gate gated-behind-CCA so
+        # it is skipped/missing (-> pending). The policy gate MUST be stripped so
+        # this stays a CCA-only race (one rerun), not a multi-check stop_blocked.
+        checks = {"Validate Shiki mirror": "pass", "CCA verdict": "fail",
+                  "MergeGate metadata check": "pass"}  # policy omitted -> pending
+        t = {**task("review"), "closeout_pr": 9}
+        decision = decide(t, pr_state={"merged": False}, checks=checks, reruns=0)
+        self.assertEqual(decision["action"], "rerun_cca")
+
+    def test_closeout_pr_cca_fail_policy_fail_reruns(self) -> None:
+        checks = green()
+        checks["CCA verdict"] = "fail"
+        checks["MergeGate policy check"] = "fail"
+        t = {**task("review"), "closeout_pr": 9}
+        decision = decide(t, pr_state={"merged": False}, checks=checks, reruns=0)
+        self.assertEqual(decision["action"], "rerun_cca")
+
+    def test_closeout_pr_cca_fail_with_other_pending_waits(self) -> None:
+        # CCA red but a real (non-policy) sibling still pending -> wait, not rerun.
+        checks = green()
+        checks["CCA verdict"] = "fail"
+        checks["Validate Shiki mirror"] = "pending"
+        t = {**task("review"), "closeout_pr": 9}
+        decision = decide(t, pr_state={"merged": False}, checks=checks, reruns=0)
+        self.assertEqual(decision["action"], "wait_checks")
+
+    def test_closeout_pr_rerun_budget_exhausted_stops(self) -> None:
+        checks = green()
+        checks["CCA verdict"] = "fail"
+        t = {**task("review"), "closeout_pr": 9}
+        decision = decide(t, pr_state={"merged": False}, checks=checks, reruns=2)
+        self.assertEqual(decision["action"], "stop_blocked")
+
     def test_pending_checks_wait(self) -> None:
         checks = green()
         checks["CCA verdict"] = "pending"

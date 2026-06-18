@@ -119,17 +119,32 @@ def decide_task_action(
         return {"action": "create_closeout_pr", "task_id": task_id, "reason": "impl PR merged; push completion to main via a closeout PR"}
 
     # Closeout PR phase: expected_pr points at the (unmerged) closeout PR. A
-    # bookkeeping closeout has no implementation to repair, so gate on its required
-    # checks with NO repair path — fail closed to a recorded stop.
+    # bookkeeping closeout has no implementation to repair, so the only recoverable
+    # failure is the CCA same-head race (one rerun); everything else fails closed.
     if task.get("closeout_pr"):
         checks = checks or {}
         results = {name: checks.get(name, "pending") for name in required_checks}
         failed = sorted(name for name, value in results.items() if value == "fail")
         pending = sorted(name for name, value in results.items() if value == "pending")
-        if failed:
-            if set(failed) == {CCA_VERDICT_CHECK} and not pending and cca_reruns < MAX_CCA_RERUNS:
-                return {"action": "rerun_cca", "task_id": task_id, "reason": "closeout: only CCA failed against green siblings; rerun after green"}
-            return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout PR checks failed ({', '.join(failed)}); no auto-repair for a bookkeeping PR — diagnose"}
+        # The MergeGate policy (Guardian) gate is gated behind CCA, so it reports
+        # skipped/missing/pending whenever CCA is red. Strip it before the CCA-race
+        # decision EXACTLY like the impl-PR path (below); otherwise a lone CCA
+        # failure against a pending/skipped policy gate looks like a multi-check
+        # failure and drops to stop_blocked instead of the promised single rerun.
+        repairable_failed = sorted(name for name in failed if name != POLICY_GATE)
+        repairable_pending = sorted(name for name in pending if name != POLICY_GATE)
+        policy_failed = POLICY_GATE in failed
+        if repairable_failed:
+            cca_completion_race = set(repairable_failed) == {CCA_VERDICT_CHECK}
+            if cca_completion_race and repairable_pending:
+                return {"action": "wait_checks", "task_id": task_id, "reason": f"closeout: CCA judged early; waiting for pending checks: {', '.join(pending)}"}
+            if cca_completion_race and cca_reruns < MAX_CCA_RERUNS:
+                return {"action": "rerun_cca", "task_id": task_id, "reason": "closeout: only the CCA verdict failed against green siblings; rerun after green"}
+            return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout PR checks failed ({', '.join(repairable_failed)}); no auto-repair for a bookkeeping PR — diagnose"}
+        if policy_failed:
+            # The closeout's Guardian/policy gate said NO (or no authority yet);
+            # never auto-repaired (CCA is green here). A recorded authority resolves.
+            return {"action": "stop_guardian", "task_id": task_id, "reason": "closeout PR Guardian/policy gate failing with all other checks green; a recorded authority must resolve it"}
         if pending:
             return {"action": "wait_checks", "task_id": task_id, "reason": f"closeout PR checks pending: {', '.join(pending)}"}
         risk = str(task.get("risk_level") or "low")
