@@ -20,7 +20,8 @@
   },
   "id": "G-20260618T051732213600Z-07292ac0",
   "ledger_evidence": [
-    "L-20260618T051732213858Z-9a8192a0"
+    "L-20260618T051732213858Z-9a8192a0",
+    "L-20260618T052728776458Z-9bec9da9"
   ],
   "non_goals": [
     "No production code change (test-only).",
@@ -33,6 +34,6 @@
   ],
   "risk_level": "low",
   "source_plan": "P-20260618T051732212741Z-70648973",
-  "status": "planned",
+  "status": "complete",
   "title": "Live loop self-drive acceptance (low-risk smoke)"
 }

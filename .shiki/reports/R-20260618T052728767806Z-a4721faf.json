@@ -1,0 +1,51 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-18T05:27:28+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260618T051732214442Z-bae28ee3.json"
+  ],
+  "goal_id": "G-20260618T051732213600Z-07292ac0",
+  "id": "R-20260618T052728767806Z-a4721faf",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "low"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 596000,
+    "generated_at": "2026-06-18T05:27:28+00:00",
+    "goal_id": "G-20260618T051732213600Z-07292ac0",
+    "lock_amendments": {
+      "total": 1
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 0
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard"
+    ],
+    "window": {
+      "from": "2026-06-18T05:17:32+00:00",
+      "to": "2026-06-18T05:27:28+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "Live #140 T5 Gap A validation: the autonomous loop self-drove this smoke task to AUTO-MERGE (PR #153, zero manual intervention). Completion is pushed to main via this closeout (the loop's local goal_complete did not yet push to main \u2014 that is Gap B). tests/test_loop_smoke.py is merged."
+}
