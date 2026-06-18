@@ -6,7 +6,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260618t044720078664z-7502dbd0-sync-goal-guarded-dag-lock-to-the-task-branch-in",
+  "expected_branch": "shiki/t-7502dbd0-closeout",
   "expected_pr": 151,
   "github_issue": null,
   "goal_id": "G-20260618T044709324112Z-bc9365c6",
@@ -18,7 +18,9 @@
     "L-20260618T045513327225Z-41b85411",
     "L-20260618T045513327354Z-85f8a408",
     "L-20260618T045513327444Z-58814daa",
-    "L-20260618T045627360645Z-bb765a78"
+    "L-20260618T045627360645Z-bb765a78",
+    "L-20260618T050611429383Z-b17861d5",
+    "L-20260618T050611540032Z-0c1a7fe9"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -33,7 +35,10 @@
     "path:.shiki/ledger/L-20260618T045513327225Z-41b85411.json",
     "path:.shiki/ledger/L-20260618T045513327354Z-85f8a408.json",
     "path:.shiki/ledger/L-20260618T045513327444Z-58814daa.json",
-    "path:.shiki/ledger/L-20260618T045627360645Z-bb765a78.json"
+    "path:.shiki/ledger/L-20260618T045627360645Z-bb765a78.json",
+    "path:.shiki/ledger/L-20260618T050611429383Z-b17861d5.json",
+    "path:.shiki/ledger/L-20260618T050611540032Z-0c1a7fe9.json",
+    "path:.shiki/reports/R-20260618T050611531481Z-ea52af70.json"
   ],
   "non_goals": [
     "No change to loop completion semantics (Gap B is separate).",
@@ -46,7 +51,7 @@
   ],
   "risk_level": "medium",
   "scope": "In _evidence_relatives_for_task (scripts/shiki_loop.py), add .shiki/goals/<goal_id>.json and .shiki/locks/<task_id>.json to the synced set, and .shiki/dag/<goal_id>.json only when the DAG's node set is a subset of {this task_id} (single-task safety; multi-task DAG sync would trip validate_dag). add()'s is_file guard no-ops on missing files. Add EvidenceRelatives tests.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Sync goal + guarded dag + lock to the task branch in _evidence_relatives_for_task"
 }

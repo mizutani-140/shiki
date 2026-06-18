@@ -8,6 +8,9 @@
   "created_at": "2026-06-18T04:47:09+00:00",
   "github_issue": 140,
   "id": "G-20260618T044709324112Z-bc9365c6",
+  "ledger_evidence": [
+    "L-20260618T050611540032Z-0c1a7fe9"
+  ],
   "non_goals": [
     "No change to the loop's completion semantics (Gap B / pushing goal-complete to main is separate).",
     "No multi-task DAG sync (guarded off to avoid validate_dag node-mismatch)."
@@ -19,6 +22,6 @@
     "code-review"
   ],
   "risk_level": "medium",
-  "status": "planned",
+  "status": "complete",
   "title": "Repair: loop must sync goal/dag/lock to the task branch (Gap A; #140 T5 self-drive)"
 }
