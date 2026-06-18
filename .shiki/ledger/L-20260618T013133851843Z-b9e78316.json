@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739482036Z-c92b21b3.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260618T013133851843Z-b9e78316",
+  "links": [],
+  "summary": "Skill tdd: T4 loop task-lock guard \u2014 WARN-ONLY (validate_shiki.loop_lock_warnings advises when an active-goal loop-executed task lacks path:.shiki/** coverage; never errors; terminal/archived goals + non-loop runtimes scoped out). Tests in tests/test_loop_lock_validator_hint.py + the helper tests. Satisfies the frozen acceptance ('auto-included OR validate_shiki/doctor warns').",
+  "task_id": "T-20260617T090739482036Z-c92b21b3",
+  "timestamp": "2026-06-18T01:31:33.851843+00:00",
+  "type": "check"
+}

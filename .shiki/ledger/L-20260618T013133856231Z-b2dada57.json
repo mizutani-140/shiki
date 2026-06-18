@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739482036Z-c92b21b3.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260618T013133856231Z-b2dada57",
+  "links": [],
+  "summary": "Skill code-review: the parallel-workflow independent verify flagged T4's original DESIGN as BLOCKING \u2014 the dispatch-time .shiki/** guarantee (loop_guaranteed_locks injecting into lock/worktree records) never reaches MergeGate (which reads the TASK FILE locks) and serializing every loop lock record regressed parallel disjoint tasks. Reworked to warn-only: removed loop_guaranteed_locks entirely; kept the advisory validate_shiki WARN. 252 unit + full shell + validate green.",
+  "task_id": "T-20260617T090739482036Z-c92b21b3",
+  "timestamp": "2026-06-18T01:31:33.856231+00:00",
+  "type": "check"
+}

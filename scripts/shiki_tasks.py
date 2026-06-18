@@ -9,9 +9,60 @@ import re
 from typing import Any
 
 from shiki_git import github_origin, is_git_repo
-from shiki_locks import active_lock_conflicts
+from shiki_locks import active_lock_conflicts, path_matches_lock
 from shiki_process import ShikiError, print_json, read_json, run, shiki_path, slugify, target_path, utc_now, write_json, ensure_control_dirs
 from shiki_state import append_ledger_entry, new_control_id
+
+# Loop task-lock guard (PRD 0002 T4, gap #5 / Q5).
+#
+# A loop-executed task is dispatched into an isolated worktree where the goal
+# loop syncs the FULL .shiki evidence set onto the task branch (see
+# shiki_loop._sync_state_to_branch / _evidence_relatives_for_task: task file,
+# worktree record, every ledger, and the runner/EXEC + report files those
+# ledgers reference). MergeGate's files-outside-locks gate then sees those .shiki
+# mutations on the branch, so a loop task must hold a lock that covers all of
+# .shiki — otherwise the loop's own evidence sync lands outside the task's locks.
+#
+# LOOP_EXECUTED_RUNTIMES is the explicit set of runtimes the goal loop dispatches
+# into a worktree today (claude-code, codex). It is intentionally narrower than
+# every runner-role runtime: the placeholders `other` and `hermes-runner` carry a
+# runner role but have no loop adapter, and flagging them would spam advisories.
+LOOP_EXECUTED_RUNTIMES: frozenset[str] = frozenset({"claude-code", "codex"})
+
+# Canonical lock that covers the whole .shiki evidence tree the loop syncs.
+LOOP_SHIKI_STATE_LOCK = "path:.shiki/**"
+
+# Representative paths across every .shiki subtree the loop syncs. A lock-set
+# "covers .shiki state" only if one lock matches ALL of them; a single-subtree
+# lock such as path:.shiki/tasks/** does not.
+_SHIKI_STATE_PROBES: tuple[str, ...] = (
+    ".shiki/tasks/probe.json",
+    ".shiki/worktrees/probe.json",
+    ".shiki/ledger/probe.json",
+    ".shiki/runner/probe.json",
+    ".shiki/reports/probe.json",
+)
+
+
+def is_loop_executed_runtime(runtime: str | None) -> bool:
+    """True when the goal loop dispatches this runtime into a worktree."""
+    return isinstance(runtime, str) and runtime in LOOP_EXECUTED_RUNTIMES
+
+
+def locks_cover_shiki_state(locks: list[str] | None) -> bool:
+    """True when some single lock in ``locks`` covers the full .shiki tree.
+
+    The loop syncs evidence across many .shiki subtrees, so coverage requires a
+    lock that matches every representative subtree path, not a per-subtree lock.
+    """
+    if not locks:
+        return False
+    for lock in locks:
+        if not isinstance(lock, str):
+            continue
+        if all(path_matches_lock(probe, lock) for probe in _SHIKI_STATE_PROBES):
+            return True
+    return False
 
 # Safe default for the loop-observed TDD gate (ADR 0011): the command the goal
 # loop exec's in the task worktree before opening the PR. A task may override it
@@ -291,7 +342,11 @@ def update_goal_dag(target: Path, goal_id: str, task_ids: list[str], dependency_
 
 def try_acquire_locks(target: Path, task_id: str) -> tuple[bool, list[str], str | None]:
     task = load_task(target, task_id)
-    locks = list(task.get("locks", []))
+    # Dispatch-time .shiki/** guarantee: the lock record a loop task holds must
+    # cover the evidence the loop syncs to its branch. The registered task file
+    # is left untouched (the orchestrator owns registration / frozen-plan
+    # lock-match); only the lock record derived here gains the guarantee.
+    locks = task.get("locks", [])
     conflicts = has_active_lock_conflict(target, task_id, locks)
     if conflicts:
         return False, conflicts, None

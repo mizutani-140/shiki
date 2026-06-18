@@ -1874,8 +1874,57 @@ def validate_json_schema_contracts() -> None:
         raise ValidationError(f"{CANONICAL_REPAIR_PACKET_SCHEMA_PATH}: fixture validation failed: {error}") from error
 
 
+# Goals whose tasks are no longer loop-dispatched: the warning is scoped out so
+# it does not retroactively spam the pre-existing terminal/archived-goal tasks.
+_INACTIVE_GOAL_STATUSES = {"complete", "archived", "historical"}
+
+
+def loop_lock_warnings(
+    goal_payloads: dict[str, dict[str, Any]],
+    task_payloads_by_goal: dict[str, list[dict[str, Any]]],
+) -> list[str]:
+    """WARN-ONLY hint for loop tasks lacking .shiki/** lock coverage.
+
+    A loop-executed task (claude-code/codex) is dispatched into a worktree where
+    the goal loop syncs the full .shiki evidence set onto the task branch, so its
+    locks should cover .shiki/**. This is advisory, never an error: auto-mutating
+    a registered task's locks would break goal_reconcile's frozen-plan lock-match
+    and retroactively warn pre-existing tasks. The loop instead guarantees
+    coverage at dispatch time (shiki_tasks.loop_guaranteed_locks). The warning is
+    scoped to ACTIVE goals so terminal/archived goals are not flagged.
+    """
+    # Lazy import: keep validate_shiki importable without pulling the task
+    # lifecycle module (and its transitive deps) at module load (T1 cycle-avoidance style).
+    from shiki_tasks import is_loop_executed_runtime, locks_cover_shiki_state
+
+    warnings: list[str] = []
+    for goal_id, tasks in task_payloads_by_goal.items():
+        goal = goal_payloads.get(goal_id)
+        # Without a goal payload we cannot prove the goal is active; stay quiet.
+        if not isinstance(goal, dict):
+            continue
+        if goal.get("status") in _INACTIVE_GOAL_STATUSES:
+            continue
+        for task in tasks:
+            runtime = task.get("assigned_runtime")
+            if not is_loop_executed_runtime(runtime):
+                continue
+            locks = task.get("locks") if isinstance(task.get("locks"), list) else []
+            if locks_cover_shiki_state(locks):
+                continue
+            warnings.append(
+                f".shiki/tasks/{task.get('id')}.json: loop-executed task "
+                f"({runtime}) on active goal {goal_id} lacks a lock covering "
+                f"'.shiki/**'; the goal loop syncs .shiki evidence to the task "
+                f"branch and guarantees this lock at dispatch time, but the "
+                f"registered locks do not declare it"
+            )
+    return warnings
+
+
 def main() -> int:
     errors: list[str] = []
+    warnings: list[str] = []
     task_dependencies: dict[str, list[str]] = {}
     known_goals: set[str] = set()
     goal_payloads: dict[str, dict[str, Any]] = {}
@@ -1963,6 +2012,10 @@ def main() -> int:
                 raise ValidationError(f"{task_path}: goal_id {goal_id} has no matching goal file")
             task_dependencies[task_id] = dependencies
             task_payloads_by_goal.setdefault(goal_id, []).append(data)
+
+        # Advisory (WARN-ONLY) loop task-lock hint. Collected here once the goal
+        # and task payloads are known; surfaced after validation without failing.
+        warnings.extend(loop_lock_warnings(goal_payloads, task_payloads_by_goal))
 
         known_tasks = set(task_dependencies)
         for task_id, dependencies in task_dependencies.items():
@@ -2094,6 +2147,8 @@ def main() -> int:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
+    for warning in warnings:
+        print(f"WARNING: {warning}", file=sys.stderr)
     print("Shiki validation passed")
     return 0
 

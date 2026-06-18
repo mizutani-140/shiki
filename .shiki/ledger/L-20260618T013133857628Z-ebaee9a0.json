@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739482036Z-c92b21b3.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260618T013133857628Z-ebaee9a0",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/146"
+  ],
+  "summary": "T4 task-registered for implementation: reference PR #146 (MergeGate self-reference). Warn-only loop task-lock guard. T4 -> review; no goal-complete.",
+  "task_id": "T-20260617T090739482036Z-c92b21b3",
+  "timestamp": "2026-06-18T01:31:33.857628+00:00",
+  "type": "check"
+}
