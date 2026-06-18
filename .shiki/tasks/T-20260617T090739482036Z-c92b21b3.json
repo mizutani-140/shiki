@@ -11,7 +11,7 @@
     "CCA"
   ],
   "dependencies": [],
-  "expected_branch": "shiki/t4-lock-guard",
+  "expected_branch": "shiki/t-20260617t090739482036z-c92b21b3-closeout",
   "expected_pr": 146,
   "github_issue": null,
   "goal_id": "G-20260617T031753970001Z-1de3b322",
@@ -39,6 +39,6 @@
   ],
   "risk_level": "medium",
   "scope": "Loop-executed tasks must lock path:.shiki/** (the loop syncs .shiki evidence to the branch) (gap #5, Q5). Auto-include path:.shiki/** in locks at loop-task registration (scripts/shiki_tasks.py); make validate_shiki.py / shiki doctor warn when a loop-executed (claude-code/codex) task lacks it.",
-  "status": "review",
+  "status": "done",
   "title": "Loop task-lock guard: auto-include .shiki/** + validator hint"
 }
