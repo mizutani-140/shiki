@@ -24,7 +24,7 @@ from shiki_runtime_adapters import (
     get_runner_adapter,
 )
 from shiki_runtime_registry import RuntimeRegistryError, get_runtime, runtime_registry_as_json
-from shiki_tasks import append_ledger, load_task, loop_guaranteed_locks, orchestrate_plan, require_github_first_target, require_grilled_plan, next_control_id, task_files, worktree_record
+from shiki_tasks import append_ledger, load_task, orchestrate_plan, require_github_first_target, require_grilled_plan, next_control_id, task_files, worktree_record
 
 
 def validate_task_runtime_for_execution(task: dict[str, Any]) -> None:
@@ -180,10 +180,7 @@ def ensure_physical_worktree(target: Path, task: dict[str, Any]) -> dict[str, An
             "path": str(path),
             "runtime": task["assigned_runtime"],
             "state": "registered",
-            # Dispatch-time .shiki/** guarantee (loop_guaranteed_locks): a
-            # loop-executed task's worktree record must cover the .shiki evidence
-            # the loop syncs to the branch, without rewriting the task file.
-            "locks": loop_guaranteed_locks(task.get("assigned_runtime"), task.get("locks", [])),
+            "locks": task.get("locks", []),
             "created_by": "shiki-cli",
             "created_at": utc_now(),
             "pr": task.get("expected_pr"),

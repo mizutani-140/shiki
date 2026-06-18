@@ -29,7 +29,6 @@ from shiki_tasks import (
     allocate_worktree_record,
     is_loop_executed_runtime,
     locks_cover_shiki_state,
-    try_acquire_locks,
 )
 from validate_shiki import loop_lock_warnings
 
@@ -77,51 +76,6 @@ if not is_loop_executed_runtime("claude-code") or not is_loop_executed_runtime("
     fail("claude-code/codex must classify as loop-executed")
 if is_loop_executed_runtime("other") or is_loop_executed_runtime("hermes-runner"):
     fail("placeholder runtimes must not classify as loop-executed")
-
-# --- (2) dispatch-time guarantee --------------------------------------------
-
-with tempfile.TemporaryDirectory(prefix="shiki-loop-lock-") as tmp:
-    target = Path(tmp)
-    for sub in ("tasks", "locks", "ledger", "worktrees"):
-        (target / ".shiki" / sub).mkdir(parents=True, exist_ok=True)
-    declared = ["path:scripts/shiki_tasks.py"]
-    task_file = target / ".shiki" / "tasks" / f"{TASK}.json"
-    task_file.write_text(
-        json.dumps(
-            {
-                "id": TASK,
-                "goal_id": GOAL,
-                "title": "loop task",
-                "scope": "x",
-                "non_goals": [],
-                "dependencies": [],
-                "locks": list(declared),
-                "assigned_runtime": "claude-code",
-                "risk_level": "medium",
-                "acceptance_checks": ["a"],
-                "expected_branch": "shiki/t4-probe",
-                "ledger_evidence": ["L-seed"],
-                "status": "planned",
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    ok, blockers, _ = try_acquire_locks(target, TASK)
-    if not ok:
-        fail(f"lock acquisition failed: {blockers}")
-    lock_record = json.loads((target / ".shiki" / "locks" / f"{TASK}.json").read_text())
-    if not locks_cover_shiki_state(lock_record["locks"]):
-        fail(f"lock record must cover .shiki state: {lock_record['locks']}")
-
-    allocate_worktree_record(target, TASK)
-    wt_record = json.loads((target / ".shiki" / "worktrees" / f"{TASK}.json").read_text())
-    if not locks_cover_shiki_state(wt_record["locks"]):
-        fail(f"worktree record must cover .shiki state: {wt_record['locks']}")
-
-    reread = json.loads(task_file.read_text())
-    if reread["locks"] != declared:
-        fail(f"task file locks must NOT be mutated; got {reread['locks']}")
 
 print("loop-lock-guard: ok")
 PY

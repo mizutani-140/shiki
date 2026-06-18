@@ -64,20 +64,11 @@ def locks_cover_shiki_state(locks: list[str] | None) -> bool:
             return True
     return False
 
-
-def loop_guaranteed_locks(runtime: str | None, locks: list[str] | None) -> list[str]:
-    """Dispatch-time .shiki/** guarantee for loop tasks.
-
-    Returns the lock list the loop should record for a worktree/lock record:
-    for a loop-executed runtime whose declared locks do not already cover .shiki
-    state, append LOOP_SHIKI_STATE_LOCK. The registered task file is never
-    mutated — only the dispatch-time records derived from it gain the guarantee.
-    Non-loop runtimes and already-covered loop tasks are returned unchanged.
-    """
-    result = list(locks or [])
-    if is_loop_executed_runtime(runtime) and not locks_cover_shiki_state(result):
-        result.append(LOOP_SHIKI_STATE_LOCK)
-    return result
+# Safe default for the loop-observed TDD gate (ADR 0011): the command the goal
+# loop exec's in the task worktree before opening the PR. A task may override it
+# with its own structured `test_command`; the loop NEVER exec's the free-form
+# `acceptance_checks` prose.
+DEFAULT_TEST_COMMAND = "python3 -m unittest discover -s tests"
 
 
 def scan_ids(target: Path, prefix: str) -> list[int]:
@@ -317,6 +308,11 @@ def register_task_from_plan(
         "risk_level": task_plan.get("risk_level", "low"),
         "required_skills": task_plan.get("required_skills") or ["tdd", "code-review"],
         "acceptance_checks": task_plan["acceptance_checks"],
+        # The loop-observed TDD gate (ADR 0011) exec's THIS structured command in
+        # the worktree before opening the PR. acceptance_checks is free-form
+        # prose+commands and is never exec'd; test_command is the safe, explicit
+        # surface (default: the repo's unittest-discover suite).
+        "test_command": task_plan.get("test_command") or DEFAULT_TEST_COMMAND,
         "expected_branch": branch,
         "expected_pr": task_plan.get("expected_pr"),
         "ledger_evidence": [ledger_id],
@@ -350,7 +346,7 @@ def try_acquire_locks(target: Path, task_id: str) -> tuple[bool, list[str], str 
     # cover the evidence the loop syncs to its branch. The registered task file
     # is left untouched (the orchestrator owns registration / frozen-plan
     # lock-match); only the lock record derived here gains the guarantee.
-    locks = loop_guaranteed_locks(task.get("assigned_runtime"), task.get("locks", []))
+    locks = task.get("locks", [])
     conflicts = has_active_lock_conflict(target, task_id, locks)
     if conflicts:
         return False, conflicts, None
@@ -391,10 +387,7 @@ def allocate_worktree_record(target: Path, task_id: str) -> tuple[Path, str]:
         "path": str(worktree_path),
         "runtime": task["assigned_runtime"],
         "state": "registered",
-        # Dispatch-time .shiki/** guarantee (see loop_guaranteed_locks): the
-        # worktree the loop syncs evidence into must cover .shiki for loop tasks.
-        # The task file's declared locks are not rewritten.
-        "locks": loop_guaranteed_locks(task.get("assigned_runtime"), task.get("locks", [])),
+        "locks": task.get("locks", []),
         "created_by": "shiki-run",
         "created_at": utc_now(),
         "pr": task.get("expected_pr"),
@@ -634,6 +627,9 @@ def cmd_issue_plan(args: argparse.Namespace) -> int:
         "risk_level": args.risk_level,
         "required_skills": args.required_skill or [],
         "acceptance_checks": args.acceptance_check,
+        # Structured loop-observed TDD command (ADR 0011); falls back to the safe
+        # unittest-discover default when the CLI did not supply one.
+        "test_command": getattr(args, "test_command", None) or DEFAULT_TEST_COMMAND,
         "expected_branch": branch,
         "expected_pr": args.expected_pr,
         "ledger_evidence": [ledger_id],

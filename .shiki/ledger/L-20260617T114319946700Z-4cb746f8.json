@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739480720Z-04c7582b.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T114319946700Z-4cb746f8",
+  "links": [],
+  "summary": "Skill code-review: independent adversarial pre-PR verify (separate-context agent in the parallel workflow) of the T3 branch \u2014 verdict SOUND, 0 blocking/0 major. Checked fail-closed on blocking/parse-failure, read-only reviewer confinement, loop-owned determinism (ADR 0011), safety. ADR 0011 language updated (blocking pre-PR review stops for diagnosis; repair loop = post-PR check failures).",
+  "task_id": "T-20260617T090739480720Z-04c7582b",
+  "timestamp": "2026-06-17T11:43:19.946700+00:00",
+  "type": "check"
+}
