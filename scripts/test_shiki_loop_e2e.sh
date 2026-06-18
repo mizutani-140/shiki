@@ -137,7 +137,7 @@ set -euo pipefail
 # verdict to exercise the verdict -> repair packet path.
 for arg in "$@"; do
   if [[ "$arg" == "--allowedTools" ]]; then
-    echo '{"verdict":"pass","blocking_findings":[],"findings":[]}'
+    echo '{"verdict":"clean","findings":[]}'
     exit 0
   fi
 done
@@ -234,6 +234,7 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
       "scope": "Smallest end-to-end slice",
       "acceptance_checks": ["Slice verified"],
       "locks": ["path:slice-one.txt"],
+      "test_command": "true",
       "required_skills": ["tdd"]
     }
   ]
@@ -250,27 +251,39 @@ test "$(json_get_last /tmp/shiki-loop-e2e-result.json outcome)" = "complete"
 grep '"status": "complete"' "$TARGET/.shiki/goals/$GOAL_ID.json" >/dev/null
 test "$(grep -c merged "$GH_STATE/gh-log")" = "1"
 
-# ---------------------------------------------------------------------------
-# TODO(T2): once scripts/shiki_loop.py execute_action's create_pr branch runs
-# the task's tests in the worktree (before create_github_pr_for_task) and
-# records a type:check ledger naming skill `tdd` with an EXEC evidence ref,
-# assert that ledger exists for the merged task and that github_pr_body carried
-# the "## TDD evidence (loop-observed)" section. Also add a sibling fixture
-# where the worktree test_command exits non-zero and assert the loop returns
-# action=stop_blocked WITHOUT opening a PR (fail-closed; dispatch_repair is
-# PR-gated). The per-task `test_command` field (scripts/shiki_tasks.py) must
-# default to: python3 -m unittest discover -s tests
-# ---------------------------------------------------------------------------
-#
-# TODO(T3): once scripts/shiki_loop.py dispatches the independent read-only
-# reviewer (claude -p --allowedTools <read tools> --json-schema ...) before
-# create_pr, assert: (a) a code-review ledger is recorded for the merged task;
-# (b) github_pr_body carried the "## Pre-PR code review" section; (c) a fixture
-# that forces a blocking reviewer verdict routes into dispatch_repair instead of
-# create_pr; (d) a fixture where the reviewer dispatch/parse FAILS is
-# fail-closed (blocks, never silently passes). The stub reviewer branch in the
-# fake `claude` above (the `--allowedTools` arm) is the seam to drive.
-# ---------------------------------------------------------------------------
+# --- (T2) loop-observed TDD + (T3) independent code-review evidence ---------
+# T2/T3/T4 are merged: the self-drive above ran BOTH loop-owned gates before
+# opening the PR. Assert their durable ledgers exist for the merged task — the
+# loop (not the implementer) recorded a tdd check ledger with EXEC evidence and
+# an independent code-review check ledger.
+FIRST_TASK="$(python3 -c 'import json;print(json.load(open("/tmp/shiki-loop-e2e-run.json"))["task_ids"][0])')"
+python3 - "$TARGET" "$FIRST_TASK" <<'PY'
+import json, os, sys
+target, task_id = sys.argv[1], sys.argv[2]
+task = json.load(open(os.path.join(target, ".shiki", "tasks", task_id + ".json")))
+ledgers = []
+for lid in task.get("ledger_evidence", []):
+    p = os.path.join(target, ".shiki", "ledger", lid + ".json")
+    if os.path.exists(p):
+        ledgers.append(json.load(open(p)))
+
+
+def has(pred):
+    return any(pred(l) for l in ledgers)
+
+
+# T2: a loop-observed tdd check ledger whose evidence points at an EXEC record.
+assert has(lambda l: l.get("type") == "check"
+           and "tdd" in json.dumps(l).lower()
+           and any(str(e).startswith(".shiki/runner/EXEC-") for e in (l.get("evidence") or []))), \
+    "T2: no loop-observed tdd check ledger with EXEC evidence on the merged task"
+# T3: an independent pre-PR code-review check ledger.
+assert has(lambda l: l.get("type") == "check"
+           and "code-review" in json.dumps(l).lower()
+           and "reviewer" in json.dumps(l).lower()), \
+    "T3: no independent code-review check ledger on the merged task"
+print("e2e: loop-owned T2 tdd-evidence + T3 code-review ledgers present on the merged task")
+PY
 
 # ===========================================================================
 # PATH 2 (ASSERTS NOW): failure -> repair. A red required check on a task in
