@@ -11,13 +11,16 @@
     "CCA"
   ],
   "dependencies": [],
-  "expected_branch": "shiki/t-20260617t090739483386z-2a275071-placeholder",
-  "expected_pr": null,
+  "expected_branch": "shiki/t5-e2e",
+  "expected_pr": 147,
   "github_issue": null,
   "goal_id": "G-20260617T031753970001Z-1de3b322",
   "id": "T-20260617T090739483386Z-2a275071",
   "ledger_evidence": [
-    "L-20260617T090810876145Z-90a16965"
+    "L-20260617T090810876145Z-90a16965",
+    "L-20260618T014757188326Z-30eae75a",
+    "L-20260618T014757192737Z-56d8cf05",
+    "L-20260618T014757194148Z-45b340d8"
   ],
   "locks": [
     "path:.shiki/**",
@@ -34,6 +37,6 @@
   ],
   "risk_level": "high",
   "scope": "Prove the loop self-drives. Add a stubbed-runner + stubbed-reviewer contract test (pattern: scripts/test_shiki_runner_claude.sh / scripts/test_shiki_goal_loop.sh) driving dispatch -> tdd-evidence -> code-review -> commit/push -> create_pr -> checks -> merge -> done, including the failure -> repair branch. Then the acceptance gate: a live shiki loop run on a low-risk claude-code task self-drives to auto-merge + goal complete with no manual pre-clearing (recorded as evidence).",
-  "status": "planned",
+  "status": "review",
   "title": "End-to-end verification: stubbed contract test + live loop self-drive"
 }

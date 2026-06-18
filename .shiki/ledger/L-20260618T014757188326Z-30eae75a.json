@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739483386Z-2a275071.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260618T014757188326Z-30eae75a",
+  "links": [],
+  "summary": "Skill tdd: T5 E2E self-drive contract test (scripts/test_shiki_loop_e2e.sh) \u2014 drives the FULL integrated loop with stubbed runner+reviewer+gh: dispatch -> loop-observed TDD gate (T2) -> independent code-review verifier (T3) -> commit/push (T1) -> create_pr -> green checks -> auto-merge -> done -> goal complete, plus PATH 2 failure->repair. Asserts the loop-owned tdd + code-review ledgers on the merged task. + tests/test_loop_e2e_skeleton.py + docs/agents/autonomous-loop-e2e-acceptance.md (the live `shiki loop run` acceptance gate). Full suite green.",
+  "task_id": "T-20260617T090739483386Z-2a275071",
+  "timestamp": "2026-06-18T01:47:57.188326+00:00",
+  "type": "check"
+}

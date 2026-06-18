@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739483386Z-2a275071.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260618T014757194148Z-45b340d8",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/147"
+  ],
+  "summary": "T5 task-registered for implementation: reference PR #147 (MergeGate self-reference). E2E verification: stubbed contract test (self-drive proven) + live-run acceptance doc. T5 -> review; no goal-complete.",
+  "task_id": "T-20260617T090739483386Z-2a275071",
+  "timestamp": "2026-06-18T01:47:57.194148+00:00",
+  "type": "check"
+}
