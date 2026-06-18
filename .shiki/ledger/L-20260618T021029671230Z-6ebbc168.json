@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739483386Z-2a275071.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260618T021029671230Z-6ebbc168",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/147"
+  ],
+  "summary": "Repair (external AI guardian findings T5-E2E-ORDER-001 + T5-E2E-REPAIR-002, BLOCKING): the T5 proof's CLAIMED order (TDD->code-review) and repair path disagreed with the IMPLEMENTED loop. Fixes (T5 locks: test+docs only \u2014 shiki_loop.py is out of T5 scope): (1) corrected the order claim everywhere to the implemented (a) code-review -> (b) TDD -> (c) commit/push, and added an e2e ASSERTION over the task's ledger_evidence INDEX (code-review ledger index < tdd-gate ledger index; matched on the 'Loop-observed TDD gate' summary so the dispatch runner EXEC ledger is not mistaken for it) so a future reorder breaks the test; (2) aligned the acceptance doc: a non-clean PRE-PR review fail-closes to stop_blocked (no PR to anchor a repair); the bounded repair loop is for POST-PR required-check failures (PATH 2). Full suite + e2e green.",
+  "task_id": "T-20260617T090739483386Z-2a275071",
+  "timestamp": "2026-06-18T02:10:29.671230+00:00",
+  "type": "check"
+}
