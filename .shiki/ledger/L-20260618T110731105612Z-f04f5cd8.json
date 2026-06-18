@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260618T110731105287Z-5276602e.json"
+  ],
+  "goal_id": "G-20260618T110721108316Z-295dc805",
+  "id": "L-20260618T110731105612Z-f04f5cd8",
+  "links": [],
+  "summary": "Task registered: Handoff Execution Protocol guardrail",
+  "task_id": "T-20260618T110731105287Z-5276602e",
+  "timestamp": "2026-06-18T11:07:31+00:00",
+  "type": "task-registered"
+}

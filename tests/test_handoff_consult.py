@@ -110,6 +110,27 @@ class HandoffConsultTests(unittest.TestCase):
             self.assertIn("## Distilled Rules", body)
             self.assertIn("(MEM-20260612T143733349559Z-fe72ae6a)", body)
 
+    def test_execution_protocol_precedes_scope_and_forbids_delivery(self):
+        # The handoff must carry the loop-owns-delivery guardrail BEFORE the work
+        # scope, so the implementer reads the constraints first. It must forbid the
+        # state transitions the Shiki loop owns: local commit/push/checkout, any gh
+        # command, and PR creation/merge.
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            _seed(root, locks=["path:scripts/shiki_memory.py"])
+            handoff_file, _ = write_task_handoff(root, TASK_ID)
+            body = handoff_file.read_text(encoding="utf-8")
+            self.assertIn("## Execution Protocol", body)
+            # The guardrail must precede the work scope.
+            self.assertLess(body.index("## Execution Protocol"), body.index("## Scope"))
+            # It must name the loop-owned delivery actions it forbids.
+            self.assertIn("git commit", body)
+            self.assertIn("git push", body)
+            self.assertIn("`gh`", body)
+            self.assertIn("pull request", body)
+            # And it must be phrased as a prohibition, not a suggestion.
+            self.assertIn("Do NOT", body)
+
     def test_regenerates_and_does_not_mutate_state(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
