@@ -7,7 +7,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-f62d375b-closeout",
-  "expected_pr": 155,
+  "expected_pr": 156,
   "github_issue": null,
   "goal_id": "G-20260618T062311037333Z-0c9a58e7",
   "id": "T-20260618T062324783813Z-f62d375b",
@@ -22,7 +22,8 @@
     "L-20260618T063238751486Z-db545081",
     "L-20260618T071000394543Z-5799d0ed",
     "L-20260618T073300513176Z-f83b4208",
-    "L-20260618T073300667397Z-20263d4c"
+    "L-20260618T073300667397Z-20263d4c",
+    "L-20260618T073351911784Z-97273772"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -45,7 +46,8 @@
     "path:.shiki/ledger/L-20260618T071000394543Z-5799d0ed.json",
     "path:.shiki/ledger/L-20260618T073300513176Z-f83b4208.json",
     "path:.shiki/ledger/L-20260618T073300667397Z-20263d4c.json",
-    "path:.shiki/reports/R-20260618T073300626693Z-63167a95.json"
+    "path:.shiki/reports/R-20260618T073300626693Z-63167a95.json",
+    "path:.shiki/ledger/L-20260618T073351911784Z-97273772.json"
   ],
   "non_goals": [
     "Multi-task closeout sequencing (deferred per ADR 0012).",

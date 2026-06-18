@@ -1,0 +1,16 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/locks/T-20260618T062324783813Z-f62d375b.json",
+    ".shiki/tasks/T-20260618T062324783813Z-f62d375b.json"
+  ],
+  "goal_id": "G-20260618T062311037333Z-0c9a58e7",
+  "id": "L-20260618T073351911784Z-97273772",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/156"
+  ],
+  "summary": "Closeout reconcile in PR #156 (/pull/156): Gap B task done, lock released, goal completed with scorecard. Impl shipped in PR #155 (Guardian-approved). Frees scripts/shiki_loop.py + tests + .shiki for the #140 T5 live self-drive demo.",
+  "task_id": "T-20260618T062324783813Z-f62d375b",
+  "timestamp": "2026-06-18T07:33:51+00:00",
+  "type": "lock"
+}

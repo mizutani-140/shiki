@@ -22,7 +22,8 @@
     "path:.shiki/ledger/L-20260618T071000394543Z-5799d0ed.json",
     "path:.shiki/ledger/L-20260618T073300513176Z-f83b4208.json",
     "path:.shiki/ledger/L-20260618T073300667397Z-20263d4c.json",
-    "path:.shiki/reports/R-20260618T073300626693Z-63167a95.json"
+    "path:.shiki/reports/R-20260618T073300626693Z-63167a95.json",
+    "path:.shiki/ledger/L-20260618T073351911784Z-97273772.json"
   ],
   "owner": "claude-code",
   "state": "released",
