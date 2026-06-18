@@ -37,6 +37,10 @@ TMP_ROOT="${TMPDIR:-/tmp}/shiki-loop-e2e-test-$$"
 TARGET="$TMP_ROOT/target"
 FAKE_BIN="$TMP_ROOT/bin"
 export GH_STATE="$TMP_ROOT/gh-state"
+# The bare origin the loop pushes to. The stub gh's `pr merge` advances its main
+# to the merged PR branch so the loop's closeout step (ADR 0012), which cuts a
+# worktree from origin/main, sees the merged .shiki state — mirroring a real merge.
+export GH_ORIGIN="$TMP_ROOT/origin.git"
 
 cleanup() {
   rm -rf "$TMP_ROOT"
@@ -137,6 +141,14 @@ case "${1:-} ${2:-}" in
     COUNTER_FILE="$STATE/pr-counter"
     NUMBER=$(( $(cat "$COUNTER_FILE" 2>/dev/null || echo 10) + 1 ))
     echo "$NUMBER" > "$COUNTER_FILE"
+    # Record the PR's head branch so a later `pr merge` can advance origin/main
+    # to it (the loop opens both the impl PR and the closeout PR with --head).
+    HEAD_BRANCH=""
+    while [[ $# -gt 0 ]]; do
+      [[ "$1" == "--head" ]] && HEAD_BRANCH="${2:-}"
+      shift || true
+    done
+    echo "$HEAD_BRANCH" > "$STATE/pr-branch-$NUMBER"
     echo "https://github.com/example/shiki-loop-e2e-test/pull/$NUMBER"
     exit 0 ;;
   "pr view")
@@ -159,6 +171,19 @@ case "${1:-} ${2:-}" in
     NUMBER="$3"
     touch "$STATE/merged-$NUMBER"
     echo "merged $NUMBER" >> "$STATE/gh-log"
+    # Mirror a real merge: advance origin's main (and the target's
+    # origin/main tracking ref) to the merged PR branch tip, so the loop's
+    # closeout step — which cuts a worktree from origin/main — sees the synced
+    # .shiki state instead of stop_blocking on a missing task file.
+    BR="$(cat "$STATE/pr-branch-$NUMBER" 2>/dev/null || true)"
+    if [[ -n "$BR" ]]; then
+      SHA="$(git -C "${GH_ORIGIN:?}" rev-parse "refs/heads/$BR" 2>/dev/null || true)"
+      if [[ -n "$SHA" ]]; then
+        git -C "$GH_ORIGIN" update-ref refs/heads/main "$SHA" 2>/dev/null || true
+        # gh runs with cwd=target, so this updates the target's remote-tracking ref.
+        git update-ref refs/remotes/origin/main "$SHA" 2>/dev/null || true
+      fi
+    fi
     exit 0 ;;
   "run list")
     echo '[]'
@@ -214,10 +239,12 @@ PLAN_ID="$(json_get /tmp/shiki-loop-e2e-plan.json plan_id)"
 python3 "$ROOT/scripts/shiki.py" run --target "$TARGET" --plan "$PLAN_ID" >/tmp/shiki-loop-e2e-run.json
 GOAL_ID="$(json_get /tmp/shiki-loop-e2e-run.json goal_id)"
 
-python3 "$ROOT/scripts/shiki.py" loop run --target "$TARGET" --goal-id "$GOAL_ID" --max-cycles 10 --interval 0 >/tmp/shiki-loop-e2e-result.json
+python3 "$ROOT/scripts/shiki.py" loop run --target "$TARGET" --goal-id "$GOAL_ID" --max-cycles 12 --interval 0 >/tmp/shiki-loop-e2e-result.json
 test "$(json_get_last /tmp/shiki-loop-e2e-result.json outcome)" = "complete"
 grep '"status": "complete"' "$TARGET/.shiki/goals/$GOAL_ID.json" >/dev/null
-test "$(grep -c merged "$GH_STATE/gh-log")" = "1"
+# Two merges now: the impl PR, then the ADR 0012 closeout PR that pushes the
+# task=done + goal=complete bookkeeping to main.
+test "$(grep -c merged "$GH_STATE/gh-log")" = "2"
 
 # --- (T2) loop-observed TDD + (T3) independent code-review evidence ---------
 # T2/T3/T4 are merged: the self-drive above ran BOTH loop-owned gates before
