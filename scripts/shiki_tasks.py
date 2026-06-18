@@ -9,9 +9,67 @@ import re
 from typing import Any
 
 from shiki_git import github_origin, is_git_repo
-from shiki_locks import active_lock_conflicts
+from shiki_locks import active_lock_conflicts, path_matches_lock
 from shiki_process import ShikiError, print_json, read_json, run, shiki_path, slugify, target_path, utc_now, write_json, ensure_control_dirs
 from shiki_state import append_ledger_entry, new_control_id
+
+# Loop task-lock guard (PRD 0002 T4, gap #5 / Q5).
+#
+# A loop-executed task is dispatched into an isolated worktree where the goal
+# loop syncs the FULL .shiki evidence set onto the task branch (see
+# shiki_loop._sync_state_to_branch / _evidence_relatives_for_task: task file,
+# worktree record, every ledger, and the runner/EXEC + report files those
+# ledgers reference). MergeGate's files-outside-locks gate then sees those .shiki
+# mutations on the branch, so a loop task must hold a lock that covers all of
+# .shiki — otherwise the loop's own evidence sync lands outside the task's locks.
+#
+# LOOP_EXECUTED_RUNTIMES is the explicit set of runtimes the goal loop dispatches
+# into a worktree today (claude-code, codex). It is intentionally narrower than
+# every runner-role runtime: the placeholders `other` and `hermes-runner` carry a
+# runner role but have no loop adapter, and flagging them would spam advisories.
+LOOP_EXECUTED_RUNTIMES: frozenset[str] = frozenset({"claude-code", "codex"})
+
+# Canonical lock that covers the whole .shiki evidence tree the loop syncs.
+LOOP_SHIKI_STATE_LOCK = "path:.shiki/**"
+
+# Representative paths across every .shiki subtree the loop syncs. A lock-set
+# "covers .shiki state" only if one lock matches ALL of them; a single-subtree
+# lock such as path:.shiki/tasks/** does not.
+_SHIKI_STATE_PROBES: tuple[str, ...] = (
+    ".shiki/tasks/probe.json",
+    ".shiki/worktrees/probe.json",
+    ".shiki/ledger/probe.json",
+    ".shiki/runner/probe.json",
+    ".shiki/reports/probe.json",
+)
+
+
+def is_loop_executed_runtime(runtime: str | None) -> bool:
+    """True when the goal loop dispatches this runtime into a worktree."""
+    return isinstance(runtime, str) and runtime in LOOP_EXECUTED_RUNTIMES
+
+
+def locks_cover_shiki_state(locks: list[str] | None) -> bool:
+    """True when some single lock in ``locks`` covers the full .shiki tree.
+
+    The loop syncs evidence across many .shiki subtrees, so coverage requires a
+    lock that matches every representative subtree path, not a per-subtree lock.
+    """
+    if not locks:
+        return False
+    for lock in locks:
+        if not isinstance(lock, str):
+            continue
+        if all(path_matches_lock(probe, lock) for probe in _SHIKI_STATE_PROBES):
+            return True
+    return False
+
+# Safe default for the loop-observed TDD gate (ADR 0011): the command the goal
+# loop exec's in the task worktree before opening the PR. A task may override it
+# with its own structured `test_command`; the loop NEVER exec's the free-form
+# `acceptance_checks` prose.
+DEFAULT_TEST_COMMAND = "python3 -m unittest discover -s tests"
+
 
 def scan_ids(target: Path, prefix: str) -> list[int]:
     pattern = re.compile(rf"\b{re.escape(prefix)}-([0-9]{{4,}})\b")
@@ -250,6 +308,11 @@ def register_task_from_plan(
         "risk_level": task_plan.get("risk_level", "low"),
         "required_skills": task_plan.get("required_skills") or ["tdd", "code-review"],
         "acceptance_checks": task_plan["acceptance_checks"],
+        # The loop-observed TDD gate (ADR 0011) exec's THIS structured command in
+        # the worktree before opening the PR. acceptance_checks is free-form
+        # prose+commands and is never exec'd; test_command is the safe, explicit
+        # surface (default: the repo's unittest-discover suite).
+        "test_command": task_plan.get("test_command") or DEFAULT_TEST_COMMAND,
         "expected_branch": branch,
         "expected_pr": task_plan.get("expected_pr"),
         "ledger_evidence": [ledger_id],
@@ -279,7 +342,11 @@ def update_goal_dag(target: Path, goal_id: str, task_ids: list[str], dependency_
 
 def try_acquire_locks(target: Path, task_id: str) -> tuple[bool, list[str], str | None]:
     task = load_task(target, task_id)
-    locks = list(task.get("locks", []))
+    # Dispatch-time .shiki/** guarantee: the lock record a loop task holds must
+    # cover the evidence the loop syncs to its branch. The registered task file
+    # is left untouched (the orchestrator owns registration / frozen-plan
+    # lock-match); only the lock record derived here gains the guarantee.
+    locks = task.get("locks", [])
     conflicts = has_active_lock_conflict(target, task_id, locks)
     if conflicts:
         return False, conflicts, None
@@ -560,6 +627,9 @@ def cmd_issue_plan(args: argparse.Namespace) -> int:
         "risk_level": args.risk_level,
         "required_skills": args.required_skill or [],
         "acceptance_checks": args.acceptance_check,
+        # Structured loop-observed TDD command (ADR 0011); falls back to the safe
+        # unittest-discover default when the CLI did not supply one.
+        "test_command": getattr(args, "test_command", None) or DEFAULT_TEST_COMMAND,
         "expected_branch": branch,
         "expected_pr": args.expected_pr,
         "ledger_evidence": [ledger_id],

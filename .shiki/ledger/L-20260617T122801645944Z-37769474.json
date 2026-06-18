@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739480720Z-04c7582b.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260617T122801645944Z-37769474",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/145"
+  ],
+  "summary": "Repair 2 (external AI guardian finding T3-RO-MCP-002, BLOCKING): --tools restricts BUILT-IN tools only; MCP tools are unaffected, so the reviewer's read-only confinement was not hermetic where MCP/user config is present. Fix: REVIEWER_ADAPTER now also passes --disallowedTools ...,mcp__* (deny all MCP tools), --strict-mcp-config (load zero MCP servers with no --mcp-config), and --setting-sources \"\" (ignore ambient user/project settings). Regression test extended to assert mcp__* denial + --strict-mcp-config + empty setting-sources. 252 unit + shell + validate green.",
+  "task_id": "T-20260617T090739480720Z-04c7582b",
+  "timestamp": "2026-06-17T12:28:01.645944+00:00",
+  "type": "check"
+}

@@ -71,6 +71,16 @@ case "${1:-}" in
       exit 0
     fi ;;
   -p)
+    # The independent pre-PR reviewer (ADR 0011) carries --json-schema and
+    # read-only --allowedTools; the implementer carries bypassPermissions.
+    # Distinguish them and emit a clean structured verdict for the reviewer so
+    # the loop's pre-PR code-review gate passes (a parse failure would fail
+    # closed to stop_blocked).
+    if printf '%s\n' "$@" | grep -q -- '--json-schema'; then
+      cat >/dev/null
+      echo '{"verdict":"clean","findings":[],"summary":"fake reviewer: no findings"}'
+      exit 0
+    fi
     cat > "claude-prompt-$$.txt"
     cp "claude-prompt-$$.txt" claude-last-prompt.txt
     echo "claude fake executed"
@@ -150,7 +160,8 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
       "scope": "Smallest end-to-end slice",
       "acceptance_checks": ["Slice one verified"],
       "locks": ["path:slice-one.txt"],
-      "required_skills": ["tdd"]
+      "required_skills": ["tdd"],
+      "test_command": "true"
     },
     {
       "title": "Second slice",
@@ -158,7 +169,8 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
       "acceptance_checks": ["Slice two verified"],
       "dependencies": ["First slice"],
       "locks": ["path:slice-two.txt"],
-      "required_skills": ["tdd"]
+      "required_skills": ["tdd"],
+      "test_command": "true"
     }
   ]
 }

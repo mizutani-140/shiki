@@ -156,6 +156,133 @@ CLAUDE_ADAPTER = RunnerAdapter(
     auth_remediation="Run `claude auth login` in a terminal or `/login` inside Claude Code before dispatch.",
 )
 
+# The independent pre-PR code-review verifier (ADR 0011). It is the SAME model as
+# the implementer but in a SEPARATE context with HARD read-only confinement — the
+# independence IS the context boundary, exactly as for CCA. It is NEVER the
+# bypassPermissions implementer. A reviewer that cannot mutate the tree cannot
+# forge a "0 findings" by editing the implementation or the evidence.
+#
+# Confinement is enforced by the documented restriction mechanisms, NOT by
+# --allowedTools (which only auto-APPROVES; it does not remove tools):
+#   --tools           restricts the AVAILABLE built-in set to read tools only, so
+#                     Edit/Write/MultiEdit/NotebookEdit do not exist in context.
+#                     NOTE: --tools restricts BUILT-IN tools only; MCP tools are
+#                     unaffected and must be denied separately (below).
+#   --disallowedTools belt-and-suspenders: hard-removes the mutating built-ins
+#                     AND every MCP tool (mcp__*), so no ambient MCP/user/managed
+#                     server surface escapes the read-only boundary.
+#   --strict-mcp-config  load MCP servers ONLY from --mcp-config; with none
+#                     passed, NO MCP servers load — the reviewer is hermetic to
+#                     ambient MCP configuration.
+#   --setting-sources ""  ignore user/project/local settings so the reviewer is
+#                     independent of ambient customizations (allowed tools, hooks).
+#   --permission-mode dontAsk: in headless -p mode (no interactive approver) any
+#                     unmatched tool is denied, never prompted/hung.
+#   --allowedTools    auto-approves the read ops so the review does not stall.
+CODE_REVIEW_AVAILABLE_TOOLS = "Read,Grep,Glob,Bash"
+# Hard-deny the mutating built-ins AND all MCP tools (mcp__* — T3-RO-MCP-002).
+CODE_REVIEW_DISALLOWED_TOOLS = "Edit,Write,MultiEdit,NotebookEdit,mcp__*"
+CODE_REVIEW_ALLOWED_TOOLS = "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git status:*)"
+
+# Minimal structured-verdict contract. `verdict` is the only field the loop gates
+# on; `findings`/`summary` carry the (non-load-bearing) detail rendered into the
+# PR-12 body section.
+CODE_REVIEW_VERDICT_SCHEMA = json.dumps(
+    {
+        "type": "object",
+        "properties": {
+            "verdict": {"type": "string", "enum": ["clean", "blocking"]},
+            "findings": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "severity": {"type": "string"},
+                        "detail": {"type": "string"},
+                    },
+                    "required": ["title"],
+                },
+            },
+            "summary": {"type": "string"},
+        },
+        "required": ["verdict"],
+    },
+    separators=(",", ":"),
+)
+
+CODE_REVIEW_VALID_VERDICTS = ("clean", "blocking")
+
+REVIEWER_ADAPTER = RunnerAdapter(
+    name="claude-code-reviewer",
+    display_name="Claude Code reviewer (read-only)",
+    required_tool="claude",
+    exec_argv=(
+        "claude",
+        "-p",
+        # Hard read-only confinement (see CODE_REVIEW_* notes above): --tools
+        # restricts built-in availability; --disallowedTools removes the mutating
+        # built-ins AND all MCP tools (mcp__*); --strict-mcp-config with no
+        # --mcp-config loads zero MCP servers; --setting-sources "" ignores
+        # ambient user/project settings; --permission-mode dontAsk denies anything
+        # unmatched in headless mode; --allowedTools only auto-approves read ops.
+        "--tools",
+        CODE_REVIEW_AVAILABLE_TOOLS,
+        "--disallowedTools",
+        CODE_REVIEW_DISALLOWED_TOOLS,
+        "--strict-mcp-config",
+        "--setting-sources",
+        "",
+        "--permission-mode",
+        "dontAsk",
+        "--allowedTools",
+        CODE_REVIEW_ALLOWED_TOOLS,
+        "--json-schema",
+        CODE_REVIEW_VERDICT_SCHEMA,
+    ),
+    auth_status=claude_auth_status,
+    auth_remediation="Run `claude auth login` in a terminal or `/login` inside Claude Code before dispatch.",
+)
+
+
+def parse_code_review_verdict(stdout: str) -> dict[str, Any] | None:
+    """Deterministically extract the reviewer's structured verdict.
+
+    ``claude -p --json-schema`` returns a JSON object but may wrap it in log
+    lines, so we try the whole output first and then every balanced ``{...}``
+    span, accepting the first that carries a recognized ``verdict``. Returns the
+    parsed dict, or ``None`` on ANY failure — the caller treats ``None`` as
+    fail-closed (review-not-done -> block), never a silent pass.
+    """
+    text = (stdout or "").strip()
+    if not text:
+        return None
+    candidates: list[str] = [text]
+    start = text.find("{")
+    while start != -1:
+        depth = 0
+        for index in range(start, len(text)):
+            char = text[index]
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    candidates.append(text[start : index + 1])
+                    break
+        start = text.find("{", start + 1)
+    for candidate in candidates:
+        try:
+            data = json.loads(candidate)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        verdict = data.get("verdict")
+        if isinstance(verdict, str) and verdict in CODE_REVIEW_VALID_VERDICTS:
+            return data
+    return None
+
 
 RUNNER_ADAPTERS: dict[str, RunnerAdapter] = {
     adapter.name: adapter for adapter in (CODEX_ADAPTER, CLAUDE_ADAPTER)

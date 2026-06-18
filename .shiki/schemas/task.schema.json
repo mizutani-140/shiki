@@ -57,6 +57,11 @@
     },
     "status": {
       "enum": ["planned", "ready", "running", "blocked", "review", "repair-needed", "done"]
+    },
+    "test_command": {
+      "description": "Structured command the goal loop exec's in the task worktree for the loop-observed TDD gate (ADR 0011) before opening the PR. Defaults to 'python3 -m unittest discover -s tests'. acceptance_checks is free-form prose and is never exec'd.",
+      "type": "string",
+      "minLength": 1
     }
   },
   "additionalProperties": true
