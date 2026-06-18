@@ -12,7 +12,7 @@
   ],
   "dependencies": [],
   "expected_branch": "shiki/t-20260617t090739482036z-c92b21b3-closeout",
-  "expected_pr": 146,
+  "expected_pr": 167,
   "github_issue": null,
   "goal_id": "G-20260617T031753970001Z-1de3b322",
   "id": "T-20260617T090739482036Z-c92b21b3",
@@ -20,7 +20,8 @@
     "L-20260617T090810874696Z-5cd634bb",
     "L-20260618T013133851843Z-b9e78316",
     "L-20260618T013133856231Z-b2dada57",
-    "L-20260618T013133857628Z-ebaee9a0"
+    "L-20260618T013133857628Z-ebaee9a0",
+    "L-20260618T114412052743Z-73815965"
   ],
   "locks": [
     "path:.shiki/**",
