@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/shiki_loop.py"
+  ],
+  "goal_id": "G-20260618T062311037333Z-0c9a58e7",
+  "id": "L-20260618T063113497087Z-ee536865",
+  "links": [],
+  "summary": "diagnose: the live #140 T5 run (PR #153) proved the loop self-drives to auto-merge but its mark_done + cmd_goal_complete wrote only the LOCAL mirror; origin/main still showed task=review/goal=planned (verified by comparing origin/main vs local). The loop reads the local coordinator checkout, never main, so the completion was never durable on GitHub. This is Gap B.",
+  "task_id": "T-20260618T062324783813Z-f62d375b",
+  "timestamp": "2026-06-18T06:31:13+00:00",
+  "type": "check"
+}
