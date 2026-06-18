@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260618T093119138788Z-867546d0.json"
+  ],
+  "goal_id": "G-20260618T093112319886Z-a4f768c5",
+  "id": "L-20260618T093119139066Z-5564a814",
+  "links": [],
+  "summary": "Task registered: Add a third trivial smoke test",
+  "task_id": "T-20260618T093119138788Z-867546d0",
+  "timestamp": "2026-06-18T09:31:19+00:00",
+  "type": "task-registered"
+}
