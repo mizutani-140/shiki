@@ -24,7 +24,8 @@
   },
   "id": "G-20260617T031753970001Z-1de3b322",
   "ledger_evidence": [
-    "L-20260617T031753970925Z-ad2b1eb2"
+    "L-20260617T031753970925Z-ad2b1eb2",
+    "L-20260618T123009719989Z-41aa3dda"
   ],
   "non_goals": [
     "High/critical-risk auto-merge (remains Guardian-gated, ADR 0010).",
@@ -39,6 +40,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260617T031753871099Z-bac3fdc7",
-  "status": "planned",
+  "status": "complete",
   "title": "Complete the autonomous post-freeze loop (finish #119 G-D)"
 }
