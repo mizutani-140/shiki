@@ -19,9 +19,12 @@
     "path:.shiki/ledger/L-20260618T063113497293Z-a8e4aaaa.json",
     "path:.shiki/ledger/L-20260618T063113497366Z-ee7f03aa.json",
     "path:.shiki/ledger/L-20260618T063238751486Z-db545081.json",
-    "path:.shiki/ledger/L-20260618T071000394543Z-5799d0ed.json"
+    "path:.shiki/ledger/L-20260618T071000394543Z-5799d0ed.json",
+    "path:.shiki/ledger/L-20260618T073300513176Z-f83b4208.json",
+    "path:.shiki/ledger/L-20260618T073300667397Z-20263d4c.json",
+    "path:.shiki/reports/R-20260618T073300626693Z-63167a95.json"
   ],
   "owner": "claude-code",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260618T062324783813Z-f62d375b"
 }

@@ -1,0 +1,52 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-06-18T07:33:00+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260618T062324783813Z-f62d375b.json"
+  ],
+  "goal_id": "G-20260618T062311037333Z-0c9a58e7",
+  "id": "R-20260618T073300626693Z-63167a95",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "high"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 4189000,
+    "generated_at": "2026-06-18T07:33:00+00:00",
+    "goal_id": "G-20260618T062311037333Z-0c9a58e7",
+    "lock_amendments": {
+      "total": 0
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 1
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard",
+      "repairs.by_area is not derivable from ledger events; reported empty"
+    ],
+    "window": {
+      "from": "2026-06-18T06:23:11+00:00",
+      "to": "2026-06-18T07:33:00+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "Gap B (autonomous closeout to main, ADR 0012) implemented + merged in PR #155 (adversarial verification + Guardian-approved). Completes the #140 autonomous-loop goal: the loop now self-drives to goal-complete on main."
+}
