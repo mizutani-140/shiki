@@ -8,6 +8,9 @@
   "created_at": "2026-06-18T11:07:21+00:00",
   "github_issue": null,
   "id": "G-20260618T110721108316Z-295dc805",
+  "ledger_evidence": [
+    "L-20260618T111530679758Z-9aa114e0"
+  ],
   "non_goals": [
     "No change to loop state-machine logic, CCA, MergeGate, or Guardian policy."
   ],
@@ -17,6 +20,6 @@
     "code-review"
   ],
   "risk_level": "low",
-  "status": "planned",
+  "status": "complete",
   "title": "Loop dispatch robustness: implementer must not self-open PRs"
 }
