@@ -1,0 +1,43 @@
+{
+  "acceptance_checks": [
+    "tests/test_loop_smoke.py exists with one passing unittest test.",
+    "python3 -m unittest discover -s tests passes; python3 scripts/validate_shiki.py passes."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260618t040009550577z-e2df6ee0-add-a-trivial-smoke-test",
+  "expected_pr": 150,
+  "github_issue": null,
+  "goal_id": "G-20260618T040009549480Z-c91df039",
+  "id": "T-20260618T040009550577Z-e2df6ee0",
+  "ledger_evidence": [
+    "L-20260618T040009550698Z-5cf193ba",
+    "L-20260618T042015224547Z-3c396210",
+    "L-20260618T042015225547Z-9c2ad85f",
+    "L-20260618T042113286554Z-da8d3a0e",
+    "L-20260618T042129679972Z-f50cdc17",
+    "L-20260618T042129730936Z-ec7c060e",
+    "L-20260618T042133546416Z-f09f97c0"
+  ],
+  "locks": [
+    "path:.shiki/**",
+    "path:tests/*"
+  ],
+  "non_goals": [
+    "No production code change.",
+    "No change to any file outside tests/."
+  ],
+  "pre_pr_code_review": {
+    "findings": [],
+    "ledger_id": "L-20260618T042129679972Z-f50cdc17",
+    "verdict": "clean"
+  },
+  "required_skills": [
+    "tdd"
+  ],
+  "risk_level": "low",
+  "scope": "Create tests/test_loop_smoke.py containing exactly one unittest.TestCase with one test method that asserts a trivially-true fact (e.g. self.assertTrue(True)). Do not modify any other file. The file must import cleanly and the test must pass.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests -p test_loop_smoke.py",
+  "title": "Add a trivial smoke test"
+}
