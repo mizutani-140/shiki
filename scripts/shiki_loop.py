@@ -818,34 +818,33 @@ def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, A
     import tempfile
 
     branch = f"shiki/{task_id.lower()}-closeout"
-
-    # Re-entrancy: a prior interrupted run may have opened the PR before recording
-    # closeout_pr. Adopt an existing PR for this deterministic branch, never dup.
-    listing = _gh(
-        target,
-        ["pr", "list", "--head", branch, "--state", "all", "--json", "number", "--limit", "1"],
-        check=False,
-    )
-    if listing.returncode == 0 and listing.stdout.strip():
-        try:
-            rows = json.loads(listing.stdout)
-        except (json.JSONDecodeError, ValueError):
-            rows = []
-        if rows:
-            num = int(rows[0]["number"])
-            task = load_task(target, task_id)
-            task["closeout_pr"] = num
-            task["expected_pr"] = num
-            task["expected_branch"] = branch
-            _save_task(target, task)
-            return {"action": "create_closeout_pr", "task_id": task_id, "closeout_pr": num, "adopted": True}
-
-    run(["git", "fetch", "origin", "main"], cwd=target, check=False)
-    worktree = Path(tempfile.mkdtemp(prefix="shiki-closeout-"))
-    add = run(["git", "worktree", "add", "--force", "-B", branch, str(worktree), "origin/main"], cwd=target, check=False)
-    if add.returncode != 0:
-        return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout worktree add failed: {(add.stderr or '').strip()[-200:]}"}
+    worktree = None
     try:
+        # Re-entrancy: this is reached only when closeout_pr is unset, so a PR for
+        # this deterministic branch means a PRIOR run was interrupted mid-effector
+        # (before recording closeout_pr) and its HEAD may be incomplete (missing the
+        # /pull ledger or the repointed expected_pr). Don't silently adopt a possibly
+        # broken PR (it would block MergeGate forever with no repair path); stop for
+        # a recorded operator reconcile instead.
+        listing = _gh(target, ["pr", "list", "--head", branch, "--state", "open",
+                               "--json", "number", "--limit", "1"], check=False)
+        if listing.returncode == 0 and listing.stdout.strip():
+            try:
+                rows = json.loads(listing.stdout)
+            except (json.JSONDecodeError, ValueError):
+                rows = []
+            if rows:
+                num = int(rows[0]["number"])
+                return {"action": "stop_blocked", "task_id": task_id,
+                        "reason": (f"a closeout PR #{num} already exists for {branch} from an interrupted run; "
+                                   f"verify it carries expected_pr={num} + a /pull/{num} ledger and set task.closeout_pr={num}, "
+                                   "or close it and re-run")}
+
+        run(["git", "fetch", "origin", "main"], cwd=target, check=False)
+        worktree = Path(tempfile.mkdtemp(prefix="shiki-closeout-"))
+        add = run(["git", "worktree", "add", "--force", "-B", branch, str(worktree), "origin/main"], cwd=target, check=False)
+        if add.returncode != 0:
+            return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout worktree add failed: {(add.stderr or '').strip()[-200:]}"}
         # Build the terminal state in the worktree (cut from main: task=review).
         wt_task = load_task(worktree, task_id)
         wt_task["status"] = "done"
@@ -913,23 +912,37 @@ def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, A
             evidence=[f".shiki/tasks/{task_id}.json", f".shiki/locks/{task_id}.json"],
             links=[url])
         wt_task = load_task(worktree, task_id)
+        # CRITICAL: MergeGate matches the branch HEAD's task.expected_pr to the PR
+        # number (mergegate_check.py ~1334). The branch was cut from main where
+        # expected_pr is the IMPL PR; repoint it to the closeout PR here, or the
+        # metadata check fails and the closeout never merges.
+        wt_task["expected_pr"] = num
         if pull_ledger not in wt_task.get("ledger_evidence", []):
             wt_task.setdefault("ledger_evidence", []).append(pull_ledger)
         _save_task(worktree, wt_task)
         run(["git", "add", "-A"], cwd=worktree, check=False)
-        run(["git", "commit", "-m", f"shiki: link closeout PR #{num} (goal loop)"], cwd=worktree, check=False)
-        run(["git", "push"], cwd=worktree, check=False)
+        commit2 = run(["git", "commit", "-m", f"shiki: link closeout PR #{num} (goal loop)"], cwd=worktree, check=False)
+        if commit2.returncode != 0:
+            return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout PR #{num} opened but its /pull-ledger commit produced no diff; reconcile the branch manually"}
+        push2 = run(["git", "push"], cwd=worktree, check=False)
+        if push2.returncode != 0:
+            return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout PR #{num} opened but pushing its /pull ledger + expected_pr failed: {(push2.stderr or '').strip()[-160:]}; re-run to reconcile"}
 
         # Coordinator: record the closeout PR and repoint expected_pr so the loop's
         # snapshot/merge machinery drives the closeout PR (the impl PR is done).
+        # Set closeout_pr LAST: it is the re-entrancy anchor, so it must only be
+        # recorded once the closeout PR HEAD is complete (ledger + expected_pr).
         task = load_task(target, task_id)
         task["closeout_pr"] = num
         task["expected_pr"] = num
         task["expected_branch"] = branch
         _save_task(target, task)
         return {"action": "create_closeout_pr", "task_id": task_id, "closeout_pr": num, "completes_goal": completes_goal, "url": url}
+    except Exception as error:  # noqa: BLE001 — the effector must NEVER raise into the loop
+        return {"action": "stop_blocked", "task_id": task_id, "reason": f"closeout effector error: {str(error)[:180]}"}
     finally:
-        run(["git", "worktree", "remove", "--force", str(worktree)], cwd=target, check=False)
+        if worktree is not None:
+            run(["git", "worktree", "remove", "--force", str(worktree)], cwd=target, check=False)
 
 
 def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repair_limit: int) -> dict[str, Any]:
@@ -940,13 +953,23 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
     if action in WAIT_ACTIONS or action in STOP_ACTIONS or action == "goal_complete":
         if action == "goal_complete":
             # The completing task's closeout PR already pushed goal=complete (with
-            # the scorecard) to main (ADR 0012). Reflect it in the coordinator mirror
-            # and report success WITHOUT re-running cmd_goal_complete, which would
-            # mint a duplicate scorecard report + completion ledger.
-            goal = load_goal(target, goal_id)
-            if goal and goal.get("status") != "complete":
-                goal["status"] = "complete"
-                write_json(shiki_path(target, "goals", f"{goal_id}.json"), goal)
+            # the scorecard report + completion ledger) to main (ADR 0012). Sync the
+            # coordinator mirror to main's authoritative state so it is not left
+            # diverged (goal=complete locally but missing the scorecard/ledger), and
+            # do NOT re-run cmd_goal_complete (which would mint a duplicate scorecard).
+            run(["git", "fetch", "origin", "main"], cwd=target, check=False)
+            synced = run(["git", "checkout", "origin/main", "--", ".shiki"], cwd=target, check=False)
+            result["mirror_synced"] = synced.returncode == 0
+            if synced.returncode != 0:
+                # Fail open: at least reflect completion locally so the run reports
+                # the durable truth (the closeout merged; main is authoritative).
+                try:
+                    goal = load_goal(target, goal_id)
+                except ShikiError:
+                    goal = None
+                if goal and goal.get("status") != "complete":
+                    goal["status"] = "complete"
+                    write_json(shiki_path(target, "goals", f"{goal_id}.json"), goal)
             result["goal_status"] = "complete"
         return result
 

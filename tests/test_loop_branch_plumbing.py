@@ -331,7 +331,7 @@ class CreateCloseoutPrTests(unittest.TestCase):
             # A pr create was attempted and a /pull self-reference ledger rode along.
             self.assertTrue(any(c[:2] == ["pr", "create"] for c in fake.calls))
 
-    def test_adopts_existing_closeout_pr_without_duplicate(self):
+    def test_existing_closeout_pr_stops_for_reconcile_no_duplicate(self):
         with tempfile.TemporaryDirectory() as d:
             env = _GitEnv(Path(d))
             self._register_single_task_goal_on_main(env)
@@ -358,7 +358,10 @@ class CreateCloseoutPrTests(unittest.TestCase):
             finally:
                 shiki_loop._gh = orig
 
-            self.assertEqual(result.get("closeout_pr"), 99)
-            self.assertTrue(result.get("adopted"))
-            # No pr create when an existing closeout PR is adopted.
+            # A pre-existing closeout PR (reached only when closeout_pr is unset, i.e.
+            # a prior run was interrupted mid-effector) may have an incomplete HEAD,
+            # so the effector stops for a recorded operator reconcile rather than
+            # silently adopting a possibly-broken PR — and never opens a duplicate.
+            self.assertEqual(result.get("action"), "stop_blocked")
+            self.assertIn("99", result.get("reason", ""))
             self.assertFalse(any(c[:2] == ["pr", "create"] for c in fake.calls))

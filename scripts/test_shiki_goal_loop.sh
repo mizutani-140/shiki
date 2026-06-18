@@ -200,8 +200,8 @@ GOAL_ID="$(json_get /tmp/shiki-goal-loop-run.json goal_id)"
 python3 "$ROOT/scripts/shiki.py" loop run --target "$TARGET" --goal-id "$GOAL_ID" --max-cycles 14 --interval 0 >/tmp/shiki-goal-loop-result.json
 test "$(json_get_last /tmp/shiki-goal-loop-result.json outcome)" = "complete"
 grep '"status": "complete"' "$TARGET/.shiki/goals/$GOAL_ID.json" >/dev/null
-# The loop opened a closeout PR (ADR 0012): the task records closeout_pr.
-python3 -c 'import json,glob; t=[json.load(open(f)) for f in glob.glob("'"$TARGET"'/.shiki/tasks/*.json")][0]; assert t.get("closeout_pr"), "task must record a closeout_pr"'
+# The loop opened a closeout PR (ADR 0012): its history records create_closeout_pr.
+grep '"action": "create_closeout_pr"' /tmp/shiki-goal-loop-result.json >/dev/null
 # Impl PR + closeout PR both auto-merged.
 test "$(grep -c merged "$GH_STATE/gh-log")" = "2"
 
