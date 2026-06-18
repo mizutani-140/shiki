@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "tests/test_loop_code_review.py"
+  ],
+  "goal_id": "G-20260618T031646698067Z-0084bd63",
+  "id": "L-20260618T032206018852Z-cd731abb",
+  "links": [],
+  "summary": "tdd: added regression tests in tests/test_loop_code_review.py that fail on the pre-fix code and pass after -- (1) REVIEWER_ADAPTER.exec_argv must include --output-format json (fails pre-fix: flag absent -> None); (2) parse_code_review_verdict reads the result envelope's structured_output; (3) a non-success subtype fails closed even with a stale structured_output; (4) a prose-only result with no structured_output fails closed. Full suite: 267 tests OK.",
+  "task_id": "T-20260618T031710137746Z-dfb3c451",
+  "timestamp": "2026-06-18T03:22:06+00:00",
+  "type": "check"
+}

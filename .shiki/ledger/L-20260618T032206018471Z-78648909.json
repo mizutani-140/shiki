@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/shiki_runtime_adapters.py"
+  ],
+  "goal_id": "G-20260618T031646698067Z-0084bd63",
+  "id": "L-20260618T032206018471Z-78648909",
+  "links": [],
+  "summary": "diagnose: the live shiki loop self-drive (smoke task T-20260618T025401916227Z-fbc91ead) stopped at the pre-PR code-review gate with 'pre-PR code review did not pass (reviewer verdict could not be parsed; failing closed)'. Root cause: REVIEWER_ADAPTER omitted --output-format json. Without it, headless `claude -p --json-schema` returns natural-language prose (e.g. '**Verdict: clean** -- ...'), not the schema object, so parse_code_review_verdict found no JSON and (correctly) failed closed. Reproduced directly: prose on stdout, plus a spurious stderr 'Permission deny rule MultiEdit matches no known tool'.",
+  "task_id": "T-20260618T031710137746Z-dfb3c451",
+  "timestamp": "2026-06-18T03:22:06+00:00",
+  "type": "check"
+}

@@ -1,0 +1,25 @@
+{
+  "acceptance_evidence": [
+    "unittest discover green; validate_shiki green; a real claude -p reviewer envelope parses to a valid verdict; CCA complete; MergeGate green."
+  ],
+  "completion_conditions": [
+    "REVIEWER_ADAPTER passes --output-format json and parse_code_review_verdict reads the result envelope's structured_output field (subtype-gated, fail-closed), verified against real reviewer output.",
+    "python3 -m unittest discover -s tests is green and python3 scripts/validate_shiki.py passes."
+  ],
+  "created_at": "2026-06-18T03:16:46+00:00",
+  "github_issue": 140,
+  "id": "G-20260618T031646698067Z-0084bd63",
+  "non_goals": [
+    "No change to the reviewer's read-only confinement contract (--tools allowlist, --strict-mcp-config, --setting-sources, --permission-mode dontAsk unchanged).",
+    "No product source change outside the reviewer adapter/parser and its tests."
+  ],
+  "outcome": "The loop's pre-PR code-review gate reliably parses a structured verdict from the real headless claude -p reviewer (via --output-format json + structured_output), so a low-risk task self-drives past the gate instead of failing closed on unparseable prose.",
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "status": "planned",
+  "title": "Repair: autonomous code-review gate could not parse the reviewer verdict (#140 T5 prerequisite)"
+}
