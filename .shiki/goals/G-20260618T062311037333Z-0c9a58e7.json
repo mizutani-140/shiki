@@ -9,6 +9,9 @@
   "created_at": "2026-06-18T06:23:11+00:00",
   "github_issue": 140,
   "id": "G-20260618T062311037333Z-0c9a58e7",
+  "ledger_evidence": [
+    "L-20260618T073300667397Z-20263d4c"
+  ],
   "non_goals": [
     "Multi-task closeout sequencing (deferred per ADR 0012; single-task / last-task scope).",
     "No force-push or branch deletion (mid-effector interruption stops for operator reconcile)."
@@ -21,6 +24,6 @@
     "code-review"
   ],
   "risk_level": "high",
-  "status": "planned",
+  "status": "complete",
   "title": "Gap B: loop pushes goal completion to main via a closeout PR (#140 T5; ADR 0012)"
 }

@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260618T073300626693Z-63167a95.json"
+  ],
+  "goal_id": "G-20260618T062311037333Z-0c9a58e7",
+  "id": "L-20260618T073300667397Z-20263d4c",
+  "links": [],
+  "summary": "Gap B (autonomous closeout to main, ADR 0012) implemented + merged in PR #155 (adversarial verification + Guardian-approved). Completes the #140 autonomous-loop goal: the loop now self-drives to goal-complete on main.",
+  "task_id": null,
+  "timestamp": "2026-06-18T07:33:00+00:00",
+  "type": "completion"
+}
