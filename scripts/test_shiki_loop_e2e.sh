@@ -6,7 +6,7 @@
 # Goal of the finished test: with a stubbed Claude runner AND a stubbed
 # read-only reviewer, drive the FULL autonomous path with no operator input:
 #
-#     dispatch -> tdd-evidence(loop-observed) -> code-review(independent)
+#     dispatch -> code-review(independent) -> tdd-evidence(loop-observed)
 #       -> commit/push -> create_pr -> green checks -> auto-merge -> done
 #       -> goal complete
 #
@@ -253,9 +253,16 @@ test "$(grep -c merged "$GH_STATE/gh-log")" = "1"
 
 # --- (T2) loop-observed TDD + (T3) independent code-review evidence ---------
 # T2/T3/T4 are merged: the self-drive above ran BOTH loop-owned gates before
-# opening the PR. Assert their durable ledgers exist for the merged task — the
-# loop (not the implementer) recorded a tdd check ledger with EXEC evidence and
-# an independent code-review check ledger.
+# opening the PR. The IMPLEMENTED create_pr ORDER is:
+#     (a) independent code-review gate  (T3) -> stop_blocked if not clean
+#     (b) loop-observed TDD gate        (T2) -> stop_blocked if RED
+#     (c) commit/push                   (T1)
+#     (d) create_pr
+#     (e) sync_state
+# i.e. CODE-REVIEW runs BEFORE the TDD gate (a blocking review short-circuits
+# before any test run). Assert both loop-owned check ledgers exist AND that the
+# code-review ledger was recorded BEFORE the tdd ledger, so a future reorder of
+# execute_action's create_pr branch breaks this test.
 FIRST_TASK="$(python3 -c 'import json;print(json.load(open("/tmp/shiki-loop-e2e-run.json"))["task_ids"][0])')"
 python3 - "$TARGET" "$FIRST_TASK" <<'PY'
 import json, os, sys
@@ -272,17 +279,45 @@ def has(pred):
     return any(pred(l) for l in ledgers)
 
 
-# T2: a loop-observed tdd check ledger whose evidence points at an EXEC record.
-assert has(lambda l: l.get("type") == "check"
-           and "tdd" in json.dumps(l).lower()
-           and any(str(e).startswith(".shiki/runner/EXEC-") for e in (l.get("evidence") or []))), \
-    "T2: no loop-observed tdd check ledger with EXEC evidence on the merged task"
+# T2: the loop-observed TDD-GATE check ledger (distinct from the dispatch
+# runner's EXEC ledger, which also carries EXEC evidence) — match its summary.
+def is_tdd_gate(l):
+    return (l.get("type") == "check"
+            and "loop-observed tdd gate" in str(l.get("summary", "")).lower()
+            and any(str(e).startswith(".shiki/runner/EXEC-") for e in (l.get("evidence") or [])))
+
+
+assert has(is_tdd_gate), \
+    "T2: no loop-observed TDD-gate check ledger with EXEC evidence on the merged task"
 # T3: an independent pre-PR code-review check ledger.
 assert has(lambda l: l.get("type") == "check"
            and "code-review" in json.dumps(l).lower()
            and "reviewer" in json.dumps(l).lower()), \
     "T3: no independent code-review check ledger on the merged task"
-print("e2e: loop-owned T2 tdd-evidence + T3 code-review ledgers present on the merged task")
+
+
+# ORDER: the loop appends each gate's ledger to ledger_evidence in creation
+# order (no sort), so the code-review ledger's index must come BEFORE the tdd
+# ledger's index — proving the implemented (a) review -> (b) TDD sequence, not
+# just that both exist. Timestamps are second-granular and can tie, so index
+# order (creation order) is the reliable signal.
+evidence = task.get("ledger_evidence", [])
+by_id = {l.get("id"): l for l in ledgers}
+
+
+def first_index(pred):
+    for i, lid in enumerate(evidence):
+        l = by_id.get(lid)
+        if l is not None and pred(l):
+            return i
+    return None
+
+
+review_i = first_index(lambda l: l.get("type") == "check" and "reviewer" in json.dumps(l).lower())
+tdd_i = first_index(is_tdd_gate)
+assert review_i is not None and tdd_i is not None and review_i < tdd_i, \
+    f"create_pr order: code-review (idx {review_i}) must precede the TDD gate (idx {tdd_i})"
+print("e2e: loop-owned T3 code-review THEN T2 tdd-evidence ledgers, in the implemented order")
 PY
 
 # ===========================================================================

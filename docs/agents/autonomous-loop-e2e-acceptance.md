@@ -81,14 +81,18 @@ From start, the loop must self-drive, with no operator input:
 
 1. `dispatch` — headless `claude -p` implementer writes the slice in the
    worktree.
-2. **tdd-evidence (T2)** — the loop runs the task's `test_command` in the
+2. **code-review (T3)** — the loop dispatches the independent read-only reviewer
+   FIRST (before the TDD gate, so a blocking review short-circuits before any
+   test run), parses its structured verdict, records a `code-review` ledger, and
+   writes the `## Pre-PR code review` PR-body section. A non-clean verdict (a
+   blocking finding, or a parse/dispatch failure) **fails closed to
+   `stop_blocked`** — no PR exists yet to anchor a repair packet, so the loop
+   stops for diagnosis rather than dispatching a repair. (The bounded repair
+   loop is for POST-PR required-check failures; see PATH 2.)
+3. **tdd-evidence (T2)** — the loop then runs the task's `test_command` in the
    worktree and records a `type:check` ledger naming skill `tdd` with an EXEC
    evidence ref (loop-observed green). A red run fails closed: `stop_blocked`,
    no PR.
-3. **code-review (T3)** — the loop dispatches the independent read-only reviewer,
-   parses its structured verdict, records a `code-review` ledger, and writes the
-   `## Pre-PR code review` PR-body section. A blocking verdict (or a parse/
-   dispatch failure) routes into the bounded repair loop, never into create_pr.
 4. `create_pr` — commit + push the worktree implementation, then open the PR
    carrying the `## TDD evidence (loop-observed)` and `## Pre-PR code review`
    sections.
