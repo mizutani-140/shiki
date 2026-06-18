@@ -4,7 +4,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260618t110731105287z-5276602e-handoff-execution-protocol-guardrail",
+  "expected_branch": "shiki/t-20260618t110731105287z-5276602e-closeout",
   "expected_pr": 163,
   "github_issue": null,
   "goal_id": "G-20260618T110721108316Z-295dc805",
@@ -16,7 +16,8 @@
     "L-20260618T111023667315Z-d74ba5a8",
     "L-20260618T111059880324Z-fb8a0e8f",
     "L-20260618T111104108127Z-45c5574d",
-    "L-20260618T111107900155Z-865c0596"
+    "L-20260618T111107900155Z-865c0596",
+    "L-20260618T111530679758Z-9aa114e0"
   ],
   "locks": [
     "path:scripts/shiki_tasks.py",
@@ -37,7 +38,7 @@
   ],
   "risk_level": "low",
   "scope": "In write_task_handoff (scripts/shiki_tasks.py), emit a new '## Execution Protocol' section BEFORE the '## Scope' section instructing the implementer to: edit only files in the worktree; NOT run git commit/push/checkout or any gh command; NOT create/update/merge a pull request (the Shiki loop owns commit/push/PR creation/merge); stay within declared locks. Add a regression test in tests/test_handoff_consult.py asserting the section is present, mentions git commit and git push and gh and 'pull request', and precedes '## Scope'.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Handoff Execution Protocol guardrail"
 }
