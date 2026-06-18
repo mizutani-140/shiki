@@ -1,0 +1,17 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/e2e-acceptance-20260618T093140Z.jsonl",
+    ".shiki/reports/e2e-acceptance-20260618T093140Z-summary.md"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260618T094733926165Z-baccf532",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/160",
+    "https://github.com/mizutani-140/shiki/pull/161"
+  ],
+  "summary": "T5 live acceptance gate: shiki loop run self-drove smoke goal G-20260618T093112319886Z-a4f768c5 / task T-20260618T093119138788Z-867546d0 to auto-merge (PR #160) + goal complete (PR #161 closeout, ADR 0012) with zero manual pre-clearing; transcript outcome=complete. Loop-owned tdd + code-review ledgers recorded on main. Satisfies CCA repair RP-20260618T024022000000Z-a3b7c2d4 (failing items CCA-02, CCA-09).",
+  "task_id": "T-20260617T090739483386Z-2a275071",
+  "timestamp": "2026-06-18T09:47:33+00:00",
+  "type": "check"
+}

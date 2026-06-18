@@ -1,0 +1,147 @@
+{
+  "ledger_id": "L-20260618T093244376992Z-a2af1d76",
+  "returncode": 0,
+  "runner_record": "/Users/kio.mizutani/shiki/.shiki/runner/EXEC-20260618T093244375965Z-3c87bb89.json",
+  "status": "review",
+  "task_id": "T-20260618T093119138788Z-867546d0",
+  "worktree": "/Users/kio.mizutani/.worktrees/shiki-t-20260618t093119138788z-867546d0-add-a-th"
+}
+{
+  "cycles": 22,
+  "goal_id": "G-20260618T093112319886Z-a4f768c5",
+  "history": [
+    {
+      "action": "unblock",
+      "cycle": 1,
+      "reason": "attempt to unblock dependency-complete tasks",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "dispatch",
+      "cycle": 2,
+      "reason": "task is ready for the implementer runtime",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "create_pr",
+      "cycle": 3,
+      "reason": "implementation is in review with no PR",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 4,
+      "reason": "required checks pending: CCA verdict, MergeGate metadata check, MergeGate policy check, Validate Shiki mirror",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 5,
+      "reason": "required checks pending: CCA verdict, MergeGate policy check, Validate Shiki mirror",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 6,
+      "reason": "required checks pending: CCA verdict, MergeGate policy check, Validate Shiki mirror",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 7,
+      "reason": "required checks pending: CCA verdict, MergeGate policy check",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 8,
+      "reason": "required checks pending: CCA verdict, MergeGate policy check",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 9,
+      "reason": "required checks pending: CCA verdict, MergeGate policy check",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "merge",
+      "cycle": 10,
+      "reason": "all required checks green and risk low permits auto-merge",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "create_closeout_pr",
+      "cycle": 11,
+      "reason": "impl PR merged; push completion to main via a closeout PR",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 12,
+      "reason": "closeout PR checks pending: CCA verdict, MergeGate metadata check, MergeGate policy check, Validate Shiki mirror",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 13,
+      "reason": "closeout PR checks pending: CCA verdict, MergeGate policy check, Validate Shiki mirror",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 14,
+      "reason": "closeout PR checks pending: CCA verdict, MergeGate policy check, Validate Shiki mirror",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 15,
+      "reason": "closeout PR checks pending: CCA verdict, MergeGate policy check",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 16,
+      "reason": "closeout PR checks pending: CCA verdict, MergeGate policy check",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 17,
+      "reason": "closeout PR checks pending: CCA verdict, MergeGate policy check",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 18,
+      "reason": "closeout PR checks pending: CCA verdict, MergeGate policy check",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "wait_checks",
+      "cycle": 19,
+      "reason": "closeout PR checks pending: MergeGate policy check",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "merge",
+      "cycle": 20,
+      "reason": "closeout PR checks green; merge to push completion to main",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "mark_done",
+      "cycle": 21,
+      "reason": "closeout PR merged; completion is on main",
+      "task_id": "T-20260618T093119138788Z-867546d0"
+    },
+    {
+      "action": "goal_complete",
+      "cycle": 22,
+      "reason": "every task is done",
+      "task_id": null
+    }
+  ],
+  "outcome": "complete"
+}
