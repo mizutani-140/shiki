@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/tasks/T-20260617T090739483386Z-2a275071.json"
+  ],
+  "goal_id": "G-20260617T031753970001Z-1de3b322",
+  "id": "L-20260618T022804808931Z-4f323916",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/147"
+  ],
+  "summary": "Repair 2 (external AI guardian findings T5-E2E-STALE-CONTRACT-003 + T5-E2E-META-TEST-004, BLOCKING): the executable assertions were fixed but stale 'SKELETON / T2-T3 NOT merged / TODO / dispatch_repair-for-blocking-review' text remained in the e2e script's header, stub comments, PATH 2 line, and final echo, and tests/test_loop_e2e_skeleton.py still asserted the obsolete skeleton/TODO state. Fixes (T5 locks): rewrote the e2e script header + comments to the final implemented contract (dispatch -> code-review -> TDD -> commit/push -> create_pr -> auto-merge; pre-PR non-clean review stop_blocks, POST-PR check failures repair); removed all SKELETON/TODO text (0 remaining); replaced the skeleton meta-test with tests/test_loop_e2e_contract.py asserting the FINAL contract (review-before-TDD order, ledger-order assertion present, pre-PR stop_blocked vs post-PR repair, no placeholder text). Full suite + e2e green.",
+  "task_id": "T-20260617T090739483386Z-2a275071",
+  "timestamp": "2026-06-18T02:28:04.808931+00:00",
+  "type": "check"
+}

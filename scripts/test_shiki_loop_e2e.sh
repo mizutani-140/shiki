@@ -1,63 +1,32 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Shiki end-to-end loop self-drive contract test  --  SKELETON (PRD 0002 T5)
+# Shiki end-to-end loop self-drive contract test (PRD 0002 T5)
 # =============================================================================
 #
-# Goal of the finished test: with a stubbed Claude runner AND a stubbed
-# read-only reviewer, drive the FULL autonomous path with no operator input:
+# T1-T4 are MERGED. With a stubbed Claude runner, a stubbed read-only reviewer,
+# and a stubbed gh, this drives the FULL integrated autonomous path with no
+# operator input — and asserts the loop-owned evidence the integrated loop must
+# produce, IN THE IMPLEMENTED ORDER.
 #
-#     dispatch -> code-review(independent) -> tdd-evidence(loop-observed)
-#       -> commit/push -> create_pr -> green checks -> auto-merge -> done
-#       -> goal complete
+# PATH 1 — self-drive to auto-merge (the create_pr branch of execute_action):
+#     dispatch
+#       -> (a) independent code-review gate (T3)   [stop_blocked if not clean]
+#       -> (b) loop-observed TDD gate (T2)         [stop_blocked if RED]
+#       -> (c) commit/push implementation (T1)
+#       -> create_pr -> green checks -> auto-merge -> done -> goal complete
+#   The code-review gate runs BEFORE the TDD gate, so a blocking review
+#   short-circuits before any test run. A non-clean PRE-PR review (a blocking
+#   verdict, or a parse/dispatch failure) FAILS CLOSED to stop_blocked: no PR
+#   exists yet to anchor a repair packet, so the loop stops for diagnosis — it
+#   does NOT dispatch a repair. This test asserts both loop-owned ledgers exist
+#   AND that the code-review ledger precedes the TDD-gate ledger in the task's
+#   ledger_evidence (so a future reorder breaks the test).
 #
-# ...plus the failure -> repair branch (a red required check dispatches a
-# bounded repair through the runner).
-#
-# HONEST STATUS  (round-1 finding: do not over-promise).
-#
-#   This is a SKELETON. The tdd-evidence step (T2) and the independent pre-PR
-#   code-review step (T3) are NOT merged yet, so this file does NOT yet drive
-#   the full T2/T3 path end-to-end. It is deliberately written to FAIL CLOSED
-#   on the parts that exist and to mark the not-yet-wired seams with greppable
-#   TODO(T2)/TODO(T3) markers so it can be completed by deleting TODO blocks,
-#   not rewritten.
-#
-#   ASSERTS NOW (runs green today against main + this worktree):
-#     * the loop self-drives a frozen low-risk goal to auto-merge + goal
-#       complete with zero operator input (dispatch -> create_pr -> green
-#       checks -> merge -> done -> goal complete), via `shiki loop run`;
-#     * the failure -> repair branch fires: a red required check produces a
-#       dispatch_repair action and a repair packet + repair handoff;
-#     * the stub runner ("claude") and stub reviewer are wired and callable so
-#       the T2/T3 seams have something to dispatch into once they land.
-#
-#   TODO (deferred until T2/T3 merge -- each marked inline below):
-#     * TODO(T2): assert the loop ran the task's tests in the worktree and
-#       recorded a type:check ledger naming skill `tdd` with an EXEC evidence
-#       ref, and that a RED test run blocks (no PR, stop_blocked), and that
-#       the per-task `test_command` field defaults to unittest-discover.
-#       Depends on T2 inserting that step at the TOP of execute_action's
-#       create_pr branch (before create_github_pr_for_task) and threading a
-#       "## TDD evidence (loop-observed)" line into github_pr_body.
-#     * TODO(T3): assert an independent read-only reviewer (claude -p with
-#       --allowedTools restricted to read tools + --json-schema) is dispatched
-#       BEFORE create_pr, that its verdict is parsed deterministically, that a
-#       code-review ledger is recorded, that the "## Pre-PR code review"
-#       PR-body section is written into github_pr_body, and that a blocking
-#       verdict (or a parse/dispatch failure -- fail-closed) routes into
-#       dispatch_repair rather than opening the PR.
-#
-# INTEGRATION CONTRACT (the exact sibling-owned surfaces this test depends on):
-#     * scripts/shiki_loop.py :: execute_action   -- create_pr branch; T2 adds
-#       the tdd-evidence step, T3 adds the reviewer step, both BEFORE the
-#       existing _commit_and_push_implementation + create_github_pr_for_task.
-#     * scripts/shiki_github.py :: github_pr_body  -- T2 adds the
-#       "## TDD evidence (loop-observed)" section; T3 adds the
-#       "## Pre-PR code review" section.
-#     * scripts/shiki_tasks.py                     -- T2 adds the per-task
-#       `test_command` field (default: python3 -m unittest discover -s tests).
-#     * scripts/shiki_runtime_adapters.py          -- T3 adds the read-only
-#       reviewer adapter distinct from the bypassPermissions implementer.
+# PATH 2 — failure -> bounded repair (POST-PR required-check failure): a red
+#   required check on a task that already has a PR dispatches a bounded repair
+#   through the runner (repair packet + repair handoff). This is the post-PR
+#   repair path; it is DISTINCT from the pre-PR review gate above, which
+#   stop_blocks rather than repairs.
 #
 # Model: scripts/test_shiki_goal_loop.sh + scripts/test_shiki_runner_claude.sh.
 # =============================================================================
@@ -121,20 +90,19 @@ git commit -m "init" >/tmp/shiki-loop-e2e-commit.out
 git push -u origin main >/dev/null 2>&1
 
 # --- Stub implementer runtime ("claude") -----------------------------------
-# The stub answers the two dispatch shapes the loop uses:
-#   * implementer:  claude -p --permission-mode bypassPermissions   (writes work)
-#   * TODO(T3) reviewer: claude -p --allowedTools <read-only> --json-schema ...
-#     (read-only; emits a structured findings verdict). The reviewer branch is
-#     stubbed here so the seam is wired; T3 will make the loop actually dispatch
-#     it and parse the verdict. Until then this branch is unused by the loop.
+# The stub answers the two dispatch shapes the integrated loop uses:
+#   * implementer: claude -p --permission-mode bypassPermissions   (writes work)
+#   * reviewer (T3): claude -p --tools ... --disallowedTools ... --allowedTools
+#     ... --json-schema ...  (read-only; emits a structured verdict). The loop
+#     dispatches this before create_pr and parses the verdict; the stub emits a
+#     clean verdict so the self-drive happy path stays green.
 cat >"$FAKE_BIN/claude" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
-# TODO(T3): once T3 lands, the loop dispatches a read-only reviewer with
-# `--allowedTools` restricted to read tools and a `--json-schema` contract.
-# Detect that invocation and emit a clean (zero-blocking-findings) verdict so
-# the happy path stays green; a separate fixture run will force a blocking
-# verdict to exercise the verdict -> repair packet path.
+# Reviewer invocation (T3): the loop dispatches a read-only reviewer with a
+# restricted tool set and a --json-schema contract. Detect it by the read-only
+# --allowedTools arm and emit a clean (zero-finding) verdict so the happy path
+# stays green; the verdict schema is {"verdict":"clean"|"blocking", ...}.
 for arg in "$@"; do
   if [[ "$arg" == "--allowedTools" ]]; then
     echo '{"verdict":"clean","findings":[]}'
@@ -324,7 +292,8 @@ PY
 # PATH 2 (ASSERTS NOW): failure -> repair. A red required check on a task in
 # review dispatches a bounded repair through the runner (dispatch_repair),
 # writing a repair packet + repair handoff into the materialized worktree.
-# This is the same repair branch a T3 blocking review verdict will feed into.
+# This is the POST-PR repair branch; it is DISTINCT from the pre-PR review
+# gate, which stop_blocks (no PR yet to anchor a repair) rather than repairs.
 # ===========================================================================
 python3 "$ROOT/scripts/shiki.py" goal create --target "$TARGET" --title "Repair gate" --outcome "Failed check repairs" >/tmp/shiki-loop-e2e-repair-goal.json
 RGOAL="$(json_get /tmp/shiki-loop-e2e-repair-goal.json goal_id)"
@@ -356,4 +325,4 @@ test -f "$TARGET/.shiki/handoffs/$REPAIR_ID-repair.md"
 WORKTREE_DIR="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["path"])' "$TARGET/.shiki/worktrees/$RTASK.json")"
 grep "$REPAIR_ID" "$WORKTREE_DIR/claude-last-prompt.txt" >/dev/null
 
-echo "shiki loop e2e skeleton tests passed (T2/T3 seams TODO; see header)"
+echo "shiki loop e2e: integrated self-drive (code-review -> TDD -> commit/push -> auto-merge) + post-PR repair verified"
