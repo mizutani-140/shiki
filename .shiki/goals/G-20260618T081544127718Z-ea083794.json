@@ -1,0 +1,38 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "tests/test_loop_smoke.py is merged to main by the autonomous loop",
+    "the task and goal are marked done/complete by the loop, with ledger evidence"
+  ],
+  "created_at": "2026-06-18T08:15:44+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "A trivial low-risk test-only task minimizes blast radius for the first live unattended self-drive to auto-merge.",
+      "Low risk so the loop auto-merges without a Guardian artifact (ADR 0008/0010 low/medium autonomous tier)."
+    ],
+    "source": "Operator-directed live acceptance run for #140 T5 (this /shiki session).",
+    "status": "complete"
+  },
+  "id": "G-20260618T081544127718Z-ea083794",
+  "ledger_evidence": [
+    "L-20260618T081544127983Z-a89805f2"
+  ],
+  "non_goals": [
+    "No production code change (test-only).",
+    "No change to any file outside tests/."
+  ],
+  "outcome": "The autonomous loop self-drives a low-risk task to auto-merge AND auto-closeout (goal-complete on main) with zero manual intervention \u2014 the #140 T5 evidence on the real platform, exercising Gap B (ADR 0012).",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "low",
+  "source_plan": "P-20260618T081544126922Z-f74c75ee",
+  "status": "planned",
+  "title": "Live full self-drive acceptance #2 (Gap B: auto-merge + auto-closeout)"
+}
