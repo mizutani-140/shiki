@@ -63,9 +63,46 @@ class TaskDecisionTests(unittest.TestCase):
     def test_review_without_pr_creates_pr(self) -> None:
         self.assertEqual(decide(task("review"), pr_state=None)["action"], "create_pr")
 
-    def test_merged_pr_marks_done(self) -> None:
+    def test_merged_impl_pr_opens_closeout(self) -> None:
+        # ADR 0012: a merged impl PR (no closeout_pr yet) routes to a closeout PR
+        # that pushes completion to main — NOT a local-only mark_done.
         decision = decide(task("review"), pr_state={"merged": True}, checks=green())
+        self.assertEqual(decision["action"], "create_closeout_pr")
+
+    def test_merged_closeout_pr_marks_done(self) -> None:
+        # Once the closeout PR (expected_pr repointed, closeout_pr set) merges, the
+        # completion is durable on main, so the task is marked done.
+        t = {**task("review"), "closeout_pr": 9}
+        decision = decide(t, pr_state={"merged": True}, checks=green())
         self.assertEqual(decision["action"], "mark_done")
+
+    def test_closeout_pr_pending_waits(self) -> None:
+        checks = green()
+        checks["CCA verdict"] = "pending"
+        t = {**task("review"), "closeout_pr": 9}
+        decision = decide(t, pr_state={"merged": False}, checks=checks)
+        self.assertEqual(decision["action"], "wait_checks")
+
+    def test_closeout_pr_green_merges(self) -> None:
+        t = {**task("review"), "closeout_pr": 9}
+        decision = decide(t, pr_state={"merged": False}, checks=green())
+        self.assertEqual(decision["action"], "merge")
+
+    def test_closeout_pr_failed_check_stops_no_repair(self) -> None:
+        # A bookkeeping closeout has no implementation to repair -> fail closed.
+        checks = green()
+        checks["Validate Shiki mirror"] = "fail"
+        t = {**task("review"), "closeout_pr": 9}
+        decision = decide(t, pr_state={"merged": False}, checks=checks)
+        self.assertEqual(decision["action"], "stop_blocked")
+
+    def test_closeout_pr_cca_race_reruns(self) -> None:
+        # Only CCA red against green siblings on the closeout PR -> one rerun.
+        checks = green()
+        checks["CCA verdict"] = "fail"
+        t = {**task("review"), "closeout_pr": 9}
+        decision = decide(t, pr_state={"merged": False}, checks=checks, reruns=0)
+        self.assertEqual(decision["action"], "rerun_cca")
 
     def test_pending_checks_wait(self) -> None:
         checks = green()

@@ -6,6 +6,7 @@ TMP_ROOT="${TMPDIR:-/tmp}/shiki-goal-loop-test-$$"
 TARGET="$TMP_ROOT/target"
 FAKE_BIN="$TMP_ROOT/bin"
 export GH_STATE="$TMP_ROOT/gh-state"
+export ORIGIN_GIT="$TMP_ROOT/origin.git"
 
 cleanup() {
   rm -rf "$TMP_ROOT"
@@ -97,10 +98,20 @@ set -euo pipefail
 STATE="${GH_STATE:?}"
 case "${1:-} ${2:-}" in
   "pr create")
+    HEAD_BRANCH=""; prev=""
+    for a in "$@"; do
+      [[ "$prev" == "--head" ]] && HEAD_BRANCH="$a"
+      prev="$a"
+    done
     COUNTER_FILE="$STATE/pr-counter"
     NUMBER=$(( $(cat "$COUNTER_FILE" 2>/dev/null || echo 10) + 1 ))
     echo "$NUMBER" > "$COUNTER_FILE"
+    echo "$HEAD_BRANCH" > "$STATE/branch-$NUMBER"
     echo "https://github.com/example/shiki-goal-loop-test/pull/$NUMBER"
+    exit 0 ;;
+  "pr list")
+    # The closeout effector probes for an existing closeout PR by --head branch.
+    echo '[]'
     exit 0 ;;
   "pr view")
     NUMBER="$3"
@@ -122,6 +133,17 @@ case "${1:-} ${2:-}" in
     NUMBER="$3"
     touch "$STATE/merged-$NUMBER"
     echo "merged $NUMBER" >> "$STATE/gh-log"
+    # Faithfully advance origin/main so the next closeout worktree (cut from
+    # origin/main) sees the merged impl/closeout state (ADR 0012). The branch is a
+    # fast-forward of main (built on it), so move the ref to the branch tip.
+    BR="$(cat "$STATE/branch-$NUMBER" 2>/dev/null || echo "")"
+    if [[ -n "$BR" ]]; then
+      git -C "$ORIGIN_GIT" update-ref "refs/heads/main" "refs/heads/$BR"
+      # Also advance the coordinator's remote-tracking ref so the closeout worktree
+      # (added from origin/main) sees the merged state. The effector's real
+      # `git fetch` reaches GitHub; here the fetch URL is a stub, so simulate it.
+      git update-ref "refs/remotes/origin/main" "refs/remotes/origin/$BR" 2>/dev/null || true
+    fi
     exit 0 ;;
   "run list")
     echo '[]'
@@ -139,15 +161,15 @@ export PATH="$FAKE_BIN:$PATH"
 cat >"$TMP_ROOT/plan.json" <<'JSON'
 {
   "title": "Drive a frozen goal autonomously",
-  "outcome": "Two dependent tasks merge without operator input",
-  "completion_conditions": ["Both tasks merge through the loop"],
+  "outcome": "A single task self-drives to auto-merge AND goal-complete on main",
+  "completion_conditions": ["The task merges and the goal completes through the loop"],
   "non_goals": ["No real GitHub calls in this test"],
   "risk_level": "low",
   "required_skills": ["grill-with-docs", "tdd"],
   "grill_with_docs": {
     "status": "complete",
     "source": "CONTEXT.md",
-    "decisions": ["Loop drives frozen goals (ADR 0008/0009)"]
+    "decisions": ["Loop drives frozen goals (ADR 0008/0009); completion is pushed to main via a closeout PR (ADR 0012)"]
   },
   "spec_freeze": {
     "status": "frozen",
@@ -159,16 +181,7 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
       "title": "First slice",
       "scope": "Smallest end-to-end slice",
       "acceptance_checks": ["Slice one verified"],
-      "locks": ["path:slice-one.txt"],
-      "required_skills": ["tdd"],
-      "test_command": "true"
-    },
-    {
-      "title": "Second slice",
-      "scope": "Depends on the first slice",
-      "acceptance_checks": ["Slice two verified"],
-      "dependencies": ["First slice"],
-      "locks": ["path:slice-two.txt"],
+      "locks": ["path:.shiki/**", "path:slice-one.txt"],
       "required_skills": ["tdd"],
       "test_command": "true"
     }
@@ -181,11 +194,15 @@ PLAN_ID="$(json_get /tmp/shiki-goal-loop-plan.json plan_id)"
 python3 "$ROOT/scripts/shiki.py" run --target "$TARGET" --plan "$PLAN_ID" >/tmp/shiki-goal-loop-run.json
 GOAL_ID="$(json_get /tmp/shiki-goal-loop-run.json goal_id)"
 
-# The loop drives dispatch -> PR -> green checks -> auto-merge -> dependent
-# unblock -> second cycle -> goal completion, with no operator input.
-python3 "$ROOT/scripts/shiki.py" loop run --target "$TARGET" --goal-id "$GOAL_ID" --max-cycles 12 --interval 0 >/tmp/shiki-goal-loop-result.json
+# The loop drives dispatch -> impl PR -> green checks -> auto-merge -> a closeout
+# PR that pushes task=done + goal=complete to main (ADR 0012) -> auto-merge the
+# closeout -> goal completion, with no operator input. Two merges: impl + closeout.
+python3 "$ROOT/scripts/shiki.py" loop run --target "$TARGET" --goal-id "$GOAL_ID" --max-cycles 14 --interval 0 >/tmp/shiki-goal-loop-result.json
 test "$(json_get_last /tmp/shiki-goal-loop-result.json outcome)" = "complete"
 grep '"status": "complete"' "$TARGET/.shiki/goals/$GOAL_ID.json" >/dev/null
+# The loop opened a closeout PR (ADR 0012): the task records closeout_pr.
+python3 -c 'import json,glob; t=[json.load(open(f)) for f in glob.glob("'"$TARGET"'/.shiki/tasks/*.json")][0]; assert t.get("closeout_pr"), "task must record a closeout_pr"'
+# Impl PR + closeout PR both auto-merged.
 test "$(grep -c merged "$GH_STATE/gh-log")" = "2"
 
 # High/critical risk merges autonomously when all required checks are green:

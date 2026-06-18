@@ -18,8 +18,10 @@ from pathlib import Path
 
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
+import shiki_loop
 from shiki_loop import (
     _commit_and_push_implementation,
+    _create_closeout_pr,
     _evidence_relatives_for_task,
     _sync_state_to_branch,
 )
@@ -244,3 +246,119 @@ class SyncStateFullEvidenceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _FakeGh:
+    """Records gh calls; answers `pr list` empty and `pr create` with a URL."""
+
+    def __init__(self, pr_number: int):
+        self.pr_number = pr_number
+        self.calls: list[list[str]] = []
+
+    def __call__(self, target, args, check=False):
+        self.calls.append(list(args))
+
+        class R:
+            returncode = 0
+            stderr = ""
+            stdout = ""
+
+        r = R()
+        if args[:2] == ["pr", "list"]:
+            r.stdout = "[]"
+        elif args[:2] == ["pr", "create"]:
+            r.stdout = f"https://github.com/o/r/pull/{self.pr_number}\n"
+        return r
+
+
+class CreateCloseoutPrTests(unittest.TestCase):
+    """ADR 0012: the effector pushes the terminal state to main + repoints expected_pr."""
+
+    def _register_single_task_goal_on_main(self, env):
+        target = env.target
+        _write(target / ".shiki" / "goals" / f"{GOAL}.json",
+               {"id": GOAL, "status": "planned", "title": "g", "outcome": "o",
+                "risk_level": "low", "ledger_evidence": []})
+        _write(target / ".shiki" / "dag" / f"{GOAL}.json",
+               {"goal_id": GOAL, "nodes": [TASK], "edges": []})
+        _write(target / ".shiki" / "tasks" / f"{TASK}.json",
+               {"id": TASK, "goal_id": GOAL, "status": "review", "risk_level": "low",
+                "expected_branch": "x", "expected_pr": 7, "title": "t",
+                "locks": ["path:.shiki/**", "path:tests/*"], "ledger_evidence": []})
+        _write(target / ".shiki" / "locks" / f"{TASK}.json",
+               {"task_id": TASK, "goal_id": GOAL, "state": "active",
+                "owner": "shiki-run", "locks": ["path:.shiki/**", "path:tests/*"]})
+        _git(target, "add", "-A")
+        _git(target, "commit", "-m", "register goal+task")
+        _git(target, "push")
+        # Shiki control commands require a GitHub origin; keep a github FETCH url
+        # (so require_github_first_target passes) but PUSH to the local bare remote.
+        _git(target, "remote", "set-url", "origin", "https://github.com/o/r.git")
+        _git(target, "remote", "set-url", "--push", "origin", str(env.remote))
+
+    def test_pushes_terminal_state_and_repoints_expected_pr(self):
+        with tempfile.TemporaryDirectory() as d:
+            env = _GitEnv(Path(d))
+            self._register_single_task_goal_on_main(env)
+
+            fake = _FakeGh(42)
+            orig = shiki_loop._gh
+            shiki_loop._gh = fake
+            try:
+                result = _create_closeout_pr(env.target, GOAL, TASK)
+            finally:
+                shiki_loop._gh = orig
+
+            self.assertEqual(result.get("closeout_pr"), 42)
+            self.assertTrue(result.get("completes_goal"))
+
+            # Coordinator: expected_pr repointed to the closeout PR + marker set.
+            ctask = json.loads((env.target / ".shiki" / "tasks" / f"{TASK}.json").read_text())
+            self.assertEqual(ctask["expected_pr"], 42)
+            self.assertEqual(ctask["closeout_pr"], 42)
+
+            # The closeout branch on the remote carries the terminal state.
+            branch = f"shiki/{TASK.lower()}-closeout"
+
+            def remote_json(relpath):
+                out = subprocess.run(["git", "show", f"{branch}:{relpath}"],
+                                     cwd=str(env.remote), capture_output=True, text=True)
+                return json.loads(out.stdout) if out.returncode == 0 else None
+
+            self.assertEqual(remote_json(f".shiki/tasks/{TASK}.json")["status"], "done")
+            self.assertEqual(remote_json(f".shiki/goals/{GOAL}.json")["status"], "complete")
+            self.assertEqual(remote_json(f".shiki/locks/{TASK}.json")["state"], "released")
+            # A pr create was attempted and a /pull self-reference ledger rode along.
+            self.assertTrue(any(c[:2] == ["pr", "create"] for c in fake.calls))
+
+    def test_adopts_existing_closeout_pr_without_duplicate(self):
+        with tempfile.TemporaryDirectory() as d:
+            env = _GitEnv(Path(d))
+            self._register_single_task_goal_on_main(env)
+
+            class AdoptGh(_FakeGh):
+                def __call__(self, target, args, check=False):
+                    self.calls.append(list(args))
+
+                    class R:
+                        returncode = 0
+                        stderr = ""
+                        stdout = ""
+
+                    r = R()
+                    if args[:2] == ["pr", "list"]:
+                        r.stdout = f'[{{"number": {self.pr_number}}}]'
+                    return r
+
+            fake = AdoptGh(99)
+            orig = shiki_loop._gh
+            shiki_loop._gh = fake
+            try:
+                result = _create_closeout_pr(env.target, GOAL, TASK)
+            finally:
+                shiki_loop._gh = orig
+
+            self.assertEqual(result.get("closeout_pr"), 99)
+            self.assertTrue(result.get("adopted"))
+            # No pr create when an existing closeout PR is adopted.
+            self.assertFalse(any(c[:2] == ["pr", "create"] for c in fake.calls))
