@@ -20,7 +20,8 @@
   },
   "id": "G-20260618T081544127718Z-ea083794",
   "ledger_evidence": [
-    "L-20260618T081544127983Z-a89805f2"
+    "L-20260618T081544127983Z-a89805f2",
+    "L-20260618T082016903737Z-53b50e6c"
   ],
   "non_goals": [
     "No production code change (test-only).",
@@ -33,6 +34,6 @@
   ],
   "risk_level": "low",
   "source_plan": "P-20260618T081544126922Z-f74c75ee",
-  "status": "planned",
+  "status": "complete",
   "title": "Live full self-drive acceptance #2 (Gap B: auto-merge + auto-closeout)"
 }

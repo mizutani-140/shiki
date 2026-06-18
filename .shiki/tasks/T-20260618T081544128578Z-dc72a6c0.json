@@ -5,8 +5,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260618t081544128578z-dc72a6c0-add-a-second-trivial-smoke-test",
-  "expected_pr": 157,
+  "expected_branch": "shiki/t-20260618t081544128578z-dc72a6c0-closeout",
+  "expected_pr": 158,
   "github_issue": null,
   "goal_id": "G-20260618T081544127718Z-ea083794",
   "id": "T-20260618T081544128578Z-dc72a6c0",
@@ -17,7 +17,9 @@
     "L-20260618T081642412706Z-86f5a006",
     "L-20260618T081657849508Z-e149666a",
     "L-20260618T081657896102Z-1a22ce1e",
-    "L-20260618T081701739176Z-affa0134"
+    "L-20260618T081701739176Z-affa0134",
+    "L-20260618T082016903737Z-53b50e6c",
+    "L-20260618T082020460226Z-b3658807"
   ],
   "locks": [
     "path:.shiki/**",
@@ -37,7 +39,7 @@
   ],
   "risk_level": "low",
   "scope": "Create tests/test_loop_smoke2.py containing exactly one unittest.TestCase with one test method that asserts a trivially-true fact. Do not modify any other file.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests -p test_loop_smoke2.py",
   "title": "Add a second trivial smoke test"
 }
