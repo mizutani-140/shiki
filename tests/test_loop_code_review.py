@@ -62,7 +62,8 @@ class ReviewerAdapterTests(unittest.TestCase):
         MUTATORS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 
         # (1) --tools restricts the AVAILABLE built-in set to read tools only, so
-        # the mutating tools do not exist in the reviewer's context.
+        # NO mutating tool (current or future) exists in the reviewer's context.
+        # This allowlist is the primary confinement mechanism.
         available = flag_value("--tools")
         self.assertIsNotNone(available, "reviewer must use --tools to restrict availability")
         available_set = {t.strip() for t in available.split(",")}
@@ -72,12 +73,21 @@ class ReviewerAdapterTests(unittest.TestCase):
 
         # (2) --disallowedTools hard-denies the mutating built-ins AND all MCP
         # tools (mcp__*) — --tools restricts built-ins only, so MCP must be denied
-        # separately or it escapes the read-only boundary (T3-RO-MCP-002).
+        # separately or it escapes the read-only boundary (T3-RO-MCP-002). The
+        # deny list names only mutators the runtime recognizes; a deny rule for an
+        # unknown name is a no-op that warns "matches no known tool" on stderr, so
+        # `MultiEdit` (not a known headless tool) is intentionally NOT denied here
+        # — the allowlist in (1) still bars it (T3-RO-DENYNAME-003).
         disallowed = flag_value("--disallowedTools")
         self.assertIsNotNone(disallowed, "reviewer must use --disallowedTools to deny mutators")
         disallowed_set = {t.strip() for t in disallowed.split(",")}
-        for mutator in MUTATORS:
+        for mutator in ("Edit", "Write", "NotebookEdit"):
             self.assertIn(mutator, disallowed_set, f"{mutator} must be explicitly disallowed")
+        self.assertNotIn(
+            "MultiEdit",
+            disallowed_set,
+            "MultiEdit is not a known headless tool; denying it only emits a spurious warning",
+        )
         self.assertIn("mcp__*", disallowed_set, "MCP tools must be denied (--tools does not affect MCP)")
 
         # (3) Hermetic to ambient MCP / user-project config: no MCP servers load
@@ -90,7 +100,11 @@ class ReviewerAdapterTests(unittest.TestCase):
         self.assertEqual(flag_value("--permission-mode"), "dontAsk")
 
         # (4) Structured-verdict contract; never the bypassPermissions implementer.
+        # --json-schema validates the structured output; --output-format json is
+        # REQUIRED for that validated object to be emitted (in the result
+        # envelope's structured_output field) instead of prose (T3-JSON-OUT-004).
         self.assertIn("--json-schema", argv)
+        self.assertEqual(flag_value("--output-format"), "json")
         self.assertNotIn("bypassPermissions", " ".join(argv))
         self.assertNotEqual(REVIEWER_ADAPTER.exec_argv, CLAUDE_ADAPTER.exec_argv)
         self.assertIn("bypassPermissions", " ".join(CLAUDE_ADAPTER.exec_argv))
@@ -112,6 +126,48 @@ class ParseVerdictTests(unittest.TestCase):
         raw = "starting review...\n" + json.dumps({"verdict": "clean", "findings": []}) + "\ndone\n"
         v = parse_code_review_verdict(raw)
         self.assertEqual(v["verdict"], "clean")
+
+    def test_output_format_json_envelope_structured_output_parses(self):
+        # The documented --output-format json contract: the validated object is in
+        # the result envelope's structured_output field, NOT the prose `result`.
+        envelope = {
+            "type": "result",
+            "subtype": "success",
+            "result": "**Verdict: clean** — the test is trivial but passes.",
+            "structured_output": {"verdict": "clean", "findings": []},
+        }
+        v = parse_code_review_verdict(json.dumps(envelope))
+        self.assertIsNotNone(v)
+        self.assertEqual(v["verdict"], "clean")
+
+    def test_envelope_blocking_structured_output_parses(self):
+        envelope = {
+            "type": "result",
+            "subtype": "success",
+            "result": "prose...",
+            "structured_output": {"verdict": "blocking", "findings": [{"title": "bug"}]},
+        }
+        v = parse_code_review_verdict(json.dumps(envelope))
+        self.assertEqual(v["verdict"], "blocking")
+
+    def test_non_success_subtype_is_failclosed(self):
+        # A non-success result (e.g. the model never produced schema output) must
+        # fail closed even if a stale structured_output is present.
+        envelope = {
+            "type": "result",
+            "subtype": "error_max_structured_output_retries",
+            "structured_output": {"verdict": "clean"},
+        }
+        self.assertIsNone(parse_code_review_verdict(json.dumps(envelope)))
+
+    def test_prose_result_without_structured_output_is_failclosed(self):
+        # The pre-fix failure mode: prose `result`, no structured_output -> block.
+        envelope = {
+            "type": "result",
+            "subtype": "success",
+            "result": "**Verdict: clean** — looks fine to me.",
+        }
+        self.assertIsNone(parse_code_review_verdict(json.dumps(envelope)))
 
     def test_garbage_is_rejected(self):
         self.assertIsNone(parse_code_review_verdict("not json at all"))
