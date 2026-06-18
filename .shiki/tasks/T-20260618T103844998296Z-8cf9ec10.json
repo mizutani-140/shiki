@@ -1,0 +1,32 @@
+{
+  "acceptance_checks": [
+    "test_execution_protocol_guardrail_present passes under python3 -m unittest discover -s tests"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/handoff-guardrail",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260618T103836120414Z-7e1512d2",
+  "id": "T-20260618T103844998296Z-8cf9ec10",
+  "ledger_evidence": [
+    "L-20260618T103844998517Z-1ded3d4b"
+  ],
+  "locks": [
+    "path:scripts/shiki_tasks.py",
+    "path:tests/test_handoff_consult.py",
+    "path:.shiki/**"
+  ],
+  "non_goals": [
+    "No loop state-machine, CCA, MergeGate, or Guardian-policy change."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "low",
+  "scope": "Add an Execution Protocol section to write_task_handoff (scripts/shiki_tasks.py) forbidding git commit/push, gh, and PR creation/merge \u2014 the loop owns delivery; add a regression test in tests/test_handoff_consult.py.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Handoff Execution Protocol guardrail"
+}

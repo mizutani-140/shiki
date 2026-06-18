@@ -1,0 +1,22 @@
+{
+  "acceptance_evidence": [
+    "Test test_execution_protocol_guardrail_present passes; PR merged."
+  ],
+  "completion_conditions": [
+    "write_task_handoff emits an Execution Protocol guardrail; a regression test asserts it; full suite + validate green."
+  ],
+  "created_at": "2026-06-18T10:38:36+00:00",
+  "github_issue": null,
+  "id": "G-20260618T103836120414Z-7e1512d2",
+  "non_goals": [
+    "No change to loop state-machine logic, CCA, MergeGate, or Guardian policy."
+  ],
+  "outcome": "The implementer handoff forbids commit/push/gh/PR creation so a bypassPermissions implementer cannot self-open a loop-incompatible PR that preempts the loop's create_pr (observed on PR #159 during #140 T5 live gate).",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "low",
+  "status": "planned",
+  "title": "Loop dispatch robustness: implementer must not self-open PRs"
+}

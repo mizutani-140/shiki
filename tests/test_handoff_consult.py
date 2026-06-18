@@ -59,6 +59,22 @@ class HandoffConsultTests(unittest.TestCase):
             self.assertIn("## Distilled Rules", body)
             self.assertIn("none applicable", body)
 
+    def test_execution_protocol_guardrail_present(self):
+        # The handoff must tell the implementer to edit only — the Shiki loop owns
+        # commit/push/PR creation. Without this guardrail a bypassPermissions
+        # implementer can self-open a loop-incompatible PR and break create_pr.
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            _seed(root, locks=["path:scripts/shiki_memory.py"])
+            body = write_task_handoff(root, TASK_ID)[0].read_text(encoding="utf-8")
+            self.assertIn("## Execution Protocol", body)
+            self.assertIn("git commit", body)
+            self.assertIn("git push", body)
+            for token in ("gh", "pull request"):
+                self.assertIn(token, body)
+            # The guardrail must precede the Scope so the implementer reads it first.
+            self.assertLess(body.index("## Execution Protocol"), body.index("## Scope"))
+
     def test_matching_rule_injected_with_mem_id(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

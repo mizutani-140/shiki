@@ -984,6 +984,17 @@ def write_task_handoff(target: Path, task_id: str) -> tuple[Path, str]:
             f"Runtime: {task.get('assigned_runtime')}",
             f"Branch: {task.get('expected_branch')}",
             "",
+            "## Execution Protocol (the Shiki loop owns delivery)",
+            "- Implement ONLY by editing files in this worktree to satisfy the"
+            " Scope and Acceptance Checks below.",
+            "- Do NOT run `git commit`, `git push`, `git checkout`/`git switch`,"
+            " or any `gh` command.",
+            "- Do NOT create, update, comment on, or merge a pull request.",
+            "- The Shiki goal loop owns commit, push, PR creation (with the"
+            " required MergeGate PR body) and merge. Opening your own commit or"
+            " PR breaks the loop's create_pr state transition and fails MergeGate.",
+            "- Stay strictly within the declared Locks; touch no files outside them.",
+            "",
             "## Scope",
             task["scope"],
             "",

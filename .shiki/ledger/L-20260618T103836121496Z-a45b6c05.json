@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260618T103836120414Z-7e1512d2.json"
+  ],
+  "goal_id": "G-20260618T103836120414Z-7e1512d2",
+  "id": "L-20260618T103836121496Z-a45b6c05",
+  "links": [],
+  "summary": "Goal registered: Loop dispatch robustness: implementer must not self-open PRs",
+  "task_id": null,
+  "timestamp": "2026-06-18T10:38:36+00:00",
+  "type": "goal-created"
+}
