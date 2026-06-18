@@ -8,6 +8,9 @@
   "created_at": "2026-06-18T09:31:12+00:00",
   "github_issue": null,
   "id": "G-20260618T093112319886Z-a4f768c5",
+  "ledger_evidence": [
+    "L-20260618T093616883655Z-ad2a14f7"
+  ],
   "non_goals": [
     "No production-loop code change; no change to CCA/MergeGate/Guardian policy; not a substitute for the stubbed contract test."
   ],
@@ -17,6 +20,6 @@
     "code-review"
   ],
   "risk_level": "low",
-  "status": "planned",
+  "status": "complete",
   "title": "Live loop e2e smoke: self-drive a low-risk task to auto-merge (#140 T5 evidence)"
 }

@@ -4,7 +4,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260618t093119138788z-867546d0-add-a-third-trivial-smoke-test",
+  "expected_branch": "shiki/t-20260618t093119138788z-867546d0-closeout",
   "expected_pr": 160,
   "github_issue": null,
   "goal_id": "G-20260618T093112319886Z-a4f768c5",
@@ -16,7 +16,8 @@
     "L-20260618T093244376992Z-a2af1d76",
     "L-20260618T093251323134Z-f86e815e",
     "L-20260618T093255463346Z-d1012153",
-    "L-20260618T093258956835Z-4fa4baea"
+    "L-20260618T093258956835Z-4fa4baea",
+    "L-20260618T093616883655Z-ad2a14f7"
   ],
   "locks": [
     "path:tests/**",
@@ -36,7 +37,7 @@
   ],
   "risk_level": "low",
   "scope": "Add a new self-contained test file tests/test_loop_smoke3.py with a single trivial passing unittest, matching tests/test_loop_smoke.py and tests/test_loop_smoke2.py. No other files.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Add a third trivial smoke test"
 }
