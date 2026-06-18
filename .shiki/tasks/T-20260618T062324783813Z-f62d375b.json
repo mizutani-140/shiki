@@ -7,7 +7,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/loop-gapb-autonomous-closeout",
-  "expected_pr": null,
+  "expected_pr": 155,
   "github_issue": null,
   "goal_id": "G-20260618T062311037333Z-0c9a58e7",
   "id": "T-20260618T062324783813Z-f62d375b",
@@ -18,7 +18,8 @@
     "L-20260618T063113497087Z-ee536865",
     "L-20260618T063113497198Z-1ee7b48d",
     "L-20260618T063113497293Z-a8e4aaaa",
-    "L-20260618T063113497366Z-ee7f03aa"
+    "L-20260618T063113497366Z-ee7f03aa",
+    "L-20260618T063238751486Z-db545081"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -36,7 +37,8 @@
     "path:.shiki/ledger/L-20260618T063113497087Z-ee536865.json",
     "path:.shiki/ledger/L-20260618T063113497198Z-1ee7b48d.json",
     "path:.shiki/ledger/L-20260618T063113497293Z-a8e4aaaa.json",
-    "path:.shiki/ledger/L-20260618T063113497366Z-ee7f03aa.json"
+    "path:.shiki/ledger/L-20260618T063113497366Z-ee7f03aa.json",
+    "path:.shiki/ledger/L-20260618T063238751486Z-db545081.json"
   ],
   "non_goals": [
     "Multi-task closeout sequencing (deferred per ADR 0012).",
