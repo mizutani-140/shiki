@@ -50,6 +50,18 @@ case "$1 $2" in
     echo "CLAUDE_CODE_OAUTH_TOKEN"
     exit 0
     ;;
+  "api repos/"*"actions/permissions/workflow")
+    cat >"${SHIKI_FAKE_GH_WORKFLOW_PAYLOAD:-/dev/null}"
+    exit 0
+    ;;
+  "api repos/"*"/protection")
+    cat >/dev/null
+    exit 0
+    ;;
+  "api repos/"*)
+    cat >/dev/null
+    exit 0
+    ;;
 esac
 echo "fake gh unsupported: $*" >&2
 exit 1
@@ -137,5 +149,30 @@ test -n "$SKILLS_DIR"
 test -f "$TARGET/.shiki/goals/$GOAL_ID.json"
 
 python3 "$TARGET/scripts/validate_shiki.py"
+
+# Protect-enabled start must configure GitHub Actions workflow permissions for
+# the CCA Review Bridge (default=read, can-approve=true) right after branch
+# protection, through cmd_start -> cmd_init (ADR 0013).
+PROTECT_TARGET="$TMP_ROOT/protect-target"
+mkdir -p "$PROTECT_TARGET"
+: >"$SHIKI_FAKE_GH_LOG"
+export SHIKI_FAKE_GH_WORKFLOW_PAYLOAD="$TMP_ROOT/start-workflow-payload.json"
+python3 scripts/shiki.py start \
+  "$PROTECT_TARGET" \
+  --answers-file "$TMP_ROOT/answers.json" \
+  --execute \
+  --no-push \
+  >/tmp/shiki-start-protect.json
+grep "api repos/example/shiki-start-test/actions/permissions/workflow -X PUT" "$SHIKI_FAKE_GH_LOG" >/dev/null
+python3 - "$SHIKI_FAKE_GH_WORKFLOW_PAYLOAD" <<'PY'
+import json
+import sys
+
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+if payload["default_workflow_permissions"] != "read":
+    raise SystemExit(f"expected default_workflow_permissions read, got {payload['default_workflow_permissions']}")
+if payload["can_approve_pull_request_reviews"] is not True:
+    raise SystemExit("expected can_approve_pull_request_reviews to be true")
+PY
 
 echo "shiki start tests passed"

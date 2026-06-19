@@ -12,7 +12,7 @@ from typing import Any
 from shiki_config import branch_protection_review_count, configured_required_checks
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_git import check_remote_adoption, commit_manifest, current_branch, ensure_git_repo, ensure_remote, github_origin, is_git_repo, push_branch
-from shiki_github import claude_secret_remediation, configure_claude_code_secret, create_github_issue_for_task, ensure_github_repo, github_secret_status, protect_branch, require_github_repo_slug, set_default_branch
+from shiki_github import claude_secret_remediation, configure_claude_code_secret, configure_workflow_permissions, create_github_issue_for_task, ensure_github_repo, github_secret_status, protect_branch, require_github_repo_slug, set_default_branch
 from shiki_installer import install_template
 from shiki_provider import ProviderConfig, ProviderConfigError, canonical_remote_url, github_env, provider_config_as_json, provider_from_values
 from shiki_process import ROOT, ShikiError, ensure_control_dirs, info, load_default_config
@@ -107,8 +107,10 @@ def bootstrap_dry_run_lines(
         lines.append("secret: skipped by --no-set-secret")
     if protect:
         lines.append(f"branch-protection: configure required checks {', '.join(required_checks)}")
+        lines.append("workflow-permissions: allow GitHub Actions to create and approve pull requests")
     else:
         lines.append("branch-protection: skipped by --no-protect")
+        lines.append("workflow-permissions: skipped by --no-protect")
     return lines
 
 
@@ -173,6 +175,7 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
     if args.protect:
         required_checks = args.required_check or configured_required_checks(ROOT, DEFAULT_REQUIRED_CHECKS)
         protect_branch(repo, branch, required_checks, review_count=branch_protection_review_count(ROOT), provider_config=provider_config)
+        configure_workflow_permissions(repo, provider_config=provider_config)
 
     save_default_config(repo, branch)
     info("bootstrap complete")
@@ -250,6 +253,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     if args.protect:
         required_checks = args.required_check or configured_required_checks(target, DEFAULT_REQUIRED_CHECKS)
         protect_branch(repo, branch, required_checks, review_count=branch_protection_review_count(target), provider_config=provider_config)
+        configure_workflow_permissions(repo, provider_config=provider_config)
 
     info("GitHub-first init complete")
     return 0
