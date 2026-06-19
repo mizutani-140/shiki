@@ -38,3 +38,5 @@ in doubt, list `docs/adr/*.md`.
 3. Set the status to `Proposed`, then `Accepted` once the decision is approved.
 4. Open a PR following `CONTRIBUTING.md`. You do not need to edit this index for
    the ADR to be discoverable via `docs/adr/*.md`.
+
+<!-- cca probe (throwaway, will be closed) -->
