@@ -1,0 +1,20 @@
+{
+  "branch": "shiki/t-20260619t102857596978z-386d2ca9-auto-grant-actions-create-approve-pr-permission-",
+  "created_at": "2026-06-19T10:29:24+00:00",
+  "created_by": "shiki-run",
+  "goal_id": "G-20260619T102811948334Z-902fc294",
+  "locks": [
+    "path:scripts/shiki_github.py",
+    "path:scripts/shiki_bootstrap.py",
+    "path:scripts/test_shiki_init.sh",
+    "path:scripts/test_shiki_start.sh",
+    "path:tests/test_workflow_permissions_payload.py",
+    "path:docs/adr/**",
+    "path:.shiki/**"
+  ],
+  "path": "/Users/kio.mizutani/.worktrees/shiki-t-20260619t102857596978z-386d2ca9-auto-gra",
+  "pr": 173,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260619T102857596978Z-386d2ca9"
+}

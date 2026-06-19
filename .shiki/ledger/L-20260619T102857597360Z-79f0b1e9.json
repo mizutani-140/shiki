@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260619T102857596978Z-386d2ca9.json"
+  ],
+  "goal_id": "G-20260619T102811948334Z-902fc294",
+  "id": "L-20260619T102857597360Z-79f0b1e9",
+  "links": [],
+  "summary": "Task registered: Auto-grant Actions create/approve-PR permission in shiki bootstrap",
+  "task_id": "T-20260619T102857596978Z-386d2ca9",
+  "timestamp": "2026-06-19T10:28:57+00:00",
+  "type": "task-registered"
+}
