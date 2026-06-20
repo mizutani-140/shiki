@@ -9,8 +9,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260619t102857596978z-386d2ca9-auto-grant-actions-create-approve-pr-permission-",
-  "expected_pr": 173,
+  "expected_branch": "shiki/t-20260619t102857596978z-386d2ca9-closeout",
+  "expected_pr": 174,
   "github_issue": null,
   "goal_id": "G-20260619T102811948334Z-902fc294",
   "id": "T-20260619T102857596978Z-386d2ca9",
@@ -21,7 +21,9 @@
     "L-20260619T103910533120Z-7b7a21b5",
     "L-20260619T104025300330Z-8fdc261c",
     "L-20260619T104030629178Z-335ec167",
-    "L-20260619T104034448646Z-d81b87ea"
+    "L-20260619T104034448646Z-d81b87ea",
+    "L-20260620T014351822427Z-dd8e4dde",
+    "L-20260620T014355073730Z-9fbd2177"
   ],
   "locks": [
     "path:scripts/shiki_github.py",
@@ -53,7 +55,7 @@
   ],
   "risk_level": "high",
   "scope": "Add configure_workflow_permissions(repo, *, can_approve_pull_requests=True, default_permissions='read', provider_config=None) to scripts/shiki_github.py, mirroring protect_branch's 'gh api ... -X PUT --input -' pattern: target repo_api_path(config,'actions/permissions/workflow') with JSON body {default_workflow_permissions, can_approve_pull_request_reviews}; info() on success, warn() (NOT raise) on failure with remediation text. Import+call it in scripts/shiki_bootstrap.py cmd_bootstrap_github and cmd_init immediately after protect_branch inside the 'if args.protect:' block. Add a dry-run line in bootstrap_dry_run_lines ('workflow-permissions: allow GitHub Actions to create and approve pull requests' when protect, and a skip note under --no-protect). Add tests/test_workflow_permissions_payload.py (python unittest, mirror tests/test_branch_protection_payload.py) asserting the PUT path and payload. Update scripts/test_shiki_init.sh and scripts/test_shiki_start.sh gh stubs to accept+assert the new actions/permissions/workflow PUT. Add an ADR under docs/adr/ recording the bootstrap can_approve_pull_request_reviews default and its CCA-Review-Bridge / solo-maintainer security tradeoff (relates to G-0012 / closed #106). Keep scoped; warn-not-fail; default_workflow_permissions=read.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Auto-grant Actions create/approve-PR permission in shiki bootstrap"
 }
