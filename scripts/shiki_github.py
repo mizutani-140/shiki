@@ -167,6 +167,60 @@ def protect_branch(
         )
 
 
+def configure_workflow_permissions(
+    repo: str,
+    *,
+    can_approve_pull_requests: bool = True,
+    default_permissions: str = "read",
+    provider_config: ProviderConfig | None = None,
+) -> None:
+    """Configure repository Actions workflow permissions for the CCA Review Bridge.
+
+    Sets the default workflow token permission (``read``) and whether GitHub
+    Actions may create and approve pull request reviews. The Review Bridge needs
+    ``can_approve_pull_request_reviews=true`` to satisfy ``required_review: true``
+    in solo operation after CCA returns ``complete`` (see ADR 0013 and
+    ``docs/agents/decision-control.md``).
+
+    Mirrors ``protect_branch``'s ``gh api ... -X PUT --input -`` pattern but
+    warns instead of raising on failure: branch protection is the hard gate, and
+    this default can also be set in repository Settings -> Actions -> General, so
+    a missing Actions-admin scope must not abort an otherwise-complete bootstrap.
+    """
+    config = provider_config or default_provider_config(repo)
+    payload = {
+        "default_workflow_permissions": default_permissions,
+        "can_approve_pull_request_reviews": can_approve_pull_requests,
+    }
+    result = run(
+        [
+            "gh",
+            "api",
+            repo_api_path(config, "actions/permissions/workflow"),
+            "-X",
+            "PUT",
+            "--input",
+            "-",
+        ],
+        input_text=json.dumps(payload),
+        env=github_env(config),
+        check=False,
+    )
+    if result.returncode == 0:
+        info(
+            "configured workflow permissions: "
+            f"default={default_permissions}, can approve pull requests={can_approve_pull_requests}"
+        )
+    else:
+        warn(
+            f"could not configure workflow permissions: {result.stderr.strip()}. "
+            "The CCA Review Bridge needs GitHub Actions allowed to create and approve "
+            "pull requests; set default workflow permissions to read and enable "
+            '"Allow GitHub Actions to create and approve pull requests" under '
+            "repository Settings -> Actions -> General, or rerun Shiki init/start."
+        )
+
+
 def github_repo_from_origin(target: Path) -> str | None:
     origin = github_origin(target)
     if not origin:

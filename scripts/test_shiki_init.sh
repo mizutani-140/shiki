@@ -53,6 +53,10 @@ case "$1 $2" in
     echo "branch protection rejected" >&2
     exit 1
     ;;
+  "api repos/"*"actions/permissions/workflow")
+    cat >"${SHIKI_FAKE_GH_WORKFLOW_PAYLOAD:-/dev/null}"
+    exit 0
+    ;;
   "api repos/"*)
     cat >"${SHIKI_FAKE_GH_PAYLOAD:-/dev/null}"
     exit 0
@@ -95,11 +99,19 @@ grep "git: initialize repository" /tmp/shiki-init-dry-run.out >/dev/null
 grep "github-repo: create or reuse example/shiki-init-dry-run" /tmp/shiki-init-dry-run.out >/dev/null
 grep "secret: set CLAUDE_CODE_OAUTH_TOKEN" /tmp/shiki-init-dry-run.out >/dev/null
 grep "branch-protection: configure required checks" /tmp/shiki-init-dry-run.out >/dev/null
+grep "workflow-permissions: allow GitHub Actions to create and approve pull requests" /tmp/shiki-init-dry-run.out >/dev/null
 grep "default-branch: set main" /tmp/shiki-init-dry-run.out >/dev/null
 grep "commit: create manifest commit" /tmp/shiki-init-dry-run.out >/dev/null
 grep "push: push main to origin" /tmp/shiki-init-dry-run.out >/dev/null
 test ! -e "$DRY_RUN"
 test -z "$(cat "$SHIKI_FAKE_GH_LOG")"
+
+DRY_RUN_NO_PROTECT="$TMP_ROOT/dry-run-no-protect"
+python3 scripts/shiki.py init "$DRY_RUN_NO_PROTECT" \
+  --repo example/shiki-init-dry-run-no-protect \
+  --no-protect >/tmp/shiki-init-dry-run-no-protect.out
+grep "branch-protection: skipped by --no-protect" /tmp/shiki-init-dry-run-no-protect.out >/dev/null
+grep "workflow-permissions: skipped by --no-protect" /tmp/shiki-init-dry-run-no-protect.out >/dev/null
 
 DRY_RUN_NO_SECRET="$TMP_ROOT/dry-run-no-secret"
 unset CLAUDE_CODE_OAUTH_TOKEN || true
@@ -227,11 +239,24 @@ PY
 PROTECT_PASS="$TMP_ROOT/protect-pass"
 mkdir -p "$PROTECT_PASS"
 export SHIKI_FAKE_GH_PAYLOAD="$TMP_ROOT/protect-payload.json"
+export SHIKI_FAKE_GH_WORKFLOW_PAYLOAD="$TMP_ROOT/protect-workflow-payload.json"
+: >"$SHIKI_FAKE_GH_LOG"
 python3 scripts/shiki.py init "$PROTECT_PASS" \
   --repo example/shiki-init-protect-pass \
   --execute \
   --no-commit \
   --no-push >/tmp/shiki-init-protect-pass.out
+grep "api repos/example/shiki-init-protect-pass/actions/permissions/workflow -X PUT" "$SHIKI_FAKE_GH_LOG" >/dev/null
+python3 - "$SHIKI_FAKE_GH_WORKFLOW_PAYLOAD" <<'PY'
+import json
+import sys
+
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+if payload["default_workflow_permissions"] != "read":
+    raise SystemExit(f"expected default_workflow_permissions read, got {payload['default_workflow_permissions']}")
+if payload["can_approve_pull_request_reviews"] is not True:
+    raise SystemExit("expected can_approve_pull_request_reviews to be true")
+PY
 python3 - "$SHIKI_FAKE_GH_PAYLOAD" <<'PY'
 import json
 import sys

@@ -1,0 +1,27 @@
+{
+  "acceptance_evidence": [
+    "validate_shiki green; new python unittest passes under unittest discover; shell init/start tests assert the new gh api PUT; ADR present under docs/adr/"
+  ],
+  "completion_conditions": [
+    "shiki_github.py exposes configure_workflow_permissions() that PUTs repos/{repo}/actions/permissions/workflow with default_workflow_permissions=read and can_approve_pull_request_reviews=true",
+    "cmd_bootstrap_github and cmd_init call it within the --protect provisioning block (skipped by --no-protect), and the dry-run plan lists a workflow-permissions line",
+    "a python unittest under tests/ asserts the PUT payload, discoverable by 'python3 -m unittest discover -s tests'; test_shiki_init.sh/test_shiki_start.sh stub+assert the new gh api call",
+    "an ADR records the can_approve_pull_request_reviews bootstrap default and its CCA-Review-Bridge / solo-maintainer security tradeoff"
+  ],
+  "created_at": "2026-06-19T10:28:11+00:00",
+  "github_issue": null,
+  "id": "G-20260619T102811948334Z-902fc294",
+  "non_goals": [
+    "Changing branch protection payload or required checks",
+    "Org-level Actions policy; hard-failing bootstrap when the API call is rejected (warn only, doctor already diagnoses)",
+    "Any change to CubeShare or other target repos directly"
+  ],
+  "outcome": "shiki init / start / bootstrap-platform automatically set the target repo's Actions workflow permission so GitHub Actions may create and approve pull requests (can_approve_pull_request_reviews=true, default_workflow_permissions=read), removing the manual Settings -> Actions -> General step that the CCA Review Bridge depends on.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "status": "planned",
+  "title": "Bootstrap auto-grants GitHub Actions create/approve-PR permission to Shiki targets"
+}
