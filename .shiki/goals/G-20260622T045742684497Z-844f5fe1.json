@@ -11,6 +11,9 @@
   "created_at": "2026-06-22T04:57:42+00:00",
   "github_issue": 175,
   "id": "G-20260622T045742684497Z-844f5fe1",
+  "ledger_evidence": [
+    "L-20260622T065847820470Z-796f2126"
+  ],
   "non_goals": [
     "Claude Code operating the ChatGPT Pro UI for its own implementation work",
     "Replacing MergeGate or CCA; treating ChatGPT transcript as truth without artifact validation; committing review packets as approval evidence",
@@ -22,6 +25,6 @@
     "code-review"
   ],
   "risk_level": "high",
-  "status": "planned",
+  "status": "complete",
   "title": "Codex App External AI Guardian Review Packet and UI adapter contract (issue #175)"
 }
