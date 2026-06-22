@@ -1,0 +1,27 @@
+{
+  "acceptance_evidence": [
+    "validate_shiki green; 335 unittests incl. tests/test_guardian_review.py (37) pass; shellcheck + module-boundaries pass; independent code-review gate found no defects"
+  ],
+  "completion_conditions": [
+    "A valid External AI Guardian Review Packet schema-validates locally; the packet is marked review input, not approval evidence",
+    "A GPT Pro prompt is generated from a packet with Evidence Review, Adversarial Review, Authority Verdict (approve|request_changes|insufficient_evidence) and PR-specific focus areas",
+    "Approval is accepted only when verdict=approve AND a fenced external-ai-guardian-review artifact matches repo, PR, head SHA, allowed reviewer model/role, merge_permission=autonomous_merge_permitted, not_operator_approval:true; request_changes->repair and insufficient_evidence->evidence route without implementation changes",
+    "validate_shiki.py, py_compile scripts/*.py, relevant test_shiki_*.sh and Python tests, and git diff --check all pass"
+  ],
+  "created_at": "2026-06-22T04:57:42+00:00",
+  "github_issue": 175,
+  "id": "G-20260622T045742684497Z-844f5fe1",
+  "non_goals": [
+    "Claude Code operating the ChatGPT Pro UI for its own implementation work",
+    "Replacing MergeGate or CCA; treating ChatGPT transcript as truth without artifact validation; committing review packets as approval evidence",
+    "API-key-based OpenAI automation in Shiki default path"
+  ],
+  "outcome": "Deterministic Shiki-side contract for the Codex App External AI Guardian UI Adapter: packet schema, GPT Pro prompt builder, PR-type review focus classifier, response/verdict extraction, external-ai-guardian-review artifact verification reusing shiki_guardian semantics, and shiki guardian packet|prompt|verify-response CLI, with docs and tests. Claude Code implements deterministic contracts only; it never drives the ChatGPT Pro UI for its own PR.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "status": "planned",
+  "title": "Codex App External AI Guardian Review Packet and UI adapter contract (issue #175)"
+}

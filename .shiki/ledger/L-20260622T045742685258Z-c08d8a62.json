@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260622T045742684497Z-844f5fe1.json"
+  ],
+  "goal_id": "G-20260622T045742684497Z-844f5fe1",
+  "id": "L-20260622T045742685258Z-c08d8a62",
+  "links": [],
+  "summary": "Goal registered: Codex App External AI Guardian Review Packet and UI adapter contract (issue #175)",
+  "task_id": null,
+  "timestamp": "2026-06-22T04:57:42+00:00",
+  "type": "goal-created"
+}

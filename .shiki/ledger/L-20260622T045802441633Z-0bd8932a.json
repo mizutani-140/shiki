@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260622T045802441359Z-78831747.json"
+  ],
+  "goal_id": "G-20260622T045742684497Z-844f5fe1",
+  "id": "L-20260622T045802441633Z-0bd8932a",
+  "links": [],
+  "summary": "Task registered: Implement External AI Guardian Review Packet + UI adapter contract",
+  "task_id": "T-20260622T045802441359Z-78831747",
+  "timestamp": "2026-06-22T04:58:02+00:00",
+  "type": "task-registered"
+}
