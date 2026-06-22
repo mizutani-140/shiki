@@ -71,3 +71,42 @@ The guardian-comment parser ignores a stale or abbreviated-SHA approval comment
 (records it as a warning) once a valid current-head approval exists from any
 authority; such a comment is only a blocker when it is the sole approval
 attempt.
+
+## External AI Guardian UI Adapter (ADR 0014)
+
+When the external reviewer is reached through a ChatGPT Pro UI, **Codex App is
+the External AI Guardian UI Adapter** — the transport and validation runtime.
+**Claude Code is the implementer/repairer and must not drive this Guardian UI
+path for its own implementation work.** GPT Pro is the approval Authority,
+GitHub carries the live artifact, and MergeGate verifies.
+
+Shiki provides the deterministic, UI-free contract the adapter consumes
+(`scripts/shiki_guardian_review.py`, exposed as `shiki guardian` subcommands).
+These commands never drive a ChatGPT UI; they produce and verify artifacts:
+
+- `shiki guardian packet --task-id <T> --pr <n> --pr-data <file> [--output <file>]`
+  builds an **External AI Guardian Review Packet** from the task contract and
+  Codex-gathered PR evidence, injects PR-type review focus areas, and validates
+  it against `.shiki/schemas/external-ai-guardian-review-packet.schema.json`.
+- `shiki guardian prompt --packet <file>` renders the deterministic GPT Pro
+  prompt (reviewer identity/role, Evidence Review → Adversarial Review →
+  Authority Verdict, the three verdicts, the GitHub connector as optional
+  corroboration, and the fenced approval artifact to emit only when approving).
+- `shiki guardian verify-response --packet <file> --response <file>` parses the
+  reviewer output and accepts approval ONLY when the verdict is `approve` AND a
+  fenced `external-ai-guardian-review` artifact validates against the packet's
+  repo / PR / head SHA and the allow-listed reviewer model/role (the same
+  `validate_ai_review_artifact` contract the PR-comment path enforces).
+
+**Packet lifecycle.** The packet is review *input* evidence only. It is built
+fresh from durable PR/check/task/repository evidence, fed to the reviewer, and
+discarded as transport. It is never approval evidence and must not be committed
+by the PR under review; if provenance is recorded, record source refs, PR, head
+SHA, and a digest — not the packet as trusted state.
+
+**Non-approval routing.** A non-`approve` verdict never changes implementation
+directly. `verify-response` routes `request_changes` to a bounded **Repair
+Packet** (`route: repair_packet`) and `insufficient_evidence` to **Evidence-only
+/ evidence repair** work (`route: evidence_packet`). An `approve` verdict whose
+artifact is missing or fails validation is rejected (`route: rejected`), never
+merged. Human Guardian approval paths remain available as fallback.

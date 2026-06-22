@@ -10,6 +10,7 @@ from typing import Iterable
 from shiki_bootstrap import cmd_bootstrap_github, cmd_init, cmd_preflight, cmd_start
 from shiki_doctor import cmd_doctor
 from shiki_github import cmd_github_issue, cmd_github_pr
+from shiki_guardian_review import cmd_guardian_packet, cmd_guardian_prompt, cmd_guardian_verify_response
 from shiki_installer import DEFAULT_CLAUDE_COMMAND_PATH, DEFAULT_CODEX_SKILL_PATH, DEFAULT_GLOBAL_COMMAND_PATH, cmd_install_command, cmd_install_global, cmd_install_target, cmd_status
 from shiki_loop import cmd_loop_run, cmd_loop_step
 from shiki_memory import cmd_memory_capture, cmd_memory_distill, cmd_memory_investigate, cmd_memory_list, cmd_memory_promote, cmd_memory_revoke, cmd_memory_supersede
@@ -422,6 +423,44 @@ def build_parser() -> argparse.ArgumentParser:
     handoff_repair.add_argument("--target", default=".", help="Target repository path")
     handoff_repair.add_argument("repair_id")
     handoff_repair.set_defaults(func=cmd_handoff_repair)
+
+    guardian = subcommands.add_parser(
+        "guardian",
+        help="Deterministic External AI Guardian adapter contract (Codex App consumes these; they never drive a ChatGPT UI)",
+    )
+    guardian_subcommands = guardian.add_subparsers(dest="guardian_command", required=True)
+
+    guardian_packet = guardian_subcommands.add_parser(
+        "packet", help="Build an External AI Guardian Review Packet (review input, not approval evidence)"
+    )
+    guardian_packet.add_argument("--target", default=".", help="Target repository path")
+    guardian_packet.add_argument("--task-id", required=True)
+    guardian_packet.add_argument("--pr", required=True, type=int)
+    guardian_packet.add_argument("--pr-data", required=True, help="JSON of Codex-gathered PR evidence (repository, base_sha, head_sha, pr_summary, changed_files, diff_summary, check_results)")
+    guardian_packet.add_argument("--implementer-report", help="JSON {source, ref, summary} provenance for the implementer output")
+    guardian_packet.add_argument("--relevant-doc", action="append", default=[])
+    guardian_packet.add_argument("--source-ref", action="append", default=[])
+    guardian_packet.add_argument("--output", help="Write the packet JSON to this path instead of stdout")
+    guardian_packet.set_defaults(func=cmd_guardian_packet)
+
+    guardian_prompt = guardian_subcommands.add_parser(
+        "prompt", help="Render the deterministic GPT Pro external Guardian review prompt from a packet"
+    )
+    guardian_prompt.add_argument("--target", default=".", help="Target repository path")
+    guardian_prompt.add_argument("--packet", required=True, help="Path to a packet JSON")
+    guardian_prompt.add_argument("--reviewer-model", help="Override reviewer model (default: first guardian-policy allowed model)")
+    guardian_prompt.add_argument("--reviewer-role", help="Override reviewer role (default: first guardian-policy allowed role)")
+    guardian_prompt.add_argument("--output", help="Write the prompt text to this path instead of stdout")
+    guardian_prompt.set_defaults(func=cmd_guardian_prompt)
+
+    guardian_verify = guardian_subcommands.add_parser(
+        "verify-response", help="Validate a GPT Pro reviewer response against a packet and guardian policy"
+    )
+    guardian_verify.add_argument("--target", default=".", help="Target repository path")
+    guardian_verify.add_argument("--packet", required=True, help="Path to a packet JSON")
+    guardian_verify.add_argument("--response", required=True, help="Path to the raw reviewer response text")
+    guardian_verify.add_argument("--output", help="Write the verdict JSON to this path (also printed to stdout)")
+    guardian_verify.set_defaults(func=cmd_guardian_verify_response)
 
     task = subcommands.add_parser("task", help="Manage Shiki task state")
     task_subcommands = task.add_subparsers(dest="task_command", required=True)
