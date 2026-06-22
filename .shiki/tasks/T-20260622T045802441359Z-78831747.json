@@ -7,7 +7,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/issue-175-external-ai-guardian-adapter",
+  "expected_branch": "shiki/t-20260622t045802441359z-78831747-closeout",
   "expected_pr": 176,
   "github_issue": 175,
   "goal_id": "G-20260622T045742684497Z-844f5fe1",
@@ -18,7 +18,8 @@
     "L-20260622T045838122296Z-865975e6",
     "L-20260622T051234313475Z-fd4e65e0",
     "L-20260622T051234314774Z-76f7bdd0",
-    "L-20260622T061247068867Z-864ceb32"
+    "L-20260622T061247068867Z-864ceb32",
+    "L-20260622T065847820470Z-796f2126"
   ],
   "locks": [
     "path:.shiki/**",
@@ -45,7 +46,7 @@
   ],
   "risk_level": "high",
   "scope": "Add .shiki/schemas/external-ai-guardian-review-packet.schema.json (review input, not approval evidence); scripts/shiki_guardian_review.py with build_review_packet, classify_review_focus, build_review_prompt, extract_review_response, verify_review_response and cmd_guardian_packet/prompt/verify_response; extract shiki_guardian.validate_ai_review_artifact and reuse it from both the PR-comment path and verify-response; wire shiki guardian packet|prompt|verify-response in shiki_cli.py; register the new module in validate_shiki.py, shiki_installer.py, test_shiki_module_boundaries.sh and a canonical path in shiki_contracts.py; docs (CONTEXT.md glossary, guardian-policy.md adapter section, runtime-auth-model.md, ADR 0014); tests/test_guardian_review.py.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Implement External AI Guardian Review Packet + UI adapter contract"
 }
