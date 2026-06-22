@@ -10,5 +10,5 @@
   "summary": "code-review: independent multi-lens adversarial review (correctness, security/identity-boundary, contract/test-coverage) with per-finding adversarial verification (26 agents). Verdict clean; role boundary + fail-closed approval contract + packet-not-approval-evidence verified; 3 minor/nit items addressed.",
   "task_id": "T-20260622T045802441359Z-78831747",
   "timestamp": "2026-06-22T05:12:34+00:00",
-  "type": "type:review"
+  "type": "review"
 }
