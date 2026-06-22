@@ -8,7 +8,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/issue-175-external-ai-guardian-adapter",
-  "expected_pr": null,
+  "expected_pr": 176,
   "github_issue": 175,
   "goal_id": "G-20260622T045742684497Z-844f5fe1",
   "id": "T-20260622T045802441359Z-78831747",
