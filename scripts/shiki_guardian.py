@@ -360,6 +360,61 @@ def _extract_ai_review_artifacts(body: str, fence: str) -> list[dict[str, Any]]:
     return artifacts
 
 
+def validate_ai_review_artifact(
+    artifact: dict[str, Any],
+    *,
+    policy: GuardianPolicy,
+    expected_repo: str,
+    pr_number: int | None,
+    head_sha: str,
+) -> tuple[list[str], list[str]]:
+    """Field + binding validation for a single external_ai_guardian_review artifact.
+
+    Returns ``(violations, soft_violations)``. Empty in both lists means the
+    artifact is a valid autonomous-merge approval bound to the given repo, PR,
+    and head SHA. A stale/missing head SHA is a *soft* violation (fatal only when
+    it is the sole approval attempt; see the caller's promotion logic); every
+    other failure is a hard violation. The checks short-circuit at the first
+    failure so a single artifact yields a single message.
+
+    This is the shared approval contract: both the PR-comment evaluation path
+    (``_external_ai_review_source``) and the offline Codex App adapter
+    verify-response path consume it so neither can drift from ADR 0010 / ADR 0014
+    approval semantics. Missing/under-specified fields fail closed.
+    """
+    if artifact.get("kind") != "external_ai_guardian_review":
+        return (["external AI guardian review artifact kind must be external_ai_guardian_review"], [])
+    # Identity boundary: the artifact must EXPLICITLY declare itself a
+    # non-operator AI-model review. Missing/null/false all fail closed.
+    if artifact.get("not_operator_approval") is not True:
+        return (["external AI guardian review artifact must explicitly declare not_operator_approval=true"], [])
+    reviewer = artifact.get("reviewer") if isinstance(artifact.get("reviewer"), dict) else {}
+    if str(reviewer.get("type") or "").strip() != "ai_model":
+        return (["external AI guardian review artifact reviewer.type must be ai_model"], [])
+    model = str(reviewer.get("model") or "").strip()
+    role = str(reviewer.get("role") or "").strip()
+    if model not in policy.ai_review_allowed_models:
+        return ([f"external AI guardian review model {model!r} is not in the allowed list"], [])
+    if role not in policy.ai_review_allowed_roles:
+        return ([f"external AI guardian review role {role!r} is not in the allowed list"], [])
+    if artifact.get("verdict") != "approve" or artifact.get("merge_permission") != "autonomous_merge_permitted":
+        return (["external AI guardian review artifact does not authorize autonomous merge"], [])
+    # Repo binding: defeat cross-repo replay. Fail closed if either side is empty.
+    artifact_repo = str(artifact.get("repo") or "").strip().lower()
+    expected = (expected_repo or "").strip().lower()
+    if not expected or artifact_repo != expected:
+        return (["external AI guardian review artifact does not bind to this repository"], [])
+    # PR binding: exact match; fail closed when the PR number is unknown.
+    if pr_number is None or artifact.get("pr") != pr_number:
+        return (["external AI guardian review artifact does not bind to this PR"], [])
+    # Head-SHA binding: require a non-empty exact match (soft so a stale artifact
+    # cannot poison an otherwise valid approval from another authority).
+    artifact_head = str(artifact.get("head_sha") or "")
+    if policy.ai_review_require_head_sha and (not head_sha or artifact_head != head_sha):
+        return ([], ["external AI guardian review artifact does not reference current head SHA"])
+    return ([], [])
+
+
 def _external_ai_review_source(
     *,
     policy: GuardianPolicy,
@@ -404,45 +459,24 @@ def _external_ai_review_source(
                 # the explicit solo-maintainer escape hatch.
                 soft.append(f"PR author {relay} cannot relay external AI guardian review without solo maintainer policy")
                 continue
-            # Identity boundary: this authority exists for identity honesty, so
-            # the artifact must EXPLICITLY declare itself a non-operator AI-model
-            # review. Missing/null fields fail closed (not just an explicit
-            # false), so a malformed or under-specified artifact never approves.
-            if artifact.get("not_operator_approval") is not True:
-                warnings.append("external AI guardian review artifact must explicitly declare not_operator_approval=true")
+            # Field + binding validation is the shared approval contract
+            # (validate_ai_review_artifact), so the offline adapter
+            # verify-response path enforces identical semantics.
+            violations, soft_violations = validate_ai_review_artifact(
+                artifact,
+                policy=policy,
+                expected_repo=expected_repo,
+                pr_number=pr_number,
+                head_sha=head_sha,
+            )
+            if violations:
+                warnings.extend(violations)
+                continue
+            if soft_violations:
+                soft.extend(soft_violations)
                 continue
             reviewer = artifact.get("reviewer") if isinstance(artifact.get("reviewer"), dict) else {}
-            if str(reviewer.get("type") or "").strip() != "ai_model":
-                warnings.append("external AI guardian review artifact reviewer.type must be ai_model")
-                continue
             model = str(reviewer.get("model") or "").strip()
-            role = str(reviewer.get("role") or "").strip()
-            if model not in policy.ai_review_allowed_models:
-                warnings.append(f"external AI guardian review model {model!r} is not in the allowed list")
-                continue
-            if role not in policy.ai_review_allowed_roles:
-                warnings.append(f"external AI guardian review role {role!r} is not in the allowed list")
-                continue
-            if artifact.get("verdict") != "approve" or artifact.get("merge_permission") != "autonomous_merge_permitted":
-                warnings.append("external AI guardian review artifact does not authorize autonomous merge")
-                continue
-            # Repo binding: defeat cross-repo replay. Fail closed if either side
-            # is missing.
-            artifact_repo = str(artifact.get("repo") or "").strip().lower()
-            if not expected_repo or artifact_repo != expected_repo:
-                warnings.append("external AI guardian review artifact does not bind to this repository")
-                continue
-            # PR binding: require an exact match; fail closed when the PR number
-            # is unknown or the artifact omits/mismatches it.
-            if pr_number is None or artifact.get("pr") != pr_number:
-                warnings.append("external AI guardian review artifact does not bind to this PR")
-                continue
-            # Head-SHA binding: require a non-empty exact match; an empty head
-            # must never pass.
-            artifact_head = str(artifact.get("head_sha") or "")
-            if policy.ai_review_require_head_sha and (not head_sha or artifact_head != head_sha):
-                soft.append("external AI guardian review artifact does not reference current head SHA")
-                continue
             sources.append("external_ai_guardian_review")
             ai_reviewers.append(model)
     return sources, ai_reviewers, soft, warnings

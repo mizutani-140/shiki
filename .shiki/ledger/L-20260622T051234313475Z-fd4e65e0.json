@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "tests/test_guardian_review.py",
+    "python3 -m unittest discover -s tests (335 tests OK)"
+  ],
+  "goal_id": "G-20260622T045742684497Z-844f5fe1",
+  "id": "L-20260622T051234313475Z-fd4e65e0",
+  "links": [],
+  "summary": "tdd: implementer-run TDD for the External AI Guardian adapter. Added tests/test_guardian_review.py (37 tests covering packet schema valid/invalid, classifier categories, prompt sections, response extraction + verify-response approve/reject routes) and ran the full suite green.",
+  "task_id": "T-20260622T045802441359Z-78831747",
+  "timestamp": "2026-06-22T05:12:34+00:00",
+  "type": "check"
+}

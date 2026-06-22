@@ -1,0 +1,51 @@
+{
+  "acceptance_checks": [
+    "A valid External AI Guardian Review Packet schema-validates locally and is marked review-input not approval-evidence",
+    "GPT Pro prompt includes Evidence Review, Adversarial Review, Authority Verdict (approve|request_changes|insufficient_evidence), PR-specific focus areas, and the fenced approval artifact only on approve",
+    "verify-response accepts approval only with a valid head/repo/PR/model/role-bound external-ai-guardian-review artifact and routes request_changes->repair, insufficient_evidence->evidence",
+    "validate_shiki, py_compile scripts/*.py, test_shiki_*.sh, Python tests (incl tests/test_guardian_review.py), and git diff --check pass"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/issue-175-external-ai-guardian-adapter",
+  "expected_pr": 176,
+  "github_issue": 175,
+  "goal_id": "G-20260622T045742684497Z-844f5fe1",
+  "id": "T-20260622T045802441359Z-78831747",
+  "ledger_evidence": [
+    "L-20260622T045742685258Z-c08d8a62",
+    "L-20260622T045802441633Z-0bd8932a",
+    "L-20260622T045838122296Z-865975e6",
+    "L-20260622T051234313475Z-fd4e65e0",
+    "L-20260622T051234314774Z-76f7bdd0",
+    "L-20260622T061247068867Z-864ceb32"
+  ],
+  "locks": [
+    "path:.shiki/**",
+    "path:scripts/shiki_guardian.py",
+    "path:scripts/shiki_guardian_review.py",
+    "path:scripts/shiki_contracts.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/test_shiki_module_boundaries.sh",
+    "path:tests/**",
+    "path:CONTEXT.md",
+    "path:docs/agents/guardian-policy.md",
+    "path:docs/agents/runtime-auth-model.md",
+    "path:docs/adr/**"
+  ],
+  "non_goals": [
+    "Claude Code self-driving ChatGPT Pro Guardian UI for its own PR",
+    "Replacing MergeGate/CCA; weakening external_ai_guardian_review validation or human Guardian fallback"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Add .shiki/schemas/external-ai-guardian-review-packet.schema.json (review input, not approval evidence); scripts/shiki_guardian_review.py with build_review_packet, classify_review_focus, build_review_prompt, extract_review_response, verify_review_response and cmd_guardian_packet/prompt/verify_response; extract shiki_guardian.validate_ai_review_artifact and reuse it from both the PR-comment path and verify-response; wire shiki guardian packet|prompt|verify-response in shiki_cli.py; register the new module in validate_shiki.py, shiki_installer.py, test_shiki_module_boundaries.sh and a canonical path in shiki_contracts.py; docs (CONTEXT.md glossary, guardian-policy.md adapter section, runtime-auth-model.md, ADR 0014); tests/test_guardian_review.py.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Implement External AI Guardian Review Packet + UI adapter contract"
+}

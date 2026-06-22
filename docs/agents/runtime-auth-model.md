@@ -6,6 +6,7 @@ Shiki's default operator model is subscription-authenticated, not API-key-first.
 
 - **Claude Code**: the default implementer and runner runtime (ADR 0008). `shiki runner claude` dispatches a headless `claude -p` session into the task's registered worktree, authenticated by the operator's Claude subscription login.
 - **Codex Front**: an optional implementer surface for tasks explicitly assigned to `codex`. Use Codex App, Codex CLI, Codex IDE extension, or Codex Web signed in with ChatGPT OAuth/subscription auth.
+- **Codex App External AI Guardian UI Adapter**: the operator-facing adapter that builds External AI Guardian Review Packets, drives ChatGPT Pro review through the UI, extracts the reviewer verdict, validates the fenced `external_ai_guardian_review` artifact, and relays only validated approvals to GitHub (ADR 0014). It consumes the deterministic `shiki guardian packet|prompt|verify-response` surfaces. **Claude Code implementer/repairer sessions must not drive this Guardian UI path for their own work** — that boundary keeps implementation distinct from approval routing.
 - **Claude Code Action**: the GitHub Actions runtime for PR review, issue/PR automation, and MergeGate judgment. Use `CLAUDE_CODE_OAUTH_TOKEN` as the default secret.
 - **GitHub**: the durable coordination surface for Issues, PRs, Checks, Reviews, comments, and merge evidence.
 - **`.shiki/` mirror**: portable recovery and evidence mirror inside each target repo.

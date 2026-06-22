@@ -104,6 +104,14 @@ _Avoid_: treating "human pressed the button" as the only valid authority, record
 A first-class Guardian approval authority (ADR 0010) by which an external AI reviewer authorizes autonomous merge of a high/critical-risk PR through a head-SHA-bound `external_ai_guardian_review` artifact, recorded with the AI reviewer's own model identity (reviewer_type=external_ai_model).
 _Avoid_: transforming an AI review into an operator approval, committed (forgeable) approval files, head-unbound approval
 
+**External AI Guardian Review Packet**:
+The deterministic review INPUT the External AI Guardian UI Adapter builds for a high/critical-risk PR (task contract, PR diff/checks, implementer report provenance, relevant docs, PR-type review focus areas, and known missing evidence). It is review context only, never approval evidence, and must not be committed by the PR under review (ADR 0014).
+_Avoid_: treating the packet as approval, committing it as trusted PR state, ad hoc GPT repository exploration in place of it
+
+**External AI Guardian UI Adapter**:
+The Codex App-side runtime that transports an External AI Guardian Review: it builds the packet, drives the ChatGPT Pro review UI, extracts the verdict, validates the fenced `external_ai_guardian_review` artifact, relays only the validated approval to GitHub, and routes non-approval verdicts back into Shiki as bounded repair/evidence work (ADR 0014). Claude Code is the implementer/repairer and must not operate this Guardian UI path for its own work.
+_Avoid_: Claude Code self-driving its own Guardian approval, treating a ChatGPT transcript as truth without artifact validation, requiring the GitHub connector as the primary context path
+
 **Memory**:
 A current-state document under `.shiki/memories/MEM-*.json` recording a learned fact, promoted fail-closed through `raw -> investigated -> verified -> distilled`; the audit trail lives in `memory_transition` ledger events, not the file. Captured automatically from repair, loop-stop, CCA-fail, and runner-fail points with redaction.
 _Avoid_: append-only log, storing raw command output or secrets, treating the file as the audit trail

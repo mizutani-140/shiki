@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiki.local/schemas/external-ai-guardian-review-packet.schema.json",
+  "title": "Shiki External AI Guardian Review Packet",
+  "description": "Deterministic review INPUT evidence built by the Codex App External AI Guardian UI Adapter for a high-risk PR. It is NOT approval evidence: approval is only the validated fenced external-ai-guardian-review artifact (ADR 0010). The packet must not be committed by the PR under review as trusted state (ADR 0014).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "not_approval_evidence",
+    "repository",
+    "pr_number",
+    "base_sha",
+    "head_sha",
+    "goal_id",
+    "task_id",
+    "risk_level",
+    "scope",
+    "non_goals",
+    "acceptance_checks",
+    "locks",
+    "pr_summary",
+    "changed_files",
+    "diff_summary",
+    "check_results",
+    "implementer_report",
+    "relevant_docs",
+    "review_focus_areas",
+    "known_missing_evidence",
+    "packet_generated_at",
+    "packet_source_refs"
+  ],
+  "properties": {
+    "kind": {
+      "const": "external_ai_guardian_review_packet",
+      "description": "Marks this document as review INPUT, distinct from the external_ai_guardian_review approval artifact."
+    },
+    "not_approval_evidence": {
+      "const": true,
+      "description": "The packet is never approval evidence; it is the reviewer's input context only."
+    },
+    "repository": { "type": "string", "minLength": 1 },
+    "pr_number": { "type": "integer", "minimum": 1 },
+    "base_sha": { "type": "string", "minLength": 1 },
+    "head_sha": { "type": "string", "minLength": 1 },
+    "goal_id": { "type": "string", "pattern": "^G-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
+    "task_id": { "type": "string", "pattern": "^T-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
+    "risk_level": { "enum": ["low", "medium", "high", "critical"] },
+    "scope": { "type": "string" },
+    "non_goals": { "type": "array", "items": { "type": "string" } },
+    "acceptance_checks": { "type": "array", "items": { "type": "string" } },
+    "locks": { "type": "array", "items": { "type": "string" } },
+    "pr_summary": { "type": "string" },
+    "changed_files": { "type": "array", "items": { "type": "string" } },
+    "diff_summary": { "type": "string" },
+    "check_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status"],
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      }
+    },
+    "implementer_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "summary"],
+      "description": "Provenance metadata for the implementer output (e.g. Claude Full Response / runner stdout). The packet records the source reference and a summary, not a trusted full transcript.",
+      "properties": {
+        "source": { "type": "string" },
+        "ref": { "type": "string" },
+        "summary": { "type": "string" }
+      }
+    },
+    "relevant_docs": { "type": "array", "items": { "type": "string" } },
+    "review_focus_areas": { "type": "array", "items": { "type": "string" } },
+    "known_missing_evidence": { "type": "array", "items": { "type": "string" } },
+    "packet_generated_at": { "type": "string", "minLength": 1 },
+    "packet_source_refs": { "type": "array", "items": { "type": "string" } }
+  }
+}
