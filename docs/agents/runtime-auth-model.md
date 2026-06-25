@@ -99,13 +99,16 @@ repo-local `.claude/settings.json` / `.claude/settings.local.json` that supplies
 `env` credentials or an `apiKeyHelper` is neither discovered nor loaded and cannot
 make a bad token verify clean. An older CLI without the flag falls back to the
 clean-working-directory isolation alone, which is still fail-closed. The one
-residual limitation is **managed/enterprise settings**
+case the probe cannot make token-exclusive is **managed/enterprise settings**
 (macOS `/Library/Application Support/ClaudeCode/managed-settings.json`, Linux
-`/etc/claude-code/managed-settings.json`): `--setting-sources` cannot exclude them
-and they always load at highest precedence, so on a host with managed Anthropic
-credentials the probe may pass regardless of the candidate token. The probe still
-fails closed everywhere else; operators on managed hosts must confirm tokens by
-other means.
+`/etc/claude-code/managed-settings.json`, Windows
+`%PROGRAMDATA%\ClaudeCode\managed-settings.json`): `--setting-sources` cannot
+exclude them and they always load at highest precedence, so a managed Anthropic
+credential could authenticate the probe regardless of the candidate token.
+Rather than risk a false positive, `shiki secret set-claude` **fails closed when
+any managed settings file is present**: it refuses to set the secret (before
+minting) and tells the operator to confirm the token out of band and set it with
+`gh secret set` directly. On every other host the probe is token-exclusive.
 Use `--token-stdin`
 (`claude setup-token | shiki secret set-claude --token-stdin`) or
 `--from-env [VAR]` to supply an already-minted token. Verification is mandatory

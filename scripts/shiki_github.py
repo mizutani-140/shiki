@@ -181,6 +181,31 @@ _PROBE_BLANKED_CREDENTIAL_ENV = (
     "CLAUDE_CODE_SKIP_FOUNDRY_AUTH",
 )
 
+# Managed/enterprise Claude settings load at HIGHEST precedence and cannot be
+# excluded by `--setting-sources` or by HOME/CLAUDE_CONFIG_DIR isolation. If such
+# a file supplies an Anthropic credential, the probe can authenticate regardless
+# of the candidate token — a false positive that would let a bad token verify
+# clean. The set-claude command therefore refuses to set the secret when any is
+# present (it cannot guarantee token-exclusive verification there).
+_MANAGED_SETTINGS_PATHS = (
+    "/Library/Application Support/ClaudeCode/managed-settings.json",  # macOS
+    "/etc/claude-code/managed-settings.json",  # Linux
+)
+
+
+def managed_claude_settings_paths() -> list[str]:
+    """Return the managed/enterprise Claude settings files present on this host.
+
+    Covers the documented macOS and Linux locations plus the Windows
+    ``%PROGRAMDATA%\\ClaudeCode\\managed-settings.json``. An empty list means the
+    verification probe can be trusted to be token-exclusive.
+    """
+    paths = list(_MANAGED_SETTINGS_PATHS)
+    program_data = os.environ.get("PROGRAMDATA")
+    if program_data:
+        paths.append(os.path.join(program_data, "ClaudeCode", "managed-settings.json"))
+    return [path for path in paths if os.path.exists(path)]
+
 
 def claude_supports_setting_sources(*, runner=run) -> bool:
     """Whether the installed ``claude`` CLI accepts ``--setting-sources``.
@@ -224,9 +249,10 @@ def token_probe_invocation(
     (macOS ``/Library/Application Support/ClaudeCode/managed-settings.json``, Linux
     ``/etc/claude-code/managed-settings.json``); those always load at highest
     precedence and cannot be suppressed from userspace. On a host with managed
-    Anthropic credentials the probe may pass regardless of the candidate token. The
-    probe still fails closed everywhere else; operators on managed hosts must
-    confirm tokens by other means.
+    Anthropic credentials the probe may pass regardless of the candidate token, so
+    the probe alone is not token-exclusive there. ``cmd_secret_set_claude`` closes
+    this gap by refusing to set the secret when ``managed_claude_settings_paths()``
+    finds any such file; on every other host the probe is token-exclusive.
     """
     env = {name: "" for name in _PROBE_BLANKED_CREDENTIAL_ENV}
     env.update({
@@ -314,6 +340,23 @@ def cmd_secret_set_claude(args: Any) -> int:
     if not repo:
         raise ShikiError("missing --repo OWNER/NAME and no default repo configured")
     require_github_repo_slug(repo)
+
+    # Fail closed before minting: managed/enterprise settings load at highest
+    # precedence and cannot be excluded by the probe, so a managed Anthropic
+    # credential could authenticate it regardless of the candidate token. We
+    # cannot guarantee token-exclusive verification there, so we refuse to set
+    # the secret rather than risk silently writing an unverified token.
+    managed = managed_claude_settings_paths()
+    if managed:
+        raise ShikiError(
+            "managed Claude settings are present ("
+            + ", ".join(managed)
+            + "); they load at highest precedence and cannot be excluded by the verification probe, "
+            "so a managed Anthropic credential could authenticate it independently of the candidate "
+            "token. Token-exclusive verification cannot be guaranteed on this host, so the secret was "
+            "NOT set. Confirm the token out of band, then set it with "
+            f"`gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo {repo}` directly."
+        )
 
     if args.token_stdin:
         token = sys.stdin.read()

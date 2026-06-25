@@ -404,18 +404,50 @@ class ProjectSettingsIsolationTests(unittest.TestCase):
         self.assertIn("--setting-sources", captured["argv"])
 
 
+class ManagedSettingsTests(unittest.TestCase):
+    def _with_existing(self, present):
+        orig = os.path.exists
+        os.path.exists = lambda path: path in set(present)
+        self.addCleanup(lambda: setattr(os.path, "exists", orig))
+
+    def test_detects_present_managed_file(self):
+        self._with_existing(["/etc/claude-code/managed-settings.json"])
+        self.assertIn("/etc/claude-code/managed-settings.json", gh.managed_claude_settings_paths())
+
+    def test_empty_when_none_present(self):
+        self._with_existing([])
+        self.assertEqual(gh.managed_claude_settings_paths(), [])
+
+    def test_includes_windows_programdata_when_set(self):
+        win = os.path.join("C:\\ProgramData", "ClaudeCode", "managed-settings.json")
+        self._with_existing([win])
+        orig_env = os.environ.get("PROGRAMDATA")
+        os.environ["PROGRAMDATA"] = "C:\\ProgramData"
+        self.addCleanup(lambda: os.environ.__setitem__("PROGRAMDATA", orig_env) if orig_env is not None else os.environ.pop("PROGRAMDATA", None))
+        self.assertIn(win, gh.managed_claude_settings_paths())
+
+
 class CmdTests(unittest.TestCase):
     """cmd_secret_set_claude orchestration: verification is mandatory and fails closed."""
 
     def setUp(self):
         self._orig = {
             k: getattr(gh, k)
-            for k in ("require_tool", "set_secret", "verify_claude_oauth_token", "load_default_config")
+            for k in (
+                "require_tool",
+                "set_secret",
+                "verify_claude_oauth_token",
+                "load_default_config",
+                "managed_claude_settings_paths",
+            )
         }
         gh.require_tool = lambda name: None
         self.set_calls = []
         gh.set_secret = lambda repo, name, value, provider_config=None: self.set_calls.append((repo, name, value))
         gh.load_default_config = lambda: {"repo": "owner/name"}
+        # Default: no managed settings, so the host running the suite cannot affect
+        # the fail-closed assertions. The managed-settings case is tested explicitly.
+        gh.managed_claude_settings_paths = lambda: []
 
     def tearDown(self):
         for key, value in self._orig.items():
@@ -454,6 +486,20 @@ class CmdTests(unittest.TestCase):
         with self.assertRaises(ShikiError):
             gh.cmd_secret_set_claude(self._args(from_env="SHIKI_TEST_TOK"))  # unset env
         self.assertEqual(self.set_calls, [])
+
+    def test_managed_settings_block_secret_set(self):
+        # Fail closed when managed/enterprise settings are present: the probe can
+        # no longer guarantee token-exclusive verification, so set_secret (and the
+        # token mint) must not run, even for a token that would otherwise verify.
+        os.environ["SHIKI_TEST_TOK"] = "sk-ant-oat01-" + "m" * 40
+        gh.managed_claude_settings_paths = lambda: ["/etc/claude-code/managed-settings.json"]
+        verify_called = []
+        gh.verify_claude_oauth_token = lambda t: (verify_called.append(t), (True, "ok"))[1]
+        with self.assertRaises(ShikiError) as ctx:
+            gh.cmd_secret_set_claude(self._args(from_env="SHIKI_TEST_TOK"))
+        self.assertIn("managed", str(ctx.exception).lower())
+        self.assertEqual(self.set_calls, [])  # fail-closed: secret NOT set
+        self.assertEqual(verify_called, [])  # refused before even probing/minting
 
     def test_set_secret_failure_redacts_token(self):
         # If set_secret fails AFTER successful verification (e.g. gh echoes input
