@@ -182,16 +182,51 @@ _PROBE_BLANKED_CREDENTIAL_ENV = (
 )
 
 
-def token_probe_invocation(token: str, config_dir: str) -> tuple[list[str], dict[str, str]]:
-    """Build the isolated-config probe command + env that validates an OAuth token.
+def claude_supports_setting_sources(*, runner=run) -> bool:
+    """Whether the installed ``claude`` CLI accepts ``--setting-sources``.
 
-    Isolating ``CLAUDE_CONFIG_DIR``/``HOME`` defeats a local keychain login or
-    on-disk settings (``apiKeyHelper`` etc.) masking the supplied env token, and
-    every entry in ``_PROBE_BLANKED_CREDENTIAL_ENV`` is blanked so no ambient
-    higher-precedence credential or cloud-provider route can authenticate the
-    probe. The candidate ``token`` is therefore the sole credential under test:
+    ``claude --help`` lists the flag as "Comma-separated list of setting sources
+    to load (user, project, local)"; passing ``--setting-sources user`` lets the
+    probe drop *project/local* settings explicitly. It is defense-in-depth, not the
+    only barrier: the probe also runs from an isolated empty working directory, so
+    when the flag is absent a project/local ``.claude`` is still undiscoverable and
+    the probe stays fail-closed. Detection lets an older CLI fall back to the clean
+    working directory instead of erroring on an unknown flag.
+    """
+    result = runner(["claude", "--help"], check=False)
+    return "--setting-sources" in ((result.stdout or "") + "\n" + (result.stderr or ""))
+
+
+def token_probe_invocation(
+    token: str, config_dir: str, *, setting_sources: bool = True
+) -> tuple[list[str], dict[str, str], str]:
+    """Build the isolated probe command, env, and working directory for an OAuth token.
+
+    Three layers keep the candidate ``token`` the *sole* credential under test, so
     an invalid/expired token fails closed instead of silently passing against the
-    operator's interactive session or an ambient ``ANTHROPIC_AUTH_TOKEN``.
+    operator's environment:
+
+    1. ``CLAUDE_CONFIG_DIR``/``HOME`` point at an isolated temp dir, so no on-disk
+       *user* login/keychain or ``~/.claude/settings.json`` (``apiKeyHelper`` etc.)
+       can mask the supplied token.
+    2. Every entry in ``_PROBE_BLANKED_CREDENTIAL_ENV`` is blanked, so no ambient
+       higher-precedence credential or cloud-provider route authenticates the probe.
+    3. The probe runs from ``config_dir`` — a clean temp dir with no *project*
+       ``.claude`` — and, when ``setting_sources`` is set (the CLI supports the
+       flag), passes ``--setting-sources user`` so a repo-local
+       ``.claude/settings.json`` / ``.claude/settings.local.json`` (project-supplied
+       ``env`` creds or ``apiKeyHelper``) is neither discovered nor loaded. Without
+       a clean cwd the probe would run in the repo root (``run`` defaults
+       ``cwd=ROOT``), whose project settings could authenticate a bad token — the
+       false positive that hides a CCA ``401``.
+
+    Limitation: ``--setting-sources`` cannot exclude *managed/enterprise* settings
+    (macOS ``/Library/Application Support/ClaudeCode/managed-settings.json``, Linux
+    ``/etc/claude-code/managed-settings.json``); those always load at highest
+    precedence and cannot be suppressed from userspace. On a host with managed
+    Anthropic credentials the probe may pass regardless of the candidate token. The
+    probe still fails closed everywhere else; operators on managed hosts must
+    confirm tokens by other means.
     """
     env = {name: "" for name in _PROBE_BLANKED_CREDENTIAL_ENV}
     env.update({
@@ -200,7 +235,9 @@ def token_probe_invocation(token: str, config_dir: str) -> tuple[list[str], dict
         "CLAUDE_CODE_OAUTH_TOKEN": token,
     })
     argv = ["claude", "-p", "ping", "--output-format", "json"]
-    return argv, env
+    if setting_sources:
+        argv += ["--setting-sources", "user"]
+    return argv, env, config_dir
 
 
 def interpret_token_probe(result: dict[str, Any]) -> tuple[bool, str]:
@@ -249,10 +286,11 @@ def mint_claude_oauth_token(*, capture=_capture_setup_token) -> str:
 def verify_claude_oauth_token(token: str, *, runner=run) -> tuple[bool, str]:
     """Verify a Claude OAuth token by an isolated-config probe (fails closed)."""
     require_tool("claude")
+    setting_sources = claude_supports_setting_sources(runner=runner)
     config_dir = tempfile.mkdtemp(prefix="shiki-token-probe-")
     try:
-        argv, env = token_probe_invocation(token, config_dir)
-        result = runner(argv, env=env, input_text="", check=False)
+        argv, env, cwd = token_probe_invocation(token, config_dir, setting_sources=setting_sources)
+        result = runner(argv, env=env, cwd=cwd, input_text="", check=False)
         try:
             data = json.loads(result.stdout or "{}")
         except json.JSONDecodeError:

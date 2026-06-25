@@ -10,9 +10,13 @@ injected runners.
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import shutil
+import tempfile
 import types
 import unittest
+from pathlib import Path
 
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
@@ -49,13 +53,38 @@ class ExtractTokenTests(unittest.TestCase):
 
 class ProbeInvocationTests(unittest.TestCase):
     def test_isolates_config_and_sets_token(self):
-        argv, env = gh.token_probe_invocation("sk-ant-oat01-tok", "/tmp/probe-dir")
+        argv, env, cwd = gh.token_probe_invocation("sk-ant-oat01-tok", "/tmp/probe-dir")
         self.assertEqual(argv[:2], ["claude", "-p"])
         self.assertIn("--output-format", argv)
         self.assertEqual(env["CLAUDE_CONFIG_DIR"], "/tmp/probe-dir")
         self.assertEqual(env["HOME"], "/tmp/probe-dir")
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "sk-ant-oat01-tok")
         self.assertEqual(env["ANTHROPIC_API_KEY"], "")
+
+    def test_runs_from_clean_isolated_working_directory(self):
+        # The probe must run from a clean temp dir with no project .claude, not the
+        # repo root (shiki_process.run defaults cwd=ROOT, and ROOT has a .claude/).
+        # Otherwise a repo-local .claude/settings.json (apiKeyHelper / env creds)
+        # would be discovered and could authenticate a bad token. The cwd is the
+        # isolated config_dir, which carries no .claude.
+        _, _, cwd = gh.token_probe_invocation("sk-ant-oat01-tok", "/tmp/probe-dir")
+        self.assertEqual(cwd, "/tmp/probe-dir")
+
+    def test_suppresses_project_local_settings_sources_when_supported(self):
+        # With the CLI flag supported, the probe loads only the (isolated) user
+        # settings source, dropping project/local .claude/settings*.json so a
+        # repo-local apiKeyHelper / env credential cannot authenticate the probe.
+        argv, _, _ = gh.token_probe_invocation("sk-ant-oat01-tok", "/tmp/probe-dir")
+        self.assertIn("--setting-sources", argv)
+        self.assertEqual(argv[argv.index("--setting-sources") + 1], "user")
+
+    def test_omits_setting_sources_flag_when_unsupported(self):
+        # An older CLI without the flag falls back to clean-working-directory
+        # isolation only (still fail-closed) rather than erroring on an unknown flag.
+        argv, _, _ = gh.token_probe_invocation(
+            "sk-ant-oat01-tok", "/tmp/probe-dir", setting_sources=False
+        )
+        self.assertNotIn("--setting-sources", argv)
 
     def test_blanks_higher_precedence_credential_and_routing_env(self):
         # The probe env is merged OVER the inherited os.environ (shiki_process.run
@@ -64,7 +93,7 @@ class ProbeInvocationTests(unittest.TestCase):
         # of the candidate OAuth token must be explicitly blanked to "". Otherwise
         # an ambient ANTHROPIC_AUTH_TOKEN / API key / Bedrock-Vertex route makes a
         # bad CLAUDE_CODE_OAUTH_TOKEN pass — the false positive that hides a CCA 401.
-        _, env = gh.token_probe_invocation("sk-ant-oat01-tok", "/tmp/probe-dir")
+        _, env, _ = gh.token_probe_invocation("sk-ant-oat01-tok", "/tmp/probe-dir")
         for name in (
             "ANTHROPIC_API_KEY",
             "ANTHROPIC_AUTH_TOKEN",
@@ -95,7 +124,7 @@ class ProbeInvocationTests(unittest.TestCase):
         # tuple must actually be blanked to "" in the probe env. This catches a
         # future provider route added to the tuple but not to the probe (or vice
         # versa) without re-listing the names here.
-        _, env = gh.token_probe_invocation("sk-ant-oat01-tok", "/tmp/probe-dir")
+        _, env, _ = gh.token_probe_invocation("sk-ant-oat01-tok", "/tmp/probe-dir")
         for name in gh._PROBE_BLANKED_CREDENTIAL_ENV:
             self.assertEqual(env.get(name), "", f"{name} must be blanked in the probe env")
         # The Foundry route must be among the blanked credentials.
@@ -107,6 +136,27 @@ class ProbeInvocationTests(unittest.TestCase):
             "ANTHROPIC_FOUNDRY_RESOURCE",
         ):
             self.assertIn(name, gh._PROBE_BLANKED_CREDENTIAL_ENV)
+
+
+class SettingSourcesSupportTests(unittest.TestCase):
+    def _help(self, text):
+        def fake(argv, *, check=True):
+            return types.SimpleNamespace(args=argv, returncode=0, stdout=text, stderr="")
+        return fake
+
+    def test_detects_supported_flag(self):
+        help_text = "  --setting-sources <sources>  Comma-separated list of setting sources"
+        self.assertTrue(gh.claude_supports_setting_sources(runner=self._help(help_text)))
+
+    def test_detects_unsupported_flag(self):
+        self.assertFalse(
+            gh.claude_supports_setting_sources(runner=self._help("  --print  Run a single prompt"))
+        )
+
+    def test_detects_from_stderr_help(self):
+        def fake(argv, *, check=True):
+            return types.SimpleNamespace(args=argv, returncode=0, stdout="", stderr="--setting-sources <sources>")
+        self.assertTrue(gh.claude_supports_setting_sources(runner=fake))
 
 
 class InterpretProbeTests(unittest.TestCase):
@@ -166,8 +216,17 @@ class VerifyTests(unittest.TestCase):
     def tearDown(self):
         gh.require_tool = self._orig_require_tool
 
-    def _runner(self, stdout, stderr=""):
-        def fake(argv, *, env=None, input_text=None, check=True):
+    def _runner(self, stdout, stderr="", *, supports_setting_sources=True):
+        # verify_claude_oauth_token first probes `claude --help` to decide whether
+        # --setting-sources is supported, then runs the actual token probe (now in
+        # an isolated cwd). The fake answers both: help text for the detection call,
+        # the canned probe output otherwise. It also accepts cwd= because the probe
+        # is run from the isolated working directory.
+        help_out = "--setting-sources <sources>" if supports_setting_sources else "(no flag)"
+
+        def fake(argv, *, env=None, cwd=None, input_text=None, check=True):
+            if "--help" in argv:
+                return types.SimpleNamespace(args=argv, returncode=0, stdout=help_out, stderr="")
             return types.SimpleNamespace(args=argv, returncode=0, stdout=stdout, stderr=stderr)
         return fake
 
@@ -211,7 +270,9 @@ class VerifyTests(unittest.TestCase):
             "ANTHROPIC_API_KEY": "ambient-api-key",
         }
 
-        def fake(argv, *, env=None, input_text=None, check=True):
+        def fake(argv, *, env=None, cwd=None, input_text=None, check=True):
+            if "--help" in argv:
+                return types.SimpleNamespace(args=argv, returncode=0, stdout="--setting-sources", stderr="")
             effective = {**ambient, **(env or {})}
             leaked = [k for k in ambient if effective.get(k)]
             if leaked:
@@ -241,7 +302,9 @@ class VerifyTests(unittest.TestCase):
             "ANTHROPIC_FOUNDRY_RESOURCE": "ambient-resource",
         }
 
-        def fake(argv, *, env=None, input_text=None, check=True):
+        def fake(argv, *, env=None, cwd=None, input_text=None, check=True):
+            if "--help" in argv:
+                return types.SimpleNamespace(args=argv, returncode=0, stdout="--setting-sources", stderr="")
             effective = {**ambient, **(env or {})}
             foundry_active = effective.get("CLAUDE_CODE_USE_FOUNDRY") and effective.get(
                 "ANTHROPIC_FOUNDRY_API_KEY"
@@ -255,6 +318,90 @@ class VerifyTests(unittest.TestCase):
         ok, reason = gh.verify_claude_oauth_token("sk-ant-oat01-" + "f" * 40, runner=fake)
         self.assertFalse(ok, "ambient Foundry route must not authenticate the probe")
         self.assertIn("401", reason)
+
+
+class ProjectSettingsIsolationTests(unittest.TestCase):
+    """A repo-local .claude/settings.json/.local.json must not authenticate the probe.
+
+    Regression for the false positive where the verify probe ran in the repo root
+    (shiki_process.run defaults cwd=ROOT) and a project-supplied apiKeyHelper / env
+    credential authenticated a bad candidate token. The credential-exclusive probe
+    now runs from an isolated empty working directory and passes
+    --setting-sources user, so project/local .claude settings are neither
+    discovered nor loaded and an invalid token still fails closed.
+    """
+
+    def setUp(self):
+        # verify_claude_oauth_token guards on require_tool("claude"); neutralize so
+        # the suite runs where the claude CLI is absent.
+        self._orig_require_tool = gh.require_tool
+        gh.require_tool = lambda name: None
+        # A real "repo" working directory carrying malicious project settings: both
+        # an apiKeyHelper (settings.json) and env credentials (settings.local.json).
+        self.project = Path(tempfile.mkdtemp(prefix="shiki-probe-projsettings-"))
+        claude_dir = self.project / ".claude"
+        claude_dir.mkdir()
+        (claude_dir / "settings.json").write_text(
+            json.dumps({"apiKeyHelper": "printf sk-ant-oat01-projectsupplied"}), encoding="utf-8"
+        )
+        (claude_dir / "settings.local.json").write_text(
+            json.dumps({"env": {"ANTHROPIC_API_KEY": "project-local-key"}}), encoding="utf-8"
+        )
+
+    def tearDown(self):
+        gh.require_tool = self._orig_require_tool
+        shutil.rmtree(self.project, ignore_errors=True)
+
+    @staticmethod
+    def _ns(stdout, stderr=""):
+        return types.SimpleNamespace(args=None, returncode=0, stdout=stdout, stderr=stderr)
+
+    def _project_settings_runner(self, captured):
+        # Model claude's settings discovery: a project .claude/settings(.local).json
+        # that supplies env creds / apiKeyHelper authenticates the probe ONLY when it
+        # is (a) discoverable from the working directory AND (b) not suppressed via
+        # --setting-sources. The credential-exclusive probe satisfies neither, so the
+        # bad token 401s.
+        def fake(argv, *, env=None, cwd=None, input_text=None, check=True):
+            if "--help" in argv:
+                return self._ns("--setting-sources <sources>")
+            captured["cwd"] = cwd
+            captured["argv"] = argv
+            run_dir = Path(cwd) if cwd else Path.cwd()
+            project_creds = (run_dir / ".claude" / "settings.json").exists() or (
+                run_dir / ".claude" / "settings.local.json"
+            ).exists()
+            suppressed = "--setting-sources" in argv
+            if project_creds and not suppressed:
+                return self._ns('{"is_error": false, "total_cost_usd": 0.4, "result": "pong"}')
+            return self._ns('{"is_error": true, "total_cost_usd": 0, "result": "401 Invalid bearer token"}')
+        return fake
+
+    def test_positive_control_project_settings_would_authenticate_unprotected_probe(self):
+        # Sanity: the model is not trivially always-401. Run the SAME fake the way an
+        # unprotected probe would run — in the project dir, project/local settings
+        # NOT suppressed — and a bad token authenticates. This is exactly the false
+        # positive the isolation prevents below.
+        fake = self._project_settings_runner({})
+        result = fake(["claude", "-p", "ping", "--output-format", "json"], cwd=str(self.project))
+        self.assertIn('"is_error": false', result.stdout)
+
+    def test_repo_local_settings_do_not_make_bad_token_pass(self):
+        captured = {}
+        ok, reason = gh.verify_claude_oauth_token(
+            "sk-ant-oat01-" + "p" * 40, runner=self._project_settings_runner(captured)
+        )
+        self.assertFalse(ok, "repo-local .claude settings must not authenticate a bad token")
+        self.assertIn("401", reason)
+        # The probe must have run in an explicit isolated cwd (not the default repo
+        # root) that carries no project .claude, and must suppress project/local
+        # settings — the two defenses whose removal would reopen the false positive.
+        self.assertIsNotNone(captured.get("cwd"), "probe must run in an explicit isolated cwd")
+        run_dir = Path(captured["cwd"])
+        self.assertNotEqual(run_dir, self.project)
+        self.assertFalse((run_dir / ".claude" / "settings.json").exists())
+        self.assertFalse((run_dir / ".claude" / "settings.local.json").exists())
+        self.assertIn("--setting-sources", captured["argv"])
 
 
 class CmdTests(unittest.TestCase):

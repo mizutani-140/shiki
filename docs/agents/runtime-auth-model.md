@@ -92,6 +92,20 @@ Bedrock/Vertex/Foundry routing, credential, and base-URL variables — including
 `ANTHROPIC_FOUNDRY_API_KEY`/`ANTHROPIC_FOUNDRY_BASE_URL`/`ANTHROPIC_FOUNDRY_RESOURCE`),
 so only the candidate token can
 authenticate it — an ambient credential can never make a bad token verify clean.
+The probe is also **settings-isolated**: it runs from a clean temporary working
+directory (not the repo root, which `shiki_process.run` uses by default) and,
+when the installed `claude` CLI supports it, passes `--setting-sources user`, so a
+repo-local `.claude/settings.json` / `.claude/settings.local.json` that supplies
+`env` credentials or an `apiKeyHelper` is neither discovered nor loaded and cannot
+make a bad token verify clean. An older CLI without the flag falls back to the
+clean-working-directory isolation alone, which is still fail-closed. The one
+residual limitation is **managed/enterprise settings**
+(macOS `/Library/Application Support/ClaudeCode/managed-settings.json`, Linux
+`/etc/claude-code/managed-settings.json`): `--setting-sources` cannot exclude them
+and they always load at highest precedence, so on a host with managed Anthropic
+credentials the probe may pass regardless of the candidate token. The probe still
+fails closed everywhere else; operators on managed hosts must confirm tokens by
+other means.
 Use `--token-stdin`
 (`claude setup-token | shiki secret set-claude --token-stdin`) or
 `--from-env [VAR]` to supply an already-minted token. Verification is mandatory
