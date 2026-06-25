@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260625T070242177499Z-a75c7c56.json"
+  ],
+  "goal_id": "G-20260625T065855440462Z-bae16ef5",
+  "id": "L-20260625T070312899880Z-7f87c0c1",
+  "links": [],
+  "summary": "Task T-20260625T070242177499Z-a75c7c56 status changed to review",
+  "task_id": "T-20260625T070242177499Z-a75c7c56",
+  "timestamp": "2026-06-25T07:03:12+00:00",
+  "type": "check"
+}

@@ -1,0 +1,42 @@
+{
+  "acceptance_checks": [
+    "shiki secret set-claude verifies the token via an isolated-config probe and fails closed: an invalid/expired token is never set; the token is set verbatim and redacted from surfaced errors",
+    "deterministic helpers are unit-tested incl 401 signature, fail-closed (verify-failure blocks set), and no-leak cases",
+    "validate_shiki, py_compile scripts/*.py, Python tests (incl tests/test_secret_set_claude.py), and git diff --check pass"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/secret-set-claude",
+  "expected_pr": 178,
+  "github_issue": null,
+  "goal_id": "G-20260625T065855440462Z-bae16ef5",
+  "id": "T-20260625T070242177499Z-a75c7c56",
+  "ledger_evidence": [
+    "L-20260625T065855441308Z-8eb65e1e",
+    "L-20260625T070242177708Z-42916229",
+    "L-20260625T070312899880Z-7f87c0c1",
+    "L-20260625T070312948217Z-5735609e",
+    "L-20260625T070312949004Z-c9d6a9fc",
+    "L-20260625T070425365479Z-c244f080"
+  ],
+  "locks": [
+    "path:scripts/shiki_github.py",
+    "path:scripts/shiki_cli.py",
+    "path:tests/**",
+    "path:docs/agents/runtime-auth-model.md",
+    "path:.shiki/**"
+  ],
+  "non_goals": [
+    "Fully silent token setup (interactive browser auth unavoidable)",
+    "Deriving a CI token from local Claude login; changing existing env-var path or CCA/guardian flow"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Add to scripts/shiki_github.py: extract_setup_token_value, looks_like_claude_oauth_token, token_probe_invocation (isolated CLAUDE_CONFIG_DIR/HOME), interpret_token_probe (cost:0 / is_error 401 signature), _redact_token, mint_claude_oauth_token (runs claude setup-token), verify_claude_oauth_token, cmd_secret_set_claude (mandatory fail-closed verify; verbatim set_secret); update claude_secret_remediation. Wire shiki secret set-claude (--token-stdin / --from-env) in scripts/shiki_cli.py. Doc in docs/agents/runtime-auth-model.md. Tests in tests/test_secret_set_claude.py.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Implement shiki secret set-claude (mint/verify/clean-set OAuth token)"
+}

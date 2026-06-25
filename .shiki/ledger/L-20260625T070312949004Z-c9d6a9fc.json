@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "adversarial code-review workflow (2 lenses + verify)",
+    "fixes: --no-verify removed, _redact_token added"
+  ],
+  "goal_id": "G-20260625T065855440462Z-bae16ef5",
+  "id": "L-20260625T070312949004Z-c9d6a9fc",
+  "links": [],
+  "summary": "code-review: independent adversarial review (2 lenses: security/secret-handling, correctness/test-coverage) with per-finding verify. Two confirmed findings fixed: removed --no-verify (fail-open), redact token from surfaced errors. Re-ran all gates green.",
+  "task_id": "T-20260625T070242177499Z-a75c7c56",
+  "timestamp": "2026-06-25T07:03:12+00:00",
+  "type": "review"
+}

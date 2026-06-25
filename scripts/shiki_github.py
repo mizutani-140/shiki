@@ -3,15 +3,20 @@
 
 from __future__ import annotations
 
+import glob
 import json
 import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
+import sys
+import tempfile
 from typing import Any
 
 from shiki_git import github_origin
 from shiki_provider import ProviderConfig, ProviderConfigError, canonicalize_remote_url, default_provider_config, github_env, provider_from_repo_json, repo_api_path, validate_repo_slug
-from shiki_process import ShikiError, first_line, info, print_json, read_json, require_tool, run, warn, write_json, shiki_path, target_path
+from shiki_process import ShikiError, first_line, info, load_default_config, print_json, read_json, require_tool, run, warn, write_json, shiki_path, target_path
 from shiki_tasks import append_ledger, load_task, require_github_first_target, worktree_record
 
 GITHUB_REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
@@ -61,8 +66,9 @@ def set_secret(repo: str, secret_name: str, value: str, provider_config: Provide
 
 def claude_secret_remediation(repo: str, secret_env: str) -> str:
     return (
-        f"Create a long-lived Claude Code token with `claude setup-token`, "
-        f"export it as {secret_env}, then run "
+        f"Run `shiki secret set-claude --repo {repo}` to mint (via `claude setup-token`), "
+        f"verify, and set the secret in one step. Alternatively create the token with "
+        f"`claude setup-token`, export it as {secret_env}, then run "
         f"`gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo {repo}` or rerun Shiki init/start."
     )
 
@@ -116,6 +122,428 @@ def github_secret_status(repo: str, secret_name: str, provider_config: ProviderC
         "checked": True,
         "configured": secret_name in names,
     }
+
+
+CLAUDE_OAUTH_TOKEN_RE = re.compile(r"sk-ant-oat[0-9]{2}-[A-Za-z0-9_-]+")
+
+
+def _redact_token(text: str) -> str:
+    """Redact any Claude OAuth token before the text is surfaced to logs/errors.
+
+    Probe stderr / result text is never expected to echo the credential, but a
+    secret-handling command redacts as defense-in-depth so no token can leak
+    through an error message.
+    """
+    return CLAUDE_OAUTH_TOKEN_RE.sub("[REDACTED]", str(text or ""))
+
+
+def _redact_secret(text: str, secret: str) -> str:
+    """Redact OAuth-shaped tokens AND the exact candidate secret from surfaced text.
+
+    ``_redact_token`` only matches the ``sk-ant-oat`` shape, so a non-OAuth /
+    malformed candidate that the probe echoes back in a failure reason would
+    otherwise survive into a verification-failure error. Also replacing the exact
+    candidate value redacts it regardless of shape.
+    """
+    redacted = _redact_token(text)
+    secret = (secret or "").strip()
+    if secret:
+        redacted = redacted.replace(secret, "[REDACTED]")
+    return redacted
+
+
+def extract_setup_token_value(text: str) -> str | None:
+    """Extract a long-lived Claude Code OAuth token from `claude setup-token` output.
+
+    Scans for the ``sk-ant-oat`` token pattern and returns the longest match so a
+    token surrounded by prompt/UI text is still recovered. Returns ``None`` when
+    no token is present (e.g. the authorization was cancelled).
+    """
+    matches = CLAUDE_OAUTH_TOKEN_RE.findall(text or "")
+    if not matches:
+        return None
+    return max(matches, key=len)
+
+
+def looks_like_claude_oauth_token(token: str) -> bool:
+    return bool(CLAUDE_OAUTH_TOKEN_RE.fullmatch((token or "").strip()))
+
+
+# Anthropic/Claude env vars that can authenticate or reroute a `claude` call
+# independently of CLAUDE_CODE_OAUTH_TOKEN. The verification probe blanks every
+# one so the candidate OAuth token is the *only* credential that can authenticate
+# it. shiki_process.run merges the probe env OVER the inherited os.environ, so an
+# unblanked ambient ANTHROPIC_AUTH_TOKEN / API key / Bedrock-Vertex-Foundry route
+# would pass through and let a bad token verify clean — the false positive that
+# hides a CCA `401 Invalid bearer token`. Blanking (not unsetting) suffices: each
+# is falsy/off when empty, and the merge model can only override keys, not delete
+# them.
+_PROBE_BLANKED_CREDENTIAL_ENV = (
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_BASE_URL",
+    "ANTHROPIC_CUSTOM_HEADERS",
+    "ANTHROPIC_BEDROCK_BASE_URL",
+    "ANTHROPIC_VERTEX_BASE_URL",
+    "ANTHROPIC_FOUNDRY_API_KEY",
+    "ANTHROPIC_FOUNDRY_BASE_URL",
+    "ANTHROPIC_FOUNDRY_RESOURCE",
+    "AWS_BEARER_TOKEN_BEDROCK",
+    "CLAUDE_CODE_USE_BEDROCK",
+    "CLAUDE_CODE_USE_VERTEX",
+    "CLAUDE_CODE_USE_FOUNDRY",
+    "CLAUDE_CODE_SKIP_BEDROCK_AUTH",
+    "CLAUDE_CODE_SKIP_VERTEX_AUTH",
+    "CLAUDE_CODE_SKIP_FOUNDRY_AUTH",
+)
+
+# Managed/enterprise Claude settings load at HIGHEST precedence and cannot be
+# excluded by `--setting-sources` or by HOME/CLAUDE_CONFIG_DIR isolation. If such
+# a source supplies an Anthropic credential, the probe can authenticate regardless
+# of the candidate token — a false positive that would let a bad token verify
+# clean.
+#
+# These are the documented FILE-based managed-settings directories. The list is a
+# best-effort fast-fail (so a managed host fails before the operator authorizes a
+# token) and is NOT the completeness guarantee: managed settings also come from
+# Windows registry policy (HKLM/HKCU) and macOS managed preferences / MDM, which
+# are not files and cannot be enumerated here. The authoritative, source-agnostic
+# guarantee is the negative-control probe in ``verify_claude_oauth_token``.
+_MANAGED_SETTINGS_DIRS = (
+    "/Library/Application Support/ClaudeCode",  # macOS
+    "/etc/claude-code",  # Linux
+)
+
+
+def managed_claude_settings_paths() -> list[str]:
+    """Return FILE-based managed/enterprise Claude settings present on this host.
+
+    Best-effort fast-fail covering the documented file locations: the macOS and
+    Linux directories plus the Windows ``%PROGRAMDATA%`` and ``%PROGRAMFILES%``
+    ``ClaudeCode`` directories, including each one's ``managed-settings.json`` and
+    any ``managed-settings.d/*.json`` drop-ins. This is intentionally NOT complete
+    (registry policy and macOS MDM-managed preferences are not files); the
+    token-exclusivity guarantee is the negative-control probe. A non-empty list
+    just lets the command fail before minting on a clearly managed host.
+    """
+    dirs = list(_MANAGED_SETTINGS_DIRS)
+    for env_var in ("PROGRAMDATA", "PROGRAMFILES"):
+        base = os.environ.get(env_var)
+        if base:
+            dirs.append(os.path.join(base, "ClaudeCode"))
+    found: list[str] = []
+    for directory in dirs:
+        main = os.path.join(directory, "managed-settings.json")
+        if os.path.exists(main):
+            found.append(main)
+        dropins = os.path.join(directory, "managed-settings.d")
+        if os.path.isdir(dropins):
+            found.extend(sorted(glob.glob(os.path.join(dropins, "*.json"))))
+    return found
+
+
+def claude_supports_setting_sources(*, runner=run) -> bool:
+    """Whether the installed ``claude`` CLI accepts ``--setting-sources``.
+
+    ``claude --help`` lists the flag as "Comma-separated list of setting sources
+    to load (user, project, local)"; passing ``--setting-sources user`` lets the
+    probe drop *project/local* settings explicitly. It is defense-in-depth, not the
+    only barrier: the probe also runs from an isolated empty working directory, so
+    when the flag is absent a project/local ``.claude`` is still undiscoverable and
+    the probe stays fail-closed. Detection lets an older CLI fall back to the clean
+    working directory instead of erroring on an unknown flag.
+    """
+    result = runner(["claude", "--help"], check=False)
+    return "--setting-sources" in ((result.stdout or "") + "\n" + (result.stderr or ""))
+
+
+def token_probe_invocation(
+    token: str, config_dir: str, *, setting_sources: bool = True
+) -> tuple[list[str], dict[str, str], str]:
+    """Build the isolated probe command, env, and working directory for an OAuth token.
+
+    Three layers keep the candidate ``token`` the *sole* credential under test, so
+    an invalid/expired token fails closed instead of silently passing against the
+    operator's environment:
+
+    1. ``CLAUDE_CONFIG_DIR``/``HOME`` point at an isolated temp dir, so no on-disk
+       *user* login/keychain or ``~/.claude/settings.json`` (``apiKeyHelper`` etc.)
+       can mask the supplied token.
+    2. Every entry in ``_PROBE_BLANKED_CREDENTIAL_ENV`` is blanked, so no ambient
+       higher-precedence credential or cloud-provider route authenticates the probe.
+    3. The probe runs from ``config_dir`` — a clean temp dir with no *project*
+       ``.claude`` — and, when ``setting_sources`` is set (the CLI supports the
+       flag), passes ``--setting-sources user`` so a repo-local
+       ``.claude/settings.json`` / ``.claude/settings.local.json`` (project-supplied
+       ``env`` creds or ``apiKeyHelper``) is neither discovered nor loaded. Without
+       a clean cwd the probe would run in the repo root (``run`` defaults
+       ``cwd=ROOT``), whose project settings could authenticate a bad token — the
+       false positive that hides a CCA ``401``.
+
+    Limitation: ``--setting-sources`` cannot exclude *managed/enterprise* settings
+    (macOS ``/Library/Application Support/ClaudeCode/managed-settings.json``, Linux
+    ``/etc/claude-code/managed-settings.json``); those always load at highest
+    precedence and cannot be suppressed from userspace. On a host with managed
+    Anthropic credentials the probe may pass regardless of the candidate token, so
+    the probe alone is not token-exclusive there. ``cmd_secret_set_claude`` closes
+    this gap by refusing to set the secret when ``managed_claude_settings_paths()``
+    finds any such file; on every other host the probe is token-exclusive.
+    """
+    env = {name: "" for name in _PROBE_BLANKED_CREDENTIAL_ENV}
+    env.update({
+        "CLAUDE_CONFIG_DIR": config_dir,
+        "HOME": config_dir,
+        "CLAUDE_CODE_OAUTH_TOKEN": token,
+    })
+    argv = ["claude", "-p", "ping", "--output-format", "json"]
+    if setting_sources:
+        argv += ["--setting-sources", "user"]
+    return argv, env, config_dir
+
+
+# Probe outcome classes. The negative control must distinguish a genuine auth
+# REJECTION (the only POSITIVE proof the token reached and was refused by the auth
+# layer) from an INDETERMINATE failure (network/CLI/non-JSON/rate-limit), where the
+# auth verdict is unknown. Inferring token-exclusivity from "the bad token did not
+# authenticate" is unsafe when the non-authentication was indeterminate.
+PROBE_AUTHENTICATED = "authenticated"
+PROBE_AUTH_REJECTED = "auth_rejected"
+PROBE_INDETERMINATE = "indeterminate"
+
+# Substrings (lowercased) that mark a genuine authentication rejection. Network /
+# overload / rate-limit / generic CLI errors are deliberately absent so they fall
+# through to INDETERMINATE.
+_AUTH_REJECTION_MARKERS = (
+    "invalid bearer",  # "401 Invalid bearer token" — the negative control's real signature
+    "invalid_bearer",
+    "invalid x-api-key",
+    "invalid api key",
+    "invalid_api_key",
+    "invalid token",
+    "invalid_token",
+    "authentication_error",  # Anthropic's structured auth-error TYPE (distinct from "authentication service ...")
+    "unauthorized",
+    "not logged in",
+    "run /login",
+    "token has expired",
+    "expired token",
+)
+
+# Match markers only as whole tokens, never inside a larger word/identifier, so a
+# service failure like ``unauthorized_error: rate_limit_exceeded`` is NOT read as
+# an auth rejection (the ``_`` keeps ``unauthorized`` part of a larger token). The
+# boundary is "not adjacent to a word char or hyphen".
+_AUTH_REJECTION_RE = re.compile(
+    r"(?<![\w-])(?:" + "|".join(re.escape(marker) for marker in _AUTH_REJECTION_MARKERS) + r")(?![\w-])"
+)
+
+
+def _classify_probe_result(result: Any) -> tuple[str, str]:
+    """Classify a ``claude -p --output-format json`` probe result.
+
+    Returns ``(classification, redacted_detail)``:
+
+    - ``PROBE_AUTHENTICATED``: ``is_error=false`` with a billable response
+      (``total_cost_usd > 0``).
+    - ``PROBE_AUTH_REJECTED``: a genuine authentication rejection (e.g. ``401
+      Invalid bearer token`` / unauthorized / not logged in) — the only positive
+      proof the token was adjudicated by the auth layer.
+    - ``PROBE_INDETERMINATE``: anything else (non-dict, network/overload/rate-limit,
+      CLI error). The auth verdict is unknown, so callers must fail closed rather
+      than infer token-exclusivity from a non-auth failure.
+    """
+    if not isinstance(result, dict):
+        return PROBE_INDETERMINATE, "probe returned no structured result"
+    detail = _redact_token(str(result.get("result") or "").strip())
+    cost = result.get("total_cost_usd")
+    if not result.get("is_error") and isinstance(cost, (int, float)) and not isinstance(cost, bool) and cost > 0:
+        return PROBE_AUTHENTICATED, detail or "authenticated"
+    if _AUTH_REJECTION_RE.search(detail.lower()):
+        return PROBE_AUTH_REJECTED, detail or "authentication rejected"
+    return PROBE_INDETERMINATE, detail or "indeterminate probe failure"
+
+
+def interpret_token_probe(result: dict[str, Any]) -> tuple[bool, str]:
+    """Whether a probe result proves the token valid (``is_error=false``, cost>0).
+
+    Thin wrapper over ``_classify_probe_result``: only ``PROBE_AUTHENTICATED`` is a
+    pass; every rejection/indeterminate outcome fails closed.
+    """
+    classification, detail = _classify_probe_result(result)
+    if classification == PROBE_AUTHENTICATED:
+        return True, "token authenticated"
+    return False, detail
+
+
+def _capture_setup_token() -> str:
+    """Run interactive ``claude setup-token``, returning its captured stdout.
+
+    ``stderr`` is inherited so the operator sees the authorization URL/prompts in
+    real time, while ``stdout`` is captured to recover the printed token.
+    """
+    require_tool("claude")
+    info("Running `claude setup-token` — complete the browser authorization when prompted.")
+    proc = subprocess.run(["claude", "setup-token"], stdout=subprocess.PIPE, stderr=None, text=True)
+    return proc.stdout or ""
+
+
+def mint_claude_oauth_token(*, capture=_capture_setup_token) -> str:
+    """Mint a long-lived Claude Code OAuth token via ``claude setup-token``."""
+    token = extract_setup_token_value(capture())
+    if not token:
+        raise ShikiError(
+            "could not read a token from `claude setup-token` output. "
+            "Run it yourself and pipe it instead: "
+            "`claude setup-token | shiki secret set-claude --repo OWNER/NAME --token-stdin`."
+        )
+    return token
+
+
+# A deliberately-invalid OAuth-shaped token used as a negative control. It can
+# never authenticate against the Anthropic API, so if a probe with THIS token
+# succeeds, some credential other than the candidate (managed/MDM/registry/
+# ambient settings) is authenticating the environment.
+_NEGATIVE_CONTROL_TOKEN = "sk-ant-oat01-shiki-negative-control-deliberately-invalid-000000000000"
+
+
+def _probe_token(token: str, *, runner, setting_sources: bool) -> tuple[str, str]:
+    """Run one isolated probe for ``token``; return ``(classification, reason)``.
+
+    Each probe gets its own fresh temp config dir so a prior probe's session
+    cache cannot authenticate a later one. Non-JSON output is INDETERMINATE (a
+    CLI/communication failure with no auth verdict). The exact candidate (any
+    shape) and OAuth-shaped tokens are redacted from the surfaced reason.
+    """
+    config_dir = tempfile.mkdtemp(prefix="shiki-token-probe-")
+    try:
+        argv, env, cwd = token_probe_invocation(token, config_dir, setting_sources=setting_sources)
+        result = runner(argv, env=env, cwd=cwd, input_text="", check=False)
+        try:
+            data = json.loads(result.stdout or "{}")
+        except json.JSONDecodeError:
+            return PROBE_INDETERMINATE, _redact_secret(first_line(result.stderr), token) or "probe output was not JSON"
+        classification, detail = _classify_probe_result(data)
+        return classification, _redact_secret(detail, token)
+    finally:
+        shutil.rmtree(config_dir, ignore_errors=True)
+
+
+def verify_claude_oauth_token(token: str, *, runner=run) -> tuple[bool, str]:
+    """Verify a Claude OAuth token by an isolated, token-exclusive probe (fails closed).
+
+    A candidate that is not authenticated rejects immediately. A candidate PASS is
+    trusted ONLY when a **negative-control** probe — a deliberately-invalid token
+    in the same isolated environment — comes back with a clean authentication
+    REJECTION (the positive proof the auth layer adjudicated the token):
+
+    - negative control authenticates  -> an independent credential (managed / MDM /
+      registry / ambient) is in play; not token-exclusive -> fail closed.
+    - negative control indeterminate   -> the auth verdict is unknown (network /
+      CLI / non-JSON); token-exclusivity is NOT proven -> fail closed.
+    - negative control auth-rejected   -> only the candidate authenticates ->
+      trust the candidate PASS.
+
+    This is source-agnostic: it catches any independent-credential source without
+    enumerating them, and never infers token-exclusivity from an indeterminate
+    failure.
+    """
+    require_tool("claude")
+    setting_sources = claude_supports_setting_sources(runner=runner)
+    candidate_class, reason = _probe_token(token, runner=runner, setting_sources=setting_sources)
+    if candidate_class != PROBE_AUTHENTICATED:
+        return False, reason
+    negative_class, _ = _probe_token(_NEGATIVE_CONTROL_TOKEN, runner=runner, setting_sources=setting_sources)
+    if negative_class == PROBE_AUTHENTICATED:
+        return False, (
+            "verification environment is not token-exclusive: a deliberately-invalid token also "
+            "authenticated, so a managed/MDM/registry/ambient credential is authenticating "
+            "independently of the candidate. The probe cannot prove the candidate token is valid here."
+        )
+    if negative_class != PROBE_AUTH_REJECTED:
+        return False, (
+            "could not prove token-exclusive verification: the negative-control probe did not return a "
+            "clean authentication rejection (it failed for an indeterminate reason such as a network or "
+            "CLI error), so the candidate token's pass cannot be trusted. Retry, or set the secret with "
+            "`gh secret set` after confirming the token out of band."
+        )
+    return True, reason
+
+
+def cmd_secret_set_claude(args: Any) -> int:
+    """Mint/accept, verify, and cleanly set the CLAUDE_CODE_OAUTH_TOKEN secret.
+
+    The unavoidable interactive step is the browser authorization in
+    `claude setup-token`; obtaining, verifying (so a corrupt/expired token is
+    caught before it reaches CI), and setting the secret are automated. The
+    secret value is piped to `gh secret set` verbatim, so no trailing newline or
+    paste artifact can corrupt it (the failure mode behind a silent CCA 401).
+    """
+    require_tool("gh")
+    repo = args.repo or load_default_config().get("repo")
+    if not repo:
+        raise ShikiError("missing --repo OWNER/NAME and no default repo configured")
+    require_github_repo_slug(repo)
+
+    # Fail closed before minting: managed/enterprise settings load at highest
+    # precedence and cannot be excluded by the probe, so a managed Anthropic
+    # credential could authenticate it regardless of the candidate token. We
+    # cannot guarantee token-exclusive verification there, so we refuse to set
+    # the secret rather than risk silently writing an unverified token.
+    managed = managed_claude_settings_paths()
+    if managed:
+        raise ShikiError(
+            "managed Claude settings are present ("
+            + ", ".join(managed)
+            + "); they load at highest precedence and cannot be excluded by the verification probe, "
+            "so a managed Anthropic credential could authenticate it independently of the candidate "
+            "token. Token-exclusive verification cannot be guaranteed on this host, so the secret was "
+            "NOT set. Confirm the token out of band, then set it with "
+            f"`gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo {repo}` directly."
+        )
+
+    if args.token_stdin:
+        token = sys.stdin.read()
+        source = "stdin"
+    elif args.from_env:
+        token = os.environ.get(args.from_env, "")
+        source = f"env:{args.from_env}"
+    else:
+        token = mint_claude_oauth_token()
+        source = "claude setup-token"
+    token = (token or "").strip()
+    if not token:
+        raise ShikiError(f"no token obtained from {source}")
+    if not looks_like_claude_oauth_token(token):
+        warn(f"token from {source} does not look like a Claude OAuth token (expected sk-ant-oat...)")
+
+    # Verification is mandatory and fails closed: this command exists to stop a
+    # corrupt/expired token reaching CI (the silent CCA 401). To set a secret
+    # without this probe, use `gh secret set` directly.
+    ok, reason = verify_claude_oauth_token(token)
+    if not ok:
+        raise ShikiError(
+            f"token verification failed ({reason}); not setting the secret. "
+            "Re-mint a fresh token with `claude setup-token`."
+        )
+    info(f"token verified: {reason}")
+
+    # Defense-in-depth: the token is piped via stdin, never an argv, so it should
+    # not surface in a set_secret failure — but if `gh` echoes its input on error,
+    # redact the verified token (and any OAuth-shaped text) before re-raising so it
+    # cannot leak into stderr/logs. `from None` drops the cause chain that still
+    # carries the raw message.
+    try:
+        set_secret(repo, "CLAUDE_CODE_OAUTH_TOKEN", token, provider_config=None)
+    except ShikiError as error:
+        safe = _redact_token(str(error).replace(token, "[REDACTED]"))
+        raise ShikiError(f"failed to set secret after verification: {safe}") from None
+    print_json({
+        "secret": "CLAUDE_CODE_OAUTH_TOKEN",
+        "repo": repo,
+        "source": source,
+        "verified": True,
+    })
+    return 0
 
 
 def protect_branch(

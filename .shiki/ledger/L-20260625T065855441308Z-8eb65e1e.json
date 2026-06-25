@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260625T065855440462Z-bae16ef5.json"
+  ],
+  "goal_id": "G-20260625T065855440462Z-bae16ef5",
+  "id": "L-20260625T065855441308Z-8eb65e1e",
+  "links": [],
+  "summary": "Goal registered: shiki secret set-claude: mint/verify/clean-set CLAUDE_CODE_OAUTH_TOKEN",
+  "task_id": null,
+  "timestamp": "2026-06-25T06:58:55+00:00",
+  "type": "goal-created"
+}

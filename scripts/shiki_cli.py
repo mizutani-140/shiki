@@ -9,7 +9,7 @@ from typing import Iterable
 
 from shiki_bootstrap import cmd_bootstrap_github, cmd_init, cmd_preflight, cmd_start
 from shiki_doctor import cmd_doctor
-from shiki_github import cmd_github_issue, cmd_github_pr
+from shiki_github import cmd_github_issue, cmd_github_pr, cmd_secret_set_claude
 from shiki_guardian_review import cmd_guardian_packet, cmd_guardian_prompt, cmd_guardian_verify_response
 from shiki_installer import DEFAULT_CLAUDE_COMMAND_PATH, DEFAULT_CODEX_SKILL_PATH, DEFAULT_GLOBAL_COMMAND_PATH, cmd_install_command, cmd_install_global, cmd_install_target, cmd_status
 from shiki_loop import cmd_loop_run, cmd_loop_step
@@ -412,6 +412,28 @@ def build_parser() -> argparse.ArgumentParser:
     github_pr.add_argument("--base", default="main")
     github_pr.add_argument("--head")
     github_pr.set_defaults(func=cmd_github_pr)
+
+    secret = subcommands.add_parser("secret", help="Manage Shiki GitHub Actions secrets")
+    secret_subcommands = secret.add_subparsers(dest="secret_command", required=True)
+    secret_set_claude = secret_subcommands.add_parser(
+        "set-claude",
+        help="Mint/accept, verify, and cleanly set CLAUDE_CODE_OAUTH_TOKEN (defaults to running `claude setup-token`)",
+    )
+    secret_set_claude.add_argument("--repo", help="GitHub repository as OWNER/NAME; defaults to the configured repo")
+    secret_token_source = secret_set_claude.add_mutually_exclusive_group()
+    secret_token_source.add_argument(
+        "--token-stdin",
+        action="store_true",
+        help="Read the token from stdin (e.g. `claude setup-token | shiki secret set-claude --token-stdin`) instead of running setup-token",
+    )
+    secret_token_source.add_argument(
+        "--from-env",
+        nargs="?",
+        const="CLAUDE_CODE_OAUTH_TOKEN",
+        metavar="VAR",
+        help="Read the token from an existing environment variable (default CLAUDE_CODE_OAUTH_TOKEN) instead of running setup-token",
+    )
+    secret_set_claude.set_defaults(func=cmd_secret_set_claude)
 
     handoff = subcommands.add_parser("handoff", help="Write Codex handoff documents from Shiki state")
     handoff_subcommands = handoff.add_subparsers(dest="handoff_command", required=True)

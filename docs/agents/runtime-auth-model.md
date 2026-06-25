@@ -77,6 +77,58 @@ that token is already available in the current process environment as
 `CLAUDE_CODE_OAUTH_TOKEN`. Claude Code login confirms the local interactive
 runtime, but it does not by itself give Shiki a GitHub Actions token.
 
+To set or rotate the secret later (e.g. after `--no-set-secret`), use
+`shiki secret set-claude --repo OWNER/NAME`. It runs `claude setup-token` (the
+one unavoidable interactive browser-auth step), then automates the rest:
+**verifying** the token with an isolated-config probe so a corrupt/expired token
+is rejected before it reaches CI, and **setting** the secret via a verbatim pipe
+so no trailing newline or paste artifact can corrupt it (the failure mode behind
+a silent CCA `401 Invalid bearer token`). The probe is **credential-exclusive**:
+it isolates `CLAUDE_CONFIG_DIR`/`HOME` and blanks every ambient higher-precedence
+Claude/Anthropic credential or cloud-provider route (`ANTHROPIC_AUTH_TOKEN`,
+`ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`/custom headers, and the
+Bedrock/Vertex/Foundry routing, credential, and base-URL variables — including
+`CLAUDE_CODE_USE_FOUNDRY`/`CLAUDE_CODE_SKIP_FOUNDRY_AUTH` and
+`ANTHROPIC_FOUNDRY_API_KEY`/`ANTHROPIC_FOUNDRY_BASE_URL`/`ANTHROPIC_FOUNDRY_RESOURCE`),
+so only the candidate token can
+authenticate it — an ambient credential can never make a bad token verify clean.
+The probe is also **settings-isolated**: it runs from a clean temporary working
+directory (not the repo root, which `shiki_process.run` uses by default) and,
+when the installed `claude` CLI supports it, passes `--setting-sources user`, so a
+repo-local `.claude/settings.json` / `.claude/settings.local.json` that supplies
+`env` credentials or an `apiKeyHelper` is neither discovered nor loaded and cannot
+make a bad token verify clean. An older CLI without the flag falls back to the
+clean-working-directory isolation alone, which is still fail-closed. The case the
+isolation alone cannot cover is **managed/enterprise settings** — they load at
+highest precedence and `--setting-sources` cannot exclude them, so a managed
+Anthropic credential could authenticate the probe regardless of the candidate
+token. Such settings come from many sources (macOS/Linux
+`managed-settings.json` and `managed-settings.d/*.json` drop-ins, Windows
+`%PROGRAMDATA%`/`%PROGRAMFILES%`\ClaudeCode files, Windows registry policy, and
+macOS MDM-managed preferences) — registry and MDM are not files and cannot be
+enumerated. So the completeness guarantee is **behavioral, not a path list**:
+after the candidate token passes, the command runs a **negative-control probe**
+with a deliberately-invalid token in the same isolated environment. The candidate
+is trusted **only** when that invalid token comes back with a clean
+authentication rejection (e.g. `401 Invalid bearer token`) — the positive proof
+that nothing but the candidate can authenticate here. If the invalid token *also*
+authenticates, some credential independent of the candidate is in play; and if
+the negative control fails for an *indeterminate* reason (network / CLI error /
+non-JSON), the auth verdict is unknown. In both cases the probe is not proven
+token-exclusive and the command **fails closed** (refuses to set the secret) —
+regardless of which managed source supplied any credential. A best-effort
+file-path check additionally fails *before minting* on
+hosts with a known managed-settings file, for better UX. When the command fails
+closed it tells the operator to confirm the token out of band and set it with
+`gh secret set` directly.
+Use `--token-stdin`
+(`claude setup-token | shiki secret set-claude --token-stdin`) or
+`--from-env [VAR]` to supply an already-minted token. Verification is mandatory
+and fails closed (an invalid token is never set); to set a secret without the
+probe, use `gh secret set` directly. Full silent auto-setup is intentionally not
+possible: a valid token requires the operator's interactive authorization, and
+Shiki never derives a CI token from the local Claude login.
+
 Do not store OAuth tokens in repository files, `.env`, logs, prompts, or `.shiki/` artifacts. Shiki must not read local Claude OAuth credential files to populate GitHub secrets.
 
 ## GitHub Provider Auth
