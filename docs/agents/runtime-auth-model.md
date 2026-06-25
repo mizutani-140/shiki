@@ -83,7 +83,13 @@ one unavoidable interactive browser-auth step), then automates the rest:
 **verifying** the token with an isolated-config probe so a corrupt/expired token
 is rejected before it reaches CI, and **setting** the secret via a verbatim pipe
 so no trailing newline or paste artifact can corrupt it (the failure mode behind
-a silent CCA `401 Invalid bearer token`). Use `--token-stdin`
+a silent CCA `401 Invalid bearer token`). The probe is **credential-exclusive**:
+it isolates `CLAUDE_CONFIG_DIR`/`HOME` and blanks every ambient higher-precedence
+Claude/Anthropic credential or cloud-provider route (`ANTHROPIC_AUTH_TOKEN`,
+`ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`/custom headers, and the
+Bedrock/Vertex routing and base-URL variables), so only the candidate token can
+authenticate it — an ambient credential can never make a bad token verify clean.
+Use `--token-stdin`
 (`claude setup-token | shiki secret set-claude --token-stdin`) or
 `--from-env [VAR]` to supply an already-minted token. Verification is mandatory
 and fails closed (an invalid token is never set); to set a secret without the

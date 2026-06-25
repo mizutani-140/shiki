@@ -153,21 +153,47 @@ def looks_like_claude_oauth_token(token: str) -> bool:
     return bool(CLAUDE_OAUTH_TOKEN_RE.fullmatch((token or "").strip()))
 
 
+# Anthropic/Claude env vars that can authenticate or reroute a `claude` call
+# independently of CLAUDE_CODE_OAUTH_TOKEN. The verification probe blanks every
+# one so the candidate OAuth token is the *only* credential that can authenticate
+# it. shiki_process.run merges the probe env OVER the inherited os.environ, so an
+# unblanked ambient ANTHROPIC_AUTH_TOKEN / API key / Bedrock-Vertex route would
+# pass through and let a bad token verify clean — the false positive that hides a
+# CCA `401 Invalid bearer token`. Blanking (not unsetting) suffices: each is
+# falsy/off when empty, and the merge model can only override keys, not delete
+# them.
+_PROBE_BLANKED_CREDENTIAL_ENV = (
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_BASE_URL",
+    "ANTHROPIC_CUSTOM_HEADERS",
+    "ANTHROPIC_BEDROCK_BASE_URL",
+    "ANTHROPIC_VERTEX_BASE_URL",
+    "AWS_BEARER_TOKEN_BEDROCK",
+    "CLAUDE_CODE_USE_BEDROCK",
+    "CLAUDE_CODE_USE_VERTEX",
+    "CLAUDE_CODE_SKIP_BEDROCK_AUTH",
+    "CLAUDE_CODE_SKIP_VERTEX_AUTH",
+)
+
+
 def token_probe_invocation(token: str, config_dir: str) -> tuple[list[str], dict[str, str]]:
     """Build the isolated-config probe command + env that validates an OAuth token.
 
-    Isolating ``CLAUDE_CONFIG_DIR``/``HOME`` defeats a local keychain login
-    masking the supplied env token: only ``token`` authenticates the probe, so an
-    invalid/expired token fails closed instead of silently passing against the
-    operator's interactive session. ``ANTHROPIC_API_KEY`` is blanked so the OAuth
-    token is the sole credential under test.
+    Isolating ``CLAUDE_CONFIG_DIR``/``HOME`` defeats a local keychain login or
+    on-disk settings (``apiKeyHelper`` etc.) masking the supplied env token, and
+    every entry in ``_PROBE_BLANKED_CREDENTIAL_ENV`` is blanked so no ambient
+    higher-precedence credential or cloud-provider route can authenticate the
+    probe. The candidate ``token`` is therefore the sole credential under test:
+    an invalid/expired token fails closed instead of silently passing against the
+    operator's interactive session or an ambient ``ANTHROPIC_AUTH_TOKEN``.
     """
-    env = {
+    env = {name: "" for name in _PROBE_BLANKED_CREDENTIAL_ENV}
+    env.update({
         "CLAUDE_CONFIG_DIR": config_dir,
         "HOME": config_dir,
         "CLAUDE_CODE_OAUTH_TOKEN": token,
-        "ANTHROPIC_API_KEY": "",
-    }
+    })
     argv = ["claude", "-p", "ping", "--output-format", "json"]
     return argv, env
 
@@ -272,7 +298,16 @@ def cmd_secret_set_claude(args: Any) -> int:
         )
     info(f"token verified: {reason}")
 
-    set_secret(repo, "CLAUDE_CODE_OAUTH_TOKEN", token, provider_config=None)
+    # Defense-in-depth: the token is piped via stdin, never an argv, so it should
+    # not surface in a set_secret failure — but if `gh` echoes its input on error,
+    # redact the verified token (and any OAuth-shaped text) before re-raising so it
+    # cannot leak into stderr/logs. `from None` drops the cause chain that still
+    # carries the raw message.
+    try:
+        set_secret(repo, "CLAUDE_CODE_OAUTH_TOKEN", token, provider_config=None)
+    except ShikiError as error:
+        safe = _redact_token(str(error).replace(token, "[REDACTED]"))
+        raise ShikiError(f"failed to set secret after verification: {safe}") from None
     print_json({
         "secret": "CLAUDE_CODE_OAUTH_TOKEN",
         "repo": repo,

@@ -57,6 +57,31 @@ class ProbeInvocationTests(unittest.TestCase):
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "sk-ant-oat01-tok")
         self.assertEqual(env["ANTHROPIC_API_KEY"], "")
 
+    def test_blanks_higher_precedence_credential_and_routing_env(self):
+        # The probe env is merged OVER the inherited os.environ (shiki_process.run
+        # does os.environ.copy().update(env)), so every ambient Anthropic/Claude
+        # credential or cloud-route that could authenticate the probe independently
+        # of the candidate OAuth token must be explicitly blanked to "". Otherwise
+        # an ambient ANTHROPIC_AUTH_TOKEN / API key / Bedrock-Vertex route makes a
+        # bad CLAUDE_CODE_OAUTH_TOKEN pass — the false positive that hides a CCA 401.
+        _, env = gh.token_probe_invocation("sk-ant-oat01-tok", "/tmp/probe-dir")
+        for name in (
+            "ANTHROPIC_API_KEY",
+            "ANTHROPIC_AUTH_TOKEN",
+            "ANTHROPIC_BASE_URL",
+            "ANTHROPIC_CUSTOM_HEADERS",
+            "ANTHROPIC_BEDROCK_BASE_URL",
+            "ANTHROPIC_VERTEX_BASE_URL",
+            "AWS_BEARER_TOKEN_BEDROCK",
+            "CLAUDE_CODE_USE_BEDROCK",
+            "CLAUDE_CODE_USE_VERTEX",
+            "CLAUDE_CODE_SKIP_BEDROCK_AUTH",
+            "CLAUDE_CODE_SKIP_VERTEX_AUTH",
+        ):
+            self.assertEqual(env.get(name), "", f"{name} must be blanked in the probe env")
+        # The candidate token is the sole credential left under test.
+        self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "sk-ant-oat01-tok")
+
 
 class InterpretProbeTests(unittest.TestCase):
     def test_valid_token_signature(self):
@@ -148,6 +173,31 @@ class VerifyTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertNotIn("sk-ant-oat", reason)
 
+    def test_ambient_credential_cannot_make_bad_token_pass(self):
+        # Regression: a higher-precedence ambient credential must NOT authenticate
+        # the probe. The fake runner reproduces shiki_process.run's merge (ambient
+        # os.environ overridden by the probe env) and claude's precedence: any
+        # non-empty ambient Anthropic credential authenticates regardless of the
+        # candidate OAuth token. With the credential-exclusive probe env those are
+        # blanked to "", so only the (bad) candidate token remains -> probe 401s.
+        ambient = {
+            "ANTHROPIC_AUTH_TOKEN": "sk-ant-ambient-valid-bearer",
+            "ANTHROPIC_API_KEY": "ambient-api-key",
+        }
+
+        def fake(argv, *, env=None, input_text=None, check=True):
+            effective = {**ambient, **(env or {})}
+            leaked = [k for k in ambient if effective.get(k)]
+            if leaked:
+                stdout = '{"is_error": false, "total_cost_usd": 0.4, "result": "pong"}'
+            else:
+                stdout = '{"is_error": true, "total_cost_usd": 0, "result": "401 Invalid bearer token"}'
+            return types.SimpleNamespace(args=argv, returncode=0, stdout=stdout, stderr="")
+
+        ok, reason = gh.verify_claude_oauth_token("sk-ant-oat01-" + "b" * 40, runner=fake)
+        self.assertFalse(ok, "ambient credential must not authenticate the probe")
+        self.assertIn("401", reason)
+
 
 class CmdTests(unittest.TestCase):
     """cmd_secret_set_claude orchestration: verification is mandatory and fails closed."""
@@ -199,6 +249,23 @@ class CmdTests(unittest.TestCase):
         with self.assertRaises(ShikiError):
             gh.cmd_secret_set_claude(self._args(from_env="SHIKI_TEST_TOK"))  # unset env
         self.assertEqual(self.set_calls, [])
+
+    def test_set_secret_failure_redacts_token(self):
+        # If set_secret fails AFTER successful verification (e.g. gh echoes input
+        # in stderr), the surfaced error must never carry the token text.
+        token = "sk-ant-oat01-" + "z" * 40
+        os.environ["SHIKI_TEST_TOK"] = token
+        gh.verify_claude_oauth_token = lambda t: (True, "ok")
+
+        def boom(repo, name, value, provider_config=None):
+            raise ShikiError(f"gh secret set failed\nleaked stdin: {value}")
+
+        gh.set_secret = boom
+        with self.assertRaises(ShikiError) as ctx:
+            gh.cmd_secret_set_claude(self._args(from_env="SHIKI_TEST_TOK"))
+        message = str(ctx.exception)
+        self.assertNotIn(token, message)
+        self.assertNotIn("sk-ant-oat", message)
 
 
 if __name__ == "__main__":
