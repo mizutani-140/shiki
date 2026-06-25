@@ -105,6 +105,16 @@ class MintTests(unittest.TestCase):
 
 
 class VerifyTests(unittest.TestCase):
+    def setUp(self):
+        # verify_claude_oauth_token guards on require_tool("claude"); the probe
+        # itself is injected, so neutralize the guard so the suite runs where the
+        # claude CLI is absent (e.g. CI).
+        self._orig_require_tool = gh.require_tool
+        gh.require_tool = lambda name: None
+
+    def tearDown(self):
+        gh.require_tool = self._orig_require_tool
+
     def _runner(self, stdout, stderr=""):
         def fake(argv, *, env=None, input_text=None, check=True):
             return types.SimpleNamespace(args=argv, returncode=0, stdout=stdout, stderr=stderr)
