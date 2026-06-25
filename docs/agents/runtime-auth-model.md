@@ -98,17 +98,24 @@ when the installed `claude` CLI supports it, passes `--setting-sources user`, so
 repo-local `.claude/settings.json` / `.claude/settings.local.json` that supplies
 `env` credentials or an `apiKeyHelper` is neither discovered nor loaded and cannot
 make a bad token verify clean. An older CLI without the flag falls back to the
-clean-working-directory isolation alone, which is still fail-closed. The one
-case the probe cannot make token-exclusive is **managed/enterprise settings**
-(macOS `/Library/Application Support/ClaudeCode/managed-settings.json`, Linux
-`/etc/claude-code/managed-settings.json`, Windows
-`%PROGRAMDATA%\ClaudeCode\managed-settings.json`): `--setting-sources` cannot
-exclude them and they always load at highest precedence, so a managed Anthropic
-credential could authenticate the probe regardless of the candidate token.
-Rather than risk a false positive, `shiki secret set-claude` **fails closed when
-any managed settings file is present**: it refuses to set the secret (before
-minting) and tells the operator to confirm the token out of band and set it with
-`gh secret set` directly. On every other host the probe is token-exclusive.
+clean-working-directory isolation alone, which is still fail-closed. The case the
+isolation alone cannot cover is **managed/enterprise settings** — they load at
+highest precedence and `--setting-sources` cannot exclude them, so a managed
+Anthropic credential could authenticate the probe regardless of the candidate
+token. Such settings come from many sources (macOS/Linux
+`managed-settings.json` and `managed-settings.d/*.json` drop-ins, Windows
+`%PROGRAMDATA%`/`%PROGRAMFILES%`\ClaudeCode files, Windows registry policy, and
+macOS MDM-managed preferences) — registry and MDM are not files and cannot be
+enumerated. So the completeness guarantee is **behavioral, not a path list**:
+after the candidate token passes, the command runs a **negative-control probe**
+with a deliberately-invalid token in the same isolated environment. If that
+invalid token *also* authenticates, some credential independent of the candidate
+is in play, the probe is not token-exclusive, and the command **fails closed**
+(refuses to set the secret) — regardless of which managed source supplied the
+credential. A best-effort file-path check additionally fails *before minting* on
+hosts with a known managed-settings file, for better UX. When the command fails
+closed it tells the operator to confirm the token out of band and set it with
+`gh secret set` directly.
 Use `--token-stdin`
 (`claude setup-token | shiki secret set-claude --token-stdin`) or
 `--from-env [VAR]` to supply an already-minted token. Verification is mandatory

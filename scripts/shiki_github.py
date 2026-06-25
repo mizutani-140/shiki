@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import glob
 import json
 import os
 from pathlib import Path
@@ -198,28 +199,47 @@ _PROBE_BLANKED_CREDENTIAL_ENV = (
 
 # Managed/enterprise Claude settings load at HIGHEST precedence and cannot be
 # excluded by `--setting-sources` or by HOME/CLAUDE_CONFIG_DIR isolation. If such
-# a file supplies an Anthropic credential, the probe can authenticate regardless
+# a source supplies an Anthropic credential, the probe can authenticate regardless
 # of the candidate token — a false positive that would let a bad token verify
-# clean. The set-claude command therefore refuses to set the secret when any is
-# present (it cannot guarantee token-exclusive verification there).
-_MANAGED_SETTINGS_PATHS = (
-    "/Library/Application Support/ClaudeCode/managed-settings.json",  # macOS
-    "/etc/claude-code/managed-settings.json",  # Linux
+# clean.
+#
+# These are the documented FILE-based managed-settings directories. The list is a
+# best-effort fast-fail (so a managed host fails before the operator authorizes a
+# token) and is NOT the completeness guarantee: managed settings also come from
+# Windows registry policy (HKLM/HKCU) and macOS managed preferences / MDM, which
+# are not files and cannot be enumerated here. The authoritative, source-agnostic
+# guarantee is the negative-control probe in ``verify_claude_oauth_token``.
+_MANAGED_SETTINGS_DIRS = (
+    "/Library/Application Support/ClaudeCode",  # macOS
+    "/etc/claude-code",  # Linux
 )
 
 
 def managed_claude_settings_paths() -> list[str]:
-    """Return the managed/enterprise Claude settings files present on this host.
+    """Return FILE-based managed/enterprise Claude settings present on this host.
 
-    Covers the documented macOS and Linux locations plus the Windows
-    ``%PROGRAMDATA%\\ClaudeCode\\managed-settings.json``. An empty list means the
-    verification probe can be trusted to be token-exclusive.
+    Best-effort fast-fail covering the documented file locations: the macOS and
+    Linux directories plus the Windows ``%PROGRAMDATA%`` and ``%PROGRAMFILES%``
+    ``ClaudeCode`` directories, including each one's ``managed-settings.json`` and
+    any ``managed-settings.d/*.json`` drop-ins. This is intentionally NOT complete
+    (registry policy and macOS MDM-managed preferences are not files); the
+    token-exclusivity guarantee is the negative-control probe. A non-empty list
+    just lets the command fail before minting on a clearly managed host.
     """
-    paths = list(_MANAGED_SETTINGS_PATHS)
-    program_data = os.environ.get("PROGRAMDATA")
-    if program_data:
-        paths.append(os.path.join(program_data, "ClaudeCode", "managed-settings.json"))
-    return [path for path in paths if os.path.exists(path)]
+    dirs = list(_MANAGED_SETTINGS_DIRS)
+    for env_var in ("PROGRAMDATA", "PROGRAMFILES"):
+        base = os.environ.get(env_var)
+        if base:
+            dirs.append(os.path.join(base, "ClaudeCode"))
+    found: list[str] = []
+    for directory in dirs:
+        main = os.path.join(directory, "managed-settings.json")
+        if os.path.exists(main):
+            found.append(main)
+        dropins = os.path.join(directory, "managed-settings.d")
+        if os.path.isdir(dropins):
+            found.extend(sorted(glob.glob(os.path.join(dropins, "*.json"))))
+    return found
 
 
 def claude_supports_setting_sources(*, runner=run) -> bool:
@@ -324,10 +344,20 @@ def mint_claude_oauth_token(*, capture=_capture_setup_token) -> str:
     return token
 
 
-def verify_claude_oauth_token(token: str, *, runner=run) -> tuple[bool, str]:
-    """Verify a Claude OAuth token by an isolated-config probe (fails closed)."""
-    require_tool("claude")
-    setting_sources = claude_supports_setting_sources(runner=runner)
+# A deliberately-invalid OAuth-shaped token used as a negative control. It can
+# never authenticate against the Anthropic API, so if a probe with THIS token
+# succeeds, some credential other than the candidate (managed/MDM/registry/
+# ambient settings) is authenticating the environment.
+_NEGATIVE_CONTROL_TOKEN = "sk-ant-oat01-shiki-negative-control-deliberately-invalid-000000000000"
+
+
+def _probe_token(token: str, *, runner, setting_sources: bool) -> tuple[bool, str]:
+    """Run one isolated probe for ``token``; return ``(authenticated, reason)``.
+
+    Each probe gets its own fresh temp config dir so a prior probe's session
+    cache cannot authenticate a later one. The exact candidate (any shape) and
+    OAuth-shaped tokens are redacted from the surfaced reason.
+    """
     config_dir = tempfile.mkdtemp(prefix="shiki-token-probe-")
     try:
         argv, env, cwd = token_probe_invocation(token, config_dir, setting_sources=setting_sources)
@@ -337,12 +367,35 @@ def verify_claude_oauth_token(token: str, *, runner=run) -> tuple[bool, str]:
         except json.JSONDecodeError:
             return False, _redact_secret(first_line(result.stderr), token) or "probe output was not JSON"
         ok, reason = interpret_token_probe(data)
-        # Redact the exact candidate (any shape) from the surfaced reason: a
-        # non-OAuth/malformed token echoed by the probe is not caught by the
-        # sk-ant-oat regex alone.
         return ok, _redact_secret(reason, token)
     finally:
         shutil.rmtree(config_dir, ignore_errors=True)
+
+
+def verify_claude_oauth_token(token: str, *, runner=run) -> tuple[bool, str]:
+    """Verify a Claude OAuth token by an isolated, token-exclusive probe (fails closed).
+
+    A candidate failure rejects immediately. A candidate PASS is only trusted
+    when a **negative-control** probe — a deliberately-invalid token in the same
+    isolated environment — correctly fails: if the invalid token ALSO
+    authenticates, an independent credential (managed/MDM/registry/ambient
+    settings) is in play, the probe is not token-exclusive, and the candidate PASS
+    cannot be trusted, so we fail closed. This is source-agnostic: it catches any
+    independent-credential source without enumerating them.
+    """
+    require_tool("claude")
+    setting_sources = claude_supports_setting_sources(runner=runner)
+    ok, reason = _probe_token(token, runner=runner, setting_sources=setting_sources)
+    if not ok:
+        return False, reason
+    negative_ok, _ = _probe_token(_NEGATIVE_CONTROL_TOKEN, runner=runner, setting_sources=setting_sources)
+    if negative_ok:
+        return False, (
+            "verification environment is not token-exclusive: a deliberately-invalid token also "
+            "authenticated, so a managed/MDM/registry/ambient credential is authenticating "
+            "independently of the candidate. The probe cannot prove the candidate token is valid here."
+        )
+    return True, reason
 
 
 def cmd_secret_set_claude(args: Any) -> int:

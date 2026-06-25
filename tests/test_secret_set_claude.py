@@ -10,6 +10,7 @@ injected runners.
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
 import shutil
@@ -216,25 +217,55 @@ class VerifyTests(unittest.TestCase):
     def tearDown(self):
         gh.require_tool = self._orig_require_tool
 
-    def _runner(self, stdout, stderr="", *, supports_setting_sources=True):
-        # verify_claude_oauth_token first probes `claude --help` to decide whether
-        # --setting-sources is supported, then runs the actual token probe (now in
-        # an isolated cwd). The fake answers both: help text for the detection call,
-        # the canned probe output otherwise. It also accepts cwd= because the probe
-        # is run from the isolated working directory.
+    def _runner(self, stdout, stderr="", *, supports_setting_sources=True, negative_authenticates=False):
+        # verify_claude_oauth_token probes `claude --help` (setting-sources
+        # detection), then the candidate token, then — only if the candidate
+        # passes — a negative-control probe with _NEGATIVE_CONTROL_TOKEN. The fake
+        # routes by call: help text for detection; a 401 for the negative control
+        # by default (token-exclusive env) or an authenticated response when
+        # negative_authenticates=True (an independent credential is present); the
+        # canned output for the candidate.
         help_out = "--setting-sources <sources>" if supports_setting_sources else "(no flag)"
+        negative_out = (
+            json.dumps({"is_error": False, "total_cost_usd": 0.5, "result": "authenticated"})
+            if negative_authenticates
+            else json.dumps({"is_error": True, "total_cost_usd": 0, "result": "401 Invalid bearer token"})
+        )
 
         def fake(argv, *, env=None, cwd=None, input_text=None, check=True):
             if "--help" in argv:
                 return types.SimpleNamespace(args=argv, returncode=0, stdout=help_out, stderr="")
+            if (env or {}).get("CLAUDE_CODE_OAUTH_TOKEN") == gh._NEGATIVE_CONTROL_TOKEN:
+                return types.SimpleNamespace(args=argv, returncode=0, stdout=negative_out, stderr="")
             return types.SimpleNamespace(args=argv, returncode=0, stdout=stdout, stderr=stderr)
         return fake
 
     def test_verify_passes_on_valid_probe(self):
+        # Candidate passes AND the negative control correctly 401s (token-exclusive).
         ok, _ = gh.verify_claude_oauth_token(
             "sk-ant-oat01-tok", runner=self._runner('{"is_error": false, "total_cost_usd": 0.4}')
         )
         self.assertTrue(ok)
+
+    def test_verify_blocks_when_negative_control_authenticates(self):
+        # Candidate "passes", but a deliberately-invalid token also authenticates
+        # => an independent credential (managed/MDM/registry/ambient) is in play,
+        # so the environment is not token-exclusive and verification fails closed.
+        ok, reason = gh.verify_claude_oauth_token(
+            "sk-ant-oat01-tok",
+            runner=self._runner('{"is_error": false, "total_cost_usd": 0.4}', negative_authenticates=True),
+        )
+        self.assertFalse(ok)
+        self.assertIn("token-exclusive", reason)
+
+    def test_verify_skips_negative_control_when_candidate_fails(self):
+        # A genuine candidate failure rejects immediately; even if the env is not
+        # token-exclusive, a bad candidate is still rejected (never set).
+        ok, _ = gh.verify_claude_oauth_token(
+            "sk-ant-oat01-tok",
+            runner=self._runner('{"is_error": true, "total_cost_usd": 0, "result": "401"}', negative_authenticates=True),
+        )
+        self.assertFalse(ok)
 
     def test_verify_fails_on_401_probe(self):
         ok, reason = gh.verify_claude_oauth_token(
@@ -436,6 +467,18 @@ class ManagedSettingsTests(unittest.TestCase):
     def test_empty_when_none_present(self):
         self._with_existing([])
         self.assertEqual(gh.managed_claude_settings_paths(), [])
+
+    def test_detects_managed_settings_dropins(self):
+        dropin_dir = os.path.join("/etc/claude-code", "managed-settings.d")
+        dropin_file = os.path.join(dropin_dir, "10-policy.json")
+        orig_exists, orig_isdir, orig_glob = os.path.exists, os.path.isdir, glob.glob
+        os.path.exists = lambda path: False  # no top-level managed-settings.json
+        os.path.isdir = lambda path: path == dropin_dir
+        glob.glob = lambda pattern: [dropin_file] if pattern == os.path.join(dropin_dir, "*.json") else []
+        self.addCleanup(lambda: setattr(os.path, "exists", orig_exists))
+        self.addCleanup(lambda: setattr(os.path, "isdir", orig_isdir))
+        self.addCleanup(lambda: setattr(glob, "glob", orig_glob))
+        self.assertIn(dropin_file, gh.managed_claude_settings_paths())
 
     def test_includes_windows_programdata_when_set(self):
         win = os.path.join("C:\\ProgramData", "ClaudeCode", "managed-settings.json")
