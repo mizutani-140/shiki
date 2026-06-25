@@ -108,11 +108,16 @@ token. Such settings come from many sources (macOS/Linux
 macOS MDM-managed preferences) — registry and MDM are not files and cannot be
 enumerated. So the completeness guarantee is **behavioral, not a path list**:
 after the candidate token passes, the command runs a **negative-control probe**
-with a deliberately-invalid token in the same isolated environment. If that
-invalid token *also* authenticates, some credential independent of the candidate
-is in play, the probe is not token-exclusive, and the command **fails closed**
-(refuses to set the secret) — regardless of which managed source supplied the
-credential. A best-effort file-path check additionally fails *before minting* on
+with a deliberately-invalid token in the same isolated environment. The candidate
+is trusted **only** when that invalid token comes back with a clean
+authentication rejection (e.g. `401 Invalid bearer token`) — the positive proof
+that nothing but the candidate can authenticate here. If the invalid token *also*
+authenticates, some credential independent of the candidate is in play; and if
+the negative control fails for an *indeterminate* reason (network / CLI error /
+non-JSON), the auth verdict is unknown. In both cases the probe is not proven
+token-exclusive and the command **fails closed** (refuses to set the secret) —
+regardless of which managed source supplied any credential. A best-effort
+file-path check additionally fails *before minting* on
 hosts with a known managed-settings file, for better UX. When the command fails
 closed it tells the operator to confirm the token out of band and set it with
 `gh secret set` directly.

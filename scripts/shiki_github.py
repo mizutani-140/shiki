@@ -301,23 +301,68 @@ def token_probe_invocation(
     return argv, env, config_dir
 
 
-def interpret_token_probe(result: dict[str, Any]) -> tuple[bool, str]:
-    """Decide whether a ``claude -p --output-format json`` probe proved the token valid.
+# Probe outcome classes. The negative control must distinguish a genuine auth
+# REJECTION (the only POSITIVE proof the token reached and was refused by the auth
+# layer) from an INDETERMINATE failure (network/CLI/non-JSON/rate-limit), where the
+# auth verdict is unknown. Inferring token-exclusivity from "the bad token did not
+# authenticate" is unsafe when the non-authentication was indeterminate.
+PROBE_AUTHENTICATED = "authenticated"
+PROBE_AUTH_REJECTED = "auth_rejected"
+PROBE_INDETERMINATE = "indeterminate"
 
-    A valid token returns ``is_error=false`` with a billable response
-    (``total_cost_usd > 0``). An invalid/expired token short-circuits with
-    ``is_error=true``, ``total_cost_usd=0`` and an auth-failure message such as
-    ``401 Invalid bearer token``. Fail closed on anything else.
+# Substrings (lowercased) that mark a genuine authentication rejection. Network /
+# overload / rate-limit / generic CLI errors are deliberately absent so they fall
+# through to INDETERMINATE.
+_AUTH_REJECTION_MARKERS = (
+    "401",
+    "403",
+    "invalid bearer",
+    "invalid_bearer",
+    "unauthorized",
+    "authenticat",  # authenticate / authentication
+    "not logged in",
+    "/login",
+    "invalid api key",
+    "invalid x-api-key",
+    "invalid_api_key",
+)
+
+
+def _classify_probe_result(result: Any) -> tuple[str, str]:
+    """Classify a ``claude -p --output-format json`` probe result.
+
+    Returns ``(classification, redacted_detail)``:
+
+    - ``PROBE_AUTHENTICATED``: ``is_error=false`` with a billable response
+      (``total_cost_usd > 0``).
+    - ``PROBE_AUTH_REJECTED``: a genuine authentication rejection (e.g. ``401
+      Invalid bearer token`` / unauthorized / not logged in) — the only positive
+      proof the token was adjudicated by the auth layer.
+    - ``PROBE_INDETERMINATE``: anything else (non-dict, network/overload/rate-limit,
+      CLI error). The auth verdict is unknown, so callers must fail closed rather
+      than infer token-exclusivity from a non-auth failure.
     """
     if not isinstance(result, dict):
-        return False, "probe returned no structured result"
+        return PROBE_INDETERMINATE, "probe returned no structured result"
     detail = _redact_token(str(result.get("result") or "").strip())
-    if result.get("is_error"):
-        return False, detail or "authentication failed"
     cost = result.get("total_cost_usd")
-    if not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost <= 0:
-        return False, detail or "no billable model response (token likely invalid)"
-    return True, "token authenticated"
+    if not result.get("is_error") and isinstance(cost, (int, float)) and not isinstance(cost, bool) and cost > 0:
+        return PROBE_AUTHENTICATED, detail or "authenticated"
+    if any(marker in detail.lower() for marker in _AUTH_REJECTION_MARKERS):
+        return PROBE_AUTH_REJECTED, detail or "authentication rejected"
+    return PROBE_INDETERMINATE, detail or "indeterminate probe failure"
+
+
+def interpret_token_probe(result: dict[str, Any]) -> tuple[bool, str]:
+    """Whether a probe result proves the token valid (``is_error=false``, cost>0).
+
+    Thin wrapper over ``_classify_probe_result``: only ``PROBE_AUTHENTICATED`` is a
+    pass; every rejection/indeterminate outcome fails closed.
+    """
+    classification, detail = _classify_probe_result(result)
+    if classification == PROBE_AUTHENTICATED:
+        return True, "token authenticated"
+    return False, detail
 
 
 def _capture_setup_token() -> str:
@@ -351,12 +396,13 @@ def mint_claude_oauth_token(*, capture=_capture_setup_token) -> str:
 _NEGATIVE_CONTROL_TOKEN = "sk-ant-oat01-shiki-negative-control-deliberately-invalid-000000000000"
 
 
-def _probe_token(token: str, *, runner, setting_sources: bool) -> tuple[bool, str]:
-    """Run one isolated probe for ``token``; return ``(authenticated, reason)``.
+def _probe_token(token: str, *, runner, setting_sources: bool) -> tuple[str, str]:
+    """Run one isolated probe for ``token``; return ``(classification, reason)``.
 
     Each probe gets its own fresh temp config dir so a prior probe's session
-    cache cannot authenticate a later one. The exact candidate (any shape) and
-    OAuth-shaped tokens are redacted from the surfaced reason.
+    cache cannot authenticate a later one. Non-JSON output is INDETERMINATE (a
+    CLI/communication failure with no auth verdict). The exact candidate (any
+    shape) and OAuth-shaped tokens are redacted from the surfaced reason.
     """
     config_dir = tempfile.mkdtemp(prefix="shiki-token-probe-")
     try:
@@ -365,9 +411,9 @@ def _probe_token(token: str, *, runner, setting_sources: bool) -> tuple[bool, st
         try:
             data = json.loads(result.stdout or "{}")
         except json.JSONDecodeError:
-            return False, _redact_secret(first_line(result.stderr), token) or "probe output was not JSON"
-        ok, reason = interpret_token_probe(data)
-        return ok, _redact_secret(reason, token)
+            return PROBE_INDETERMINATE, _redact_secret(first_line(result.stderr), token) or "probe output was not JSON"
+        classification, detail = _classify_probe_result(data)
+        return classification, _redact_secret(detail, token)
     finally:
         shutil.rmtree(config_dir, ignore_errors=True)
 
@@ -375,25 +421,40 @@ def _probe_token(token: str, *, runner, setting_sources: bool) -> tuple[bool, st
 def verify_claude_oauth_token(token: str, *, runner=run) -> tuple[bool, str]:
     """Verify a Claude OAuth token by an isolated, token-exclusive probe (fails closed).
 
-    A candidate failure rejects immediately. A candidate PASS is only trusted
-    when a **negative-control** probe — a deliberately-invalid token in the same
-    isolated environment — correctly fails: if the invalid token ALSO
-    authenticates, an independent credential (managed/MDM/registry/ambient
-    settings) is in play, the probe is not token-exclusive, and the candidate PASS
-    cannot be trusted, so we fail closed. This is source-agnostic: it catches any
-    independent-credential source without enumerating them.
+    A candidate that is not authenticated rejects immediately. A candidate PASS is
+    trusted ONLY when a **negative-control** probe — a deliberately-invalid token
+    in the same isolated environment — comes back with a clean authentication
+    REJECTION (the positive proof the auth layer adjudicated the token):
+
+    - negative control authenticates  -> an independent credential (managed / MDM /
+      registry / ambient) is in play; not token-exclusive -> fail closed.
+    - negative control indeterminate   -> the auth verdict is unknown (network /
+      CLI / non-JSON); token-exclusivity is NOT proven -> fail closed.
+    - negative control auth-rejected   -> only the candidate authenticates ->
+      trust the candidate PASS.
+
+    This is source-agnostic: it catches any independent-credential source without
+    enumerating them, and never infers token-exclusivity from an indeterminate
+    failure.
     """
     require_tool("claude")
     setting_sources = claude_supports_setting_sources(runner=runner)
-    ok, reason = _probe_token(token, runner=runner, setting_sources=setting_sources)
-    if not ok:
+    candidate_class, reason = _probe_token(token, runner=runner, setting_sources=setting_sources)
+    if candidate_class != PROBE_AUTHENTICATED:
         return False, reason
-    negative_ok, _ = _probe_token(_NEGATIVE_CONTROL_TOKEN, runner=runner, setting_sources=setting_sources)
-    if negative_ok:
+    negative_class, _ = _probe_token(_NEGATIVE_CONTROL_TOKEN, runner=runner, setting_sources=setting_sources)
+    if negative_class == PROBE_AUTHENTICATED:
         return False, (
             "verification environment is not token-exclusive: a deliberately-invalid token also "
             "authenticated, so a managed/MDM/registry/ambient credential is authenticating "
             "independently of the candidate. The probe cannot prove the candidate token is valid here."
+        )
+    if negative_class != PROBE_AUTH_REJECTED:
+        return False, (
+            "could not prove token-exclusive verification: the negative-control probe did not return a "
+            "clean authentication rejection (it failed for an indeterminate reason such as a network or "
+            "CLI error), so the candidate token's pass cannot be trusted. Retry, or set the secret with "
+            "`gh secret set` after confirming the token out of band."
         )
     return True, reason
 

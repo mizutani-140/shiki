@@ -217,7 +217,7 @@ class VerifyTests(unittest.TestCase):
     def tearDown(self):
         gh.require_tool = self._orig_require_tool
 
-    def _runner(self, stdout, stderr="", *, supports_setting_sources=True, negative_authenticates=False):
+    def _runner(self, stdout, stderr="", *, supports_setting_sources=True, negative_authenticates=False, negative_indeterminate=False):
         # verify_claude_oauth_token probes `claude --help` (setting-sources
         # detection), then the candidate token, then — only if the candidate
         # passes — a negative-control probe with _NEGATIVE_CONTROL_TOKEN. The fake
@@ -226,11 +226,12 @@ class VerifyTests(unittest.TestCase):
         # negative_authenticates=True (an independent credential is present); the
         # canned output for the candidate.
         help_out = "--setting-sources <sources>" if supports_setting_sources else "(no flag)"
-        negative_out = (
-            json.dumps({"is_error": False, "total_cost_usd": 0.5, "result": "authenticated"})
-            if negative_authenticates
-            else json.dumps({"is_error": True, "total_cost_usd": 0, "result": "401 Invalid bearer token"})
-        )
+        if negative_authenticates:
+            negative_out = json.dumps({"is_error": False, "total_cost_usd": 0.5, "result": "authenticated"})
+        elif negative_indeterminate:
+            negative_out = json.dumps({"is_error": True, "total_cost_usd": 0, "result": "Connection error: network unreachable"})
+        else:
+            negative_out = json.dumps({"is_error": True, "total_cost_usd": 0, "result": "401 Invalid bearer token"})
 
         def fake(argv, *, env=None, cwd=None, input_text=None, check=True):
             if "--help" in argv:
@@ -266,6 +267,25 @@ class VerifyTests(unittest.TestCase):
             runner=self._runner('{"is_error": true, "total_cost_usd": 0, "result": "401"}', negative_authenticates=True),
         )
         self.assertFalse(ok)
+
+    def test_verify_blocks_when_negative_control_indeterminate(self):
+        # The negative control failed for a non-auth reason (network/CLI), so the
+        # auth verdict is unknown: token-exclusivity is NOT proven => fail closed.
+        # A candidate PASS must not be trusted on an indeterminate negative control.
+        ok, reason = gh.verify_claude_oauth_token(
+            "sk-ant-oat01-tok",
+            runner=self._runner('{"is_error": false, "total_cost_usd": 0.4}', negative_indeterminate=True),
+        )
+        self.assertFalse(ok)
+        self.assertIn("token-exclusive", reason)
+
+    def test_verify_trusts_candidate_only_on_clean_auth_rejection(self):
+        # Negative control returns a clean 401 (auth rejected) => token-exclusive
+        # proven => the candidate PASS is trusted.
+        ok, _ = gh.verify_claude_oauth_token(
+            "sk-ant-oat01-tok", runner=self._runner('{"is_error": false, "total_cost_usd": 0.4}')
+        )
+        self.assertTrue(ok)
 
     def test_verify_fails_on_401_probe(self):
         ok, reason = gh.verify_claude_oauth_token(
