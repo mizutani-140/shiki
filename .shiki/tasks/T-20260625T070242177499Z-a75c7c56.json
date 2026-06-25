@@ -7,7 +7,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/secret-set-claude",
-  "expected_pr": null,
+  "expected_pr": 178,
   "github_issue": null,
   "goal_id": "G-20260625T065855440462Z-bae16ef5",
   "id": "T-20260625T070242177499Z-a75c7c56",
@@ -16,7 +16,8 @@
     "L-20260625T070242177708Z-42916229",
     "L-20260625T070312899880Z-7f87c0c1",
     "L-20260625T070312948217Z-5735609e",
-    "L-20260625T070312949004Z-c9d6a9fc"
+    "L-20260625T070312949004Z-c9d6a9fc",
+    "L-20260625T070425365479Z-c244f080"
   ],
   "locks": [
     "path:scripts/shiki_github.py",
