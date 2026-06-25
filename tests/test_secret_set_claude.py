@@ -258,6 +258,25 @@ class VerifyTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertNotIn("sk-ant-oat", reason)
 
+    def test_verify_redacts_exact_nonoauth_candidate_in_stderr(self):
+        # A non-OAuth/malformed candidate echoed in stderr is not matched by the
+        # sk-ant-oat regex; the exact-value redaction must still remove it.
+        candidate = "totally-not-oauth-shaped-secret-xyz123"
+        ok, reason = gh.verify_claude_oauth_token(
+            candidate, runner=self._runner("not json", stderr=f"bad creds: {candidate}")
+        )
+        self.assertFalse(ok)
+        self.assertNotIn(candidate, reason)
+
+    def test_verify_redacts_exact_nonoauth_candidate_in_result(self):
+        candidate = "malformed-candidate-987zzz"
+        ok, reason = gh.verify_claude_oauth_token(
+            candidate,
+            runner=self._runner(json.dumps({"is_error": True, "total_cost_usd": 0, "result": f"rejected {candidate}"})),
+        )
+        self.assertFalse(ok)
+        self.assertNotIn(candidate, reason)
+
     def test_ambient_credential_cannot_make_bad_token_pass(self):
         # Regression: a higher-precedence ambient credential must NOT authenticate
         # the probe. The fake runner reproduces shiki_process.run's merge (ambient

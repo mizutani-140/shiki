@@ -136,6 +136,21 @@ def _redact_token(text: str) -> str:
     return CLAUDE_OAUTH_TOKEN_RE.sub("[REDACTED]", str(text or ""))
 
 
+def _redact_secret(text: str, secret: str) -> str:
+    """Redact OAuth-shaped tokens AND the exact candidate secret from surfaced text.
+
+    ``_redact_token`` only matches the ``sk-ant-oat`` shape, so a non-OAuth /
+    malformed candidate that the probe echoes back in a failure reason would
+    otherwise survive into a verification-failure error. Also replacing the exact
+    candidate value redacts it regardless of shape.
+    """
+    redacted = _redact_token(text)
+    secret = (secret or "").strip()
+    if secret:
+        redacted = redacted.replace(secret, "[REDACTED]")
+    return redacted
+
+
 def extract_setup_token_value(text: str) -> str | None:
     """Extract a long-lived Claude Code OAuth token from `claude setup-token` output.
 
@@ -320,8 +335,12 @@ def verify_claude_oauth_token(token: str, *, runner=run) -> tuple[bool, str]:
         try:
             data = json.loads(result.stdout or "{}")
         except json.JSONDecodeError:
-            return False, _redact_token(first_line(result.stderr)) or "probe output was not JSON"
-        return interpret_token_probe(data)
+            return False, _redact_secret(first_line(result.stderr), token) or "probe output was not JSON"
+        ok, reason = interpret_token_probe(data)
+        # Redact the exact candidate (any shape) from the surfaced reason: a
+        # non-OAuth/malformed token echoed by the probe is not caught by the
+        # sk-ant-oat regex alone.
+        return ok, _redact_secret(reason, token)
     finally:
         shutil.rmtree(config_dir, ignore_errors=True)
 
