@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260625T070242177499Z-a75c7c56.json"
+  ],
+  "goal_id": "G-20260625T065855440462Z-bae16ef5",
+  "id": "L-20260625T070242177708Z-42916229",
+  "links": [],
+  "summary": "Task registered: Implement shiki secret set-claude (mint/verify/clean-set OAuth token)",
+  "task_id": "T-20260625T070242177499Z-a75c7c56",
+  "timestamp": "2026-06-25T07:02:42+00:00",
+  "type": "task-registered"
+}

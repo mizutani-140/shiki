@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "tests/test_secret_set_claude.py",
+    "python3 -m unittest discover -s tests (358 tests OK)"
+  ],
+  "goal_id": "G-20260625T065855440462Z-bae16ef5",
+  "id": "L-20260625T070312948217Z-5735609e",
+  "links": [],
+  "summary": "tdd: implementer-run TDD for shiki secret set-claude. Added tests/test_secret_set_claude.py (23 tests) covering token extraction, the isolated probe command, interpret_token_probe (401 cost:0 signature), mint/verify with injected runners, secret redaction, and cmd-level fail-closed (verify-failure blocks set_secret). Full suite green.",
+  "task_id": "T-20260625T070242177499Z-a75c7c56",
+  "timestamp": "2026-06-25T07:03:12+00:00",
+  "type": "check"
+}

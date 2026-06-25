@@ -1,0 +1,25 @@
+{
+  "acceptance_evidence": [
+    "validate green; 358 unittests incl tests/test_secret_set_claude.py pass; code-review findings fixed"
+  ],
+  "completion_conditions": [
+    "shiki secret set-claude exists; verification is mandatory and fails closed; the token is set verbatim and redacted from any surfaced error",
+    "deterministic helpers are unit-tested incl the 401 signature, fail-closed, and no-leak cases",
+    "validate_shiki, py_compile, Python tests, and git diff --check pass"
+  ],
+  "created_at": "2026-06-25T06:58:55+00:00",
+  "github_issue": null,
+  "id": "G-20260625T065855440462Z-bae16ef5",
+  "non_goals": [
+    "Fully silent token setup (interactive browser auth is unavoidable)",
+    "Deriving a CI token from the local Claude login"
+  ],
+  "outcome": "A shiki secret set-claude command that automates everything around the one interactive claude setup-token step: obtain the token (setup-token / --token-stdin / --from-env), verify it with an isolated-config probe (fail-closed), and set the GitHub Actions secret verbatim so a corrupt/expired token can no longer silently reach CI as a CCA 401.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "status": "planned",
+  "title": "shiki secret set-claude: mint/verify/clean-set CLAUDE_CODE_OAUTH_TOKEN"
+}
