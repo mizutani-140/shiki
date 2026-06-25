@@ -72,15 +72,41 @@ class ProbeInvocationTests(unittest.TestCase):
             "ANTHROPIC_CUSTOM_HEADERS",
             "ANTHROPIC_BEDROCK_BASE_URL",
             "ANTHROPIC_VERTEX_BASE_URL",
+            # Microsoft Foundry route: a separate provider whose API key, base URL,
+            # resource, and USE/SKIP-auth toggles can authenticate `claude`
+            # independently of the candidate OAuth token, so each must be blanked.
+            "ANTHROPIC_FOUNDRY_API_KEY",
+            "ANTHROPIC_FOUNDRY_BASE_URL",
+            "ANTHROPIC_FOUNDRY_RESOURCE",
             "AWS_BEARER_TOKEN_BEDROCK",
             "CLAUDE_CODE_USE_BEDROCK",
             "CLAUDE_CODE_USE_VERTEX",
+            "CLAUDE_CODE_USE_FOUNDRY",
             "CLAUDE_CODE_SKIP_BEDROCK_AUTH",
             "CLAUDE_CODE_SKIP_VERTEX_AUTH",
+            "CLAUDE_CODE_SKIP_FOUNDRY_AUTH",
         ):
             self.assertEqual(env.get(name), "", f"{name} must be blanked in the probe env")
         # The candidate token is the sole credential left under test.
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "sk-ant-oat01-tok")
+
+    def test_every_central_blanked_var_is_applied(self):
+        # Drift guard: every name in the central _PROBE_BLANKED_CREDENTIAL_ENV
+        # tuple must actually be blanked to "" in the probe env. This catches a
+        # future provider route added to the tuple but not to the probe (or vice
+        # versa) without re-listing the names here.
+        _, env = gh.token_probe_invocation("sk-ant-oat01-tok", "/tmp/probe-dir")
+        for name in gh._PROBE_BLANKED_CREDENTIAL_ENV:
+            self.assertEqual(env.get(name), "", f"{name} must be blanked in the probe env")
+        # The Foundry route must be among the blanked credentials.
+        for name in (
+            "CLAUDE_CODE_USE_FOUNDRY",
+            "CLAUDE_CODE_SKIP_FOUNDRY_AUTH",
+            "ANTHROPIC_FOUNDRY_API_KEY",
+            "ANTHROPIC_FOUNDRY_BASE_URL",
+            "ANTHROPIC_FOUNDRY_RESOURCE",
+        ):
+            self.assertIn(name, gh._PROBE_BLANKED_CREDENTIAL_ENV)
 
 
 class InterpretProbeTests(unittest.TestCase):
@@ -196,6 +222,38 @@ class VerifyTests(unittest.TestCase):
 
         ok, reason = gh.verify_claude_oauth_token("sk-ant-oat01-" + "b" * 40, runner=fake)
         self.assertFalse(ok, "ambient credential must not authenticate the probe")
+        self.assertIn("401", reason)
+
+    def test_ambient_foundry_credentials_cannot_make_bad_token_pass(self):
+        # Regression: an ambient Microsoft Foundry route (CLAUDE_CODE_USE_FOUNDRY
+        # plus Foundry credentials/base-URL/resource) must NOT authenticate the
+        # probe. The fake runner reproduces shiki_process.run's merge (ambient
+        # os.environ overridden by the probe env) and Foundry's precedence: when
+        # the route is enabled AND a Foundry credential is present, claude routes
+        # through Foundry and authenticates regardless of the candidate OAuth
+        # token. The credential-exclusive probe env blanks every Foundry var to
+        # "", so the route is off and only the (bad) candidate token remains -> 401.
+        ambient = {
+            "CLAUDE_CODE_USE_FOUNDRY": "1",
+            "CLAUDE_CODE_SKIP_FOUNDRY_AUTH": "1",
+            "ANTHROPIC_FOUNDRY_API_KEY": "foundry-ambient-key",
+            "ANTHROPIC_FOUNDRY_BASE_URL": "https://example.foundry.invalid",
+            "ANTHROPIC_FOUNDRY_RESOURCE": "ambient-resource",
+        }
+
+        def fake(argv, *, env=None, input_text=None, check=True):
+            effective = {**ambient, **(env or {})}
+            foundry_active = effective.get("CLAUDE_CODE_USE_FOUNDRY") and effective.get(
+                "ANTHROPIC_FOUNDRY_API_KEY"
+            )
+            if foundry_active:
+                stdout = '{"is_error": false, "total_cost_usd": 0.4, "result": "pong"}'
+            else:
+                stdout = '{"is_error": true, "total_cost_usd": 0, "result": "401 Invalid bearer token"}'
+            return types.SimpleNamespace(args=argv, returncode=0, stdout=stdout, stderr="")
+
+        ok, reason = gh.verify_claude_oauth_token("sk-ant-oat01-" + "f" * 40, runner=fake)
+        self.assertFalse(ok, "ambient Foundry route must not authenticate the probe")
         self.assertIn("401", reason)
 
 

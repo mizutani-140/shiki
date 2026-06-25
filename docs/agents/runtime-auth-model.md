@@ -87,7 +87,10 @@ a silent CCA `401 Invalid bearer token`). The probe is **credential-exclusive**:
 it isolates `CLAUDE_CONFIG_DIR`/`HOME` and blanks every ambient higher-precedence
 Claude/Anthropic credential or cloud-provider route (`ANTHROPIC_AUTH_TOKEN`,
 `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`/custom headers, and the
-Bedrock/Vertex routing and base-URL variables), so only the candidate token can
+Bedrock/Vertex/Foundry routing, credential, and base-URL variables — including
+`CLAUDE_CODE_USE_FOUNDRY`/`CLAUDE_CODE_SKIP_FOUNDRY_AUTH` and
+`ANTHROPIC_FOUNDRY_API_KEY`/`ANTHROPIC_FOUNDRY_BASE_URL`/`ANTHROPIC_FOUNDRY_RESOURCE`),
+so only the candidate token can
 authenticate it — an ambient credential can never make a bad token verify clean.
 Use `--token-stdin`
 (`claude setup-token | shiki secret set-claude --token-stdin`) or

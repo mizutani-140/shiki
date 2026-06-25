@@ -157,10 +157,10 @@ def looks_like_claude_oauth_token(token: str) -> bool:
 # independently of CLAUDE_CODE_OAUTH_TOKEN. The verification probe blanks every
 # one so the candidate OAuth token is the *only* credential that can authenticate
 # it. shiki_process.run merges the probe env OVER the inherited os.environ, so an
-# unblanked ambient ANTHROPIC_AUTH_TOKEN / API key / Bedrock-Vertex route would
-# pass through and let a bad token verify clean — the false positive that hides a
-# CCA `401 Invalid bearer token`. Blanking (not unsetting) suffices: each is
-# falsy/off when empty, and the merge model can only override keys, not delete
+# unblanked ambient ANTHROPIC_AUTH_TOKEN / API key / Bedrock-Vertex-Foundry route
+# would pass through and let a bad token verify clean — the false positive that
+# hides a CCA `401 Invalid bearer token`. Blanking (not unsetting) suffices: each
+# is falsy/off when empty, and the merge model can only override keys, not delete
 # them.
 _PROBE_BLANKED_CREDENTIAL_ENV = (
     "ANTHROPIC_API_KEY",
@@ -169,11 +169,16 @@ _PROBE_BLANKED_CREDENTIAL_ENV = (
     "ANTHROPIC_CUSTOM_HEADERS",
     "ANTHROPIC_BEDROCK_BASE_URL",
     "ANTHROPIC_VERTEX_BASE_URL",
+    "ANTHROPIC_FOUNDRY_API_KEY",
+    "ANTHROPIC_FOUNDRY_BASE_URL",
+    "ANTHROPIC_FOUNDRY_RESOURCE",
     "AWS_BEARER_TOKEN_BEDROCK",
     "CLAUDE_CODE_USE_BEDROCK",
     "CLAUDE_CODE_USE_VERTEX",
+    "CLAUDE_CODE_USE_FOUNDRY",
     "CLAUDE_CODE_SKIP_BEDROCK_AUTH",
     "CLAUDE_CODE_SKIP_VERTEX_AUTH",
+    "CLAUDE_CODE_SKIP_FOUNDRY_AUTH",
 )
 
 
