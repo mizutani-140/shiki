@@ -195,6 +195,33 @@ class InterpretProbeTests(unittest.TestCase):
         self.assertNotIn("sk-ant-oat", reason)
         self.assertIn("[REDACTED]", reason)
 
+    def _classify(self, result_text):
+        return gh._classify_probe_result({"is_error": True, "total_cost_usd": 0, "result": result_text})[0]
+
+    def test_genuine_auth_rejections_classify_as_auth_rejected(self):
+        for text in (
+            "Failed to authenticate. API Error: 401 Invalid bearer token",
+            "authentication_error: invalid x-api-key",
+            "Not logged in. Please run /login",
+            "Unauthorized",
+            "Your OAuth token has expired",
+        ):
+            self.assertEqual(gh.PROBE_AUTH_REJECTED, self._classify(text), text)
+
+    def test_indeterminate_failures_are_not_auth_rejected(self):
+        # The reviewer's case: a service/network failure that merely mentions
+        # "authentication" must NOT be read as a token rejection — it is
+        # indeterminate, and the negative control must fail closed on it.
+        for text in (
+            "authentication service timeout",
+            "Connection error: network unreachable",
+            "overloaded_error: service is busy",
+            "rate_limit_error: 429 Too Many Requests",
+            "Request timed out",
+            "unauthorized_error: rate_limit_exceeded",  # word-boundary: not a real auth rejection
+        ):
+            self.assertEqual(gh.PROBE_INDETERMINATE, self._classify(text), text)
+
 
 class MintTests(unittest.TestCase):
     def test_mint_extracts_from_capture(self):

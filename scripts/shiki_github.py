@@ -314,17 +314,27 @@ PROBE_INDETERMINATE = "indeterminate"
 # overload / rate-limit / generic CLI errors are deliberately absent so they fall
 # through to INDETERMINATE.
 _AUTH_REJECTION_MARKERS = (
-    "401",
-    "403",
-    "invalid bearer",
+    "invalid bearer",  # "401 Invalid bearer token" — the negative control's real signature
     "invalid_bearer",
-    "unauthorized",
-    "authenticat",  # authenticate / authentication
-    "not logged in",
-    "/login",
-    "invalid api key",
     "invalid x-api-key",
+    "invalid api key",
     "invalid_api_key",
+    "invalid token",
+    "invalid_token",
+    "authentication_error",  # Anthropic's structured auth-error TYPE (distinct from "authentication service ...")
+    "unauthorized",
+    "not logged in",
+    "run /login",
+    "token has expired",
+    "expired token",
+)
+
+# Match markers only as whole tokens, never inside a larger word/identifier, so a
+# service failure like ``unauthorized_error: rate_limit_exceeded`` is NOT read as
+# an auth rejection (the ``_`` keeps ``unauthorized`` part of a larger token). The
+# boundary is "not adjacent to a word char or hyphen".
+_AUTH_REJECTION_RE = re.compile(
+    r"(?<![\w-])(?:" + "|".join(re.escape(marker) for marker in _AUTH_REJECTION_MARKERS) + r")(?![\w-])"
 )
 
 
@@ -348,7 +358,7 @@ def _classify_probe_result(result: Any) -> tuple[str, str]:
     cost = result.get("total_cost_usd")
     if not result.get("is_error") and isinstance(cost, (int, float)) and not isinstance(cost, bool) and cost > 0:
         return PROBE_AUTHENTICATED, detail or "authenticated"
-    if any(marker in detail.lower() for marker in _AUTH_REJECTION_MARKERS):
+    if _AUTH_REJECTION_RE.search(detail.lower()):
         return PROBE_AUTH_REJECTED, detail or "authentication rejected"
     return PROBE_INDETERMINATE, detail or "indeterminate probe failure"
 
