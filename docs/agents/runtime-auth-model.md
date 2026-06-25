@@ -77,6 +77,20 @@ that token is already available in the current process environment as
 `CLAUDE_CODE_OAUTH_TOKEN`. Claude Code login confirms the local interactive
 runtime, but it does not by itself give Shiki a GitHub Actions token.
 
+To set or rotate the secret later (e.g. after `--no-set-secret`), use
+`shiki secret set-claude --repo OWNER/NAME`. It runs `claude setup-token` (the
+one unavoidable interactive browser-auth step), then automates the rest:
+**verifying** the token with an isolated-config probe so a corrupt/expired token
+is rejected before it reaches CI, and **setting** the secret via a verbatim pipe
+so no trailing newline or paste artifact can corrupt it (the failure mode behind
+a silent CCA `401 Invalid bearer token`). Use `--token-stdin`
+(`claude setup-token | shiki secret set-claude --token-stdin`) or
+`--from-env [VAR]` to supply an already-minted token. Verification is mandatory
+and fails closed (an invalid token is never set); to set a secret without the
+probe, use `gh secret set` directly. Full silent auto-setup is intentionally not
+possible: a valid token requires the operator's interactive authorization, and
+Shiki never derives a CI token from the local Claude login.
+
 Do not store OAuth tokens in repository files, `.env`, logs, prompts, or `.shiki/` artifacts. Shiki must not read local Claude OAuth credential files to populate GitHub secrets.
 
 ## GitHub Provider Auth

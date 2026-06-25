@@ -7,11 +7,15 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
+import sys
+import tempfile
 from typing import Any
 
 from shiki_git import github_origin
 from shiki_provider import ProviderConfig, ProviderConfigError, canonicalize_remote_url, default_provider_config, github_env, provider_from_repo_json, repo_api_path, validate_repo_slug
-from shiki_process import ShikiError, first_line, info, print_json, read_json, require_tool, run, warn, write_json, shiki_path, target_path
+from shiki_process import ShikiError, first_line, info, load_default_config, print_json, read_json, require_tool, run, warn, write_json, shiki_path, target_path
 from shiki_tasks import append_ledger, load_task, require_github_first_target, worktree_record
 
 GITHUB_REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
@@ -61,8 +65,9 @@ def set_secret(repo: str, secret_name: str, value: str, provider_config: Provide
 
 def claude_secret_remediation(repo: str, secret_env: str) -> str:
     return (
-        f"Create a long-lived Claude Code token with `claude setup-token`, "
-        f"export it as {secret_env}, then run "
+        f"Run `shiki secret set-claude --repo {repo}` to mint (via `claude setup-token`), "
+        f"verify, and set the secret in one step. Alternatively create the token with "
+        f"`claude setup-token`, export it as {secret_env}, then run "
         f"`gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo {repo}` or rerun Shiki init/start."
     )
 
@@ -116,6 +121,165 @@ def github_secret_status(repo: str, secret_name: str, provider_config: ProviderC
         "checked": True,
         "configured": secret_name in names,
     }
+
+
+CLAUDE_OAUTH_TOKEN_RE = re.compile(r"sk-ant-oat[0-9]{2}-[A-Za-z0-9_-]+")
+
+
+def _redact_token(text: str) -> str:
+    """Redact any Claude OAuth token before the text is surfaced to logs/errors.
+
+    Probe stderr / result text is never expected to echo the credential, but a
+    secret-handling command redacts as defense-in-depth so no token can leak
+    through an error message.
+    """
+    return CLAUDE_OAUTH_TOKEN_RE.sub("[REDACTED]", str(text or ""))
+
+
+def extract_setup_token_value(text: str) -> str | None:
+    """Extract a long-lived Claude Code OAuth token from `claude setup-token` output.
+
+    Scans for the ``sk-ant-oat`` token pattern and returns the longest match so a
+    token surrounded by prompt/UI text is still recovered. Returns ``None`` when
+    no token is present (e.g. the authorization was cancelled).
+    """
+    matches = CLAUDE_OAUTH_TOKEN_RE.findall(text or "")
+    if not matches:
+        return None
+    return max(matches, key=len)
+
+
+def looks_like_claude_oauth_token(token: str) -> bool:
+    return bool(CLAUDE_OAUTH_TOKEN_RE.fullmatch((token or "").strip()))
+
+
+def token_probe_invocation(token: str, config_dir: str) -> tuple[list[str], dict[str, str]]:
+    """Build the isolated-config probe command + env that validates an OAuth token.
+
+    Isolating ``CLAUDE_CONFIG_DIR``/``HOME`` defeats a local keychain login
+    masking the supplied env token: only ``token`` authenticates the probe, so an
+    invalid/expired token fails closed instead of silently passing against the
+    operator's interactive session. ``ANTHROPIC_API_KEY`` is blanked so the OAuth
+    token is the sole credential under test.
+    """
+    env = {
+        "CLAUDE_CONFIG_DIR": config_dir,
+        "HOME": config_dir,
+        "CLAUDE_CODE_OAUTH_TOKEN": token,
+        "ANTHROPIC_API_KEY": "",
+    }
+    argv = ["claude", "-p", "ping", "--output-format", "json"]
+    return argv, env
+
+
+def interpret_token_probe(result: dict[str, Any]) -> tuple[bool, str]:
+    """Decide whether a ``claude -p --output-format json`` probe proved the token valid.
+
+    A valid token returns ``is_error=false`` with a billable response
+    (``total_cost_usd > 0``). An invalid/expired token short-circuits with
+    ``is_error=true``, ``total_cost_usd=0`` and an auth-failure message such as
+    ``401 Invalid bearer token``. Fail closed on anything else.
+    """
+    if not isinstance(result, dict):
+        return False, "probe returned no structured result"
+    detail = _redact_token(str(result.get("result") or "").strip())
+    if result.get("is_error"):
+        return False, detail or "authentication failed"
+    cost = result.get("total_cost_usd")
+    if not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost <= 0:
+        return False, detail or "no billable model response (token likely invalid)"
+    return True, "token authenticated"
+
+
+def _capture_setup_token() -> str:
+    """Run interactive ``claude setup-token``, returning its captured stdout.
+
+    ``stderr`` is inherited so the operator sees the authorization URL/prompts in
+    real time, while ``stdout`` is captured to recover the printed token.
+    """
+    require_tool("claude")
+    info("Running `claude setup-token` — complete the browser authorization when prompted.")
+    proc = subprocess.run(["claude", "setup-token"], stdout=subprocess.PIPE, stderr=None, text=True)
+    return proc.stdout or ""
+
+
+def mint_claude_oauth_token(*, capture=_capture_setup_token) -> str:
+    """Mint a long-lived Claude Code OAuth token via ``claude setup-token``."""
+    token = extract_setup_token_value(capture())
+    if not token:
+        raise ShikiError(
+            "could not read a token from `claude setup-token` output. "
+            "Run it yourself and pipe it instead: "
+            "`claude setup-token | shiki secret set-claude --repo OWNER/NAME --token-stdin`."
+        )
+    return token
+
+
+def verify_claude_oauth_token(token: str, *, runner=run) -> tuple[bool, str]:
+    """Verify a Claude OAuth token by an isolated-config probe (fails closed)."""
+    require_tool("claude")
+    config_dir = tempfile.mkdtemp(prefix="shiki-token-probe-")
+    try:
+        argv, env = token_probe_invocation(token, config_dir)
+        result = runner(argv, env=env, input_text="", check=False)
+        try:
+            data = json.loads(result.stdout or "{}")
+        except json.JSONDecodeError:
+            return False, _redact_token(first_line(result.stderr)) or "probe output was not JSON"
+        return interpret_token_probe(data)
+    finally:
+        shutil.rmtree(config_dir, ignore_errors=True)
+
+
+def cmd_secret_set_claude(args: Any) -> int:
+    """Mint/accept, verify, and cleanly set the CLAUDE_CODE_OAUTH_TOKEN secret.
+
+    The unavoidable interactive step is the browser authorization in
+    `claude setup-token`; obtaining, verifying (so a corrupt/expired token is
+    caught before it reaches CI), and setting the secret are automated. The
+    secret value is piped to `gh secret set` verbatim, so no trailing newline or
+    paste artifact can corrupt it (the failure mode behind a silent CCA 401).
+    """
+    require_tool("gh")
+    repo = args.repo or load_default_config().get("repo")
+    if not repo:
+        raise ShikiError("missing --repo OWNER/NAME and no default repo configured")
+    require_github_repo_slug(repo)
+
+    if args.token_stdin:
+        token = sys.stdin.read()
+        source = "stdin"
+    elif args.from_env:
+        token = os.environ.get(args.from_env, "")
+        source = f"env:{args.from_env}"
+    else:
+        token = mint_claude_oauth_token()
+        source = "claude setup-token"
+    token = (token or "").strip()
+    if not token:
+        raise ShikiError(f"no token obtained from {source}")
+    if not looks_like_claude_oauth_token(token):
+        warn(f"token from {source} does not look like a Claude OAuth token (expected sk-ant-oat...)")
+
+    # Verification is mandatory and fails closed: this command exists to stop a
+    # corrupt/expired token reaching CI (the silent CCA 401). To set a secret
+    # without this probe, use `gh secret set` directly.
+    ok, reason = verify_claude_oauth_token(token)
+    if not ok:
+        raise ShikiError(
+            f"token verification failed ({reason}); not setting the secret. "
+            "Re-mint a fresh token with `claude setup-token`."
+        )
+    info(f"token verified: {reason}")
+
+    set_secret(repo, "CLAUDE_CODE_OAUTH_TOKEN", token, provider_config=None)
+    print_json({
+        "secret": "CLAUDE_CODE_OAUTH_TOKEN",
+        "repo": repo,
+        "source": source,
+        "verified": True,
+    })
+    return 0
 
 
 def protect_branch(
