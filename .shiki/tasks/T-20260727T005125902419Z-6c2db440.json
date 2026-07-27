@@ -1,0 +1,78 @@
+{
+  "acceptance_checks": [
+    "shiki contract open against a spec-frozen plan produces a branch whose diff contains only .shiki goal, task and DAG registration for that goal.",
+    "A contract-mode PR containing any implementation file is blocked by MergeGate.",
+    "A contract-mode PR whose registered task differs from its frozen plan definition on scope, non_goals, required_skills, risk_level, locks or acceptance_checks is blocked.",
+    "A contract-mode PR for a high-risk goal is blocked without Guardian approval and passes with it.",
+    "The CLI does not apply the contract-mode label and reports that a maintainer must apply it.",
+    "Tests construct their own spec-frozen multi-task plan fixture inside a temporary directory and prove the command registers its contracts there; no test writes to .shiki/plans/ or any other real mirror path.",
+    "CONTEXT.md and docs/adr/0015 are present on the branch and validate_shiki passes.",
+    "The change adds no approval record to real mirror state: `git diff origin/main...HEAD -- .shiki | grep spec_freeze` is empty. Test fixtures MAY construct a spec-frozen plan inside a temporary directory \u2014 that is the required shape \u2014 but no fixture may carry an approved_by naming a real person."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260727t005125902419z-6c2db440-deliver-the-contract-pr-registration-path-and-re",
+  "expected_pr": 179,
+  "github_issue": null,
+  "goal_id": "G-20260727T005125900810Z-077718f7",
+  "id": "T-20260727T005125902419Z-6c2db440",
+  "ledger_evidence": [
+    "L-20260727T005125902516Z-1fb3482c",
+    "L-20260727T005125904103Z-bccae167",
+    "L-20260727T005125904864Z-aad1e1f0",
+    "L-20260727T014357072057Z-4b32abe0",
+    "L-20260727T020547550880Z-e97bfaca",
+    "L-20260727T020656584831Z-661fe244",
+    "L-20260727T021647977853Z-fe3778e8",
+    "L-20260727T022618065297Z-525333c7",
+    "L-20260727T022633773623Z-cb21f74b",
+    "L-20260727T022637290665Z-3e73dc39"
+  ],
+  "locks": [
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/mergegate_check.py",
+    "path:CONTEXT.md",
+    "path:docs/adr/**",
+    "path:tests/**",
+    "path:scripts/test_shiki_*.sh",
+    "path:.shiki/**"
+  ],
+  "non_goals": [
+    "Contract Approval as a Guardian authority (ADR 0015's goal owns it)",
+    "The pre-dispatch gate or the envelope ceiling",
+    "Auto-applying the contract-mode label",
+    "Changing approval sources",
+    "Authoring a spec_freeze block, or any other approval record. Spec Freeze is operator-only (ADR 0009). An acceptance criterion that cannot be satisfied with the artifacts present in the worktree must be reported as a stop, never closed by manufacturing the missing artifact."
+  ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "No .github/workflows change is included, and main() still blocks on 'CCA verdict file not found' at mergegate_check.py:1682 unless --allow-missing-cca is passed. A real Contract PR run through the current unmodified mergegate CI job would therefore block on missing CCA even though the contract-mode guardian gate at line 1511 already ran. The e2e test simulates this with --allow-missing-cca. The ADR explicitly defers the CCA-signal OR-merge and CCA-job dependency to a separate task ('Evaluation placement'), and the branch scope is the registration path, so this is expected follow-up wiring rather than a defect in the delivered slice. Worth confirming the sibling task lands before Contract PRs are used in anger.",
+        "severity": "info",
+        "title": "Contract mode not yet wired into the CI workflow / CCA job (expected sliced work)"
+      },
+      {
+        "detail": "_validate_contract_goal_registration (mergegate_check.py) checks status=planned, source_plan resolves, canonical risk, and risk_level == plan.risk_level, but does not bind other goal fields (title, outcome, non_goals, completion_conditions) to the frozen plan the way registered tasks are bound. This is a deliberate and defensible choice \u2014 risk is the load-bearing field for the Guardian gate and the goal file is immutable after registration \u2014 but it does mean a Contract PR could register a goal whose non-risk descriptive fields diverge from the frozen plan. Not a security hole; noting for completeness.",
+        "severity": "low",
+        "title": "Goal-file registration validates only risk_level against the frozen plan"
+      },
+      {
+        "detail": "In cmd_contract_open (shiki_tasks.py), when --plan is an id rather than a path, load_plan -> read_json will raise OSError/ValueError for a nonexistent plan id rather than a clean ShikiError. Minor UX nit consistent with the existing cmd_run pattern; not a correctness issue.",
+        "severity": "info",
+        "title": "cmd_contract_open surfaces a raw read_json error for a missing plan id"
+      }
+    ],
+    "ledger_id": "L-20260727T022618065297Z-525333c7",
+    "verdict": "clean"
+  },
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Add a shiki CLI path that opens a Contract PR for a spec-frozen Goal, carrying only .shiki goal/task/DAG registration and no implementation, and validate it in MergeGate as a contract mode generalizing the existing goal_reconcile validator: deny-by-default, every registered task matched against its frozen plan definition on the governance fields, and Guardian evaluation forced from the Goal's risk level. The CLI must not apply the mode's maintainer label to its own PR \u2014 that label is an independent second factor and self-applying it collapses two factors to one. Land CONTEXT.md's Contract Approval terms and docs/adr/0015 in the same PR so the decision is on the default branch before the work it authorizes.",
+  "status": "review",
+  "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+  "title": "Deliver the Contract PR registration path and record ADR 0015"
+}
