@@ -13,6 +13,15 @@ from shiki_locks import active_lock_conflicts, path_matches_lock
 from shiki_process import ShikiError, print_json, read_json, run, shiki_path, slugify, target_path, utc_now, write_json, ensure_control_dirs
 from shiki_state import append_ledger_entry, new_control_id
 
+# Contract PR mode (ADR 0015). The body marker DECLARES intent; the
+# maintainer-applied label is the independent second factor that AUTHORIZES the
+# mode. `shiki contract open` must never apply the label to its own PR — doing so
+# would collapse the two-factor authorization to one. These mirror the values
+# MergeGate enforces (scripts/mergegate_check.py CONTRACT_MARKER / CONTRACT_LABEL);
+# tests/test_contract_mode.py binds them so the CLI and validator cannot drift.
+CONTRACT_PR_MARKER = "<!-- shiki:contract -->"
+CONTRACT_PR_LABEL = "mergegate:contract"
+
 # Loop task-lock guard (PRD 0002 T4, gap #5 / Q5).
 #
 # A loop-executed task is dispatched into an isolated worktree where the goal
@@ -494,6 +503,66 @@ def orchestrate_plan(target: Path, plan: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def register_contract_from_plan(target: Path, plan: dict[str, Any]) -> dict[str, Any]:
+    """Register a spec-frozen plan's Goal, task contracts, and DAG for a Contract
+    PR (ADR 0015).
+
+    Unlike ``orchestrate_plan`` this performs REGISTRATION ONLY: it never acquires
+    locks, allocates worktree records, writes a run file, or dispatches. The
+    branch it produces therefore carries exactly the goal/task/DAG registration
+    (plus the ledger evidence those writes append) that MergeGate's contract mode
+    admits — no implementation, no lifecycle mutation beyond first registration.
+    The frozen plan must already be ingested (have an id); the Contract PR does
+    not re-ingest or mutate it.
+    """
+    require_grilled_plan(plan)
+    plan_id = plan.get("id")
+    if not plan_id:
+        raise ShikiError(
+            "contract open requires an ingested, spec-frozen plan with an id; "
+            "ingest the plan first (shiki plan ingest / shiki run)"
+        )
+
+    goal_id, goal_ledger = register_goal_from_plan(target, plan)
+    task_ids: list[str] = []
+    task_ids_by_title: dict[str, str] = {}
+    task_ledgers: list[str] = []
+    dependency_edges: list[dict[str, str]] = []
+
+    for task_plan in plan["tasks"]:
+        dependency_refs = task_plan.get("dependencies") or []
+        dependencies: list[str] = []
+        for dependency in dependency_refs:
+            if dependency in task_ids_by_title:
+                dependencies.append(task_ids_by_title[dependency])
+            elif isinstance(dependency, str) and re.match(r"^T-[0-9]{4,}$", dependency):
+                dependencies.append(dependency)
+            else:
+                raise ShikiError(f"task {task_plan['title']} references unknown dependency: {dependency}")
+
+        task_id, task_ledger = register_task_from_plan(
+            target,
+            goal_id=goal_id,
+            task_plan=task_plan,
+            dependencies=dependencies,
+        )
+        task_ids.append(task_id)
+        task_ids_by_title[task_plan["title"]] = task_id
+        task_ledgers.append(task_ledger)
+        for dependency in dependencies:
+            dependency_edges.append({"from": dependency, "to": task_id, "reason": "declared plan dependency"})
+
+    dag_file = update_goal_dag(target, goal_id, task_ids, dependency_edges)
+    return {
+        "goal_id": goal_id,
+        "goal_ledger_id": goal_ledger,
+        "task_ids": task_ids,
+        "task_ledger_ids": task_ledgers,
+        "dag_file": str(dag_file),
+        "plan_id": plan_id,
+    }
+
+
 def cmd_goal_create(args: argparse.Namespace) -> int:
     target = target_path(args.target)
     require_github_first_target(target)
@@ -595,6 +664,73 @@ def cmd_run(args: argparse.Namespace) -> int:
         plan = load_plan(target, args.plan)
 
     print_json(orchestrate_plan(target, plan))
+    return 0
+
+
+def _goals_for_plan(target: Path, plan_id: str) -> list[str]:
+    """Return the ids of any already-registered goals whose source_plan is plan_id."""
+    goals_dir = target / ".shiki" / "goals"
+    found: list[str] = []
+    if goals_dir.is_dir():
+        for path in sorted(goals_dir.glob("G-*.json")):
+            try:
+                data = read_json(path)
+            except (OSError, ValueError):
+                continue
+            if isinstance(data, dict) and str(data.get("source_plan") or "") == plan_id:
+                found.append(str(data.get("id") or path.stem))
+    return found
+
+
+def cmd_contract_open(args: argparse.Namespace) -> int:
+    """Open a Contract PR (ADR 0015): register a spec-frozen Goal's task contracts.
+
+    Writes ONLY goal/task/DAG registration (plus the ledger evidence those writes
+    append) into .shiki so the branch a Contract PR carries has no implementation.
+    It never commits, pushes, opens a PR, or applies the contract-mode label — the
+    label is a maintainer-applied second factor and self-applying it would collapse
+    the two-factor authorization to one.
+    """
+    target = target_path(args.target)
+    require_github_first_target(target)
+    ensure_control_dirs(target)
+
+    if Path(args.plan).expanduser().exists():
+        plan = read_json(Path(args.plan).expanduser().resolve())
+    else:
+        plan = load_plan(target, args.plan)
+    require_grilled_plan(plan)
+    plan_id = plan.get("id")
+    if not plan_id:
+        raise ShikiError(
+            "contract open requires an ingested plan with an id; ingest it first "
+            "(shiki plan ingest / shiki run)"
+        )
+
+    # A Contract PR registers the goal for the first time. Refuse to fork a second
+    # goal for a plan that already has one; re-registration is a Contract Amendment
+    # decision, not a repeat of contract open.
+    existing = _goals_for_plan(target, plan_id)
+    if existing:
+        raise ShikiError(
+            f"a goal is already registered for plan {plan_id}: {', '.join(existing)}; "
+            "contract open registers a plan's contracts once (re-approval is a Contract Amendment)"
+        )
+
+    result = register_contract_from_plan(target, plan)
+    result["contract_marker"] = CONTRACT_PR_MARKER
+    result["contract_label"] = CONTRACT_PR_LABEL
+    result["label_applied_by_cli"] = False
+    result["maintainer_action_required"] = (
+        f"A maintainer must apply the {CONTRACT_PR_LABEL} label to the Contract PR. "
+        "This CLI does not apply it: the label is the independent second factor that "
+        "authorizes contract mode, and self-applying it would collapse two factors to one."
+    )
+    result["pr_body_marker"] = (
+        f"Put the marker {CONTRACT_PR_MARKER} and goal id {result['goal_id']} in the Contract PR "
+        "body, with Scope / Acceptance / Evidence / MergeGate sections."
+    )
+    print_json(result)
     return 0
 
 

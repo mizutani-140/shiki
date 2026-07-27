@@ -204,6 +204,39 @@ GOAL_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:goal_reconcile\s*-->")
 GOAL_RECONCILE_LABEL = "mergegate:goal_reconcile"
 
 
+# A Contract PR (ADR 0015) declares itself with this exact HTML-comment marker.
+# It carries a spec-frozen Goal's task contracts (goal, task, and DAG
+# registration) to the default branch so a Guardian can approve them before any
+# implementation is dispatched. Like goal_reconcile, the marker only DECLARES
+# intent; the maintainer-applied label below is the independent second factor.
+CONTRACT_MARKER = re.compile(r"<!--\s*shiki:contract\s*-->")
+# The contract mode's second factor. Only a write-access maintainer/Guardian can
+# apply it, so contract mode cannot be self-granted from the PR body. The CLI
+# that opens a Contract PR must NOT apply this label to its own PR (ADR 0015
+# bootstrap note): self-applying it collapses the two factors to one. The CLI
+# mirrors this exact value (scripts/shiki_tasks.py CONTRACT_PR_LABEL); a
+# consistency test binds the two so they cannot drift.
+CONTRACT_LABEL = "mergegate:contract"
+
+
+def contract_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
+    """Decide whether a PR runs in contract mode (marker + label).
+
+    Requires BOTH the body marker (declares intent) AND the maintainer-applied
+    label (authorizes the mode). A marker without the label fails closed with an
+    error so untrusted PR text cannot self-grant the relaxed registration mode.
+    """
+    body = str(pr.get("body") or "")
+    marker = bool(CONTRACT_MARKER.search(body))
+    label = CONTRACT_LABEL in pr_label_names(pr)
+    if marker and not label:
+        return False, (
+            f"contract mode requires the {CONTRACT_LABEL} label (a maintainer-applied "
+            "second factor) in addition to the body marker"
+        )
+    return (marker and label), None
+
+
 # Governance-relevant fields of a frozen plan task that, when present in the
 # plan, a goal_reconcile-registered task MUST match exactly. Plan tasks carry no
 # ids, so title is the lookup key; everything else binds the task definition so a
@@ -220,90 +253,98 @@ _FROZEN_TASK_MATCH_FIELDS = (
 )
 
 
-def _frozen_plan_tasks(target: Path, goal_id: str) -> tuple[dict[str, dict[str, Any]], list[str]]:
+def _frozen_plan_tasks(target: Path, goal_id: str, mode: str = "goal_reconcile") -> tuple[dict[str, dict[str, Any]], list[str]]:
     """Return (frozen tasks by title, errors) for a goal's spec-frozen source plan.
 
     The frozen authority is the goal's source_plan with spec_freeze.status=frozen.
     Plan tasks are keyed by title (no ids in the plan schema). Duplicate titles
     fail closed, because title is the only binding key and an ambiguous key would
-    let a registration match the wrong frozen definition.
+    let a registration match the wrong frozen definition. ``mode`` names the
+    caller (goal_reconcile or contract) in blocking messages.
     """
     errors: list[str] = []
     goal = load_goal(target, goal_id)
     if goal is None:
-        return {}, [f"goal_reconcile: goal {goal_id} not found"]
+        return {}, [f"{mode}: goal {goal_id} not found"]
     plan_id = str(goal.get("source_plan") or "")
     if not plan_id:
-        return {}, [f"goal_reconcile: goal {goal_id} has no source_plan to bind to"]
+        return {}, [f"{mode}: goal {goal_id} has no source_plan to bind to"]
     plan = load_plan(target, plan_id)
     if plan is None:
-        return {}, [f"goal_reconcile: source_plan {plan_id} not found"]
+        return {}, [f"{mode}: source_plan {plan_id} not found"]
     spec_freeze = plan.get("spec_freeze")
     if not isinstance(spec_freeze, dict) or spec_freeze.get("status") != "frozen":
-        return {}, [f"goal_reconcile: source_plan {plan_id} is not spec-frozen"]
+        return {}, [f"{mode}: source_plan {plan_id} is not spec-frozen"]
     tasks: dict[str, dict[str, Any]] = {}
     for t in plan.get("tasks") or []:
         if not isinstance(t, dict) or not t.get("title"):
             continue
         title = str(t.get("title")).strip()
         if title in tasks:
-            errors.append(f"goal_reconcile: frozen plan {plan_id} has duplicate task title {title!r}; cannot bind")
+            errors.append(f"{mode}: frozen plan {plan_id} has duplicate task title {title!r}; cannot bind")
             continue
         tasks[title] = t
     return tasks, errors
 
 
-def _frozen_task_match_errors(task_id: str, task: dict[str, Any], frozen: dict[str, Any]) -> list[str]:
+def _frozen_task_match_errors(
+    task_id: str, task: dict[str, Any], frozen: dict[str, Any], mode: str = "goal_reconcile"
+) -> list[str]:
     """A registered task must match its frozen plan task on every governance
     field the plan declares (frozen-definition binding, not just title)."""
     errors: list[str] = []
     for field in _FROZEN_TASK_MATCH_FIELDS:
         if field in frozen and task.get(field) != frozen.get(field):
             errors.append(
-                f"goal_reconcile task {task_id} field {field!r} does not match its frozen plan definition"
+                f"{mode} task {task_id} field {field!r} does not match its frozen plan definition"
             )
     # Runtime assignment is governance-relevant (it picks the execution adapter):
     # the frozen plan's `runtime` must equal the registered task's
     # `assigned_runtime` (the field names differ; the value must match).
     if frozen.get("runtime") and task.get("assigned_runtime") != frozen.get("runtime"):
         errors.append(
-            f"goal_reconcile task {task_id} assigned_runtime {task.get('assigned_runtime')!r} "
+            f"{mode} task {task_id} assigned_runtime {task.get('assigned_runtime')!r} "
             f"does not match the frozen plan runtime {frozen.get('runtime')!r}"
         )
     return errors
 
 
-def enforce_goal_reconcile(
+def _enforce_frozen_registration(
     *,
+    mode: str,
     target: Path,
     goal_id: str,
     changed_files_status: list[ChangedFile],
     blocking: list[str],
     warnings: list[str],
+    allow_goal_registration: bool,
 ) -> None:
-    """Validate a goal_reconcile PR: register frozen-plan tasks into main state.
+    """Validate a frozen-plan registration PR (goal_reconcile or contract mode).
 
-    Deny by default. A goal_reconcile PR may ONLY: add planned task files whose
-    title is in the goal's spec-frozen plan (each title covered at most once) and
-    whose goal_id is this goal; restore the goal's DAG so every node resolves to a
-    frozen-plan task anchored to this goal; and append a goal-scoped
-    task-registered reconcile ledger. Everything else — code, marking a task
-    done/cancelled/superseded, modifying an existing task (e.g. acceptance_checks),
-    the goal file itself (its source_plan binding and status must not move),
-    goal-complete reports, locks, repairs, runner records, memories, authority
-    artifacts (guardian-policy, distilled rules), or the frozen plan — is
-    forbidden. This relaxes the per-task one-file rule into a narrow,
-    frozen-plan-bound registration mode, never a general multi-file bypass.
+    Deny by default. The PR may ONLY: add planned task files whose title is in the
+    goal's spec-frozen plan (each title covered at most once) and whose goal_id is
+    this goal; restore the goal's DAG so every node resolves to a frozen-plan task
+    anchored to this goal; append a goal-scoped task-registered ledger; and, when
+    ``allow_goal_registration`` is set (contract mode, ADR 0015), add the goal
+    file itself — matched against its frozen plan. Everything else — code, marking
+    a task done/cancelled/superseded, modifying an existing task (e.g.
+    acceptance_checks), goal-complete reports, locks, repairs, runner records,
+    memories, authority artifacts (guardian-policy, distilled rules), or the
+    frozen plan — is forbidden. In goal_reconcile mode the goal file is also
+    forbidden (its source_plan binding and status must not move). This relaxes the
+    per-task one-file rule into a narrow, frozen-plan-bound registration mode,
+    never a general multi-file bypass.
     """
     if not goal_id:
-        blocking.append("goal_reconcile PR must reference a Shiki goal id")
+        blocking.append(f"{mode} PR must reference a Shiki goal id")
         return
-    frozen_tasks, frozen_errors = _frozen_plan_tasks(target, goal_id)
+    frozen_tasks, frozen_errors = _frozen_plan_tasks(target, goal_id, mode)
     if frozen_errors:
         blocking.extend(frozen_errors)
         return
     frozen_titles = set(frozen_tasks)
 
+    goal_file = f".shiki/goals/{goal_id}.json"
     dag_file = f".shiki/dag/{goal_id}.json"
     reconcile_ledger_seen = False
     # Each frozen plan title may be registered exactly once. Seed the consumed
@@ -328,37 +369,37 @@ def enforce_goal_reconcile(
     for entry in changed_files_status:
         path = normalize_repo_path(entry.path)
         if not path.startswith(".shiki/"):
-            blocking.append(f"goal_reconcile must not change non-Shiki (implementation) file {path}")
+            blocking.append(f"{mode} must not change non-Shiki (implementation) file {path}")
             continue
         if entry.status == "D":
-            blocking.append(f"goal_reconcile must not delete {path}")
+            blocking.append(f"{mode} must not delete {path}")
             continue
         if path.startswith(".shiki/tasks/") and path.endswith(".json"):
             if entry.status != "A":
-                blocking.append(f"goal_reconcile may only ADD planned task files, not modify {path}")
+                blocking.append(f"{mode} may only ADD planned task files, not modify {path}")
                 continue
             data = load_json(target / path)
             if not isinstance(data, dict):
-                blocking.append(f"goal_reconcile task file {path} is not a JSON object")
+                blocking.append(f"{mode} task file {path} is not a JSON object")
                 continue
             task_id = Path(path).stem
             if str(data.get("id") or "") != task_id:
-                blocking.append(f"goal_reconcile task filename {path} does not match its id {data.get('id')!r}")
+                blocking.append(f"{mode} task filename {path} does not match its id {data.get('id')!r}")
             if str(data.get("goal_id") or "") != goal_id:
-                blocking.append(f"goal_reconcile task {task_id} is not anchored to goal {goal_id}")
+                blocking.append(f"{mode} task {task_id} is not anchored to goal {goal_id}")
             if data.get("status") != "planned":
-                blocking.append(f"goal_reconcile task {task_id} must be registered as status=planned, not {data.get('status')!r}")
+                blocking.append(f"{mode} task {task_id} must be registered as status=planned, not {data.get('status')!r}")
             title = str(data.get("title") or "").strip()
             if title not in frozen_titles:
-                blocking.append(f"goal_reconcile task {task_id} title {title!r} is not in the goal's frozen plan")
+                blocking.append(f"{mode} task {task_id} title {title!r} is not in the goal's frozen plan")
             elif title in consumed_titles:
-                blocking.append(f"goal_reconcile task {task_id} re-registers frozen plan title {title!r} (already covered)")
+                blocking.append(f"{mode} task {task_id} re-registers frozen plan title {title!r} (already covered)")
             else:
                 consumed_titles.add(title)
                 # Bind to the FROZEN TASK DEFINITION, not just the title: a
                 # registered task must match every governance field the frozen
                 # plan declares (risk_level, locks, acceptance_checks, ...).
-                blocking.extend(_frozen_task_match_errors(task_id, data, frozen_tasks[title]))
+                blocking.extend(_frozen_task_match_errors(task_id, data, frozen_tasks[title], mode))
         elif path == dag_file:
             # DAG restore is allowed; every node must resolve to a frozen-plan
             # task ANCHORED TO THIS GOAL (existing or added in this PR), so a
@@ -366,20 +407,20 @@ def enforce_goal_reconcile(
             dag = load_json(target / path)
             nodes = dag.get("nodes") if isinstance(dag, dict) else None
             if not isinstance(nodes, list):
-                blocking.append(f"goal_reconcile DAG {path} must have a nodes list")
+                blocking.append(f"{mode} DAG {path} must have a nodes list")
                 continue
             node_titles: set[str] = set()
             for node in nodes:
                 node_task = load_task(target, str(node))
                 if node_task is None:
-                    blocking.append(f"goal_reconcile DAG node {node} has no task file")
+                    blocking.append(f"{mode} DAG node {node} has no task file")
                     continue
                 if str(node_task.get("goal_id") or "") != goal_id:
-                    blocking.append(f"goal_reconcile DAG node {node} is not anchored to goal {goal_id}")
+                    blocking.append(f"{mode} DAG node {node} is not anchored to goal {goal_id}")
                     continue
                 node_title = str(node_task.get("title") or "").strip()
                 if node_title not in frozen_titles:
-                    blocking.append(f"goal_reconcile DAG node {node} title {node_title!r} is not in the goal's frozen plan")
+                    blocking.append(f"{mode} DAG node {node} title {node_title!r} is not in the goal's frozen plan")
                 else:
                     node_titles.add(node_title)
             # The restored DAG must COVER the full frozen plan, not a subset: a
@@ -389,35 +430,41 @@ def enforce_goal_reconcile(
             missing = frozen_titles - node_titles
             if missing:
                 blocking.append(
-                    f"goal_reconcile DAG must cover every frozen plan task; missing {sorted(missing)}"
+                    f"{mode} DAG must cover every frozen plan task; missing {sorted(missing)}"
                 )
         elif path.startswith(".shiki/dag/") and path.endswith(".json"):
-            blocking.append(f"goal_reconcile must not change another goal's DAG {path}")
+            blocking.append(f"{mode} must not change another goal's DAG {path}")
         elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
             if entry.status != "A":
-                blocking.append(f"goal_reconcile must append, not modify, ledger {path}")
+                blocking.append(f"{mode} must append, not modify, ledger {path}")
                 continue
             led = load_json(target / path)
             if not isinstance(led, dict) or str(led.get("goal_id") or "") != goal_id:
-                blocking.append(f"goal_reconcile ledger {path} must be scoped to goal {goal_id}")
+                blocking.append(f"{mode} ledger {path} must be scoped to goal {goal_id}")
                 continue
-            # The reconcile event must be a registration ledger, not any
-            # goal-scoped ledger, so the requirement proves an actual reconcile.
+            # The registration event must be a task-registered ledger, not any
+            # goal-scoped ledger, so the requirement proves an actual registration.
             if led.get("type") == "task-registered":
                 reconcile_ledger_seen = True
+        elif allow_goal_registration and path == goal_file:
+            # Contract mode only (ADR 0015): the Contract PR registers the goal
+            # for the first time. Validate it against its frozen plan; deny a
+            # modify/delete or a risk downgrade that would weaken the Guardian
+            # gate this contract exists to force.
+            _validate_contract_goal_registration(target, goal_id, entry, blocking, mode)
         else:
-            # Deny by default. The goal file itself is forbidden: a reconcile must
-            # not move the goal's source_plan binding (it is validated against),
-            # change its status, or touch any other field. Also forbidden:
-            # memories, reports, guardian-policy, locks, repairs, runner, plans,
-            # and everything else.
+            # Deny by default. In goal_reconcile mode the goal file itself is
+            # forbidden here: a reconcile must not move the goal's source_plan
+            # binding (it is validated against), change its status, or touch any
+            # other field. Also forbidden in both modes: memories, reports,
+            # guardian-policy, locks, repairs, runner, plans, and everything else.
             blocking.append(
-                f"goal_reconcile must not change {path}; only frozen-plan task registration, "
+                f"{mode} must not change {path}; only frozen-plan task registration, "
                 f"DAG restore for {goal_id}, and a task-registered reconcile ledger are allowed"
             )
 
     if not reconcile_ledger_seen:
-        blocking.append(f"goal_reconcile must include a goal-scoped task-registered reconcile ledger event for {goal_id}")
+        blocking.append(f"{mode} must include a goal-scoped task-registered reconcile ledger event for {goal_id}")
 
     # HEAD invariant (independent of whether the DAG file is in this diff): after
     # the reconcile, the goal's DAG must cover every frozen-plan task. Without
@@ -439,7 +486,7 @@ def enforce_goal_reconcile(
     head_missing = frozen_titles - covered_titles
     if head_missing:
         blocking.append(
-            f"goal_reconcile must leave the goal's DAG covering every frozen plan task; missing {sorted(head_missing)}"
+            f"{mode} must leave the goal's DAG covering every frozen plan task; missing {sorted(head_missing)}"
         )
 
     # Bind frozen dependency semantics to the DAG edges: the frozen plan declares
@@ -461,7 +508,7 @@ def enforce_goal_reconcile(
                 dep_title = str(dep_title).strip()
                 if dep_title not in title_to_id:
                     edge_errors.append(
-                        f"goal_reconcile frozen dependency {dep_title!r} of task {title!r} does not resolve to a registered task"
+                        f"{mode} frozen dependency {dep_title!r} of task {title!r} does not resolve to a registered task"
                     )
                     continue
                 expected_edges.add((title_to_id[dep_title], title_to_id[title]))
@@ -475,7 +522,7 @@ def enforce_goal_reconcile(
             missing_edges = expected_edges - head_edges
             extra_edges = head_edges - expected_edges
             blocking.append(
-                f"goal_reconcile DAG edges must match the frozen plan dependencies; "
+                f"{mode} DAG edges must match the frozen plan dependencies; "
                 f"missing {sorted(missing_edges)}, unexpected {sorted(extra_edges)}"
             )
         # Bind each registered task's own `dependencies` field to the frozen plan
@@ -487,9 +534,129 @@ def enforce_goal_reconcile(
                 actual_deps = {str(d) for d in (tdata.get("dependencies") if isinstance(tdata, dict) else None) or []}
                 if actual_deps != expected_deps:
                     blocking.append(
-                        f"goal_reconcile task {tid} dependencies {sorted(actual_deps)} do not match the frozen plan "
+                        f"{mode} task {tid} dependencies {sorted(actual_deps)} do not match the frozen plan "
                         f"{sorted(expected_deps)}"
                     )
+
+
+def enforce_goal_reconcile(
+    *,
+    target: Path,
+    goal_id: str,
+    changed_files_status: list[ChangedFile],
+    blocking: list[str],
+    warnings: list[str],
+) -> None:
+    """Validate a goal_reconcile PR (drift recovery): register spec-frozen tasks
+    into main state without touching the goal file. See
+    ``_enforce_frozen_registration``."""
+    _enforce_frozen_registration(
+        mode="goal_reconcile",
+        target=target,
+        goal_id=goal_id,
+        changed_files_status=changed_files_status,
+        blocking=blocking,
+        warnings=warnings,
+        allow_goal_registration=False,
+    )
+
+
+def enforce_contract(
+    *,
+    target: Path,
+    goal_id: str,
+    changed_files_status: list[ChangedFile],
+    blocking: list[str],
+    warnings: list[str],
+) -> None:
+    """Validate a Contract PR (ADR 0015): register a spec-frozen Goal's task
+    contracts — goal, task, and DAG registration — to the default branch before
+    dispatch. A generalization of goal_reconcile that ALSO allows the Contract PR
+    to register the goal file itself (first registration), matched against its
+    frozen plan. Deny by default for everything else. Guardian evaluation is
+    forced from the Goal's frozen-plan risk in ``main`` (see
+    ``contract_guardian_risk``)."""
+    _enforce_frozen_registration(
+        mode="contract",
+        target=target,
+        goal_id=goal_id,
+        changed_files_status=changed_files_status,
+        blocking=blocking,
+        warnings=warnings,
+        allow_goal_registration=True,
+    )
+
+
+def _validate_contract_goal_registration(
+    target: Path, goal_id: str, entry: ChangedFile, blocking: list[str], mode: str
+) -> None:
+    """Validate the goal file a Contract PR registers for the first time.
+
+    The goal must be ADDED (never modified/deleted — an existing goal contract is
+    immutable), be status=planned, bind to a spec-frozen source_plan, and carry a
+    risk_level that matches that frozen plan. The risk match is load-bearing: the
+    Guardian gate is forced from the goal's frozen-plan risk, so a goal file that
+    understates its risk would silently weaken the gate."""
+    if entry.status != "A":
+        blocking.append(
+            f"{mode} may only ADD the goal registration file .shiki/goals/{goal_id}.json, not modify/delete it"
+        )
+        return
+    goal = load_json(target / f".shiki/goals/{goal_id}.json")
+    if not isinstance(goal, dict):
+        blocking.append(f"{mode} goal registration .shiki/goals/{goal_id}.json is not a JSON object")
+        return
+    if str(goal.get("id") or "") != goal_id:
+        blocking.append(f"{mode} goal registration filename does not match its id {goal.get('id')!r}")
+    if goal.get("status") != "planned":
+        blocking.append(f"{mode} goal {goal_id} must be registered as status=planned, not {goal.get('status')!r}")
+    plan_id = str(goal.get("source_plan") or "")
+    plan = load_plan(target, plan_id) if plan_id else None
+    if not isinstance(plan, dict):
+        blocking.append(f"{mode} goal {goal_id} source_plan {plan_id!r} does not resolve to a plan")
+        return
+    # A registered contract MUST declare a canonical risk level: the Guardian gate
+    # is forced from it, and a missing/unknown value would resolve to no gate
+    # (fail-open). Requiring it here means enforce_contract itself rejects a
+    # risk-less goal, independent of any separate validate_shiki run.
+    if goal.get("risk_level") not in _RISK_ORDER:
+        blocking.append(
+            f"{mode} goal {goal_id} must declare a canonical risk_level "
+            f"(one of {sorted(_RISK_ORDER)}), not {goal.get('risk_level')!r}"
+        )
+    if goal.get("risk_level") != plan.get("risk_level"):
+        blocking.append(
+            f"{mode} goal {goal_id} risk_level {goal.get('risk_level')!r} does not match its frozen plan "
+            f"definition risk_level {plan.get('risk_level')!r}"
+        )
+
+
+# Risk ordering, low to high. Used to force the Guardian gate from the STRONGER
+# of a Contract PR's goal-file risk and its immutable frozen-plan risk, so a
+# downgraded goal file can never resolve to a weaker gate than the frozen plan.
+_RISK_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
+
+def _max_risk(first: str, second: str) -> str:
+    return first if _RISK_ORDER.get(first, -1) >= _RISK_ORDER.get(second, -1) else second
+
+
+def contract_guardian_risk(target: Path, goal_id: str) -> str | None:
+    """Resolve the risk level that forces the Guardian gate for a Contract PR.
+
+    The authority is the goal's spec-frozen source_plan (immutable, on the base
+    branch), never the mutable goal file alone. Returns the stronger of the frozen
+    plan's risk and the goal file's risk, or None when the goal cannot be
+    resolved (in which case the contract validator has already blocked)."""
+    goal = load_goal(target, goal_id)
+    if not isinstance(goal, dict):
+        return None
+    goal_risk = str(goal.get("risk_level") or "")
+    plan_id = str(goal.get("source_plan") or "")
+    plan = load_plan(target, plan_id) if plan_id else None
+    plan_risk = str(plan.get("risk_level") or "") if isinstance(plan, dict) else ""
+    resolved = _max_risk(plan_risk, goal_risk)
+    return resolved or None
 
 
 POST_MERGE_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:post_merge_reconcile\s*-->")
@@ -1234,6 +1401,7 @@ def main() -> int:
     resolved_goal_id: str | None = None
     reconcile_mode = False
     post_merge_mode = False
+    contract_mode = False
     manifest: dict[str, Any] | None = None
     try:
         manifest = load_manifest(target)
@@ -1248,12 +1416,19 @@ def main() -> int:
         resolved_goal_id = first_match(GOAL_ID, body)
         reconcile_mode, reconcile_error = goal_reconcile_decision(pr)
         post_merge_mode, post_merge_error = post_merge_reconcile_decision(pr)
+        contract_mode, contract_error = contract_decision(pr)
         if reconcile_error:
             blocking.append(reconcile_error)
         if post_merge_error:
             blocking.append(post_merge_error)
+        if contract_error:
+            blocking.append(contract_error)
         if reconcile_mode and post_merge_mode:
             blocking.append("a PR cannot be both goal_reconcile and post_merge_reconcile")
+        if contract_mode and reconcile_mode:
+            blocking.append("a PR cannot be both contract and goal_reconcile")
+        if contract_mode and post_merge_mode:
+            blocking.append("a PR cannot be both contract and post_merge_reconcile")
         if args.expected_head_sha:
             pr_head = str(pr.get("headRefOid") or "")
             if not pr_head:
@@ -1265,6 +1440,11 @@ def main() -> int:
             # it does not carry a single implementation task id.
             if not resolved_goal_id:
                 blocking.append("goal_reconcile PR body does not contain a Shiki goal id like G-0001")
+        elif contract_mode:
+            # A Contract PR is goal-scoped (frozen-plan task-contract registration);
+            # it carries no single implementation task id (ADR 0015).
+            if not resolved_goal_id:
+                blocking.append("contract PR body does not contain a Shiki goal id like G-0001")
         elif post_merge_mode:
             # A post_merge_reconcile PR is task-scoped (reconcile a merged task).
             if not resolved_task_id:
@@ -1297,6 +1477,49 @@ def main() -> int:
             blocking=blocking,
             warnings=warnings,
         )
+    elif contract_mode and pr:
+        # Contract mode (ADR 0015): a goal-scoped, spec-frozen task-contract
+        # registration PR. It uses the generalized deny-by-default validator and
+        # forces the Guardian gate from the Goal's frozen-plan risk BEFORE any
+        # implementation is dispatched. The Guardian gate here is INDEPENDENT of a
+        # CCA verdict: a Contract PR carries no implementation for CCA to judge, so
+        # requiring a verdict to reach the gate (as the single-task flow does)
+        # would let a high-risk contract merge unapproved when CCA is absent.
+        files_status = parse_changed_files_status(
+            Path(args.changed_files_status), changed_files(Path(args.changed_files))
+        )
+        enforce_contract(
+            target=target,
+            goal_id=resolved_goal_id or "",
+            changed_files_status=files_status,
+            blocking=blocking,
+            warnings=warnings,
+        )
+        if resolved_goal_id:
+            contract_risk = contract_guardian_risk(target, resolved_goal_id)
+            if contract_risk not in _RISK_ORDER:
+                # Fail closed: if the Guardian risk cannot be resolved from the
+                # goal's frozen plan, the gate cannot be evaluated, so the contract
+                # must not slip through as if it were unguarded. (enforce_contract
+                # already blocks a risk-less goal registration; this guards the
+                # guardian input independently in case the goal is on base.)
+                blocking.append(
+                    f"contract PR Guardian risk for goal {resolved_goal_id} could not be resolved "
+                    f"from its frozen plan (got {contract_risk!r}); the Guardian gate cannot be evaluated"
+                )
+            else:
+                enforce_guardian_policy(
+                    pr=pr,
+                    task={"risk_level": contract_risk},
+                    target=target,
+                    guardian_policy=args.guardian_policy,
+                    guardian_comments=args.guardian_comments,
+                    guardian_events=args.guardian_events,
+                    guardian_timeline=args.guardian_timeline,
+                    blocking=blocking,
+                    warnings=warnings,
+                    expected_repository=args.expected_repository,
+                )
     elif post_merge_mode and pr:
         # post_merge_reconcile is a task-scoped reconcile of a merged task's
         # residual lock / status; a dedicated deny-by-default validator.
