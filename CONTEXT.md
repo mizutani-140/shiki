@@ -100,6 +100,22 @@ _Avoid_: letting automation approve critical changes silently, forging human app
 The kind of approver that can grant a controlled transition: operator, repository maintainer, external AI guardian reviewer, policy engine, or verifier ensemble. Shiki is authority-in-the-loop, not human-in-the-loop. Each authority's approval is recorded under its own identity.
 _Avoid_: treating "human pressed the button" as the only valid authority, recording one authority's approval under another's identity
 
+**Contract Approval**:
+Guardian approval of a high/critical-risk Goal's task contracts before any implementation starts, granted on the Contract PR and binding for every implementation that stays inside its Scope Envelope (ADR 0015). Guardian authorizes the contract, not the diff; whether the authorized work was implemented correctly stays with CCA and review.
+_Avoid_: approving a contract after implementation exists, treating it as diff review, committed approval files
+
+**Contract PR**:
+The pull request that carries a spec-frozen Goal's task contracts — and nothing else — to the default branch so a Guardian can approve them before dispatch. Its merge is the durable proof that Contract Approval was granted.
+_Avoid_: mixing implementation into it, dispatching a high/critical task whose contract is not yet on the default branch
+
+**Scope Envelope**:
+The bound a Contract Approval authorizes: the task's declared locks plus a size ceiling. An implementation that stays inside its envelope is covered by the Contract Approval; one that leaves it is unauthorized work and must stop for a Contract Amendment.
+_Avoid_: widening the envelope from inside the implementation PR, treating the size ceiling as a work budget rather than a tripwire
+
+**Contract Amendment**:
+The Spec Amendment applied to a task contract: when implementation proves the approved contract is wrong or too narrow, work stops and a new Contract PR re-approves the corrected contract. Only a Guardian grants it.
+_Avoid_: silently widening locks or lowering risk from the implementation PR, repairing an envelope breach instead of stopping
+
 **External AI Guardian Review**:
 A first-class Guardian approval authority (ADR 0010) by which an external AI reviewer authorizes autonomous merge of a high/critical-risk PR through a head-SHA-bound `external_ai_guardian_review` artifact, recorded with the AI reviewer's own model identity (reviewer_type=external_ai_model).
 _Avoid_: transforming an AI review into an operator approval, committed (forgeable) approval files, head-unbound approval
