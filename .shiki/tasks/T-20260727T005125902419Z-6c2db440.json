@@ -7,7 +7,9 @@
     "The CLI does not apply the contract-mode label and reports that a maintainer must apply it.",
     "Tests construct their own spec-frozen multi-task plan fixture inside a temporary directory and prove the command registers its contracts there; no test writes to .shiki/plans/ or any other real mirror path.",
     "CONTEXT.md and docs/adr/0015 are present on the branch and validate_shiki passes.",
-    "The change AUTHORS no approval record. Registering one that already exists is not authoring one: the goal's own source plan may be committed verbatim from the coordinator's frozen copy, spec_freeze included, because that approval was granted by the operator before this task began. Verify by loading every added or modified .shiki/*.json in the diff and asserting none carries a spec_freeze OBJECT except the goal's source_plan, whose spec_freeze must be byte-identical to the coordinator's. Occurrences of the STRING 'spec_freeze' in prose (non_goals, docs) or inside captured runner output are not approval records. Test fixtures may construct a spec-frozen plan inside a temporary directory but must not write to any real mirror path, and no fixture may carry an approved_by naming a real person."
+    "The change AUTHORS no approval record. Registering one that already exists is not authoring one: the goal's own source plan may be committed verbatim from the coordinator's frozen copy, spec_freeze included, because that approval was granted by the operator before this task began. Verify by loading every added or modified .shiki/*.json in the diff and asserting none carries a spec_freeze OBJECT except the goal's source_plan, whose spec_freeze must be byte-identical to the coordinator's. Occurrences of the STRING 'spec_freeze' in prose (non_goals, docs) or inside captured runner output are not approval records. Test fixtures may construct a spec-frozen plan inside a temporary directory but must not write to any real mirror path, and no fixture may carry an approved_by naming a real person.",
+    "The CCA job in .github/workflows/shiki-cca-completion.yml declares --max-turns 60.",
+    "This PR's own CCA run produces a structured verdict rather than error_max_turns."
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
@@ -27,7 +29,9 @@
     "L-20260727T022618065297Z-525333c7",
     "L-20260727T022633773623Z-cb21f74b",
     "L-20260727T022637290665Z-3e73dc39",
-    "L-20260727T025707295572Z-f613c0e6"
+    "L-20260727T025707295572Z-f613c0e6",
+    "L-20260727T054508936243Z-f5c9c788",
+    "L-20260727T054509003964Z-5e03b431"
   ],
   "locks": [
     "path:scripts/shiki_tasks.py",
@@ -37,7 +41,8 @@
     "path:docs/adr/**",
     "path:tests/**",
     "path:scripts/test_shiki_*.sh",
-    "path:.shiki/**"
+    "path:.shiki/**",
+    "path:.github/workflows/shiki-cca-completion.yml"
   ],
   "non_goals": [
     "Contract Approval as a Guardian authority (ADR 0015's goal owns it)",
@@ -72,8 +77,8 @@
     "code-review"
   ],
   "risk_level": "high",
-  "scope": "Add a shiki CLI path that opens a Contract PR for a spec-frozen Goal, carrying only .shiki goal/task/DAG registration and no implementation, and validate it in MergeGate as a contract mode generalizing the existing goal_reconcile validator: deny-by-default, every registered task matched against its frozen plan definition on the governance fields, and Guardian evaluation forced from the Goal's risk level. The CLI must not apply the mode's maintainer label to its own PR \u2014 that label is an independent second factor and self-applying it collapses two factors to one. Land CONTEXT.md's Contract Approval terms and docs/adr/0015 in the same PR so the decision is on the default branch before the work it authorizes.",
-  "status": "review",
+  "scope": "Add a shiki CLI path that opens a Contract PR for a spec-frozen Goal, carrying only .shiki goal/task/DAG registration and no implementation, and validate it in MergeGate as a contract mode generalizing the existing goal_reconcile validator: deny-by-default, every registered task matched against its frozen plan definition on the governance fields, and Guardian evaluation forced from the Goal's risk level. The CLI must not apply the mode's maintainer label to its own PR \u2014 that label is an independent second factor and self-applying it collapses two factors to one. Land CONTEXT.md's Contract Approval terms and docs/adr/0015 in the same PR so the decision is on the default branch before the work it authorizes. Additionally, raise the CCA job's turn budget in .github/workflows/shiki-cca-completion.yml from 15 to 60, matching the advisory Claude review job. This is a precondition for this PR being judgeable at all: at 15 turns the CCA overran and returned error_max_turns with no verdict, so no verdict of any kind \u2014 complete or otherwise \u2014 can be produced for this task under the current budget.",
+  "status": "ready",
   "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Deliver the Contract PR registration path and record ADR 0015"
 }
