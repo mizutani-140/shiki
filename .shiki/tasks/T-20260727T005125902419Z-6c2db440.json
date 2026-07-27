@@ -7,7 +7,7 @@
     "The CLI does not apply the contract-mode label and reports that a maintainer must apply it.",
     "Tests construct their own spec-frozen multi-task plan fixture inside a temporary directory and prove the command registers its contracts there; no test writes to .shiki/plans/ or any other real mirror path.",
     "CONTEXT.md and docs/adr/0015 are present on the branch and validate_shiki passes.",
-    "The change adds no approval record to real mirror state: `git diff origin/main...HEAD -- .shiki | grep spec_freeze` is empty. Test fixtures MAY construct a spec-frozen plan inside a temporary directory \u2014 that is the required shape \u2014 but no fixture may carry an approved_by naming a real person."
+    "The change AUTHORS no approval record. Registering one that already exists is not authoring one: the goal's own source plan may be committed verbatim from the coordinator's frozen copy, spec_freeze included, because that approval was granted by the operator before this task began. Verify by loading every added or modified .shiki/*.json in the diff and asserting none carries a spec_freeze OBJECT except the goal's source_plan, whose spec_freeze must be byte-identical to the coordinator's. Occurrences of the STRING 'spec_freeze' in prose (non_goals, docs) or inside captured runner output are not approval records. Test fixtures may construct a spec-frozen plan inside a temporary directory but must not write to any real mirror path, and no fixture may carry an approved_by naming a real person."
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
@@ -26,7 +26,8 @@
     "L-20260727T021647977853Z-fe3778e8",
     "L-20260727T022618065297Z-525333c7",
     "L-20260727T022633773623Z-cb21f74b",
-    "L-20260727T022637290665Z-3e73dc39"
+    "L-20260727T022637290665Z-3e73dc39",
+    "L-20260727T025707295572Z-f613c0e6"
   ],
   "locks": [
     "path:scripts/shiki_tasks.py",
