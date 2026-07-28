@@ -31,7 +31,8 @@
     "L-20260727T022637290665Z-3e73dc39",
     "L-20260727T025707295572Z-f613c0e6",
     "L-20260727T054508936243Z-f5c9c788",
-    "L-20260727T054509003964Z-5e03b431"
+    "L-20260727T054509003964Z-5e03b431",
+    "L-20260728T060923365767Z-13343d71"
   ],
   "locks": [
     "path:scripts/shiki_tasks.py",
@@ -78,7 +79,7 @@
   ],
   "risk_level": "high",
   "scope": "Add a shiki CLI path that opens a Contract PR for a spec-frozen Goal, carrying only .shiki goal/task/DAG registration and no implementation, and validate it in MergeGate as a contract mode generalizing the existing goal_reconcile validator: deny-by-default, every registered task matched against its frozen plan definition on the governance fields, and Guardian evaluation forced from the Goal's risk level. The CLI must not apply the mode's maintainer label to its own PR \u2014 that label is an independent second factor and self-applying it collapses two factors to one. Land CONTEXT.md's Contract Approval terms and docs/adr/0015 in the same PR so the decision is on the default branch before the work it authorizes. Additionally, raise the CCA job's turn budget in .github/workflows/shiki-cca-completion.yml from 15 to 60, matching the advisory Claude review job. This is a precondition for this PR being judgeable at all: at 15 turns the CCA overran and returned error_max_turns with no verdict, so no verdict of any kind \u2014 complete or otherwise \u2014 can be produced for this task under the current budget.",
-  "status": "ready",
+  "status": "review",
   "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Deliver the Contract PR registration path and record ADR 0015"
 }

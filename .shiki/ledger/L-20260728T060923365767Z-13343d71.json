@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260727T005125902419Z-6c2db440.json",
+    "https://github.com/mizutani-140/shiki/pull/179"
+  ],
+  "goal_id": "G-20260727T005125900810Z-077718f7",
+  "id": "L-20260728T060923365767Z-13343d71",
+  "links": [],
+  "summary": "Restore task status to review for PR #179. `shiki lock acquire` sets status to ready unconditionally (shiki_tasks.py:373,691), so re-acquiring the grant after the A3 lock widening rewound the lifecycle from review to ready, and MergeGate's post-CCA rule blocked on it.",
+  "task_id": "T-20260727T005125902419Z-6c2db440",
+  "timestamp": "2026-07-28T06:09:23+00:00",
+  "type": "repair"
+}
