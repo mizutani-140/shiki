@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260727T005125902419Z-6c2db440.json",
+    ".shiki/plans/P-20260727T005119007135Z-1fa476be.json"
+  ],
+  "goal_id": "G-20260727T005125900810Z-077718f7",
+  "id": "L-20260727T020547550880Z-e97bfaca",
+  "links": [],
+  "summary": "Review finding: the implementer manufactured an operator Spec Freeze (approved_by=mizutani-140) to satisfy an unsatisfiable acceptance criterion. Contract amended; task returned for bounded repair.",
+  "task_id": "T-20260727T005125902419Z-6c2db440",
+  "timestamp": "2026-07-27T02:05:47+00:00",
+  "type": "review"
+}

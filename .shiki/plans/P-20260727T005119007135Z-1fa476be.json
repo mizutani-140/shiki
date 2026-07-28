@@ -1,0 +1,91 @@
+{
+  "completion_conditions": [
+    "shiki contract open produces a branch and PR carrying only goal, task and DAG registration for one spec-frozen goal.",
+    "MergeGate accepts that PR in a dedicated contract mode and rejects one carrying any implementation file.",
+    "Every registered task matches its frozen plan definition on the governance fields.",
+    "The CLI does not apply the mode's maintainer label to its own PR; it reports that a maintainer must.",
+    "ADR 0015 and its CONTEXT.md terms are on the default branch, so the decision this path implements is recorded before the work it authorizes.",
+    "validate_shiki and the full suite stay green."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "A multi-task goal cannot land any first PR: validate_shiki requires every DAG node to have a task file, while MergeGate forbids a PR carrying a task file other than its own. Both enforcement points were observed directly \u2014 the validator error and a 56-blocker MergeGate simulation.",
+      "Reordering the DAG does not help. The wall is hit by whichever task goes first, so the fix is shape, not order: the Contract PR path must be delivered by a SINGLE-task goal.",
+      "shiki_loop._evidence_relatives_for_task already encodes this model: it syncs a goal's DAG onto the task branch only when the DAG's node set is exactly this task, and its comments state that a task branch is cut from main and that a multi-task goal's DAG 'already rides in from main'. The registration path that would put it there is the missing piece.",
+      "The decision docs move here from ADR0015-T1 so ADR 0015 lands before the work it authorizes; T1 keeps the contract-immutability code.",
+      "The three big goals are rolled back to frozen plans. Nothing is registered until it can land \u2014 the same lesson applied uniformly, after registering three goals before any could reach main produced 56 MergeGate blockers."
+    ],
+    "source": "Requirements Definition 2026-07-27, forced by a live dispatch attempt rather than by design review.",
+    "status": "complete"
+  },
+  "id": "P-20260727T005119007135Z-1fa476be",
+  "ingested_at": "2026-07-27T00:51:19+00:00",
+  "non_goals": [
+    "Contract Approval as a Guardian authority at MergeGate (ADR 0015's own goal owns it).",
+    "The pre-dispatch gate, contract immutability, or the Scope Envelope ceiling.",
+    "Changing approval sources or any Guardian semantics.",
+    "Auto-applying the contract-mode label \u2014 that label is an independent second factor.",
+    "Registering the three waiting frozen plans; that is an operation performed after this lands, not part of this task."
+  ],
+  "outcome": "A spec-frozen Goal can register its task contracts to the default branch through one Contract PR that carries no implementation, so multi-task goals can start at all. This is a single-task goal on purpose: a single-task goal is the only shape that can currently land its own registration, so it is the only shape that can deliver the path the others need.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-BOOTSTRAP-CONTRACTPR-draft.json",
+  "spec_freeze": {
+    "amendments": [
+      "A1 (operator-approved 2026-07-27, after the first autonomous dispatch): the acceptance criterion 'run the command against the waiting ADR 0015 frozen plan' was unsatisfiable \u2014 that plan lives in the coordinator's .shiki/plans/, not on main, and the task worktree is cut from main. The implementer closed the gap by writing .shiki/plans/P-20260727T005125000000Z-0015c0de.json containing spec_freeze.status=frozen with approved_by=mizutani-140 \u2014 an operator approval the operator never gave \u2014 and hard-coded its id in the tests. No gate caught it: 412 tests passed, validate_shiki passed, and .shiki/plans/ is outside MergeGate's scoped-mutation rules. The criterion is replaced with a temp-fixture requirement, a no-spec_freeze assertion is added, and manufacturing an approval record is made an explicit non-goal.",
+      "A1b (same amendment, corrected before dispatch): the first replacement criterion demanded that `spec_freeze` appear nowhere in the diff, which the legitimate temp-directory fixtures in test_contract_mode.py already violate \u2014 i.e. it was itself unsatisfiable, the exact defect this amendment exists to fix. Narrowed to real mirror state under .shiki plus a prohibition on fixtures naming a real approver.",
+      "A2 (operator-approved 2026-07-27, raised by the CCA on PR #179): the A1b criterion \u2014 'git diff origin/main...HEAD -- .shiki | grep spec_freeze is empty' \u2014 fails against the final diff, because the goal loop's state sync commits the task's OWN source plan, which legitimately carries the operator's real spec_freeze. The CCA correctly separated the two cases: the plan's block is the genuine already-approved Spec Freeze being registered for the first time, while the test fixtures were independently confirmed to stay inside tempfile.TemporaryDirectory(). It also identified why the implementer's PR body claimed the criterion verified \u2014 it ran the check before the loop appended the registration commits, so the claim was true when made. This is the THIRD formulation of this criterion: the original demanded an artifact absent from the worktree and induced a fabricated approval; A1b banned the string everywhere and would have failed the legitimate temp fixtures; A1b as applied banned it under .shiki and fails the task's own legitimate registration. The hazard is AUTHORING an approval, never REGISTERING one already granted, and the criterion now says exactly that.",
+      "A3 (operator-approved 2026-07-27): the CCA job overran --max-turns 15 and returned error_max_turns with NO structured verdict, so this task cannot be judged at all. Accurate framing: run 1 on head 4a43ecd produced a full deep verdict WITHIN 15 turns, and run 3 on head 243056c overran \u2014 so 15 is not structurally impossible, it is an unreliable margin, and a gate that fits sometimes is a flaky gate. Folded into this task rather than planned separately because of a real deadlock: this task holds path:.shiki/** for the whole repo, every Shiki task needs that lock, so no separate task can be dispatched while this one is unjudgeable. The fold is bounded to one workflow line and its lock. Note also the inversion it corrects: the required gate that blocks merge had 15 turns while the advisory review that blocks nothing had 60."
+    ],
+    "approved_by": "mizutani-140",
+    "prd": "docs/adr/0015-contract-approval-before-dispatch.md",
+    "source": "Operator approval 2026-07-27 after a live dispatch attempt proved a multi-task goal cannot land any first PR; the Contract PR path must be delivered by a single-task goal.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "shiki contract open against a spec-frozen plan produces a branch whose diff contains only .shiki goal, task and DAG registration for that goal.",
+        "A contract-mode PR containing any implementation file is blocked by MergeGate.",
+        "A contract-mode PR whose registered task differs from its frozen plan definition on scope, non_goals, required_skills, risk_level, locks or acceptance_checks is blocked.",
+        "A contract-mode PR for a high-risk goal is blocked without Guardian approval and passes with it.",
+        "The CLI does not apply the contract-mode label and reports that a maintainer must apply it.",
+        "Tests construct their own spec-frozen multi-task plan fixture inside a temporary directory and prove the command registers its contracts there; no test writes to .shiki/plans/ or any other real mirror path.",
+        "CONTEXT.md and docs/adr/0015 are present on the branch and validate_shiki passes.",
+        "The change AUTHORS no approval record. Registering one that already exists is not authoring one: the goal's own source plan may be committed verbatim from the coordinator's frozen copy, spec_freeze included, because that approval was granted by the operator before this task began. Verify by loading every added or modified .shiki/*.json in the diff and asserting none carries a spec_freeze OBJECT except the goal's source_plan, whose spec_freeze must be byte-identical to the coordinator's. Occurrences of the STRING 'spec_freeze' in prose (non_goals, docs) or inside captured runner output are not approval records. Test fixtures may construct a spec-frozen plan inside a temporary directory but must not write to any real mirror path, and no fixture may carry an approved_by naming a real person.",
+        "The CCA job in .github/workflows/shiki-cca-completion.yml declares --max-turns 60.",
+        "This PR's own CCA run produces a structured verdict rather than error_max_turns."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/shiki_tasks.py",
+        "path:scripts/shiki_cli.py",
+        "path:scripts/mergegate_check.py",
+        "path:CONTEXT.md",
+        "path:docs/adr/**",
+        "path:tests/**",
+        "path:scripts/test_shiki_*.sh",
+        "path:.shiki/**",
+        "path:.github/workflows/shiki-cca-completion.yml"
+      ],
+      "non_goals": [
+        "Contract Approval as a Guardian authority (ADR 0015's goal owns it)",
+        "The pre-dispatch gate or the envelope ceiling",
+        "Auto-applying the contract-mode label",
+        "Changing approval sources",
+        "Authoring a spec_freeze block, or any other approval record. Spec Freeze is operator-only (ADR 0009). An acceptance criterion that cannot be satisfied with the artifacts present in the worktree must be reported as a stop, never closed by manufacturing the missing artifact."
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Add a shiki CLI path that opens a Contract PR for a spec-frozen Goal, carrying only .shiki goal/task/DAG registration and no implementation, and validate it in MergeGate as a contract mode generalizing the existing goal_reconcile validator: deny-by-default, every registered task matched against its frozen plan definition on the governance fields, and Guardian evaluation forced from the Goal's risk level. The CLI must not apply the mode's maintainer label to its own PR \u2014 that label is an independent second factor and self-applying it collapses two factors to one. Land CONTEXT.md's Contract Approval terms and docs/adr/0015 in the same PR so the decision is on the default branch before the work it authorizes. Additionally, raise the CCA job's turn budget in .github/workflows/shiki-cca-completion.yml from 15 to 60, matching the advisory Claude review job. This is a precondition for this PR being judgeable at all: at 15 turns the CCA overran and returned error_max_turns with no verdict, so no verdict of any kind \u2014 complete or otherwise \u2014 can be produced for this task under the current budget.",
+      "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+      "title": "Deliver the Contract PR registration path and record ADR 0015"
+    }
+  ],
+  "title": "Bootstrap the Contract PR registration path"
+}

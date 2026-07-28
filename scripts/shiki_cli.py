@@ -17,7 +17,7 @@ from shiki_memory import cmd_memory_capture, cmd_memory_distill, cmd_memory_inve
 from shiki_migrations import cmd_migrate
 from shiki_process import ShikiError
 from shiki_runtime import cmd_daemon_enqueue_plan, cmd_daemon_run, cmd_runner_claude, cmd_runner_codex, cmd_runner_execute, cmd_runner_next, cmd_smoke_live
-from shiki_tasks import cmd_dispatch_check, cmd_goal_complete, cmd_goal_create, cmd_handoff_repair, cmd_handoff_task, cmd_issue_plan, cmd_lock_acquire, cmd_plan_guide, cmd_plan_ingest, cmd_repair_packet, cmd_run, cmd_task_status, cmd_worktree_allocate
+from shiki_tasks import cmd_contract_open, cmd_dispatch_check, cmd_goal_complete, cmd_goal_create, cmd_handoff_repair, cmd_handoff_task, cmd_issue_plan, cmd_lock_acquire, cmd_plan_guide, cmd_plan_ingest, cmd_repair_packet, cmd_run, cmd_task_status, cmd_worktree_allocate
 
 
 def add_provider_arguments(command: argparse.ArgumentParser) -> None:
@@ -194,6 +194,13 @@ def build_parser() -> argparse.ArgumentParser:
     run_command.add_argument("--target", default=".", help="Target repository path")
     run_command.add_argument("--plan", required=True, help="Plan id like P-0001 or path to a grilled plan JSON")
     run_command.set_defaults(func=cmd_run)
+
+    contract = subcommands.add_parser("contract", help="Open a Contract PR that registers a spec-frozen Goal's task contracts (ADR 0015)")
+    contract_subcommands = contract.add_subparsers(dest="contract_command", required=True)
+    contract_open = contract_subcommands.add_parser("open", help="Register goal/task/DAG contracts from a spec-frozen plan for a Contract PR (no implementation, no label)")
+    contract_open.add_argument("--target", default=".", help="Target repository path")
+    contract_open.add_argument("--plan", required=True, help="Spec-frozen plan id like P-0001 or path to a plan JSON")
+    contract_open.set_defaults(func=cmd_contract_open)
 
     daemon = subcommands.add_parser("daemon", help="Run the Shiki background inbox processor")
     daemon_subcommands = daemon.add_subparsers(dest="daemon_command", required=True)

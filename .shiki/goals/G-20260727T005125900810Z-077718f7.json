@@ -1,0 +1,48 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "shiki contract open produces a branch and PR carrying only goal, task and DAG registration for one spec-frozen goal.",
+    "MergeGate accepts that PR in a dedicated contract mode and rejects one carrying any implementation file.",
+    "Every registered task matches its frozen plan definition on the governance fields.",
+    "The CLI does not apply the mode's maintainer label to its own PR; it reports that a maintainer must.",
+    "ADR 0015 and its CONTEXT.md terms are on the default branch, so the decision this path implements is recorded before the work it authorizes.",
+    "validate_shiki and the full suite stay green."
+  ],
+  "created_at": "2026-07-27T00:51:25+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "A multi-task goal cannot land any first PR: validate_shiki requires every DAG node to have a task file, while MergeGate forbids a PR carrying a task file other than its own. Both enforcement points were observed directly \u2014 the validator error and a 56-blocker MergeGate simulation.",
+      "Reordering the DAG does not help. The wall is hit by whichever task goes first, so the fix is shape, not order: the Contract PR path must be delivered by a SINGLE-task goal.",
+      "shiki_loop._evidence_relatives_for_task already encodes this model: it syncs a goal's DAG onto the task branch only when the DAG's node set is exactly this task, and its comments state that a task branch is cut from main and that a multi-task goal's DAG 'already rides in from main'. The registration path that would put it there is the missing piece.",
+      "The decision docs move here from ADR0015-T1 so ADR 0015 lands before the work it authorizes; T1 keeps the contract-immutability code.",
+      "The three big goals are rolled back to frozen plans. Nothing is registered until it can land \u2014 the same lesson applied uniformly, after registering three goals before any could reach main produced 56 MergeGate blockers."
+    ],
+    "source": "Requirements Definition 2026-07-27, forced by a live dispatch attempt rather than by design review.",
+    "status": "complete"
+  },
+  "id": "G-20260727T005125900810Z-077718f7",
+  "ledger_evidence": [
+    "L-20260727T005125901771Z-60b892a4"
+  ],
+  "non_goals": [
+    "Contract Approval as a Guardian authority at MergeGate (ADR 0015's own goal owns it).",
+    "The pre-dispatch gate, contract immutability, or the Scope Envelope ceiling.",
+    "Changing approval sources or any Guardian semantics.",
+    "Auto-applying the contract-mode label \u2014 that label is an independent second factor.",
+    "Registering the three waiting frozen plans; that is an operation performed after this lands, not part of this task."
+  ],
+  "outcome": "A spec-frozen Goal can register its task contracts to the default branch through one Contract PR that carries no implementation, so multi-task goals can start at all. This is a single-task goal on purpose: a single-task goal is the only shape that can currently land its own registration, so it is the only shape that can deliver the path the others need.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260727T005119007135Z-1fa476be",
+  "status": "planned",
+  "title": "Bootstrap the Contract PR registration path"
+}

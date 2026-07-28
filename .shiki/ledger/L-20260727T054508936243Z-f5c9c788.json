@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260727T005125902419Z-6c2db440.json",
+    ".shiki/plans/P-20260727T005119007135Z-1fa476be.json",
+    "https://github.com/mizutani-140/shiki/actions/runs/30233399652"
+  ],
+  "goal_id": "G-20260727T005125900810Z-077718f7",
+  "id": "L-20260727T054508936243Z-f5c9c788",
+  "links": [],
+  "summary": "Spec Amendment A3: raise the CCA turn budget from 15 to 60. The CCA returned error_max_turns with no verdict, making this task unjudgeable; folded here because this task holds path:.shiki/** and no separate task can be dispatched while it does.",
+  "task_id": "T-20260727T005125902419Z-6c2db440",
+  "timestamp": "2026-07-27T05:45:08+00:00",
+  "type": "repair"
+}
