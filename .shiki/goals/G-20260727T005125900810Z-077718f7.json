@@ -27,7 +27,8 @@
   },
   "id": "G-20260727T005125900810Z-077718f7",
   "ledger_evidence": [
-    "L-20260727T005125901771Z-60b892a4"
+    "L-20260727T005125901771Z-60b892a4",
+    "L-20260728T102710248922Z-d98fa84d"
   ],
   "non_goals": [
     "Contract Approval as a Guardian authority at MergeGate (ADR 0015's own goal owns it).",
@@ -43,6 +44,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260727T005119007135Z-1fa476be",
-  "status": "planned",
+  "status": "complete",
   "title": "Bootstrap the Contract PR registration path"
 }
