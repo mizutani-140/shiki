@@ -10,12 +10,20 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260729t065622764822z-bac7ef27-deliver-the-repair-to-the-pr",
-  "expected_pr": null,
+  "expected_pr": 192,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622764822Z-bac7ef27",
   "ledger_evidence": [
-    "L-20260729T065622764840Z-d99965e8"
+    "L-20260729T065622764840Z-d99965e8",
+    "L-20260729T214514540562Z-e9c5fdd8",
+    "L-20260729T214540040833Z-ced1188f",
+    "L-20260729T214921569324Z-62ab26dd",
+    "L-20260729T221709110007Z-fab31d12",
+    "L-20260729T225326696944Z-c2e98bf1",
+    "L-20260729T230853746496Z-3545054e",
+    "L-20260729T230916954095Z-a941af60",
+    "L-20260729T230920274042Z-d7b73aeb"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -31,13 +39,34 @@
     "The closeout path",
     "Envelope-breach routing (ADR 0015 T6 owns it)"
   ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "git diff main...HEAD includes mergegate_check.py, shiki_runtime.py, validate_shiki.py, ADR 0015, CONTEXT.md, dozens of .shiki records and other tasks' work from PRs #181-#187 that are unrelated to this task's three locked files. This is the documented stale-local-main base condition, not content authored by this task; MergeGate computes its base from origin/main where these commits already exist, so they resolve empty. Non-blocking, but the PR should ideally be rebased on current origin/main so the reviewable diff is only shiki_loop.py, shiki_tasks.py and test_repair_delivery.py.",
+        "severity": "info",
+        "title": "Diff carries large foreign already-merged mirror/code state (stale-local-main base)"
+      },
+      {
+        "detail": "_pr_branch_head reads refs/remotes/origin/<branch>. If that local tracking ref is absent when a repair runs, head_before is None; a no-op repair whose branch was already pushed elsewhere would then set head_after non-None (git push -u re-establishes the ref even when up-to-date), so head_after != head_before and the no-op guard would not fire. In the normal loop this ref is always created by create_pr's own git push -u before any repair, so head_before is non-None in practice and the guard holds. Noting the edge case only; not a realistic blocker.",
+        "severity": "info",
+        "title": "No-op detection depends on a locally-present origin tracking ref"
+      },
+      {
+        "detail": "_dispatch_repair returns the runner returncode but execute_action commits/pushes unconditionally, relying on the head-advancement guard plus the PR's required checks re-running. This is consistent with the existing create_pr branch (which also does not gate commit/push on the runner exit and relies on the TDD/pre-PR gates). A failed repair runner that still produced a worktree change would be pushed and then re-judged by the checks/cap; acceptable and in scope.",
+        "severity": "info",
+        "title": "dispatch_repair does not gate delivery on the repair runner's return code"
+      }
+    ],
+    "ledger_id": "L-20260729T230853746496Z-3545054e",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "high",
   "scope": "In execute_action's dispatch_repair branch in scripts/shiki_loop.py, call the existing _commit_and_push_implementation after _dispatch_repair returns, record its result, and fail closed to stop_blocked when it does not report a push \u2014 exactly as the create_pr branch already does. Render the repair packet's evidence_required in cmd_handoff_repair and add the same 'the goal loop owns commit/push' prohibition the task handoff carries, so the runner's contract is unambiguous in both directions.\n\nREPRODUCIBILITY \u2014 what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: committing and pushing a completed repair by hand, because dispatch_repair delivers nothing.\n  Observed: repair RP-20260729T051350511459Z-50b5c0d7 finished correctly in the worktree and PR #181 did not move; the coordinator had to commit and push the loop's own work.\n  Reproducible when: a repair that finishes green updates its PR without an operator running git, and a push failure stops the loop with a named reason instead of silently consuming a repair attempt.",
-  "status": "planned",
+  "status": "review",
   "test_command": "bash scripts/test_shiki_loop_e2e.sh && bash scripts/test_shiki_p2_repair_limit.sh && bash scripts/test_shiki_goal_loop.sh && python3 -m unittest discover -s tests",
   "title": "Deliver the repair to the PR"
 }

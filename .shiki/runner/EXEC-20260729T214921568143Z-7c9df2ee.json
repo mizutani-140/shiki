@@ -1,0 +1,10 @@
+{
+  "command": "claude -p --permission-mode bypassPermissions <.shiki/handoffs/T-20260729T065622764822Z-bac7ef27-task.md>",
+  "created_at": "2026-07-29T21:49:21+00:00",
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "EXEC-20260729T214921568143Z-7c9df2ee",
+  "returncode": 1,
+  "stderr": "",
+  "stdout": "API Error: 529 Overloaded. This is a server-side issue, usually temporary \u2014 try again in a moment. If it persists, check https://status.claude.com.\n",
+  "task_id": "T-20260729T065622764822Z-bac7ef27"
+}
