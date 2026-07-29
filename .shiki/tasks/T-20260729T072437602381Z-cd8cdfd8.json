@@ -10,8 +10,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260729t072437602381z-cd8cdfd8-let-a-contract-pr-register-its-own-source-plan-a",
-  "expected_pr": 184,
+  "expected_branch": "shiki/t-20260729t072437602381z-cd8cdfd8-closeout",
+  "expected_pr": 185,
   "github_issue": null,
   "goal_id": "G-20260729T072437600805Z-2502768a",
   "id": "T-20260729T072437602381Z-cd8cdfd8",
@@ -22,7 +22,9 @@
     "L-20260729T082519918726Z-2a96580d",
     "L-20260729T083101993600Z-bf0aa57d",
     "L-20260729T083119174697Z-927be8dd",
-    "L-20260729T083123540566Z-cfd02bd0"
+    "L-20260729T083123540566Z-cfd02bd0",
+    "L-20260729T092417636676Z-bdd42fb6",
+    "L-20260729T092421718140Z-dbdb28a9"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
@@ -55,7 +57,7 @@
   ],
   "risk_level": "high",
   "scope": "Two changes, both blocking Contract PR #182 today.\n\n(a) scripts/mergegate_check.py contract mode: permit .shiki/plans/<the goal's source_plan>.json when the PR ADDS it (status A) and its content is a spec-frozen plan, while continuing to reject a MODIFIED plan, a plan that is not the goal's source_plan, and any PR that authors or modifies a spec_freeze block. Today the mode blocks with 'source_plan <P> not found' when the plan is absent from the judged tree and with 'contract must not change <plan>' when the PR carries it \u2014 a deadlock that makes any Goal whose plan is not already on the default branch permanently unregisterable, and nothing else puts a plan there.\n\n(b) .github/workflows/shiki-mergegate.yml: the metadata job runs mergegate_check with only --changed-files-status, --expected-head-sha and --allow-missing-cca, so when contract mode forces Guardian evaluation from the Goal's risk level the gate blocks on 'Guardian comments evidence file is missing' \u2014 a missing input, not a missing approval. Gather the live Guardian comments, label events and timeline in Prepare PR context the way shiki-cca-completion.yml already does, and pass --guardian-policy and the three --guardian-* flags. The base-snapshot and --merged-prs half of that job's argv stays with remediation task R-06.\n\nREPRODUCIBILITY \u2014 what this task removes. Contract PR #182 registers the sixteen contracts that make the whole remediation backlog dispatchable, and it cannot merge: the plan it registers against is unreachable, and the metadata job blocks it for evidence it never receives. Until both are fixed, no Contract PR can register any Goal whose plan is not already on the default branch \u2014 which is every Goal, since nothing puts one there.\n  Manual step removed: none \u2014 this removes a hard deadlock rather than a manual workaround.\n  Observed: PR #182 blocked with both halves of the contradiction in consecutive runs, and with two missing Guardian evidence files.\n  Reproducible when: `shiki contract open` followed by opening the PR and applying the mergegate:contract label is sufficient to register a Goal, with no operator editing MergeGate or hand-placing a plan.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_workflow_lint.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Let a Contract PR register its own source plan and evaluate Guardian evidence"
 }
