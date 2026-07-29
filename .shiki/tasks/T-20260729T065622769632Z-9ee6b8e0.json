@@ -20,7 +20,9 @@
     "L-20260729T111332210800Z-27e01a09",
     "L-20260729T111625416574Z-8f66f775",
     "L-20260729T111646029446Z-a13c87c8",
-    "L-20260729T112605976944Z-b06a370f"
+    "L-20260729T112605976944Z-b06a370f",
+    "L-20260729T113336586253Z-4893cacb",
+    "L-20260729T113347963602Z-1fe27a0b"
   ],
   "locks": [
     "path:scripts/shiki_runtime.py",
@@ -32,6 +34,22 @@
     "Changing branch naming",
     "Changing worktree records already registered"
   ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "git diff main...HEAD includes ~25 commits of intervening merged goals' mirror records and code (PRs #181-#186, Contract PR #182 plan) because this worktree was cut from a stale local main before this fix existed. This is a symptom of the exact bug the task fixes for future worktrees, not a defect in the change. MergeGate derives its base from origin/main, so it is a rebase concern for PR #187 rather than a code correctness issue. Non-blocking.",
+        "severity": "info",
+        "title": "Diff carries large foreign .shiki mirror state due to stale-local-main base"
+      },
+      {
+        "detail": "resolve_default_branch_ref fixes the dispatch worktree base, but shiki_loop.py:437 `git rev-list --count main..HEAD` reads the same stale local main. The repair packet explicitly scopes this out (shiki_loop.py is outside this task's locks) and records it as a separate finding. Correctly deferred; noted for tracking.",
+        "severity": "info",
+        "title": "Sibling stale-ref bug in shiki_loop.py:437 remains"
+      }
+    ],
+    "ledger_id": "L-20260729T113336586253Z-4893cacb",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
