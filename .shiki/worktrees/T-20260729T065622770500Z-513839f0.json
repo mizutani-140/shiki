@@ -1,0 +1,17 @@
+{
+  "branch": "shiki/t-20260729t065622770500z-513839f0-require-the-cca-to-evaluate-every-blocking-item",
+  "created_at": "2026-07-29T21:45:41+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "locks": [
+    "path:.github/prompts/cca-completion-check.md",
+    "path:scripts/enforce_cca_verdict.py",
+    "path:tests/test_cca_completeness.py",
+    "path:scripts/test_shiki_control_plane.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260729t065622770500z-513839f0-require-",
+  "pr": 191,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260729T065622770500Z-513839f0"
+}
