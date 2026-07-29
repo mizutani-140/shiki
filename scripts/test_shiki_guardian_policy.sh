@@ -136,6 +136,26 @@ cases = [
         "review or current-head",
     ),
     (
+        # A negation that embeds the exact marker mid-sentence must not satisfy
+        # the gate (line-initial requirement) and must be a recorded soft blocker.
+        "negated marker blocks",
+        approved(comments=[{"user": {"login": "mizutani-140"}, "body": f"No Guardian approval granted for {head}. This critical change is NOT authorized to merge."}]),
+        False,
+        "negates or revokes approval",
+    ),
+    (
+        "withheld marker blocks",
+        approved(comments=[{"user": {"login": "mizutani-140"}, "body": f"NOT approving. Guardian approval granted is withheld until CI is green for {head}."}]),
+        False,
+        "negates or revokes approval",
+    ),
+    (
+        "revoked marker blocks",
+        approved(comments=[{"user": {"login": "mizutani-140"}, "body": f"I am revoking my earlier approval. Guardian approval granted at {head} is RESCINDED."}]),
+        False,
+        "negates or revokes approval",
+    ),
+    (
         # B1(a): a configured-Guardian label plus an APPROVED review by an
         # arbitrary unconfigured reviewer must NOT satisfy the secondary human
         # review path; the stray review is explicitly fail-closed.
@@ -228,6 +248,42 @@ for name, result, expected, needle in cases:
         raise SystemExit(f"{name}: expected approved={expected}, got {result}")
     if needle and not any(needle in blocker for blocker in result.blockers):
         raise SystemExit(f"{name}: missing blocker {needle!r}: {result.blockers}")
+
+# Latest labeled/unlabeled transition governs label authority. A configured
+# Guardian labeling that a later unlabel/relabel supersedes must not keep
+# approving; the current label state (its most recent transition) decides.
+_valid_comment = [{"user": {"login": "mizutani-140"}, "body": f"Guardian approval granted for head {head}"}]
+relabel_by_mallory = approved(
+    comments=_valid_comment,
+    events=[
+        {"event": "labeled", "label": {"name": "guardian:approved"}, "actor": {"login": "mizutani-140"}},
+        {"event": "unlabeled", "label": {"name": "guardian:approved"}, "actor": {"login": "mizutani-140"}},
+        {"event": "labeled", "label": {"name": "guardian:approved"}, "actor": {"login": "mallory"}},
+    ],
+)
+if relabel_by_mallory.approved or not any("was not applied by a configured Guardian" in b for b in relabel_by_mallory.blockers):
+    raise SystemExit(f"latest non-Guardian relabel must block: {relabel_by_mallory}")
+
+relabel_by_guardian = approved(
+    comments=_valid_comment,
+    events=[
+        {"event": "labeled", "label": {"name": "guardian:approved"}, "actor": {"login": "mallory"}},
+        {"event": "unlabeled", "label": {"name": "guardian:approved"}, "actor": {"login": "mallory"}},
+        {"event": "labeled", "label": {"name": "guardian:approved"}, "actor": {"login": "mizutani-140"}},
+    ],
+)
+if not relabel_by_guardian.approved:
+    raise SystemExit(f"latest Guardian relabel should approve: {relabel_by_guardian}")
+
+final_unlabel = approved(
+    comments=_valid_comment,
+    events=[
+        {"event": "labeled", "label": {"name": "guardian:approved"}, "actor": {"login": "mizutani-140"}},
+        {"event": "unlabeled", "label": {"name": "guardian:approved"}, "actor": {"login": "mizutani-140"}},
+    ],
+)
+if final_unlabel.approved:
+    raise SystemExit(f"a revoked (final unlabel) label must not approve: {final_unlabel}")
 
 disabled_errors = invalid_policy(**{"solo_maintainer.enabled": False, "solo_maintainer.allow_pr_author_as_guardian": False})
 if disabled_errors:
