@@ -1,0 +1,33 @@
+{
+  "attempt": 2,
+  "created_at": "2026-07-29T05:13:50+00:00",
+  "evidence_required": [
+    "validate_shiki output showing no loop-lock advisory for a narrow-lock task on an active goal"
+  ],
+  "failing_acceptance_criteria": [
+    "validate_shiki no longer warns for a narrow-lock task on an active goal, and its advisory text no longer claims a dispatch-time .shiki lock guarantee."
+  ],
+  "failing_checklist_items": [
+    "CCA-02: acceptance criterion 6 not satisfied"
+  ],
+  "goal_id": "G-20260728T103742822780Z-2514c606",
+  "minimal_required_changes": [
+    "The lock set is now complete (amendments A3 and A3b) and the contract has been synced into this worktree \u2014 re-read .shiki/tasks/T-20260728T103742824401Z-f198cd24.json, it now declares scripts/validate_shiki.py, tests/test_loop_lock_validator_hint.py and scripts/test_shiki_loop_lock_guard.sh. Correct loop_lock_warnings in scripts/validate_shiki.py: under the derive-at-judgment-time model MergeGate unions a task's derived mirror set into the effective locks, so a loop-executed task no longer needs to declare a .shiki lock. Stop warning for a narrow-lock task on an active goal, and remove the message's claim that the loop guarantees the lock at dispatch time \u2014 loop_guaranteed_locks does not exist and that guarantee never held. Update tests/test_loop_lock_validator_hint.py and scripts/test_shiki_loop_lock_guard.sh, which currently pin the old warning behaviour, to assert the corrected behaviour instead."
+  ],
+  "pr": 181,
+  "prohibited_changes": [
+    "Do not touch the accepted derivation in scripts/mergegate_check.py or tests/test_mirror_lock_injection.py.",
+    "Do not make the advisory blocking \u2014 ADR 0016 sequences that after the mirror-identity rule (remediation R-02) is in force.",
+    "Do not modify any file outside the task's declared locks. If a criterion still cannot be met with what the locks grant, stop and report it \u2014 that is what the previous attempt correctly did."
+  ],
+  "repair_id": "RP-20260729T051350511459Z-50b5c0d7",
+  "required_skill": "tdd",
+  "stop_condition": "If the criterion still cannot be satisfied with the files this task locks, STOP and report it as a blocker rather than editing anything outside the locks.",
+  "task_id": "T-20260728T103742824401Z-f198cd24",
+  "verification_commands": [
+    "python3 scripts/validate_shiki.py --target .",
+    "bash scripts/test_shiki_loop_lock_guard.sh",
+    "bash scripts/test_shiki_control_plane.sh",
+    "python3 -m unittest discover -s tests"
+  ]
+}
