@@ -133,6 +133,7 @@ CCA must not return `complete` when any of these are true:
 - Dependencies are incomplete.
 - Ledger evidence is missing.
 - PR contains unrelated changes not justified by the task.
+- PR introduces, edits, or backfills an operative approval record (`spec_freeze` block, Spec Amendment approval, Guardian approval evidence, or CCA `complete` verdict) authored by the implementation runtime (CCA-12). Approval-record schemas and clearly-scoped test fixtures that never enter the real `.shiki/` mirror are exempt.
 - Secrets or credentials are exposed.
 
 ## Repair Packet Requirements

@@ -102,7 +102,7 @@ Clarifies Goals, runs `grill-with-docs`, writes plans, updates `.shiki/`, propos
 
 ### Implementer
 
-Writes code in a scoped branch or worktree and verifies acceptance checks. Claude Code is the default implementer for source changes and repair commits, dispatched through `shiki runner claude`; Codex Front remains an optional implementer for tasks explicitly assigned to `codex` (ADR 0008).
+Writes code in a scoped branch or worktree and verifies acceptance checks. Claude Code is the default implementer for source changes and repair commits, dispatched through `shiki runner claude`; Codex Front remains an optional implementer for tasks explicitly assigned to `codex` (ADR 0008). An implementer never authors an approval record (see [Approval Records](#approval-records)): it satisfies acceptance criteria with real work, and reports any criterion it cannot satisfy from the worktree's artifacts as a stop.
 
 ### Completion Check Agent
 
@@ -247,6 +247,7 @@ Codex must not:
 - Rewrite unrelated code.
 - Change locks, dependencies, or scope without recording the reason.
 - Merge or self-approve.
+- Author an approval record — a `spec_freeze` block, a Spec Amendment approval, Guardian approval evidence, a CCA `complete` verdict, or any other artifact whose meaning is that an authority approved something. An acceptance criterion that cannot be satisfied from the worktree because such a record is missing is a stop to report, not a criterion to close by manufacturing the artifact (see [Approval Records](#approval-records)).
 
 ## CCA Completion Judgment
 
@@ -297,6 +298,16 @@ MergeGate may allow progress only when dependency state, locks, checks, CCA, rev
 
 When every MergeGate condition is satisfied, the goal loop (`shiki loop`) may merge risk low/medium PRs autonomously (ADR 0008/0009). High and critical risk always require Guardian approval before merge.
 
+## Approval Records
+
+An **approval record** is any artifact whose meaning is that an authority approved, accepted, or cleared something: a `spec_freeze` block, a Spec Amendment approval, a `guardian:approved` grant or a `Guardian approval granted` comment, an `external-ai-guardian-review` artifact, a CCA `complete` verdict, or any comparable operative sign-off.
+
+Authoring an approval record is reserved to its authority — the operator for `spec_freeze` and Spec Amendments, the Guardian for high-risk and critical approval, GitHub CCA for completion. An implementation runtime (Claude Code as default implementer or repairer, Codex when assigned, or any future implementer) must never author, edit, forge, or backfill an operative approval record. An implementer that writes one is fabricating authority it does not hold, even when the task, repair packet, or an acceptance criterion appears to ask for it. This prohibition is binding on every implementation runtime.
+
+When an acceptance criterion cannot be satisfied with the artifacts present in the worktree — because the only thing missing is an approval record its authority has not produced — the implementer must report it as a stop, naming the blocker, and must never close the criterion by manufacturing the missing artifact. Creating an approval record to make a check pass is a governance violation, not completion.
+
+This prohibits producing an operative approval record that Shiki would read as a real sign-off. It does not prohibit editing approval-record *schemas* or clearly-scoped *test fixtures* that never enter the real `.shiki/` mirror.
+
 ## Repair Loop
 
 A Repair Loop handles failed checks, CCA findings, review findings, missing evidence, or blocked dependencies.
@@ -309,6 +320,7 @@ Rules:
 - Keep scope narrow.
 - Do not rewrite unrelated code.
 - Record cause, change, checks, CCA verdict, and result.
+- Never close a repair by authoring an approval record (see [Approval Records](#approval-records)). If the failing criterion needs a `spec_freeze` block, Guardian approval, a CCA `complete` verdict, or any other approval record its authority has not produced, stop and report the blocker instead of manufacturing the artifact.
 - Default automatic repair limit is 3 attempts. After 3 failed attempts, stop and report unresolved blockers, evidence, and recommended next decisions.
 
 Repair packets must include:
