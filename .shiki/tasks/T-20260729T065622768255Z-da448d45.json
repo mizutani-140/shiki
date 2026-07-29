@@ -9,12 +9,18 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260729t065622768255z-da448d45-codify-the-approval-record-prohibition-in-the-co",
-  "expected_pr": null,
+  "expected_pr": 190,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622768255Z-da448d45",
   "ledger_evidence": [
-    "L-20260729T065622768278Z-c4cef1bd"
+    "L-20260729T065622768278Z-c4cef1bd",
+    "L-20260729T214514762428Z-f9bb71e3",
+    "L-20260729T214541161850Z-9f393de9",
+    "L-20260729T215059281132Z-9e940b6c",
+    "L-20260729T222851395078Z-f67d92cc",
+    "L-20260729T222859639989Z-1462df6c",
+    "L-20260729T222903478096Z-06494e77"
   ],
   "locks": [
     "path:AGENTS.md",
@@ -25,13 +31,24 @@
     "Behavior or enforcement changes (the MergeGate rule is R-02's)",
     "Changing approval sources or Guardian semantics"
   ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "The main...HEAD diff includes ~25 commits of foreign content (mergegate_check.py, shiki_runtime.py, validate_shiki.py, ADR 0015, CONTEXT.md, test/workflow files, and dozens of .shiki/** records) far outside this task's declared locks (AGENTS.md, CLAUDE.md, docs/agents/**). This is the known stale-local-main base artifact: those changes already merged to origin/main via the goal's earlier PRs (#181-#187; cf. commits c968cdd/#187, cb2d21a/#182). MergeGate derives its base from origin/main, so this foreign state will not appear in the actual PR diff and is a rebase concern rather than a correctness or lock-scope defect. This matches the reasoning in the prior clean pre-PR review for #187 in the same goal.",
+        "severity": "info",
+        "title": "Diff carries large foreign mirror/code state from a stale-local-main base (non-blocking, rebase concern)"
+      }
+    ],
+    "ledger_id": "L-20260729T222851395078Z-f67d92cc",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "medium",
   "scope": "State in AGENTS.md and CLAUDE.md that an implementation runtime must never author an approval record \u2014 spec_freeze, Guardian approval, or any other artifact whose meaning is that an authority approved something \u2014 and that an acceptance criterion which cannot be satisfied with the artifacts present in the worktree must be reported as a stop, never closed by creating the missing artifact. Add the same rule to the implementer contract in docs/agents/implementation-policy.md and to the repair-loop rules, and add a CCA checklist item in docs/agents/checklists.md that fails a PR introducing an approval record.",
-  "status": "planned",
+  "status": "review",
   "test_command": "python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Codify the approval-record prohibition in the constitution"
 }

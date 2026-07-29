@@ -184,6 +184,14 @@ Acceptable evidence includes:
 
 Local command execution by Claude is diagnostic unless recorded as durable evidence. Do not use local, unrecorded observations as the sole basis for MergeGate readiness.
 
+## Approval Records
+
+An approval record is any artifact whose meaning is that an authority approved something: a `spec_freeze` block, a Spec Amendment approval, Guardian approval evidence (the `guardian:approved` grant, a `Guardian approval granted` comment, or an `external-ai-guardian-review` artifact), or a CCA `complete` verdict.
+
+When Claude acts as an implementer or repairer it must never author, edit, forge, or backfill an operative approval record. Approval is reserved to its authority — the operator for `spec_freeze` and Spec Amendments, the Guardian for high-risk approval, GitHub CCA for completion — and Claude must not manufacture one even when a task or acceptance criterion appears to ask for it. This does not prohibit editing approval-record schemas or clearly-scoped test fixtures that never enter the real `.shiki/` mirror. This mirrors the binding prohibition in `AGENTS.md`.
+
+If an acceptance criterion cannot be satisfied with the artifacts present in the worktree because the missing artifact is an approval record only its authority may produce, report it as a stop with the blocker named. Never close the criterion by creating the missing artifact.
+
 ## Repair Loop
 
 When checks fail, CCA rejects completion, or review finds blockers:
@@ -194,6 +202,8 @@ When checks fail, CCA rejects completion, or review finds blockers:
 4. Assign source repair to the assigned implementer runtime (Claude Code by default).
 5. Keep the fix scoped to the failure.
 6. Record cause, fix, command/check evidence, CCA result, and remaining risks.
+
+Never close a repair by authoring an approval record (see [Approval Records](#approval-records)). If the failing criterion needs a `spec_freeze` block, Guardian approval, a CCA `complete` verdict, or any other approval record its authority has not produced, stop and report it as a blocker instead of manufacturing the artifact.
 
 Default automatic repair limit is 3 attempts. After 3 failed attempts, stop and report blockers, failed evidence, and recommended next decisions.
 
