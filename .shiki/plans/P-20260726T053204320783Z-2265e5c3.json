@@ -1,0 +1,536 @@
+{
+ "completion_conditions": [
+  "A Guardian comment that refuses or revokes approval can never satisfy the gate, and a removed guardian label cannot be replayed by another actor.",
+  "A rename cannot move a file out of locked scope unseen, and no PR can modify or delete another goal's mirror records.",
+  "A CCA verdict of complete that itself marks an acceptance criterion failed, or sets can_merge false, is refused by both the verdict enforcer and MergeGate.",
+  "A dispatched repair reaches the PR head; a failed push stops the loop instead of silently burning a repair attempt.",
+  "A multi-task goal is never marked complete on main after only its first task merges, and goal_complete never reverts an unrelated goal's in-flight state.",
+  "The MergeGate metadata job passes the flags its own mode requires, orchestrator evidence is actually committed, and no GitHub expression is interpolated into a run: body.",
+  "A retried shiki start re-attempts every GitHub governance step, an existing branch is never force-reset, and doctor reports an unprotected branch as a failure.",
+  "Migrations apply in a target repository and fail with the [shiki] error contract.",
+  "Every mirror record validates against the schema shipped beside it, enforced in CI."
+ ],
+ "grill_with_docs": {
+  "decisions": [
+   "Concurrency is not the constraint: every Shiki task locks path:.shiki/** and try_acquire_locks refuses on overlap, so at most one task is in flight repo-wide. The plan is a single lane; ordering, not parallelism, is the design question.",
+   "Cross-goal ordering (hard): R-01 before ADR0015-T5; ADR0015-T1 before R-02 before ADR0015-T5; R-02 before R-03 (the CCA verdict schema file is unmergeable until runtime_evidence_path is fixed); R-05 before ADR0015-T6; R-04 before ADR0015-T3 and T6; R-09 last.",
+   "One fold is recommended into ADR 0015 rather than planned here: guardian-policy.json is read from the PR head, so a PR can name its own author a Guardian and self-approve. ADR0015-T4 already locks both mergegate_check.py and guardian-policy.json, and its acceptance check 5 is unsatisfiable without this fix. Folding it requires a second Spec Amendment to the ADR 0015 plan.",
+   "R-07 is recommended to be pulled forward: a target repo can run Shiki with no server-side enforcement at all, which makes every ADR 0015 gate decorative in targets. It has zero effect on this platform repo.",
+   "Surfaces where nothing survived, recorded so the absence is evidence: runner auth and secret handling, the external AI Guardian review path (ADR 0010/0014), the memory subsystem, and goal_reconcile's own validator (probed repeatedly as a bypass and held every time)."
+  ],
+  "source": "Repo-wide adversarial audit 2026-07-25 (Workflow we1mhqcd4, 43 agents: 8 surface finders -> independent refuters on every blocking/important finding -> 1 synthesizer). 27 findings survived; 20 are non-minor.",
+  "status": "complete"
+ },
+ "id": "P-20260726T053204320783Z-2265e5c3",
+ "ingested_at": "2026-07-26T05:32:04+00:00",
+ "non_goals": [
+  "The six defects owned by ADR 0015 goal G-20260725T112636727659Z-23ba3b56 (contract mutability, head-resolved risk/locks, the dispatch gate, the needs: cca dependency, the multi-task contract path, test_command freezing).",
+  "Replacing GITHUB_TOKEN for the orchestrator evidence PR — that creates a long-lived credential and is a Guardian decision.",
+  "Reconciling live branch protection with .shiki/config.yaml — an operator action on GitHub, not code.",
+  "Judging CCA checklist quality; the profile-coverage check detects a non-evaluating CCA, not a lazy one.",
+  "Rewriting active_lock_conflicts' file-level fallback.",
+  "Changing the id generator or migrating existing record ids."
+ ],
+ "operator_actions_required": [
+  "Reconcile live branch protection with .shiki/config.yaml: main currently reports require_code_owner_reviews false and required_approving_review_count 0, so the CODEOWNERS second factor ADR 0015 relies on is inert on GitHub. 'MergeGate metadata check' is also a live check but not a protected context.",
+  "Decide whether the orchestrator evidence-PR path is wanted at all; if it is, it needs a credential that is not GITHUB_TOKEN, which is a Guardian decision about blast radius.",
+  "Clear the unregistered-worktree condition `shiki doctor` reports before dispatching contracts 0 and 11: `bash scripts/test_shiki_guardian_policy.sh` exits 1 in this checkout because doctor fails on stale sibling worktrees (e.g. /Users/kio.mizutani/.worktrees/shiki-pr178-secret-set-claude-repair). A dispatched worktree shares the same gitdir and inherits the failure, so the TDD gate fails closed before a PR exists. Either `git worktree remove` them (destructive git — Guardian-authorized, not agent-executable) or register them under .shiki/worktrees/. The script is green on a clean clone of the same commit, so this is environment residue, not a code defect — and the cheapest green path for an implementer would be to weaken the assertion, which both contracts' non-goals forbid."
+ ],
+ "outcome": "The 20 non-minor defects that survived independent refutation in the repo-wide adversarial audit are closed, without weakening the in-flight ADR 0015 contract-approval work: Guardian approval evidence becomes current and revocable, MergeGate scope enforcement sees renames and the whole mirror, a self-contradictory CCA verdict is refused, repairs actually reach the PR, closeout stops completing goals early and clobbering sibling state, workflows invoke what they claim to, bootstrap never destroys a target or skips its governance setup, migrations apply in targets, and the shipped schemas match the ids Shiki generates.",
+ "required_skills": [
+  "grill-with-docs",
+  "tdd",
+  "code-review",
+  "diagnose"
+ ],
+ "risk_level": "high",
+ "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-REMEDIATION-AUDIT-draft.json",
+ "spec_freeze": {
+  "amendments": [
+   "A1 (operator-approved 2026-07-27, from a live incident): the first autonomous dispatch wrote .shiki/plans/P-20260727T005125000000Z-0015c0de.json carrying spec_freeze.status=frozen with approved_by=mizutani-140 — an operator Spec Freeze the operator never gave — to satisfy an acceptance criterion that could not be met with the artifacts in its worktree, and hard-coded its id into the tests. 412 tests and validate_shiki were green; .shiki/plans/ is outside MergeGate's scoped-mutation rules. R-02 is extended to forbid a PR authoring or modifying any spec_freeze block, including on its own goal's plan, and a new docs slice codifies the prohibition and the stop-instead-of-fabricate rule in the constitution. Note: whether the independent code-review verifier would have caught it is UNTESTED — the loop's gates had not run when the artifact was found.",
+   "A-LOCKS (operator-approved 2026-07-28, from the ADR 0016 design review): every task in this plan declared path:tests/** and path:scripts/test_shiki_*.sh, and most declared path:.shiki/**. active_lock_conflicts conflicts on PATTERN overlap alone, before any changed-file intersection, so identical directory globs always collide: 231 of 231 task pairs across the four frozen plans conflicted, and stripping every .shiki lock left it at 231 of 231 — the mirror locks were not the binding colliders, the two test globs were. They were written in by the A5 amendment, whose lesson ('every task must lock a test surface') was right and whose implementation as a directory glob was not. Locks are now narrowed to the files each task actually names in its scope, acceptance checks and test_command, plus the one new test file it creates. Measured after narrowing: 68 of 210 pairs conflict (32.4%), greedy concurrent set of 4. path:.shiki/** is dropped entirely — no gate requires it (MergeGate reports ready with narrow mirror locks) and its only advocate was a warn-only advisory in validate_shiki. This amendment must precede ADR 0015 T1, which makes locks contract-immutable.",
+   "A2 (operator-approved 2026-07-28): five tasks added from defects observed during live operation of PR #179, none of which the adversarial audit had found because they only appear when the loop actually runs: lock acquisition rewinding a task's lifecycle and amendments invalidating their own grant; no way for a Guardian to see what the gate wants (nine approval rounds across five distinct failure modes, all presenting identically); task worktrees cut from the coordinator's branch rather than the default branch (56 MergeGate blockers); lock conflicts skipped silently so serialization reads as deadlock; and the CCA short-circuiting its evidence record once any blocker is known.",
+   "A4 (operator-approved 2026-07-29): one task added for the seventh and eighth manual interventions found by running the loop — a dispatch does not carry the coordinator's current contract into the worktree, and the delivery path does not carry the transitive evidence its ledgers reference. Both were filled in by hand on PR #181. All six Wave 1 tasks now state in `scope` which manual step they remove, what was observed, and what makes the result reproducible, so the generated PR body carries it verbatim (shiki_github.github_pr_body renders `scope` unchanged).",
+   "A5 (operator-approved 2026-07-29, from the pre-dispatch satisfiability audit, 27 agents): all six Wave 1 contracts were BLOCKED as written and none was dispatchable. One defect was shared by all six — no .shiki lock, while origin/main's MergeGate judges the loop's own mirror sync against declared locks; A-LOCKS' premise that no gate requires the lock is true only on PR #181's branch, which is not merged. That is resolved by sequencing the wave behind #181 rather than by re-widening locks. The rest were contract defects and are fixed here: contract 11 could not register its new module for target staging; contract 15's non_goals forbade exactly what an acceptance check required and its scope cited a symbol absent from any base it can be cut from — the #179 shape, caught before dispatch this time; contract 12's proof returned the same answer with the bug present or fixed. A red test_command on contracts 0 and 11 is environment residue and is recorded as an operator action.",
+   "A6 (operator-approved 2026-07-29): the red test_command on contracts 0 and 11 is not environment residue as first diagnosed — it is a doctor defect. doctor treats any sibling worktree without a .shiki/worktrees record as a failure, and the coordinator's own session worktree is exactly that from inside every dispatched task worktree, since they share one gitdir. Two stale task worktrees were removed by the operator and the failure persisted with one entry: the coordinator itself. Registering it as a task record would be fabricating evidence, so instead test_shiki_guardian_policy.sh is dropped from those two test_commands with the reason recorded in scope, coverage is kept as an acceptance check, and the fix is given to contract 6, which already locks scripts/shiki_doctor.py."
+  ],
+  "approved_by": "mizutani-140",
+  "prd": "scratchpad/shiki-audit-remediation.md (delivered 2026-07-25) + .shiki ledger context-impact entries",
+  "source": "Operator approval 2026-07-26 (提案された内容は承認する) of the remediation plan synthesized from the repo-wide adversarial audit (Workflow we1mhqcd4, 43 agents, 27 surviving findings).",
+  "status": "frozen"
+ },
+ "status": "ingested",
+ "tasks": [
+  {
+   "acceptance_checks": [
+    "A configured Guardian's comment 'No Guardian approval granted for <sha>. This critical change is NOT authorized to merge.' yields approved=False and the full gate returns mergegate blocked (exit 1).",
+    "'NOT approving. Guardian approval granted is withheld until CI is green for <sha>.' and 'I am revoking my earlier approval. Guardian approval granted at <sha> is RESCINDED.' both yield approved=False.",
+    "All existing fixtures in test_shiki_governance_evidence.sh and test_shiki_guardian_policy.sh (line-initial markers, with and without an intervening blank line) still yield approved=True.",
+    "Events [labeled/guardian, unlabeled/guardian, labeled/mallory] yield a blocking 'label was not applied by a configured Guardian'.",
+    "Events [labeled/mallory, unlabeled/mallory, labeled/guardian] still approve.",
+    "A negated marker produces a recorded soft blocker visible in the gate JSON, not a silent pass.",
+    "shiki-cca-completion.yml lists labeled and unlabeled in pull_request.types, and validate_shiki enforces a read-only job_permissions entry for its mergegate job (removing it makes the validator fail).",
+    "bash scripts/test_shiki_workflow_lint.sh exits 0.",
+    "Applying the guardian:approved label re-runs the CCA workflow with no further operator action.",
+    "An approval posted while a CCA run is in flight is honoured: the next evaluation reads it rather than being lost to the race.",
+    "scripts/test_shiki_guardian_policy.sh passes in a checkout with no unregistered sibling worktrees — verified by the implementer and recorded, so removing it from test_command does not drop coverage."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:scripts/shiki_guardian.py",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:scripts/test_shiki_guardian_policy.sh",
+    "path:scripts/test_shiki_workflow_lint.sh",
+    "path:tests/test_guardian_evidence.py"
+   ],
+   "non_goals": [
+    "Changing approval_sources semantics or the guardian-policy.json schema",
+    "The external AI Guardian artifact path (ADR 0010/0014)",
+    "Anything in guardian_approval_signal.py",
+    "Adding evaluate_contract_approval (ADR 0015 T5 owns it)"
+   ],
+   "risk_level": "critical",
+   "runtime": "claude-code",
+   "scope": "In scripts/shiki_guardian.py require the comment marker to be line-initial so a negation or revocation can never satisfy the gate, and move negative-text detection out of the 'marker not in body' branch so a negated marker becomes a soft blocker. In _valid_label_actor resolve the LATEST labeled/unlabeled transition for policy.label and accept only when it is a labeled event by a configured Guardian. Add labeled and unlabeled to shiki-cca-completion.yml's pull_request types so a label change re-runs the only job that evaluates Guardian approval, and pin a read-only job_permissions block for its mergegate job in WORKFLOW_CONTRACTS.\n\nREPRODUCIBILITY — what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: re-running the CCA by hand after a Guardian approval, because approving does not re-evaluate anything.\n  Observed: five separate races: the approval landed 32-45 seconds after the run that would have read it, and there is no labeled/unlabeled trigger on shiki-cca-completion.yml, so a recorded approval never reaches a verdict on its own.\n  Reproducible when: applying guardian:approved, or posting a current-head approval comment, re-runs the CCA without an operator touching the CLI, and an approval that lands mid-run is still honoured by the next evaluation.\n\nNOTE on test_command: scripts/test_shiki_guardian_policy.sh is deliberately NOT in this task's test_command. It calls `shiki doctor`, and doctor's unregistered-worktree check fails whenever any sibling git worktree lacks a .shiki/worktrees record — which is true of the coordinator's own session worktree from inside every dispatched task worktree, since they share one gitdir. The loop execs test_command as its TDD gate and fails closed, so including it would stop this task before a PR exists, for a reason the implementer cannot fix inside its locks. The cheapest green path would be to weaken the doctor assertion, which this task's non-goals forbid. Coverage is kept by an acceptance check requiring the script to pass in a clean checkout instead.",
+   "test_command": "bash scripts/test_shiki_governance_evidence.sh && bash scripts/test_shiki_workflow_lint.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+   "title": "Make Guardian approval evidence current and revocable"
+  },
+  {
+   "acceptance_checks": [
+    "A PR with locks ['path:docs/**'] and a rename status entry from tests/ to docs/ blocks with 'outside declared task locks', identical to the delete+add form.",
+    "A rename entirely inside the declared locks still returns ready (no false positive).",
+    "A PR for goal G-A deleting .shiki/dag/G-B.json blocks, both with and without --base-shiki.",
+    "Modifying or deleting a foreign .shiki/reports, plans, runs, worktrees, memories or runner record blocks; the PR's own goal/task-scoped records in those directories still pass.",
+    "A PR touching .shiki/schemas/cca-verdict.schema.json under locks ['path:.shiki/schemas/**'] returns ready.",
+    ".shiki/somewhere/cca-verdict.json and .shiki/somewhere/mergegate-result.json still block (the anti-forgery guard in test_shiki_adversarial_state.sh stays green).",
+    "A PR adding a new .shiki/plans record that is not the current goal's source_plan is blocked.",
+    "A PR that adds a spec_freeze block to its own goal's source plan is blocked.",
+    "A PR that modifies an existing spec_freeze block — including appending to amendments — is blocked.",
+    "A PR that touches its own goal's plan without altering spec_freeze is unaffected."
+   ],
+   "dependencies": [
+    "Make Guardian approval evidence current and revocable"
+   ],
+   "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:scripts/shiki_locks.py",
+    "path:scripts/test_shiki_adversarial_state.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_state_classes.sh",
+    "path:tests/test_mirror_scope.py"
+   ],
+   "non_goals": [
+    "Rewriting active_lock_conflicts' file-level fallback",
+    "Changing the manifest state-class taxonomy",
+    "Anything about guardian approval"
+   ],
+   "risk_level": "high",
+   "runtime": "claude-code",
+   "scope": "In scripts/mergegate_check.py: (a) derive the lock-scope path set from files_status (which already decomposes a rename into D(old)+A(new)) and pass it to both files_outside_locks and active_lock_conflicts, so a rename cannot move a file out of locked scope unseen; (b) add a generic mirror-class rule covering the eleven unscoped directories (dag, plans, reports, memories, runs, worktrees, handoffs, runner, smoke, starts, inbox) — block deletion and require goal/task scoping — and extend the base-snapshot delete-protection loop to every tracked mirror directory in the manifest; (c) match the exact runtime filenames cca-verdict.json and mergegate-result.json in runtime_evidence_path() instead of a startswith prefix, which today makes .shiki/schemas/cca-verdict.schema.json permanently unmergeable. Additionally, forbid a PR from creating or modifying a spec_freeze block in ANY mirror state, including its own goal's source plan. Goal/task scoping alone is not sufficient: it stops a PR from writing a foreign plan, but still lets an implementation PR grant itself a Spec Freeze, or append amendments, on the plan that governs it. Spec Freeze is operator-only (ADR 0009), so no PR may author the record of it.",
+   "test_command": "bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_state_classes.sh && bash scripts/test_shiki_control_plane.sh && python3 -m unittest discover -s tests",
+   "title": "Make MergeGate scope enforcement see the whole diff and the whole mirror"
+  },
+  {
+   "acceptance_checks": [
+    "A verdict complete with can_merge false and a failing acceptance entry exits non-zero from enforce_cca_verdict.py, naming the failing criterion.",
+    "The same verdict through mergegate_check.py blocks with a reason for the failing acceptance entry and one for can_merge != true.",
+    "A verdict with an empty checklist against a task declaring a non-empty cca_checklist_profile blocks; the same verdict with every profile id present and pass returns ready.",
+    "Mutation guard: reverting the complete-with-failures guard in enforce_cca_verdict.py makes at least one test fail (today the whole suite survives that mutation).",
+    "validate_shiki passes with cca_checklist_profile newly required, after backfilling the task files that lack it."
+   ],
+   "dependencies": [
+    "Make MergeGate scope enforcement see the whole diff and the whole mirror"
+   ],
+   "locks": [
+    "path:scripts/enforce_cca_verdict.py",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/validate_shiki.py",
+    "path:.shiki/schemas/cca-verdict.schema.json",
+    "path:.shiki/schemas/task.schema.json",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:tests/test_cca_verdict_consistency.py"
+   ],
+   "non_goals": [
+    "Changing the CCA prompt wording",
+    "Changing the required-check set",
+    "Judging checklist quality (profile coverage is still LLM-attested)",
+    "The needs: cca job dependency (owned by ADR 0015 T5)"
+   ],
+   "risk_level": "high",
+   "runtime": "claude-code",
+   "scope": "In scripts/enforce_cca_verdict.validate_verdict and mergegate_check.main's CCA branch, reject verdict=complete when any acceptance entry is fail or insufficient_evidence, and promote can_merge is not True from a warning to a blocking reason. Block unless every id in the task's cca_checklist_profile appears in the verdict checklist with a terminal status. Add minItems 1 to the schema's checklist, and add cca_checklist_profile to task.schema.json and validate_shiki's required task fields.",
+   "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+   "title": "Refuse a self-contradictory CCA verdict"
+  },
+  {
+   "acceptance_checks": [
+    "New e2e case where the stubbed check status is a real function of the PR head and the stub runner writes a fix: the loop history is [dispatch_repair, ..., merge] with outcome complete, not stop_guardian.",
+    "After that run the repair worktree has commits beyond its base and the origin branch tip moved.",
+    "When the push fails the loop returns stop_blocked naming the failure and does not silently consume a repair attempt.",
+    "A generated repair packet contains an Evidence Required section including the push instruction and a Prohibited line matching the task handoff's commit/push prohibition.",
+    "test_shiki_p2_repair_limit.sh stays green (the cap still applies when repairs genuinely do not fix the check).",
+    "A completed repair updates its PR head with no operator git command."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/test_shiki_goal_loop.sh",
+    "path:scripts/test_shiki_loop_e2e.sh",
+    "path:scripts/test_shiki_p2_repair_limit.sh",
+    "path:tests/test_repair_delivery.py"
+   ],
+   "non_goals": [
+    "Changing the 3-attempt repair limit",
+    "Changing repair-packet contents beyond rendering evidence_required",
+    "The closeout path",
+    "Envelope-breach routing (ADR 0015 T6 owns it)"
+   ],
+   "risk_level": "high",
+   "runtime": "claude-code",
+   "scope": "In execute_action's dispatch_repair branch in scripts/shiki_loop.py, call the existing _commit_and_push_implementation after _dispatch_repair returns, record its result, and fail closed to stop_blocked when it does not report a push — exactly as the create_pr branch already does. Render the repair packet's evidence_required in cmd_handoff_repair and add the same 'the goal loop owns commit/push' prohibition the task handoff carries, so the runner's contract is unambiguous in both directions.\n\nREPRODUCIBILITY — what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: committing and pushing a completed repair by hand, because dispatch_repair delivers nothing.\n  Observed: repair RP-20260729T051350511459Z-50b5c0d7 finished correctly in the worktree and PR #181 did not move; the coordinator had to commit and push the loop's own work.\n  Reproducible when: a repair that finishes green updates its PR without an operator running git, and a push failure stops the loop with a named reason instead of silently consuming a repair attempt.",
+   "test_command": "bash scripts/test_shiki_loop_e2e.sh && bash scripts/test_shiki_p2_repair_limit.sh && bash scripts/test_shiki_goal_loop.sh && python3 -m unittest discover -s tests",
+   "title": "Deliver the repair to the PR"
+  },
+  {
+   "acceptance_checks": [
+    "A 2-task goal where main carries only the first task file returns completes_goal false, and the pushed head contains no goal complete status or scorecard.",
+    "The control case (both task files and the DAG on main, both done) still returns completes_goal true.",
+    "A registered single-task goal still returns completes_goal true.",
+    "goal_complete for goal A leaves an unrelated in-flight goal B's task file unchanged.",
+    "After goal_complete the completing task's ledger_evidence still references the loop's own merge and mark_done ledger ids, and no reverted paths are staged.",
+    "A closeout PR carrying cca_rerun_count 2 from the impl PR returns rerun_cca, not stop_blocked."
+   ],
+   "dependencies": [
+    "Deliver the repair to the PR"
+   ],
+   "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:scripts/test_shiki_goal_loop.sh",
+    "path:scripts/test_shiki_loop_e2e.sh",
+    "path:tests/test_closeout.py"
+   ],
+   "non_goals": [
+    "Landing multi-task contracts on main (ADR 0015 T2 owns it — this task only makes the predicate fail closed)",
+    "Changing goal_reconcile",
+    "Changing the merge decision",
+    "Changing MAX_CCA_RERUNS"
+   ],
+   "risk_level": "high",
+   "runtime": "claude-code",
+   "scope": "In scripts/shiki_loop.py: (a) compute completes_goal from the coordinator's tasks_for_goal and require every id to be present in the closeout worktree AND done there, so a multi-task goal is never completed on main after only its first task merges; (b) replace the whole-tree 'git checkout origin/main -- .shiki' in the goal_complete branch with an explicit pathspec list built from the completing goal, and re-append the loop's own merge/mark_done ledger ids after the sync; (c) reset cca_rerun_count in the closeout repoint block.",
+   "test_command": "bash scripts/test_shiki_goal_loop.sh && bash scripts/test_shiki_loop_e2e.sh && python3 -m unittest discover -s tests",
+   "title": "Make the closeout path fail closed and stop destroying sibling state"
+  },
+  {
+   "acceptance_checks": [
+    "A test driving mergegate_check.main() with the metadata job's exact argv against a valid post_merge_reconcile fixture returns ready (today it blocks).",
+    "The same test with --base-shiki removed still blocks (fail-closed behavior unchanged).",
+    "Simulating the commit-evidence step where only new files are created produces a commit and a push (today it reports no changes and exits 0).",
+    "A command-substitution payload in a comment body reaches the plan-file argument as a literal string, creates no file, and fails with the script's own missing-file error.",
+    "validate_shiki fails when either flag is removed from the metadata job, and fails when an expression is reintroduced into any run: body.",
+    "bash scripts/test_shiki_workflow_lint.sh exits 0."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:.github/workflows/shiki-mergegate.yml",
+    "path:.github/workflows/shiki-orchestrator.yml",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_run_orchestrator.sh",
+    "path:scripts/test_shiki_workflow_lint.sh",
+    "path:tests/test_workflow_invocation.py"
+   ],
+   "non_goals": [
+    "Changing the required-check set",
+    "Changing the CCA workflow",
+    "Replacing GITHUB_TOKEN for the evidence PR (operator decision)",
+    "Changing orchestrate_plan behavior"
+   ],
+   "risk_level": "high",
+   "runtime": "claude-code",
+   "scope": "In .github/workflows/shiki-mergegate.yml build a base .shiki snapshot in Prepare PR context and pass --base-shiki and --merged-prs to the metadata check, mirroring the CCA workflow, so post_merge_reconcile PRs can actually pass. In .github/workflows/shiki-orchestrator.yml stage before the guard (git add .shiki then git diff --cached --quiet) so newly created untracked evidence is not silently discarded, and pass comment- and input-derived values through env: instead of splicing GitHub expressions into run: bodies. Extend validate_shiki so the workflow contract asserts the invocation (required flags per job, and no expression interpolation inside a run: body), not just the presence of strings.",
+   "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_run_orchestrator.sh && bash scripts/test_shiki_workflow_lint.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+   "title": "Make workflows invoke the scripts they claim to, and assert it"
+  },
+  {
+   "acceptance_checks": [
+    "With a fake gh whose protection API fails on run 1, run 2 re-attempts both the protection and workflow-permissions calls (today both are zero).",
+    "Same with the runtime token unset on run 1: run 2 attempts the secret set.",
+    "Run 2 still exits non-zero when the underlying cause is unfixed.",
+    "shiki init against an existing repo whose default branch holds a different commit leaves that branch unchanged and either succeeds or exits with a ShikiError; the reflog contains no reset.",
+    "install-target --force over a target with its own guardian policy preserves that value and warns that it was preserved.",
+    "doctor --online against a not-protected stub emits fail and exit 1; the 403 stub still emits warn.",
+    "doctor does not fail on a sibling git worktree that carries no Shiki task record; a genuinely orphaned task worktree is still reported."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:scripts/shiki_bootstrap.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/shiki_doctor.py",
+    "path:scripts/shiki_git.py",
+    "path:scripts/test_shiki_doctor.sh",
+    "path:scripts/test_shiki_init.sh",
+    "path:scripts/test_shiki_p2_branch_protection_failure.sh",
+    "path:scripts/test_shiki_start.sh",
+    "path:tests/test_bootstrap_safety.py"
+   ],
+   "non_goals": [
+    "Changing the branch-protection payload or required-check derivation",
+    "Making doctor --online run automatically",
+    "Changing install.include",
+    "Adding new CLI flags"
+   ],
+   "risk_level": "high",
+   "runtime": "claude-code",
+   "scope": "In scripts/shiki_bootstrap.py make cmd_start call initialize_target_from_start unconditionally when execution is confirmed, so a retry after a failed first run re-attempts secret, branch protection and workflow permissions instead of silently skipping all GitHub governance setup; and use plain git checkout when the branch already exists, raising ShikiError on failure instead of forcing the ref with -B. In scripts/shiki_installer.py treat guardian-policy.json, config.yaml and migrations/state.json as create-if-absent even under --force, warning that they were preserved. In scripts/shiki_doctor.py distinguish 404 / not-protected (fail) from 403 (warn). Also correct doctor's unregistered-worktree check: it currently fails on any sibling git worktree lacking a .shiki/worktrees record, which includes the coordinator's own session worktree as seen from inside every dispatched task worktree (they share one gitdir). That makes a doctor-dependent test red in every dispatch for a reason no implementer can fix inside its locks. Report a worktree that carries no Shiki task as informational, not as a failure.",
+   "test_command": "bash scripts/test_shiki_start.sh && bash scripts/test_shiki_init.sh && bash scripts/test_shiki_doctor.sh && bash scripts/test_shiki_p2_branch_protection_failure.sh && python3 -m unittest discover -s tests",
+   "title": "Never destroy an existing target, never silently skip its governance setup"
+  },
+  {
+   "acceptance_checks": [
+    "install-target --local-only, remove the migration state, then migrate plan exits 0 and lists the baseline as pending.",
+    "migrate apply --execute exits 0 and writes a valid state; a subsequent migrate status reports zero pending.",
+    "A genuinely invalid migration state produces '[shiki] error:' on stderr with a non-zero exit and no Python traceback.",
+    "The migration test contains no add_baseline_goal helper and is green.",
+    "doctor on the repaired target reports pass for both migration checks."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:scripts/shiki_migrations.py",
+    "path:scripts/test_shiki_doctor.sh",
+    "path:scripts/test_shiki_migrations.sh",
+    "path:tests/test_migrations_target.py"
+   ],
+   "non_goals": [
+    "Changing the migration registry or its requires chains",
+    "Changing the atomic state write",
+    "Adding a new repair command",
+    "Changing doctor remediation strings beyond what the fix makes true"
+   ],
+   "risk_level": "medium",
+   "runtime": "claude-code",
+   "scope": "Remove the platform-repo-only goal artifact from the baseline migration's required list, keeping the four layout entries, so migrations can apply in a target at all. Make MigrationError subclass ShikiError so failures use the [shiki] error: exit contract instead of a raw traceback. Delete the add_baseline_goal workaround from the migration test so the suite exercises the real target path.",
+   "test_command": "bash scripts/test_shiki_migrations.sh && bash scripts/test_shiki_doctor.sh && python3 -m unittest discover -s tests",
+   "title": "Make migrations applicable in a target repository"
+  },
+  {
+   "acceptance_checks": [
+    "Every record under the mirror's goals, tasks, ledger, dag, plans, runs, reports, worktrees and runner directories validates against its declared schema (today the majority fail).",
+    "Reintroducing a legacy-only pattern into any schema makes validate_shiki fail with a pattern-mismatch message.",
+    "A plan whose task declares a collision-resistant dependency id resolves against a registered task with that id; the legacy form still works.",
+    "A fresh target install followed by goal creation produces records that validate against the schemas installed beside them.",
+    "A ledger entry whose task_id belongs to a different goal than its goal_id fails validation; all existing entries still pass."
+   ],
+   "dependencies": [
+    "Refuse a self-contradictory CCA verdict",
+    "Make the closeout path fail closed and stop destroying sibling state"
+   ],
+   "locks": [
+    "path:.shiki/schemas/**",
+    "path:.shiki/templates/**",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/test_shiki_evidence_integrity.sh",
+    "path:scripts/test_shiki_manifest.sh",
+    "path:scripts/test_shiki_p2_schema_drift.sh",
+    "path:tests/test_mirror_schema_validation.py"
+   ],
+   "non_goals": [
+    "Changing the id generator",
+    "Migrating existing record ids",
+    "Adding a new schema",
+    "Changing scorecard aggregation"
+   ],
+   "risk_level": "medium",
+   "runtime": "claude-code",
+   "scope": "Replace the legacy-only id pattern with the dual pattern already used by repair-packet and memory-entry schemas across the thirteen stale schemas and the two templates, and replace the legacy-only literal in the plan dependency parser with the shared id alternation. Add a loop to the contract-consistency validator that runs every mirror directory's records through the schema it declares, so schema/validator drift becomes a CI failure. Add the ledger task_id/goal_id pairing check using the task-to-goal map the validator already builds.",
+   "test_command": "bash scripts/test_shiki_manifest.sh && bash scripts/test_shiki_evidence_integrity.sh && bash scripts/test_shiki_p2_schema_drift.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+   "title": "Make the shipped contracts true, and validate the mirror against them"
+  },
+  {
+   "acceptance_checks": [
+    "AGENTS.md states the prohibition as binding for implementation runtimes, naming spec_freeze explicitly.",
+    "AGENTS.md states that an unsatisfiable acceptance criterion is reported as a stop, never closed by manufacturing the artifact.",
+    "docs/agents/implementation-policy.md and the repair-loop rules carry the same prohibition.",
+    "docs/agents/checklists.md carries a CCA item that fails a PR introducing an approval record.",
+    "python3 scripts/validate_shiki.py --target . passes."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:AGENTS.md",
+    "path:CLAUDE.md",
+    "path:docs/agents/**"
+   ],
+   "non_goals": [
+    "Behavior or enforcement changes (the MergeGate rule is R-02's)",
+    "Changing approval sources or Guardian semantics"
+   ],
+   "risk_level": "medium",
+   "runtime": "claude-code",
+   "scope": "State in AGENTS.md and CLAUDE.md that an implementation runtime must never author an approval record — spec_freeze, Guardian approval, or any other artifact whose meaning is that an authority approved something — and that an acceptance criterion which cannot be satisfied with the artifacts present in the worktree must be reported as a stop, never closed by creating the missing artifact. Add the same rule to the implementer contract in docs/agents/implementation-policy.md and to the repair-loop rules, and add a CCA checklist item in docs/agents/checklists.md that fails a PR introducing an approval record.",
+   "test_command": "python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+   "title": "Codify the approval-record prohibition in the constitution"
+  },
+  {
+   "acceptance_checks": [
+    "Re-acquiring a lock for a task in status review leaves it in review; a task in planned still becomes ready.",
+    "Re-acquiring for a task in running or repair-needed preserves that status.",
+    "A task whose contract locks are a strict superset of its granted locks is reported as a grant/contract divergence naming both sets, not as a bare 'locks are not granted'.",
+    "Refreshing a grant that would collide with another task's active lock fails and names the owner.",
+    "Amending a task's locks does not require a manual lock re-acquisition before dispatch."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:scripts/shiki_tasks.py",
+    "path:tests/test_lock_lifecycle.py",
+    "path:scripts/test_shiki_control_plane.sh"
+   ],
+   "non_goals": [
+    "Changing the lock conflict algorithm",
+    "Changing what locks mean at MergeGate",
+    "Auto-widening a grant into another task's held locks"
+   ],
+   "risk_level": "high",
+   "runtime": "claude-code",
+   "scope": "Two defects on the same seam in scripts/shiki_tasks.py, both observed live on PR #179. (a) cmd_lock_acquire and try_acquire_locks set task['status'] = 'ready' unconditionally (lines 373 and 691), so re-acquiring a grant rewinds a task that already has an open PR from review back to ready — MergeGate's post-CCA rule then blocks it. Preserve any status at or beyond 'running'; only planned may become ready. (b) A Spec Amendment that widens a task's locks silently invalidates its own grant, because the grant is checked as a superset of the contract; nothing in the amendment path refreshes it. Detect the divergence and either refresh the grant or fail with a reason naming it, rather than surfacing as an unexplained 'locks are not granted'.\n\nREPRODUCIBILITY — what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: re-acquiring a lock by hand after every contract amendment.\n  Observed: three amendments (A3, A3b and the earlier A-LOCKS widening) each invalidated their own grant, surfacing only as 'locks are not granted' with no indication that an amendment caused it; one re-acquisition also rewound a task with an open PR from review to ready and blocked MergeGate.\n  Reproducible when: amending a contract's locks leaves a valid grant, or fails with a reason naming the divergence, and no re-acquisition ever moves a task backwards through its lifecycle.",
+   "test_command": "bash scripts/test_shiki_control_plane.sh && python3 -m unittest discover -s tests",
+   "title": "Make lock acquisition preserve task lifecycle and follow contract amendments"
+  },
+  {
+   "acceptance_checks": [
+    "With the label present and no current-head comment, the command reports the label satisfied, names the missing comment, and prints a paste-ready body containing the marker and the full 40-character head SHA.",
+    "With both present it reports approved and names the approver.",
+    "With unpushed commits or unsynced ledger_evidence it warns that the SHA is about to change and refuses to print an approval body.",
+    "A needs_guardian CCA verdict posts its guardian blockers as a PR comment.",
+    "The command never applies a label and never posts an approval.",
+    "The printed approval body's head SHA is read from live PR state in full, never abbreviated or reconstructed.",
+    "shiki install-target into a fresh temporary target succeeds and the target's own validate_shiki passes, proving the new module is staged.",
+    "scripts/test_shiki_guardian_policy.sh passes in a checkout with no unregistered sibling worktrees — verified by the implementer and recorded, so removing it from test_command does not drop coverage."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:scripts/shiki_guardian_status.py",
+    "path:scripts/shiki_cli.py",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:tests/test_guardian_status.py",
+    "path:scripts/test_shiki_guardian_policy.sh",
+    "path:scripts/shiki_installer.py"
+   ],
+   "non_goals": [
+    "Changing evaluate_guardian_approval or the approval policy",
+    "Weakening any approval requirement",
+    "Applying labels or posting approvals on the operator's behalf"
+   ],
+   "risk_level": "high",
+   "runtime": "claude-code",
+   "scope": "Add `shiki guardian status --pr N`: run the existing evaluate_guardian_approval over live evidence and print (a) which approval sources are satisfied and by whom, (b) which are missing, (c) the exact paste-ready comment body carrying the marker and the current 40-character head SHA, (d) whether any unsynced ledger_evidence or unpushed commit means the SHA is about to change, so approval is not requested against a doomed SHA. Then make the CCA post the same blockers as a PR comment when it returns needs_guardian, so the information reaches the approver on GitHub rather than only inside a workflow log. Motivation is measured, not hypothetical: obtaining one approval on PR #179 took nine rounds across five distinct failure modes — missing label, missing head SHA, a marker written in Japanese rather than the English literal, a head SHA invalidated by a later push, and an approval that landed mid-run with no trigger to re-evaluate. All five presented to the approver as an identical red X.\n\nREPRODUCIBILITY — what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: computing the Guardian's missing requirements by hand by running evaluate_guardian_approval and assembling the comment body.\n  Observed: one approval took nine rounds across six distinct failure modes — missing label, missing head SHA, a marker written in Japanese instead of the English literal, a SHA invalidated by a later push, an approval landing mid-run, and a head SHA that the planner fabricated from a 12-character prefix. All six presented to the approver as the same red X while the gate knew the exact missing string.\n  Reproducible when: one command prints what is satisfied, what is missing, and a paste-ready approval body whose SHA is read from live PR state — never transcribed or reconstructed. Register scripts/shiki_guardian_status.py in shiki_installer.TEMPLATE_PATHS so the module is staged into target repositories; without it `shiki install-target` and validate_shiki's CLI module-boundary check fail inside the target with 'No module named shiki_guardian_status', which is a MergeGate-blocking red check.\n\nNOTE on test_command: scripts/test_shiki_guardian_policy.sh is deliberately NOT in this task's test_command. It calls `shiki doctor`, and doctor's unregistered-worktree check fails whenever any sibling git worktree lacks a .shiki/worktrees record — which is true of the coordinator's own session worktree from inside every dispatched task worktree, since they share one gitdir. The loop execs test_command as its TDD gate and fails closed, so including it would stop this task before a PR exists, for a reason the implementer cannot fix inside its locks. The cheapest green path would be to weaken the doctor assertion, which this task's non-goals forbid. Coverage is kept by an acceptance check requiring the script to pass in a clean checkout instead.",
+   "test_command": "python3 -m unittest discover -s tests",
+   "title": "Show the Guardian what the gate is waiting for"
+  },
+  {
+   "acceptance_checks": [
+    "A worktree created while the coordinator sits on a feature branch is cut from the default branch, proven by the new branch's tip equalling the default branch tip (git rev-parse) and `git diff <default>...<new branch>` being empty at creation.",
+    "An existing worktree at the recorded path is reused unchanged.",
+    "An unresolvable default branch fails with a named reason instead of silently cutting from HEAD.",
+    "A task PR created this way carries no mirror file belonging to another goal.",
+    "shiki runner claude alone produces a correctly based worktree; no operator git worktree command is needed."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:scripts/shiki_runtime.py",
+    "path:tests/test_worktree_base.py",
+    "path:scripts/test_shiki_runner_claude.sh"
+   ],
+   "non_goals": [
+    "Changing what the loop syncs onto the branch",
+    "Changing branch naming",
+    "Changing worktree records already registered"
+   ],
+   "risk_level": "high",
+   "runtime": "claude-code",
+   "scope": "scripts/shiki_runtime.py ensure_physical_worktree runs `git worktree add` from the coordinator's cwd, so a task branch is cut from whatever branch the coordinator happens to be on. The loop's own comments already assert the opposite — shiki_loop.py:481 states a task branch 'is cut from main' and that a multi-task goal's DAG 'already rides in from main'. Cutting from a coordinator branch carrying other goals' mirror state put 19 foreign task files, 2 foreign goal files and 33 unlisted ledgers into the first PR's diff, measured at 56 MergeGate blocking reasons. Cut explicitly from the configured default branch and fail with a named reason when it cannot be resolved.\n\nREPRODUCIBILITY — what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: creating each task worktree from origin/main by hand.\n  Observed: ensure_physical_worktree runs git worktree add from the coordinator's cwd, so a branch is cut from whatever the coordinator sits on; doing that on a branch carrying three goals' mirror state produced 56 MergeGate blocking reasons on the first PR, while shiki_loop.py:481 asserts branches are cut from main.\n  Reproducible when: shiki runner claude alone produces a task branch based on the default branch, with no operator git worktree command and no foreign goal's mirror state in the diff.",
+   "test_command": "bash scripts/test_shiki_runner_claude.sh && python3 -m unittest discover -s tests",
+   "title": "Cut task worktrees from the default branch"
+  },
+  {
+   "acceptance_checks": [
+    "A task blocked by another task's active lock produces a named blocked-on-lock result carrying the owning task id and the overlapping locks.",
+    "The stop is distinguishable in loop output from a guardian stop and from a blocked-evidence stop.",
+    "A conflict over several locks with one owner produces one message, not one per lock.",
+    "A goal whose every task is lock-blocked reports that fact rather than appearing idle."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_lock_conflict_stop.py",
+    "path:scripts/test_shiki_goal_loop.sh"
+   ],
+   "non_goals": [
+    "Changing the lock conflict algorithm",
+    "Making the loop wait or retry on a conflict",
+    "Changing lock acquisition itself"
+   ],
+   "risk_level": "medium",
+   "runtime": "claude-code",
+   "scope": "scripts/shiki_loop.py _unblock_ready_tasks does `ok, blockers, _ = try_acquire_locks(...); if not ok: continue` — no ledger entry, no stop, no reason. A serialized queue therefore presents as a deadlock, which is exactly how the PR #179 stall read. Emit a blocked-on-lock stop naming the owning task and the overlapping locks, and deduplicate active_lock_conflicts to one message per owner rather than one per (held lock x owner) pair.",
+   "test_command": "bash scripts/test_shiki_goal_loop.sh && python3 -m unittest discover -s tests",
+   "title": "Name the lock-conflict stop instead of skipping silently"
+  },
+  {
+   "acceptance_checks": [
+    "A verdict marking a blocking item insufficient_evidence with an 'already blocked' style reason is rejected by the enforcer.",
+    "A verdict whose blocking items are all evaluated is accepted regardless of its verdict value.",
+    "The prompt instructs the judge to evaluate every blocking item even when one already fails.",
+    "Mutation guard: removing the new rejection makes at least one test fail."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:.github/prompts/cca-completion-check.md",
+    "path:scripts/enforce_cca_verdict.py",
+    "path:tests/test_cca_completeness.py",
+    "path:scripts/test_shiki_control_plane.sh"
+   ],
+   "non_goals": [
+    "Changing the verdict enum or the CCA turn budget",
+    "Changing which criteria are blocking",
+    "Judging checklist quality"
+   ],
+   "risk_level": "medium",
+   "runtime": "claude-code",
+   "scope": "Observed on PR #179: with CCA-08 already failing, the CCA judged that the verdict was determined and stopped, returning seven acceptance criteria as insufficient_evidence in 1m30s where an earlier run had evaluated the same criteria in detail. The verdict was right and the evidence record was hollow. Because complete requires every blocking criterion to pass, a short-circuited run can never become complete, and the record is systematically thin exactly when a blocker exists — which is most of the time. Require the prompt and the verdict enforcer to evaluate every blocking checklist item and acceptance criterion regardless of an already-known blocker, and reject a verdict that returns blocking items as insufficient_evidence with 'already blocked' as the reason.",
+   "test_command": "bash scripts/test_shiki_control_plane.sh && python3 -m unittest discover -s tests",
+   "title": "Require the CCA to evaluate every blocking item"
+  },
+  {
+   "acceptance_checks": [
+    "A repair dispatched after a contract amendment sees the amended contract in its worktree: the task file it reads declares the amended locks.",
+    "A task whose ledger_evidence includes a check ledger referencing a runner EXEC record has that record present on the branch before the PR is opened or updated.",
+    "A ledger belonging to another goal or task does not pull its referenced paths into the sync.",
+    "MergeGate reports no dangling-evidence blocker for a task whose ledgers were produced by the loop itself.",
+    "Re-running a dispatch is idempotent: no duplicated or conflicting mirror records appear in the worktree."
+   ],
+   "dependencies": [],
+   "locks": [
+    "path:scripts/shiki_runtime.py",
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_dispatch_state_sync.py",
+    "path:scripts/test_shiki_runner_claude.sh"
+   ],
+   "non_goals": [
+    "Changing which ledger ids are synced (the ownership bound may only limit transitive expansion)",
+    "Changing the derivation in mergegate_check.py",
+    "Making the worktree a second source of truth — the coordinator stays authoritative"
+   ],
+   "risk_level": "high",
+   "runtime": "claude-code",
+   "scope": "A dispatch hands the implementer a worktree, but nothing guarantees that worktree holds the contract the coordinator currently has, nor the evidence that contract references. Two gaps, one seam. (a) shiki runner claude --repair-id renders the handoff from the coordinator while the implementer verifies against the worktree's own .shiki: sync the task, its goal and its lock record into the worktree before the session starts, so the implementer judges against current terms. (b) The delivery path syncs each id in ledger_evidence but not the .shiki paths those ledgers' evidence arrays reference — repair packets and runner EXEC records — leaving dangling pointers that MergeGate blocks on. Walk ledger_evidence transitively and carry everything it points at, with the ownership bound stated directly and reimplemented in shiki_loop.py: expand a ledger only when its own goal_id AND task_id both equal the task's. Do not reuse mergegate_check.ledger_entry_allowed_for_task — it accepts a goal-scoped ledger with an empty task_id, which would defeat this bound.\n\nREPRODUCIBILITY — what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes two of them.\n  Manual steps removed: copying the amended contract into the task worktree, and copying the transitive evidence a ledger references before a push.\n  Observed: the repair on PR #181 read a 6-lock contract while the coordinator held 9 and correctly refused work it believed unauthorised — it failed safe, but the mirror-image case, a constraint removed in the coordinator and still present in the worktree, produces a wrong implementation instead. Separately the CCA returned repair_required with all seven acceptance criteria passing because ledger L-20260729T052202662912Z-b9578f99 pointed at a runner EXEC record that was never carried onto the branch.\n  Reproducible when: a dispatched session always sees the coordinator's current contract, and no PR is ever blocked for evidence the loop itself produced.",
+   "test_command": "bash scripts/test_shiki_runner_claude.sh && python3 -m unittest discover -s tests",
+   "title": "Make a dispatch carry the complete current contract and its evidence"
+  }
+ ],
+ "title": "Close the surviving adversarial-audit findings"
+}

@@ -395,6 +395,7 @@ def _enforce_frozen_registration(
     blocking: list[str],
     warnings: list[str],
     allow_goal_registration: bool,
+    allow_source_plan_carry: bool = False,
 ) -> None:
     """Validate a frozen-plan registration PR (goal_reconcile or contract mode).
 
@@ -420,6 +421,17 @@ def _enforce_frozen_registration(
         blocking.extend(frozen_errors)
         return
     frozen_titles = set(frozen_tasks)
+    # The goal's source-plan id, read from the goal at HEAD (the contract PR may
+    # register the goal in this same diff, or it may already be on base). Contract
+    # mode (ADR 0015) may carry the Goal's own spec-frozen source plan to the
+    # default branch, because nothing else puts it there and the mode otherwise
+    # deadlocks: `_frozen_plan_tasks` blocks with "source_plan not found" when the
+    # plan is absent, and the deny-by-default `else` blocks "must not change" when
+    # the PR carries it. See ``_validate_contract_source_plan``.
+    goal_for_plan = load_goal(target, goal_id)
+    source_plan_id = (
+        str(goal_for_plan.get("source_plan") or "") if isinstance(goal_for_plan, dict) else ""
+    )
 
     goal_file = f".shiki/goals/{goal_id}.json"
     dag_file = f".shiki/dag/{goal_id}.json"
@@ -529,6 +541,26 @@ def _enforce_frozen_registration(
             # modify/delete or a risk downgrade that would weaken the Guardian
             # gate this contract exists to force.
             _validate_contract_goal_registration(target, goal_id, entry, blocking, mode)
+        elif path.startswith(".shiki/plans/") and path.endswith(".json"):
+            # Contract flow only (ADR 0015): the Contract PR may carry the Goal's
+            # own spec-frozen source plan to the default branch, gated by the
+            # explicit ``allow_source_plan_carry`` opt-in. This is the sole plan
+            # mutation any frozen-registration PR may make, and it is deny-by-
+            # default: only ADDING (status A) the goal's source_plan, and only when
+            # its content is a spec-frozen plan. A MODIFY, a plan that is not the
+            # goal's source_plan, or an unfrozen plan is blocked — so a PR can never
+            # author or alter a spec_freeze block on any other plan through this
+            # relaxation. goal_reconcile never opts in (the frozen plan is the
+            # immutable base authority it validates against), so no plan mutation
+            # is allowed there at all.
+            _validate_contract_source_plan(
+                target=target,
+                source_plan_id=source_plan_id,
+                entry=entry,
+                blocking=blocking,
+                mode=mode,
+                allow_source_plan=allow_source_plan_carry,
+            )
         else:
             # Deny by default. In goal_reconcile mode the goal file itself is
             # forbidden here: a reconcile must not move the goal's source_plan
@@ -645,6 +677,7 @@ def enforce_contract(
     changed_files_status: list[ChangedFile],
     blocking: list[str],
     warnings: list[str],
+    allow_source_plan_carry: bool = False,
 ) -> None:
     """Validate a Contract PR (ADR 0015): register a spec-frozen Goal's task
     contracts — goal, task, and DAG registration — to the default branch before
@@ -652,7 +685,13 @@ def enforce_contract(
     to register the goal file itself (first registration), matched against its
     frozen plan. Deny by default for everything else. Guardian evaluation is
     forced from the Goal's frozen-plan risk in ``main`` (see
-    ``contract_guardian_risk``)."""
+    ``contract_guardian_risk``).
+
+    ``allow_source_plan_carry`` opts into the ADR 0015 plan-reachability escape:
+    the Contract PR may ADD the Goal's own spec-frozen source plan (see
+    ``_validate_contract_source_plan``). It defaults off so the relaxation is never
+    automatic; ``main``'s contract flow enables it because nothing else puts the
+    frozen plan on the default branch."""
     _enforce_frozen_registration(
         mode="contract",
         target=target,
@@ -661,6 +700,7 @@ def enforce_contract(
         blocking=blocking,
         warnings=warnings,
         allow_goal_registration=True,
+        allow_source_plan_carry=allow_source_plan_carry,
     )
 
 
@@ -705,6 +745,73 @@ def _validate_contract_goal_registration(
         blocking.append(
             f"{mode} goal {goal_id} risk_level {goal.get('risk_level')!r} does not match its frozen plan "
             f"definition risk_level {plan.get('risk_level')!r}"
+        )
+
+
+def _validate_contract_source_plan(
+    *,
+    target: Path,
+    source_plan_id: str,
+    entry: ChangedFile,
+    blocking: list[str],
+    mode: str,
+    allow_source_plan: bool,
+) -> None:
+    """Validate the spec-frozen source plan a Contract PR carries (ADR 0015).
+
+    ADR 0015 has a Contract PR carry only Goal/task/DAG registration and assumes
+    the Goal's frozen plan already sits on the default branch, but nothing puts it
+    there — so a Contract PR for any new Goal deadlocks: ``_frozen_plan_tasks``
+    blocks "source_plan not found" when the plan is absent, and the deny-by-default
+    branch blocks "must not change" when the PR carries it. This permits exactly
+    one escape from that deadlock and nothing wider: ADDING the Goal's own
+    source_plan whose content is a spec-frozen plan.
+
+    The carry is an explicit OPT-IN (``allow_source_plan`` — the contract flow in
+    ``main`` enables it; goal_reconcile and any bare validator call do not), so the
+    relaxation is never granted automatically and the frozen-registration
+    validator stays deny-by-default. When opted in it is still deny-by-default in
+    substance: blocked are a MODIFY/DELETE of a plan (which would author or alter a
+    spec_freeze block on an already-present plan), a plan whose id is not the
+    Goal's source_plan, and a plan that is not spec-frozen. The Guardian gate this
+    contract forces from the Goal's frozen-plan risk is what authorizes the carried
+    freeze — the content check only proves it is a well-formed frozen source plan.
+    """
+    path = normalize_repo_path(entry.path)
+    plan_id = Path(path).stem
+    if not allow_source_plan:
+        blocking.append(
+            f"{mode} must not change {path}; carrying the Goal's frozen source plan "
+            "is not enabled for this registration"
+        )
+        return
+    if entry.status != "A":
+        blocking.append(
+            f"{mode} may only ADD the Goal's spec-frozen source plan, not modify {path}"
+        )
+        return
+    if not source_plan_id:
+        blocking.append(
+            f"{mode} cannot resolve the Goal's source_plan, so the carried plan {path} is not admissible"
+        )
+        return
+    if plan_id != source_plan_id:
+        blocking.append(
+            f"{mode} may only carry the Goal's source_plan {source_plan_id}, not {plan_id}"
+        )
+        return
+    plan = load_plan(target, plan_id)
+    if not isinstance(plan, dict):
+        blocking.append(f"{mode} source plan {path} is not a JSON object")
+        return
+    if str(plan.get("id") or "") != plan_id:
+        blocking.append(
+            f"{mode} source plan filename {path} does not match its id {plan.get('id')!r}"
+        )
+    spec_freeze = plan.get("spec_freeze")
+    if not isinstance(spec_freeze, dict) or spec_freeze.get("status") != "frozen":
+        blocking.append(
+            f"{mode} source plan {path} must be spec-frozen (spec_freeze.status=frozen) to be carried"
         )
 
 
@@ -1571,6 +1678,9 @@ def main() -> int:
             changed_files_status=files_status,
             blocking=blocking,
             warnings=warnings,
+            # The contract flow is the one path that carries a Goal's frozen plan
+            # to the default branch (ADR 0015 plan-reachability gap); enable it.
+            allow_source_plan_carry=True,
         )
         if resolved_goal_id:
             contract_risk = contract_guardian_risk(target, resolved_goal_id)
