@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260728T103742824401Z-f198cd24.json"
+  ],
+  "goal_id": "G-20260728T103742822780Z-2514c606",
+  "id": "L-20260728T103742824497Z-5655e1fb",
+  "links": [],
+  "summary": "Task registered from plan: Inject id-scoped mirror locks at task registration",
+  "task_id": "T-20260728T103742824401Z-f198cd24",
+  "timestamp": "2026-07-28T10:37:42+00:00",
+  "type": "task-registered"
+}

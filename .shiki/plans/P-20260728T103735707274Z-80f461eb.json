@@ -1,0 +1,79 @@
+{
+  "completion_conditions": [
+    "Task registration injects the task's own id-scoped mirror locks, derived deterministically from the task id and goal id.",
+    "The injected set is exactly what the loop's evidence sync can write, and nothing broader \u2014 no directory glob over a shared namespace.",
+    "Frozen-plan matching accepts a registered task whose locks are the plan's locks plus exactly the derivable injected set, and rejects any other difference.",
+    "Every task in the four frozen plans passes files_outside_locks against the files the loop syncs.",
+    "Two registered tasks' injected mirror locks never conflict with each other."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "The A-LOCKS narrowing was correct about product paths and wrong to drop mirror coverage with no replacement: the loop unconditionally syncs .shiki/tasks/<task>.json, .shiki/worktrees/<task>.json, .shiki/goals/<goal>.json, .shiki/locks/<task>.json and every ledger in ledger_evidence, and files_outside_locks blocks each of them.",
+      "Plan-time locks cannot name these files because the ids do not exist until registration. Injection at registration is therefore the only narrow option; a directory glob would restore the collision A-LOCKS removed.",
+      "Injected locks are id-scoped, so two tasks' injected sets are disjoint by construction and never conflict.",
+      "Frozen-plan matching must not simply ignore locks \u2014 that would let a registration widen them. It accepts plan locks plus exactly the recomputed injected set, and rejects anything else.",
+      "This goal is deliberately single-task and declares path:.shiki/** for itself. That is the circularity break: it is the one task in flight, so the blanket lock contends with nothing, and it is the task that removes the need for it."
+    ],
+    "source": "Framework review 2026-07-28 (Workflow w0a858ss3), Wave 0 item 1. Verified against HEAD: 26 of 27 frozen tasks block on their own synced mirror files after the A-LOCKS narrowing, and loop_guaranteed_locks \u2014 the compensating control cited in validate_shiki's advisory docstring \u2014 does not exist.",
+    "status": "complete"
+  },
+  "id": "P-20260728T103735707274Z-80f461eb",
+  "ingested_at": "2026-07-28T10:37:35+00:00",
+  "non_goals": [
+    "Exempting .shiki paths from files_outside_locks \u2014 that is ADR 0016's step B and requires the mirror-identity rule (remediation R-02) to be in force first.",
+    "Restoring path:.shiki/** to any task.",
+    "Changing what the loop syncs, or the lock conflict algorithm.",
+    "Changing product-path locks declared at plan time."
+  ],
+  "outcome": "A registered task's declared locks always cover the mirror files the goal loop will sync onto its branch, without any task declaring a blanket path:.shiki/** lock. Narrow product-path locks (ADR 0016 / A-LOCKS) and mirror lock coverage stop being mutually exclusive, so tasks can run concurrently and still pass files_outside_locks on their own evidence.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-MIRRORLOCK-draft.json",
+  "spec_freeze": {
+    "amendments": [
+      "A1 (2026-07-29, from the independent pre-PR code review): the first implementation derived locks for the tasks/worktrees/locks/goals/dag subtrees plus one ledger path per ledger_evidence id, and omitted the paths those ledgers REFERENCE. Verified independently: a real check ledger (L-20260727T014357072057Z-4b32abe0) carries evidence ['.shiki/runner/EXEC-...json'], _evidence_relatives_for_task syncs it, and files_outside_locks flags it. The change would have passed its own PR only because this task still declares path:.shiki/** as its circularity break, while every future narrow-lock plan would break the first time a task ran its test_command. The reviewer also identified why the new tests gave false confidence \u2014 they exercise only freshly registered tasks, never a post-execution ledger. Neither the implementer nor the planner caught it; the planner's own verification hardcoded the four direct paths and never included a transitive ref.",
+      "A2 (operator-approved 2026-07-29, after a second blocking pre-PR review): the inject-at-write-time approach is structurally wrong, not merely incomplete. Round 1 found the derivation omitted transitive evidence refs; round 2 found the deeper fact \u2014 inject_mirror_locks is called at six sites in shiki_tasks.py while shiki_loop.py appends ledgers at ten sites and re-injects at none, so the TDD-gate check ledger, its runner/EXEC record and the PR ledger are synced onto the branch while the stored locks never grow to cover them. Requiring every future writer to remember to re-inject is an invariant that decays. Switch to deriving the set at judgment time, where every ledger already exists. Round 2 also found a defense-in-depth weakening \u2014 ledger_evidence is not a frozen governance field and is PR-authored in contract mode \u2014 which the derivation must bound by ownership. Both rounds passed all four of the contract's verification commands locally; the independent reviewer found all four defects anyway."
+    ],
+    "approved_by": "mizutani-140",
+    "prd": "docs/adr/0016-locks-bound-product-paths.md",
+    "source": "Operator approval 2026-07-28 of Wave 0 item 1 from the framework review (Workflow w0a858ss3): restore mirror lock coverage by id-scoped injection at registration, after the A-LOCKS narrowing left 26 of 27 tasks blocking on their own synced evidence.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "A registered task's locks equal its frozen plan's locks exactly \u2014 nothing is injected at registration, lock acquisition or worktree allocation.",
+        "MergeGate accepts a PR carrying the task's own mirror evidence with narrow product-path locks only, including a post-execution runner/EXEC record reached transitively through a check ledger's evidence array.",
+        "MergeGate still blocks a mirror file belonging to another task or another goal.",
+        "A task file listing a ledger that is not its own \u2014 foreign goal_id or task_id \u2014 does not expand the derived set, so a PR-authored task file cannot widen its own effective locks.",
+        "Frozen-plan matching compares locks exactly and rejects any difference, including path:.shiki/**.",
+        "validate_shiki no longer warns for a narrow-lock task on an active goal, and its advisory text no longer claims a dispatch-time .shiki lock guarantee.",
+        "scripts/test_shiki_adversarial_state.sh and scripts/test_shiki_control_plane.sh stay green."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/shiki_tasks.py",
+        "path:scripts/mergegate_check.py",
+        "path:scripts/shiki_locks.py",
+        "path:tests/test_mirror_lock_injection.py",
+        "path:scripts/test_shiki_control_plane.sh",
+        "path:.shiki/**"
+      ],
+      "non_goals": [
+        "Exempting .shiki from files_outside_locks (ADR 0016 step B, needs R-02 first)",
+        "Restoring path:.shiki/** to any task",
+        "Changing the lock conflict algorithm or what the loop syncs"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Give a task's declared locks mirror coverage WITHOUT writing anything into the stored locks. Remove injection from every write site in scripts/shiki_tasks.py: locks stay exactly what the plan declared. Instead, scripts/mergegate_check.py derives the task's mirror set at judgment time \u2014 from its task id, goal id and its ledger_evidence, including every .shiki-prefixed path those ledgers' evidence arrays reference \u2014 and unions it into the effective lock set passed to files_outside_locks. Deriving at read time is the point: the loop appends ledgers and writes runner/EXEC records AFTER dispatch (ten append_ledger sites in shiki_loop.py, none of which re-inject), so any scheme that writes coverage into stored locks is already stale by the time MergeGate reads it. Bound the derivation so it cannot be widened by a PR-authored task file: expand only ledgers listed in the task's own ledger_evidence whose goal_id and task_id match the task, and ignore any other reference. Frozen-plan matching then compares locks exactly, with no injected-set tolerance, because nothing is injected. Finally, correct the locks_cover_shiki_state advisory in scripts/validate_shiki.py, whose message asserts a dispatch-time path:.shiki/** guarantee that no longer exists and would otherwise warn on every task registered under the new model.",
+      "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+      "title": "Inject id-scoped mirror locks at task registration"
+    }
+  ],
+  "title": "Guarantee mirror lock coverage at registration"
+}

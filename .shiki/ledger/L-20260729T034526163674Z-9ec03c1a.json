@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260728T103742824401Z-f198cd24.json",
+    ".shiki/plans/P-20260728T103735707274Z-80f461eb.json"
+  ],
+  "goal_id": "G-20260728T103742822780Z-2514c606",
+  "id": "L-20260729T034526163674Z-9ec03c1a",
+  "links": [],
+  "summary": "Spec Amendment A2: switch from inject-at-write-time to derive-at-judgment-time after a second blocking pre-PR review showed the loop appends ledgers at ten sites and re-injects at none.",
+  "task_id": "T-20260728T103742824401Z-f198cd24",
+  "timestamp": "2026-07-29T03:45:26+00:00",
+  "type": "review"
+}
