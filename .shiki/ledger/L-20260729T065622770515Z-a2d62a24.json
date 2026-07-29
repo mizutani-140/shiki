@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T065622770500Z-513839f0.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260729T065622770515Z-a2d62a24",
+  "links": [],
+  "summary": "Task registered from plan: Require the CCA to evaluate every blocking item",
+  "task_id": "T-20260729T065622770500Z-513839f0",
+  "timestamp": "2026-07-29T06:56:22+00:00",
+  "type": "task-registered"
+}

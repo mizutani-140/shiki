@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T065622765968Z-234bf98b.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260729T065622765992Z-75ded4ee",
+  "links": [],
+  "summary": "Task registered from plan: Make workflows invoke the scripts they claim to, and assert it",
+  "task_id": "T-20260729T065622765968Z-234bf98b",
+  "timestamp": "2026-07-29T06:56:22+00:00",
+  "type": "task-registered"
+}

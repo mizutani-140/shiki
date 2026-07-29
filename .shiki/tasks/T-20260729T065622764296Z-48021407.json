@@ -1,0 +1,46 @@
+{
+  "acceptance_checks": [
+    "A verdict complete with can_merge false and a failing acceptance entry exits non-zero from enforce_cca_verdict.py, naming the failing criterion.",
+    "The same verdict through mergegate_check.py blocks with a reason for the failing acceptance entry and one for can_merge != true.",
+    "A verdict with an empty checklist against a task declaring a non-empty cca_checklist_profile blocks; the same verdict with every profile id present and pass returns ready.",
+    "Mutation guard: reverting the complete-with-failures guard in enforce_cca_verdict.py makes at least one test fail (today the whole suite survives that mutation).",
+    "validate_shiki passes with cca_checklist_profile newly required, after backfilling the task files that lack it."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260729T065622763684Z-ee01f3c4"
+  ],
+  "expected_branch": "shiki/t-20260729t065622764296z-48021407-refuse-a-self-contradictory-cca-verdict",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "T-20260729T065622764296Z-48021407",
+  "ledger_evidence": [
+    "L-20260729T065622764314Z-c9aa9624"
+  ],
+  "locks": [
+    "path:scripts/enforce_cca_verdict.py",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/validate_shiki.py",
+    "path:.shiki/schemas/cca-verdict.schema.json",
+    "path:.shiki/schemas/task.schema.json",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:tests/test_cca_verdict_consistency.py"
+  ],
+  "non_goals": [
+    "Changing the CCA prompt wording",
+    "Changing the required-check set",
+    "Judging checklist quality (profile coverage is still LLM-attested)",
+    "The needs: cca job dependency (owned by ADR 0015 T5)"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "In scripts/enforce_cca_verdict.validate_verdict and mergegate_check.main's CCA branch, reject verdict=complete when any acceptance entry is fail or insufficient_evidence, and promote can_merge is not True from a warning to a blocking reason. Block unless every id in the task's cca_checklist_profile appears in the verdict checklist with a terminal status. Add minItems 1 to the schema's checklist, and add cca_checklist_profile to task.schema.json and validate_shiki's required task fields.",
+  "status": "planned",
+  "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+  "title": "Refuse a self-contradictory CCA verdict"
+}

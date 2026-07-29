@@ -1,0 +1,49 @@
+{
+  "acceptance_checks": [
+    "A configured Guardian's comment 'No Guardian approval granted for <sha>. This critical change is NOT authorized to merge.' yields approved=False and the full gate returns mergegate blocked (exit 1).",
+    "'NOT approving. Guardian approval granted is withheld until CI is green for <sha>.' and 'I am revoking my earlier approval. Guardian approval granted at <sha> is RESCINDED.' both yield approved=False.",
+    "All existing fixtures in test_shiki_governance_evidence.sh and test_shiki_guardian_policy.sh (line-initial markers, with and without an intervening blank line) still yield approved=True.",
+    "Events [labeled/guardian, unlabeled/guardian, labeled/mallory] yield a blocking 'label was not applied by a configured Guardian'.",
+    "Events [labeled/mallory, unlabeled/mallory, labeled/guardian] still approve.",
+    "A negated marker produces a recorded soft blocker visible in the gate JSON, not a silent pass.",
+    "shiki-cca-completion.yml lists labeled and unlabeled in pull_request.types, and validate_shiki enforces a read-only job_permissions entry for its mergegate job (removing it makes the validator fail).",
+    "bash scripts/test_shiki_workflow_lint.sh exits 0.",
+    "Applying the guardian:approved label re-runs the CCA workflow with no further operator action.",
+    "An approval posted while a CCA run is in flight is honoured: the next evaluation reads it rather than being lost to the race.",
+    "scripts/test_shiki_guardian_policy.sh passes in a checkout with no unregistered sibling worktrees \u2014 verified by the implementer and recorded, so removing it from test_command does not drop coverage."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260729t065622763023z-9b974770-make-guardian-approval-evidence-current-and-revo",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "T-20260729T065622763023Z-9b974770",
+  "ledger_evidence": [
+    "L-20260729T065622763084Z-5b9e8d6d"
+  ],
+  "locks": [
+    "path:scripts/shiki_guardian.py",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:scripts/test_shiki_guardian_policy.sh",
+    "path:scripts/test_shiki_workflow_lint.sh",
+    "path:tests/test_guardian_evidence.py"
+  ],
+  "non_goals": [
+    "Changing approval_sources semantics or the guardian-policy.json schema",
+    "The external AI Guardian artifact path (ADR 0010/0014)",
+    "Anything in guardian_approval_signal.py",
+    "Adding evaluate_contract_approval (ADR 0015 T5 owns it)"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "scope": "In scripts/shiki_guardian.py require the comment marker to be line-initial so a negation or revocation can never satisfy the gate, and move negative-text detection out of the 'marker not in body' branch so a negated marker becomes a soft blocker. In _valid_label_actor resolve the LATEST labeled/unlabeled transition for policy.label and accept only when it is a labeled event by a configured Guardian. Add labeled and unlabeled to shiki-cca-completion.yml's pull_request types so a label change re-runs the only job that evaluates Guardian approval, and pin a read-only job_permissions block for its mergegate job in WORKFLOW_CONTRACTS.\n\nREPRODUCIBILITY \u2014 what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: re-running the CCA by hand after a Guardian approval, because approving does not re-evaluate anything.\n  Observed: five separate races: the approval landed 32-45 seconds after the run that would have read it, and there is no labeled/unlabeled trigger on shiki-cca-completion.yml, so a recorded approval never reaches a verdict on its own.\n  Reproducible when: applying guardian:approved, or posting a current-head approval comment, re-runs the CCA without an operator touching the CLI, and an approval that lands mid-run is still honoured by the next evaluation.\n\nNOTE on test_command: scripts/test_shiki_guardian_policy.sh is deliberately NOT in this task's test_command. It calls `shiki doctor`, and doctor's unregistered-worktree check fails whenever any sibling git worktree lacks a .shiki/worktrees record \u2014 which is true of the coordinator's own session worktree from inside every dispatched task worktree, since they share one gitdir. The loop execs test_command as its TDD gate and fails closed, so including it would stop this task before a PR exists, for a reason the implementer cannot fix inside its locks. The cheapest green path would be to weaken the doctor assertion, which this task's non-goals forbid. Coverage is kept by an acceptance check requiring the script to pass in a clean checkout instead.",
+  "status": "planned",
+  "test_command": "bash scripts/test_shiki_governance_evidence.sh && bash scripts/test_shiki_workflow_lint.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+  "title": "Make Guardian approval evidence current and revocable"
+}

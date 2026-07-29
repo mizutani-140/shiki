@@ -1,0 +1,43 @@
+{
+  "acceptance_checks": [
+    "A 2-task goal where main carries only the first task file returns completes_goal false, and the pushed head contains no goal complete status or scorecard.",
+    "The control case (both task files and the DAG on main, both done) still returns completes_goal true.",
+    "A registered single-task goal still returns completes_goal true.",
+    "goal_complete for goal A leaves an unrelated in-flight goal B's task file unchanged.",
+    "After goal_complete the completing task's ledger_evidence still references the loop's own merge and mark_done ledger ids, and no reverted paths are staged.",
+    "A closeout PR carrying cca_rerun_count 2 from the impl PR returns rerun_cca, not stop_blocked."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260729T065622764822Z-bac7ef27"
+  ],
+  "expected_branch": "shiki/t-20260729t065622765413z-a0055a9d-make-the-closeout-path-fail-closed-and-stop-dest",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "T-20260729T065622765413Z-a0055a9d",
+  "ledger_evidence": [
+    "L-20260729T065622765446Z-ccf90a42"
+  ],
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:scripts/test_shiki_goal_loop.sh",
+    "path:scripts/test_shiki_loop_e2e.sh",
+    "path:tests/test_closeout.py"
+  ],
+  "non_goals": [
+    "Landing multi-task contracts on main (ADR 0015 T2 owns it \u2014 this task only makes the predicate fail closed)",
+    "Changing goal_reconcile",
+    "Changing the merge decision",
+    "Changing MAX_CCA_RERUNS"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "In scripts/shiki_loop.py: (a) compute completes_goal from the coordinator's tasks_for_goal and require every id to be present in the closeout worktree AND done there, so a multi-task goal is never completed on main after only its first task merges; (b) replace the whole-tree 'git checkout origin/main -- .shiki' in the goal_complete branch with an explicit pathspec list built from the completing goal, and re-append the loop's own merge/mark_done ledger ids after the sync; (c) reset cca_rerun_count in the closeout repoint block.",
+  "status": "planned",
+  "test_command": "bash scripts/test_shiki_goal_loop.sh && bash scripts/test_shiki_loop_e2e.sh && python3 -m unittest discover -s tests",
+  "title": "Make the closeout path fail closed and stop destroying sibling state"
+}

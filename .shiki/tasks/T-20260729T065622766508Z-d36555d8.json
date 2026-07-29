@@ -1,0 +1,47 @@
+{
+  "acceptance_checks": [
+    "With a fake gh whose protection API fails on run 1, run 2 re-attempts both the protection and workflow-permissions calls (today both are zero).",
+    "Same with the runtime token unset on run 1: run 2 attempts the secret set.",
+    "Run 2 still exits non-zero when the underlying cause is unfixed.",
+    "shiki init against an existing repo whose default branch holds a different commit leaves that branch unchanged and either succeeds or exits with a ShikiError; the reflog contains no reset.",
+    "install-target --force over a target with its own guardian policy preserves that value and warns that it was preserved.",
+    "doctor --online against a not-protected stub emits fail and exit 1; the 403 stub still emits warn.",
+    "doctor does not fail on a sibling git worktree that carries no Shiki task record; a genuinely orphaned task worktree is still reported."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260729t065622766508z-d36555d8-never-destroy-an-existing-target-never-silently-",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "T-20260729T065622766508Z-d36555d8",
+  "ledger_evidence": [
+    "L-20260729T065622766545Z-8e33cd25"
+  ],
+  "locks": [
+    "path:scripts/shiki_bootstrap.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/shiki_doctor.py",
+    "path:scripts/shiki_git.py",
+    "path:scripts/test_shiki_doctor.sh",
+    "path:scripts/test_shiki_init.sh",
+    "path:scripts/test_shiki_p2_branch_protection_failure.sh",
+    "path:scripts/test_shiki_start.sh",
+    "path:tests/test_bootstrap_safety.py"
+  ],
+  "non_goals": [
+    "Changing the branch-protection payload or required-check derivation",
+    "Making doctor --online run automatically",
+    "Changing install.include",
+    "Adding new CLI flags"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "In scripts/shiki_bootstrap.py make cmd_start call initialize_target_from_start unconditionally when execution is confirmed, so a retry after a failed first run re-attempts secret, branch protection and workflow permissions instead of silently skipping all GitHub governance setup; and use plain git checkout when the branch already exists, raising ShikiError on failure instead of forcing the ref with -B. In scripts/shiki_installer.py treat guardian-policy.json, config.yaml and migrations/state.json as create-if-absent even under --force, warning that they were preserved. In scripts/shiki_doctor.py distinguish 404 / not-protected (fail) from 403 (warn). Also correct doctor's unregistered-worktree check: it currently fails on any sibling git worktree lacking a .shiki/worktrees record, which includes the coordinator's own session worktree as seen from inside every dispatched task worktree (they share one gitdir). That makes a doctor-dependent test red in every dispatch for a reason no implementer can fix inside its locks. Report a worktree that carries no Shiki task as informational, not as a failure.",
+  "status": "planned",
+  "test_command": "bash scripts/test_shiki_start.sh && bash scripts/test_shiki_init.sh && bash scripts/test_shiki_doctor.sh && bash scripts/test_shiki_p2_branch_protection_failure.sh && python3 -m unittest discover -s tests",
+  "title": "Never destroy an existing target, never silently skip its governance setup"
+}

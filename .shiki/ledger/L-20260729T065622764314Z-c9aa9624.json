@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T065622764296Z-48021407.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260729T065622764314Z-c9aa9624",
+  "links": [],
+  "summary": "Task registered from plan: Refuse a self-contradictory CCA verdict",
+  "task_id": "T-20260729T065622764296Z-48021407",
+  "timestamp": "2026-07-29T06:56:22+00:00",
+  "type": "task-registered"
+}
