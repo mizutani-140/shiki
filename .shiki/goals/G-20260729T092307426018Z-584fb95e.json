@@ -1,0 +1,46 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A CCA evidence manifest for a task-less PR mode validates against the manifest schema.",
+    "A task-ful PR still cannot pass an empty or mismatched task_id.",
+    "The manifest schema and the CCA verdict schema agree about verdict.task_id.",
+    "validate_shiki and the full suite stay green."
+  ],
+  "created_at": "2026-07-29T09:23:07+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "A Contract PR registers many task contracts and therefore has no single task id. The CCA correctly emitted `task_id: \"\"`. `.shiki/schemas/cca-verdict.schema.json` accepts that \u2014 it declares `task_id` as a plain string with no minLength \u2014 but `.shiki/schemas/cca-evidence-manifest.schema.json`, which wraps the same verdict, requires minLength 1. The two schemas disagree about the same field, and the wrapper is stricter than the thing it wraps.",
+      "The minLength is not the binding mechanism and never was. shiki_evidence.py:151 binds the manifest's task_id to the PR's resolved task id with `if expected_task_id and verdict.get(\"task_id\") != expected_task_id`. Measured on all four cases: a task-less PR with '' passes; a task PR with '' is caught; a task PR with a wrong id is caught; a task PR with the right id passes. Removing the minLength changes none of those outcomes.",
+      "The goal_id binding is unaffected and still applies to a Contract PR \u2014 goal_id is present and non-empty \u2014 so a task-less manifest is still bound to exactly one Goal, one PR number, and one head SHA.",
+      "Verified against the real artifact from run 30437263205: with the minLength removed the actual manifest validates, and the full binding check returns no errors. There is no second violation hiding behind the first, which matters because the schema validator reports one error at a time.",
+      "Scope stays at the schema and its tests. The `MergeGate policy check` job's `needs: cca` without `if: always()` \u2014 which is why this block only became visible after the CCA started passing \u2014 is remediation task R-15 and is deliberately not touched here."
+    ],
+    "source": "Live block on Contract PR #182, 2026-07-29, after Guardian approval was granted and the CCA verdict came back `complete`.",
+    "status": "complete"
+  },
+  "id": "G-20260729T092307426018Z-584fb95e",
+  "ledger_evidence": [
+    "L-20260729T092307426813Z-29aa47b5"
+  ],
+  "non_goals": [
+    "Relaxing any other minLength in the manifest schema, or relaxing `required` on task_id \u2014 the key must still be present.",
+    "Moving the task_id binding out of shiki_evidence.py, or weakening it.",
+    "Giving a Contract PR a synthetic or borrowed task id so the current schema is satisfied \u2014 that would fabricate a binding to a task the PR does not implement.",
+    "Fixing `MergeGate policy check`'s `needs: cca` skip-on-failure behaviour (remediation task R-15).",
+    "Changing contract mode, goal_reconcile mode, or the required-check set."
+  ],
+  "outcome": "The CCA evidence manifest schema stops rejecting a PR mode that has no single task. Contract PR #182 \u2014 whose CCA verdict is already `complete` and whose Guardian approval is already satisfied \u2014 reaches a passing MergeGate policy check, which lands the sixteen remediation contracts on the default branch and makes the whole remediation backlog dispatchable.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260729T092230135210Z-be7b9bcb",
+  "status": "planned",
+  "title": "Let the CCA evidence manifest represent a task-less PR mode"
+}

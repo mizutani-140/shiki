@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T092307427377Z-c8531f7e.json"
+  ],
+  "goal_id": "G-20260729T092307426018Z-584fb95e",
+  "id": "L-20260729T092307427456Z-51e2b715",
+  "links": [],
+  "summary": "Task registered from plan: Let the CCA evidence manifest represent a task-less PR mode",
+  "task_id": "T-20260729T092307427377Z-c8531f7e",
+  "timestamp": "2026-07-29T09:23:07+00:00",
+  "type": "task-registered"
+}
