@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T065622766508Z-d36555d8.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260729T065622766545Z-8e33cd25",
+  "links": [],
+  "summary": "Task registered from plan: Never destroy an existing target, never silently skip its governance setup",
+  "task_id": "T-20260729T065622766508Z-d36555d8",
+  "timestamp": "2026-07-29T06:56:22+00:00",
+  "type": "task-registered"
+}

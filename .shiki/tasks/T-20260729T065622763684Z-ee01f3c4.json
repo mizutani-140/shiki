@@ -1,0 +1,48 @@
+{
+  "acceptance_checks": [
+    "A PR with locks ['path:docs/**'] and a rename status entry from tests/ to docs/ blocks with 'outside declared task locks', identical to the delete+add form.",
+    "A rename entirely inside the declared locks still returns ready (no false positive).",
+    "A PR for goal G-A deleting .shiki/dag/G-B.json blocks, both with and without --base-shiki.",
+    "Modifying or deleting a foreign .shiki/reports, plans, runs, worktrees, memories or runner record blocks; the PR's own goal/task-scoped records in those directories still pass.",
+    "A PR touching .shiki/schemas/cca-verdict.schema.json under locks ['path:.shiki/schemas/**'] returns ready.",
+    ".shiki/somewhere/cca-verdict.json and .shiki/somewhere/mergegate-result.json still block (the anti-forgery guard in test_shiki_adversarial_state.sh stays green).",
+    "A PR adding a new .shiki/plans record that is not the current goal's source_plan is blocked.",
+    "A PR that adds a spec_freeze block to its own goal's source plan is blocked.",
+    "A PR that modifies an existing spec_freeze block \u2014 including appending to amendments \u2014 is blocked.",
+    "A PR that touches its own goal's plan without altering spec_freeze is unaffected."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260729T065622763023Z-9b974770"
+  ],
+  "expected_branch": "shiki/t-20260729t065622763684z-ee01f3c4-make-mergegate-scope-enforcement-see-the-whole-d",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "T-20260729T065622763684Z-ee01f3c4",
+  "ledger_evidence": [
+    "L-20260729T065622763707Z-fc97be67"
+  ],
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:scripts/shiki_locks.py",
+    "path:scripts/test_shiki_adversarial_state.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_state_classes.sh",
+    "path:tests/test_mirror_scope.py"
+  ],
+  "non_goals": [
+    "Rewriting active_lock_conflicts' file-level fallback",
+    "Changing the manifest state-class taxonomy",
+    "Anything about guardian approval"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "In scripts/mergegate_check.py: (a) derive the lock-scope path set from files_status (which already decomposes a rename into D(old)+A(new)) and pass it to both files_outside_locks and active_lock_conflicts, so a rename cannot move a file out of locked scope unseen; (b) add a generic mirror-class rule covering the eleven unscoped directories (dag, plans, reports, memories, runs, worktrees, handoffs, runner, smoke, starts, inbox) \u2014 block deletion and require goal/task scoping \u2014 and extend the base-snapshot delete-protection loop to every tracked mirror directory in the manifest; (c) match the exact runtime filenames cca-verdict.json and mergegate-result.json in runtime_evidence_path() instead of a startswith prefix, which today makes .shiki/schemas/cca-verdict.schema.json permanently unmergeable. Additionally, forbid a PR from creating or modifying a spec_freeze block in ANY mirror state, including its own goal's source plan. Goal/task scoping alone is not sufficient: it stops a PR from writing a foreign plan, but still lets an implementation PR grant itself a Spec Freeze, or append amendments, on the plan that governs it. Spec Freeze is operator-only (ADR 0009), so no PR may author the record of it.",
+  "status": "planned",
+  "test_command": "bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_state_classes.sh && bash scripts/test_shiki_control_plane.sh && python3 -m unittest discover -s tests",
+  "title": "Make MergeGate scope enforcement see the whole diff and the whole mirror"
+}

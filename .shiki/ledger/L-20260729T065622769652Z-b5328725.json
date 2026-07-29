@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T065622769632Z-9ee6b8e0.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260729T065622769652Z-b5328725",
+  "links": [],
+  "summary": "Task registered from plan: Cut task worktrees from the default branch",
+  "task_id": "T-20260729T065622769632Z-9ee6b8e0",
+  "timestamp": "2026-07-29T06:56:22+00:00",
+  "type": "task-registered"
+}

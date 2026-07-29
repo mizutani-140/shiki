@@ -1,0 +1,54 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A Guardian comment that refuses or revokes approval can never satisfy the gate, and a removed guardian label cannot be replayed by another actor.",
+    "A rename cannot move a file out of locked scope unseen, and no PR can modify or delete another goal's mirror records.",
+    "A CCA verdict of complete that itself marks an acceptance criterion failed, or sets can_merge false, is refused by both the verdict enforcer and MergeGate.",
+    "A dispatched repair reaches the PR head; a failed push stops the loop instead of silently burning a repair attempt.",
+    "A multi-task goal is never marked complete on main after only its first task merges, and goal_complete never reverts an unrelated goal's in-flight state.",
+    "The MergeGate metadata job passes the flags its own mode requires, orchestrator evidence is actually committed, and no GitHub expression is interpolated into a run: body.",
+    "A retried shiki start re-attempts every GitHub governance step, an existing branch is never force-reset, and doctor reports an unprotected branch as a failure.",
+    "Migrations apply in a target repository and fail with the [shiki] error contract.",
+    "Every mirror record validates against the schema shipped beside it, enforced in CI."
+  ],
+  "created_at": "2026-07-29T06:56:22+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "Concurrency is not the constraint: every Shiki task locks path:.shiki/** and try_acquire_locks refuses on overlap, so at most one task is in flight repo-wide. The plan is a single lane; ordering, not parallelism, is the design question.",
+      "Cross-goal ordering (hard): R-01 before ADR0015-T5; ADR0015-T1 before R-02 before ADR0015-T5; R-02 before R-03 (the CCA verdict schema file is unmergeable until runtime_evidence_path is fixed); R-05 before ADR0015-T6; R-04 before ADR0015-T3 and T6; R-09 last.",
+      "One fold is recommended into ADR 0015 rather than planned here: guardian-policy.json is read from the PR head, so a PR can name its own author a Guardian and self-approve. ADR0015-T4 already locks both mergegate_check.py and guardian-policy.json, and its acceptance check 5 is unsatisfiable without this fix. Folding it requires a second Spec Amendment to the ADR 0015 plan.",
+      "R-07 is recommended to be pulled forward: a target repo can run Shiki with no server-side enforcement at all, which makes every ADR 0015 gate decorative in targets. It has zero effect on this platform repo.",
+      "Surfaces where nothing survived, recorded so the absence is evidence: runner auth and secret handling, the external AI Guardian review path (ADR 0010/0014), the memory subsystem, and goal_reconcile's own validator (probed repeatedly as a bypass and held every time)."
+    ],
+    "source": "Repo-wide adversarial audit 2026-07-25 (Workflow we1mhqcd4, 43 agents: 8 surface finders -> independent refuters on every blocking/important finding -> 1 synthesizer). 27 findings survived; 20 are non-minor.",
+    "status": "complete"
+  },
+  "id": "G-20260729T065622761503Z-4479b0d3",
+  "ledger_evidence": [
+    "L-20260729T065622762349Z-238d271d"
+  ],
+  "non_goals": [
+    "The six defects owned by ADR 0015 goal G-20260725T112636727659Z-23ba3b56 (contract mutability, head-resolved risk/locks, the dispatch gate, the needs: cca dependency, the multi-task contract path, test_command freezing).",
+    "Replacing GITHUB_TOKEN for the orchestrator evidence PR \u2014 that creates a long-lived credential and is a Guardian decision.",
+    "Reconciling live branch protection with .shiki/config.yaml \u2014 an operator action on GitHub, not code.",
+    "Judging CCA checklist quality; the profile-coverage check detects a non-evaluating CCA, not a lazy one.",
+    "Rewriting active_lock_conflicts' file-level fallback.",
+    "Changing the id generator or migrating existing record ids."
+  ],
+  "outcome": "The 20 non-minor defects that survived independent refutation in the repo-wide adversarial audit are closed, without weakening the in-flight ADR 0015 contract-approval work: Guardian approval evidence becomes current and revocable, MergeGate scope enforcement sees renames and the whole mirror, a self-contradictory CCA verdict is refused, repairs actually reach the PR, closeout stops completing goals early and clobbering sibling state, workflows invoke what they claim to, bootstrap never destroys a target or skips its governance setup, migrations apply in targets, and the shipped schemas match the ids Shiki generates.",
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review",
+    "diagnose"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260726T053204320783Z-2265e5c3",
+  "status": "planned",
+  "title": "Close the surviving adversarial-audit findings"
+}

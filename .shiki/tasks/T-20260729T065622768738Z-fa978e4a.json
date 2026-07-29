@@ -1,0 +1,38 @@
+{
+  "acceptance_checks": [
+    "Re-acquiring a lock for a task in status review leaves it in review; a task in planned still becomes ready.",
+    "Re-acquiring for a task in running or repair-needed preserves that status.",
+    "A task whose contract locks are a strict superset of its granted locks is reported as a grant/contract divergence naming both sets, not as a bare 'locks are not granted'.",
+    "Refreshing a grant that would collide with another task's active lock fails and names the owner.",
+    "Amending a task's locks does not require a manual lock re-acquisition before dispatch."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260729t065622768738z-fa978e4a-make-lock-acquisition-preserve-task-lifecycle-an",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "T-20260729T065622768738Z-fa978e4a",
+  "ledger_evidence": [
+    "L-20260729T065622768756Z-a01b5818"
+  ],
+  "locks": [
+    "path:scripts/shiki_tasks.py",
+    "path:tests/test_lock_lifecycle.py",
+    "path:scripts/test_shiki_control_plane.sh"
+  ],
+  "non_goals": [
+    "Changing the lock conflict algorithm",
+    "Changing what locks mean at MergeGate",
+    "Auto-widening a grant into another task's held locks"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Two defects on the same seam in scripts/shiki_tasks.py, both observed live on PR #179. (a) cmd_lock_acquire and try_acquire_locks set task['status'] = 'ready' unconditionally (lines 373 and 691), so re-acquiring a grant rewinds a task that already has an open PR from review back to ready \u2014 MergeGate's post-CCA rule then blocks it. Preserve any status at or beyond 'running'; only planned may become ready. (b) A Spec Amendment that widens a task's locks silently invalidates its own grant, because the grant is checked as a superset of the contract; nothing in the amendment path refreshes it. Detect the divergence and either refresh the grant or fail with a reason naming it, rather than surfacing as an unexplained 'locks are not granted'.\n\nREPRODUCIBILITY \u2014 what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: re-acquiring a lock by hand after every contract amendment.\n  Observed: three amendments (A3, A3b and the earlier A-LOCKS widening) each invalidated their own grant, surfacing only as 'locks are not granted' with no indication that an amendment caused it; one re-acquisition also rewound a task with an open PR from review to ready and blocked MergeGate.\n  Reproducible when: amending a contract's locks leaves a valid grant, or fails with a reason naming the divergence, and no re-acquisition ever moves a task backwards through its lifecycle.",
+  "status": "planned",
+  "test_command": "bash scripts/test_shiki_control_plane.sh && python3 -m unittest discover -s tests",
+  "title": "Make lock acquisition preserve task lifecycle and follow contract amendments"
+}

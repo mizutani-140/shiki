@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T065622764822Z-bac7ef27.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260729T065622764840Z-d99965e8",
+  "links": [],
+  "summary": "Task registered from plan: Deliver the repair to the PR",
+  "task_id": "T-20260729T065622764822Z-bac7ef27",
+  "timestamp": "2026-07-29T06:56:22+00:00",
+  "type": "task-registered"
+}

@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T065622763684Z-ee01f3c4.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260729T065622763707Z-fc97be67",
+  "links": [],
+  "summary": "Task registered from plan: Make MergeGate scope enforcement see the whole diff and the whole mirror",
+  "task_id": "T-20260729T065622763684Z-ee01f3c4",
+  "timestamp": "2026-07-29T06:56:22+00:00",
+  "type": "task-registered"
+}
