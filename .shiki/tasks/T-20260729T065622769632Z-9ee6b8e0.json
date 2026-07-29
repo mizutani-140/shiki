@@ -8,7 +8,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260729t065622769632z-9ee6b8e0-cut-task-worktrees-from-the-default-branch",
+  "expected_branch": "shiki/t-20260729t065622769632z-9ee6b8e0-closeout",
   "expected_pr": 187,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
@@ -56,7 +56,7 @@
   ],
   "risk_level": "high",
   "scope": "scripts/shiki_runtime.py ensure_physical_worktree runs `git worktree add` from the coordinator's cwd, so a task branch is cut from whatever branch the coordinator happens to be on. The loop's own comments already assert the opposite \u2014 shiki_loop.py:481 states a task branch 'is cut from main' and that a multi-task goal's DAG 'already rides in from main'. Cutting from a coordinator branch carrying other goals' mirror state put 19 foreign task files, 2 foreign goal files and 33 unlisted ledgers into the first PR's diff, measured at 56 MergeGate blocking reasons. Cut explicitly from the configured default branch and fail with a named reason when it cannot be resolved.\n\nREPRODUCIBILITY \u2014 what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: creating each task worktree from origin/main by hand.\n  Observed: ensure_physical_worktree runs git worktree add from the coordinator's cwd, so a branch is cut from whatever the coordinator sits on; doing that on a branch carrying three goals' mirror state produced 56 MergeGate blocking reasons on the first PR, while shiki_loop.py:481 asserts branches are cut from main.\n  Reproducible when: shiki runner claude alone produces a task branch based on the default branch, with no operator git worktree command and no foreign goal's mirror state in the diff.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_runner_claude.sh && python3 -m unittest discover -s tests",
   "title": "Cut task worktrees from the default branch"
 }
