@@ -167,6 +167,74 @@ def cmd_runner_execute(args: argparse.Namespace) -> int:
     return process.returncode
 
 
+DEFAULT_BRANCH_FALLBACK = "main"
+
+
+def _default_branch_name(target: Path) -> str:
+    """Name of the repository's default branch.
+
+    Prefers git's own clone-time record of the remote default
+    (``refs/remotes/origin/HEAD``), then Shiki's saved config, then the platform
+    default the goal loop already assumes everywhere (``main``).
+    """
+    head = run(
+        ["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+        cwd=target,
+        check=False,
+    )
+    if head.returncode == 0:
+        ref = head.stdout.strip()
+        prefix = "origin/"
+        name = ref[len(prefix):] if ref.startswith(prefix) else ref
+        if name:
+            return name
+    configured = load_default_config().get("default_branch")
+    if configured:
+        return str(configured)
+    return DEFAULT_BRANCH_FALLBACK
+
+
+def resolve_default_branch_ref(target: Path) -> str:
+    """Resolve a git commit-ish for the default branch to cut a task branch from.
+
+    A new task branch must be cut from the default branch, not from whatever
+    branch the coordinator currently sits on: ``git worktree add -b <branch>
+    <path>`` with no start-point uses HEAD, so a task dispatched while the
+    coordinator sits on a feature branch inherits that branch's tree — the
+    failure that put foreign task/goal files and unlisted ledgers into a task
+    PR's diff. shiki_loop.py asserts the opposite: a task branch "is cut from
+    main".
+
+    The resolved name is bound to a commit-ish, preferring the remote-tracking
+    ref ``origin/<name>`` over the local ``<name>`` and refreshing it first with
+    a best-effort ``git fetch origin <name>``. This mirrors the loop's own
+    closeout path, which fetches and cuts from ``origin/main`` (shiki_loop.py).
+    The local branch can lag its remote after other goals merge, so cutting from
+    it would drag already-merged foreign state back into a fresh task branch;
+    the remote-tracking ref is the authority. The fetch is non-fatal so dispatch
+    still works offline when the refs are already present, and the local branch
+    remains the fallback when no remote-tracking ref exists. When neither the
+    remote-tracking ref nor the local branch exists the default branch cannot be
+    resolved, so this fails with a named reason instead of silently cutting the
+    new branch from HEAD.
+    """
+    name = _default_branch_name(target)
+    run(["git", "fetch", "origin", name], cwd=target, check=False)
+    for ref in (f"origin/{name}", name):
+        verified = run(
+            ["git", "rev-parse", "--verify", "--quiet", ref],
+            cwd=target,
+            check=False,
+        )
+        if verified.returncode == 0:
+            return ref
+    raise ShikiError(
+        f"cannot resolve default branch {name!r} to cut a task worktree from: "
+        f"neither origin/{name!r} nor local {name!r} exists in {target}. "
+        "Fetch or create the default branch before dispatch."
+    )
+
+
 def ensure_physical_worktree(target: Path, task: dict[str, Any]) -> dict[str, Any]:
     record = worktree_record(target, task["id"])
     branch = str((record or {}).get("branch") or task["expected_branch"])
@@ -202,7 +270,8 @@ def ensure_physical_worktree(target: Path, task: dict[str, Any]) -> dict[str, An
         if branch_exists(target, branch):
             run(["git", "worktree", "add", str(path), branch], cwd=target)
         else:
-            run(["git", "worktree", "add", "-b", branch, str(path)], cwd=target)
+            base = resolve_default_branch_ref(target)
+            run(["git", "worktree", "add", "-b", branch, str(path), base], cwd=target)
         record["state"] = "active"
         record["path"] = str(path)
         write_json(shiki_path(target, "worktrees", f"{task['id']}.json"), record)

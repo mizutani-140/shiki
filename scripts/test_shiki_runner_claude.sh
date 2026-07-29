@@ -22,6 +22,13 @@ python3 -m py_compile scripts/shiki.py
 python3 scripts/shiki.py runner --help | grep "claude" >/dev/null
 
 mkdir -p "$TARGET" "$FAKE_BIN"
+# Isolate HOME so the default-branch resolver's config lookup
+# (load_default_config reads ~/.shiki/config.json) cannot read the operator's
+# real global config. Without this the resolver could pick up a non-`main`
+# default_branch and abort the throwaway target's dispatch with an unrelated
+# error, making this test depend on machine state. Empty HOME -> "main".
+export HOME="$TMP_ROOT/home"
+mkdir -p "$HOME"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-runner-claude-install.out
 
 cd "$TARGET"
@@ -98,6 +105,19 @@ SH
 chmod +x "$FAKE_BIN/claude"
 export PATH="$FAKE_BIN:$PATH"
 
+# Regression (T-20260729T065622769632Z-9ee6b8e0): the coordinator moves onto a
+# feature branch carrying a foreign goal's mirror state before dispatch. A task
+# worktree must still be cut from the default branch (main), not from HEAD --
+# otherwise the foreign file rides into the task PR's diff (the 56-blocking-
+# reason failure). `shiki runner claude` alone must produce the correctly based
+# worktree; no operator `git worktree add` is needed.
+MAIN_TIP="$(git rev-parse main)"
+git checkout -b coordinator-feature >/dev/null 2>&1
+mkdir -p "$TARGET/.shiki/goals"
+echo '{"id": "G-FOREIGN0000"}' >"$TARGET/.shiki/goals/G-FOREIGN0000.json"
+git add -A
+git -c user.name="Shiki Test" -c user.email="shiki@example.test" commit -m "foreign goal mirror state" >/dev/null
+
 # Dry run shows the dispatch without executing it.
 python3 "$ROOT/scripts/shiki.py" runner claude --target "$TARGET" --task-id "$TASK_ID" --dry-run >/tmp/shiki-runner-claude-dry.json
 grep "claude -p" /tmp/shiki-runner-claude-dry.json >/dev/null
@@ -109,6 +129,12 @@ test -f "$WORKTREE/claude-marker.txt"
 grep "$TASK_ID" "$WORKTREE/claude-prompt.txt" >/dev/null
 grep '"status": "review"' "$TARGET/.shiki/tasks/$TASK_ID.json" >/dev/null
 grep "claude -p" "$TARGET"/.shiki/runner/EXEC-*.json >/dev/null
+
+# The worktree was cut from main even though the coordinator sat on
+# coordinator-feature: its tip equals main's tip and the foreign goal file the
+# feature branch carries is absent from the worktree.
+test "$(git -C "$WORKTREE" rev-parse HEAD)" = "$MAIN_TIP"
+test ! -f "$WORKTREE/.shiki/goals/G-FOREIGN0000.json"
 
 # A claude-code task must not dispatch through the codex runner without --force.
 if python3 "$ROOT/scripts/shiki.py" runner codex --target "$TARGET" --task-id "$TASK_ID" --dry-run >/tmp/shiki-runner-claude-wrong-runtime.out 2>&1; then
