@@ -126,10 +126,55 @@ GENUINE_REASONS = (
     "The lint job is already failing on main, so no result can be attributed to this PR.",
 )
 
+# Real short-circuit reasons measured against the enforcer. These are verbatim
+# inputs -- paraphrasing a measured reason defeats the measurement -- and every
+# one must be rejected. Each is a way a judge phrased "this blocking item was
+# left unjudged because a blocker already exists": some are strong standalone
+# phrases, some pair a skip cue with an already-blocked cause phrase, and two
+# (``Deferred pending resolution of CCA-08`` and ``Blocked by CCA-08, so this
+# was left unjudged``) name ANOTHER checklist item's id as the cause with no
+# failure word attached -- the most natural way a judge phrases a cross-item
+# short-circuit, and the two the marker-only detector missed.
+MEASURED_SHORT_CIRCUIT_REASONS = (
+    "CCA-08 already blocked; not evaluated",
+    "Verdict already determined by CCA-08 failure",
+    "No need to evaluate; a blocker already exists",
+    "Skipped because another blocker is present",
+    "Deferred pending resolution of CCA-08",
+    "Not reached: the verdict is blocked upstream",
+    "Superseded by the CCA-08 failure",
+    "Blocked by CCA-08, so this was left unjudged",
+    "Cannot be assessed while the Guardian gate fails",
+    "Irrelevant given the failing blocker above",
+    "N/A because the PR cannot merge anyway",
+    "Halted evaluation after the first blocking failure",
+)
+
+# Genuine ``insufficient_evidence`` reasons measured as safe: each names this
+# item's own missing evidence and must stay accepted even though some share a
+# word with a widened marker ("short-circuit branch", "was skipped"). The last
+# two guard the item-id cause rule: ``CCA-06 has no durable artifact`` names a
+# DIFFERENT item but carries no skip cue, so the two-signal requirement keeps it
+# accepted; the self-referencing reason names the judged item's OWN id (CCA-05,
+# the item these reasons are attached to) and must not count as an external
+# cause even with a skip cue present.
+MEASURED_GENUINE_REASONS = (
+    "No test covers the new short-circuit branch.",
+    "The e2e check was skipped due to a missing binary.",
+    "No CI artifact records the migration run.",
+    "The PR body does not state a risk level.",
+    "CCA-06 has no durable artifact.",
+    "CCA-05 has no durable evidence in the PR, so it stays unjudged.",
+)
+
+# Full sets exercised by the detection and acceptance tests below.
+ALL_SHORT_CIRCUIT_REASONS = SHORT_CIRCUIT_REASONS + MEASURED_SHORT_CIRCUIT_REASONS
+ALL_GENUINE_REASONS = GENUINE_REASONS + MEASURED_GENUINE_REASONS
+
 
 class ShortCircuitDetection(unittest.TestCase):
     def test_blocking_item_with_already_blocked_reason_is_detected(self):
-        for reason in SHORT_CIRCUIT_REASONS:
+        for reason in ALL_SHORT_CIRCUIT_REASONS:
             with self.subTest(reason=reason):
                 verdict = base_verdict()
                 verdict["checklist"][2]["reason"] = reason
@@ -141,13 +186,29 @@ class ShortCircuitDetection(unittest.TestCase):
                 self.assertTrue(any("CCA-05" in offender for offender in offenders))
 
     def test_genuine_insufficient_evidence_reason_is_not_flagged(self):
-        for reason in GENUINE_REASONS:
+        for reason in ALL_GENUINE_REASONS:
             with self.subTest(reason=reason):
                 verdict = base_verdict()
                 verdict["checklist"][2]["reason"] = reason
                 self.assertEqual(
                     enforce_cca_verdict.short_circuited_evaluations(verdict), []
                 )
+
+    def test_no_genuine_reason_is_a_false_positive(self):
+        # Explicit zero-false-positive assertion. If a later widening of the
+        # markers starts rejecting any genuine reason, this count is non-zero
+        # and the suite fails, naming the offending reasons.
+        false_positives = []
+        for reason in ALL_GENUINE_REASONS:
+            verdict = base_verdict()
+            verdict["checklist"][2]["reason"] = reason
+            if enforce_cca_verdict.short_circuited_evaluations(verdict):
+                false_positives.append(reason)
+        self.assertEqual(
+            false_positives,
+            [],
+            f"genuine insufficient-evidence reasons were wrongly flagged: {false_positives!r}",
+        )
 
     def test_short_circuited_acceptance_criterion_is_detected(self):
         verdict = base_verdict()
@@ -190,6 +251,18 @@ class ValidateVerdictRejection(unittest.TestCase):
             with self.assertRaises(SchemaValidationError):
                 enforce_cca_verdict.validate_verdict(verdict)
 
+    def test_measured_short_circuit_reasons_are_rejected(self):
+        # Every measured short-circuit reason must fail full enforcement, not
+        # only the detection helper.
+        for reason in MEASURED_SHORT_CIRCUIT_REASONS:
+            with self.subTest(reason=reason):
+                verdict = base_verdict()
+                verdict["checklist"][2]["reason"] = reason
+                with in_repo_root():
+                    with self.assertRaises(SchemaValidationError) as caught:
+                        enforce_cca_verdict.validate_verdict(verdict)
+                self.assertIn("short-circuit", str(caught.exception).lower())
+
     def test_fully_evaluated_blocked_verdict_is_accepted(self):
         # A real blocker exists (CCA-08 fails) but every blocking item is
         # evaluated. The verdict must pass validation regardless of its value.
@@ -200,7 +273,7 @@ class ValidateVerdictRejection(unittest.TestCase):
     def test_genuine_insufficient_evidence_verdict_is_accepted(self):
         # Every genuine near-miss reason, including the adversarial ones that
         # share a word with a marker, must survive full enforcement.
-        for reason in GENUINE_REASONS:
+        for reason in ALL_GENUINE_REASONS:
             with self.subTest(reason=reason):
                 verdict = base_verdict()
                 verdict["checklist"][2]["reason"] = reason

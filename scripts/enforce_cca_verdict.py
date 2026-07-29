@@ -49,17 +49,31 @@ STANDALONE_SHORT_CIRCUIT_MARKERS = (
     "no need to evaluate",
 )
 
-# Phrases saying the item was not evaluated / was skipped.
+# Phrases saying the item was not evaluated / was skipped / deferred. Every cue
+# here is weak on its own (e.g. "deferred", "pending", "irrelevant", "not
+# reached" all appear in genuine reasons), so a match only counts toward a
+# short-circuit when it is paired with an EXTERNAL already-blocked cause below.
 SKIP_MARKERS = (
     "not evaluated",
     "did not evaluate",
     "didnt evaluate",
     "not assessed",
     "not checked",
+    "cannot be assessed",
+    "cannot assess",
     "skipped",
     "short circuit",
     "no point",
     "moot",
+    "defer",  # deferred / defers / deferring
+    "not reached",
+    "superseded",
+    "unjudged",  # left unjudged / unjudged
+    "irrelevant",
+    "n/a",
+    "not applicable",
+    "halted",
+    "pending",
 )
 
 # Phrases citing an already-existing blocker or already-decided verdict as the
@@ -78,7 +92,24 @@ ALREADY_BLOCKED_CAUSE_MARKERS = (
     "verdict is already",
     "verdict was already",
     "another blocker",
+    "blocked upstream",
+    "failing blocker",  # the failing blocker
+    "blocker above",
+    "guardian gate fails",
+    "cannot merge",
+    "first blocking failure",
 )
+
+# A checklist reference like "CCA-08" that names a DIFFERENT item than the one
+# being judged is itself an EXTERNAL already-blocked cause: the most natural way
+# a judge phrases a cross-item short-circuit is "deferred pending resolution of
+# CCA-08" or "blocked by CCA-08, so this was left unjudged" -- a bare reference
+# to the item that already failed, with no failure word attached. A reference to
+# the item's OWN id is self-reference (the judge naming the item it is judging)
+# and must NOT count as an external cause. After normalization "CCA-08"
+# collapses to "cca 08", so references are matched against the normalized reason
+# and compared to the normalized own id.
+CCA_REFERENCE_RE = re.compile(r"cca \d+\w*")
 
 
 def fail(message: str) -> int:
@@ -118,7 +149,18 @@ def _normalize_reason(reason: str) -> str:
     return re.sub(r"[\s_-]+", " ", lowered).strip()
 
 
-def _is_already_blocked_reason(reason: Any) -> bool:
+def _references_external_item(normalized: str, item_id: Any) -> bool:
+    """True when the reason names a checklist item OTHER than the one being judged.
+
+    A reference to another item's id (e.g. ``CCA-08`` on item ``CCA-05``) blames
+    an external blocker. A reference to the item's own id is self-reference and
+    is not treated as an external cause.
+    """
+    own = _normalize_reason(item_id) if isinstance(item_id, str) else ""
+    return any(ref != own for ref in CCA_REFERENCE_RE.findall(normalized))
+
+
+def _is_already_blocked_reason(reason: Any, item_id: Any = None) -> bool:
     """True when ``reason`` blames an existing blocker instead of naming this item's own missing evidence."""
     if not isinstance(reason, str):
         return False
@@ -126,7 +168,9 @@ def _is_already_blocked_reason(reason: Any) -> bool:
     if any(marker in normalized for marker in STANDALONE_SHORT_CIRCUIT_MARKERS):
         return True
     skipped = any(marker in normalized for marker in SKIP_MARKERS)
-    blocked_cause = any(marker in normalized for marker in ALREADY_BLOCKED_CAUSE_MARKERS)
+    blocked_cause = any(
+        marker in normalized for marker in ALREADY_BLOCKED_CAUSE_MARKERS
+    ) or _references_external_item(normalized, item_id)
     return skipped and blocked_cause
 
 
@@ -149,7 +193,7 @@ def short_circuited_evaluations(verdict: dict[str, Any]) -> list[str]:
         status = str(item.get("status") or "").strip().lower()
         if status != "insufficient_evidence":
             continue
-        if _is_already_blocked_reason(item.get("reason")):
+        if _is_already_blocked_reason(item.get("reason"), item.get("id")):
             offenders.append(f"checklist item {item.get('id') or '<unknown>'}")
     for item in verdict.get("acceptance") or []:
         if not isinstance(item, dict):
@@ -157,7 +201,7 @@ def short_circuited_evaluations(verdict: dict[str, Any]) -> list[str]:
         status = str(item.get("status") or "").strip().lower()
         if status != "insufficient_evidence":
             continue
-        if _is_already_blocked_reason(item.get("reason")):
+        if _is_already_blocked_reason(item.get("reason"), item.get("criterion")):
             criterion = item.get("criterion") or "<unknown>"
             offenders.append(f"acceptance criterion {criterion!r}")
     return offenders
