@@ -13,6 +13,6 @@
     "path:scripts/test_shiki_loop_lock_guard.sh"
   ],
   "owner": "claude-code",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260728T103742824401Z-f198cd24"
 }

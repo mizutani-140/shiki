@@ -10,8 +10,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260728t103742824401z-f198cd24-inject-id-scoped-mirror-locks-at-task-registrati",
-  "expected_pr": 181,
+  "expected_branch": "shiki/t-20260728t103742824401z-f198cd24-closeout",
+  "expected_pr": 183,
   "github_issue": null,
   "goal_id": "G-20260728T103742822780Z-2514c606",
   "id": "T-20260728T103742824401Z-f198cd24",
@@ -37,7 +37,9 @@
     "L-20260729T051316703574Z-2d1cb456",
     "L-20260729T051316776096Z-f491a921",
     "L-20260729T051350512379Z-6ce9af30",
-    "L-20260729T052202662912Z-b9578f99"
+    "L-20260729T052202662912Z-b9578f99",
+    "L-20260729T072459106791Z-ec8cc2ed",
+    "L-20260729T072502630696Z-8812ef37"
   ],
   "locks": [
     "path:scripts/shiki_tasks.py",
@@ -77,7 +79,7 @@
   ],
   "risk_level": "high",
   "scope": "Give a task's declared locks mirror coverage WITHOUT writing anything into the stored locks. Remove injection from every write site in scripts/shiki_tasks.py: locks stay exactly what the plan declared. Instead, scripts/mergegate_check.py derives the task's mirror set at judgment time \u2014 from its task id, goal id and its ledger_evidence, including every .shiki-prefixed path those ledgers' evidence arrays reference \u2014 and unions it into the effective lock set passed to files_outside_locks. Deriving at read time is the point: the loop appends ledgers and writes runner/EXEC records AFTER dispatch (ten append_ledger sites in shiki_loop.py, none of which re-inject), so any scheme that writes coverage into stored locks is already stale by the time MergeGate reads it. Bound the derivation so it cannot be widened by a PR-authored task file: expand only ledgers listed in the task's own ledger_evidence whose goal_id and task_id match the task, and ignore any other reference. Frozen-plan matching then compares locks exactly, with no injected-set tolerance, because nothing is injected. Finally, correct the locks_cover_shiki_state advisory in scripts/validate_shiki.py, whose message asserts a dispatch-time path:.shiki/** guarantee that no longer exists and would otherwise warn on every task registered under the new model.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Inject id-scoped mirror locks at task registration"
 }
