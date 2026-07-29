@@ -1,0 +1,35 @@
+{
+  "attempt": 1,
+  "created_at": "2026-07-29T11:16:46+00:00",
+  "evidence_required": [
+    "A red-then-green record for the new stale-local-default test: it must fail against the current preference order and pass after the inversion.",
+    "resolve_default_branch_ref, run against the coordinator repository while it sits on branch claude/guardian-approval-planning-13e494, returns a ref whose tip equals origin/main's tip."
+  ],
+  "failing_acceptance_criteria": [
+    "A worktree created while the coordinator sits on a feature branch is cut from the default branch, proven by the new branch's tip equalling the default branch tip (git rev-parse) and 'git diff <default>...<new branch>' being empty at creation."
+  ],
+  "failing_checklist_items": [
+    "resolve_default_branch_ref (scripts/shiki_runtime.py, 'for ref in (name, f\"origin/{name}\")') prefers the LOCAL default branch over the remote-tracking ref. In a Shiki coordinator repository the local default branch is never checked out and goes stale. Measured live in this repository while it sits on claude/guardian-approval-planning-13e494: local 'main' is 25 commits behind 'origin/main' and is missing PRs #181, #183, #184, #185, #186 and the 16-contract Contract PR #182. A worktree cut from it does not equal the default branch tip, which is what the criterion requires.",
+    "No test pins the stale-local-default case. tests/test_worktree_base.py:220 covers only 'local ref ABSENT -> fall back to origin/<name>'; it never constructs a local default branch that exists but lags its remote, so the defect is invisible to the suite and the suite is green with the bug present.",
+    "The resolver never fetches. scripts/shiki_loop.py:863 runs 'git fetch origin main' immediately before cutting its closeout worktree from origin/main; the dispatch path added here has no equivalent, so even the remote-tracking ref can be arbitrarily stale."
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "minimal_required_changes": [
+    "In scripts/shiki_runtime.py resolve_default_branch_ref, invert the preference order to try 'origin/<name>' BEFORE local '<name>', keeping the same named ShikiError when neither resolves. Before resolving, refresh the remote-tracking ref with a best-effort 'git fetch origin <name>' (check=False, non-fatal). This matches scripts/shiki_loop.py:863-864, which already fetches and cuts from origin/main and is the behaviour ADR 0012's closeout path depends on. Update the docstring: the stated reason for preferring local ('consistency with the loop's git diff --cached main') does not hold, because that local ref is the stale one.",
+    "In tests/test_worktree_base.py add a case that pins the defect: a repo whose local default branch EXISTS but lags its remote-tracking ref. Assert resolve_default_branch_ref returns the remote-tracking ref, and that a worktree cut through ensure_physical_worktree lands on the remote tip, not the stale local tip. Keep the existing absent-local fallback case."
+  ],
+  "pr": 187,
+  "prohibited_changes": [
+    "Do not widen the task's locks. Stay inside scripts/shiki_runtime.py, tests/test_worktree_base.py and scripts/test_shiki_runner_claude.sh.",
+    "Do not change scripts/shiki_loop.py, including its 'git rev-list --count main..HEAD' which reads the same stale local ref. That is a separate recorded finding, out of this contract's scope.",
+    "Do not make a failed fetch fatal. Dispatch must still work offline when the refs are already present.",
+    "Do not edit the frozen task contract, its acceptance_checks, locks or risk_level."
+  ],
+  "repair_id": "RP-20260729T111646028612Z-3b271046",
+  "required_skill": "tdd",
+  "stop_condition": "If inverting the preference breaks an existing test in a way that reveals a real dependency on the local ref, stop and report rather than weakening that test.",
+  "task_id": "T-20260729T065622769632Z-9ee6b8e0",
+  "verification_commands": [
+    "bash scripts/test_shiki_runner_claude.sh && python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target ."
+  ]
+}
