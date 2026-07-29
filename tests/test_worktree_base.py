@@ -45,6 +45,43 @@ def _write(path: Path, obj: dict) -> None:
     path.write_text(json.dumps(obj), encoding="utf-8")
 
 
+def _repo_with_remote_ahead_of_local(tmp: Path) -> tuple[Path, str, str]:
+    """A repo whose local default branch EXISTS but lags its remote.
+
+    Models the real drift: after another goal merges to origin/main, a
+    coordinator's local ``main`` and its ``origin/main`` tracking ref can both
+    sit behind the remote tip until a fetch. Returns ``(target, stale_tip,
+    remote_tip)`` with the coordinator parked on a feature branch, local ``main``
+    and the tracking ref both pinned to ``stale_tip`` while the remote's ``main``
+    is at ``remote_tip``.
+    """
+    remote = tmp / "remote.git"
+    subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+    target = tmp / "repo"
+    target.mkdir()
+    _git(target, "init", "-b", "main")
+    _git(target, "config", "user.email", "t@t")
+    _git(target, "config", "user.name", "t")
+    (target / "README.md").write_text("base\n")
+    _git(target, "add", "-A")
+    _git(target, "commit", "-m", "init on main")
+    _git(target, "remote", "add", "origin", str(remote))
+    _git(target, "push", "-u", "origin", "main")
+    stale_tip = _rev(target, "main")
+
+    # Advance the remote's main past the local branch, then pin the local branch
+    # and its tracking ref back to the stale tip to model pre-fetch drift.
+    (target / "README.md").write_text("advanced\n")
+    _git(target, "commit", "-am", "second on main")
+    _git(target, "push", "origin", "main")
+    remote_tip = _rev(target, "main")
+
+    _git(target, "checkout", "-b", "feature")
+    _git(target, "branch", "-f", "main", stale_tip)
+    _git(target, "update-ref", "refs/remotes/origin/main", stale_tip)
+    return target, stale_tip, remote_tip
+
+
 class _Coordinator:
     """A git repo whose default branch is `main`, currently on a feature branch.
 
@@ -142,6 +179,28 @@ class EnsurePhysicalWorktreeBaseTests(unittest.TestCase):
             # No mirror file belonging to another goal rode into the worktree.
             self.assertFalse((wt / ".shiki" / "goals" / "G-FOREIGN0000.json").exists())
 
+    def test_cuts_from_remote_tip_when_local_default_lags(self):
+        with tempfile.TemporaryDirectory() as d, _IsolatedConfig(Path(d)):
+            target, stale_tip, remote_tip = _repo_with_remote_ahead_of_local(Path(d))
+            ensure_control_dirs(target)
+            task_branch = "shiki/task-under-test"
+            wt = Path(d) / "wt"
+            _write(
+                target / ".shiki" / "worktrees" / f"{TASK}.json",
+                {"task_id": TASK, "goal_id": GOAL, "branch": task_branch,
+                 "path": str(wt), "state": "registered", "locks": []},
+            )
+            task = {"id": TASK, "goal_id": GOAL, "assigned_runtime": "claude-code",
+                    "expected_branch": task_branch, "locks": []}
+
+            record = ensure_physical_worktree(target, task)
+            wt = Path(record["path"])
+            # The new branch is cut from the refreshed remote tip, not the stale
+            # local `main` — and the local branch itself is left untouched.
+            self.assertEqual(_rev(wt, "HEAD"), remote_tip)
+            self.assertNotEqual(_rev(wt, "HEAD"), stale_tip)
+            self.assertEqual(_rev(target, "main"), stale_tip)
+
     def test_existing_worktree_at_recorded_path_is_reused_unchanged(self):
         with tempfile.TemporaryDirectory() as d, _IsolatedConfig(Path(d)):
             env = _Coordinator(Path(d))
@@ -195,8 +254,10 @@ class ResolveDefaultBranchRefTests(unittest.TestCase):
         _git(target, "commit", "-m", "init")
         return target
 
-    def test_prefers_local_default_branch(self):
+    def test_resolves_local_default_when_no_remote_tracking_ref(self):
         with tempfile.TemporaryDirectory() as d, _IsolatedConfig(Path(d)):
+            # No origin at all: the remote-tracking ref cannot exist, so the
+            # local default branch is the fallback (dispatch works offline).
             target = self._repo(Path(d), "main")
             _git(target, "checkout", "-b", "feature")
             self.assertEqual(resolve_default_branch_ref(target), "main")
@@ -206,6 +267,16 @@ class ResolveDefaultBranchRefTests(unittest.TestCase):
             target = self._repo(Path(d), "trunk")
             _git(target, "checkout", "-b", "feature")
             self.assertEqual(resolve_default_branch_ref(target), "trunk")
+
+    def test_prefers_remote_tracking_ref_over_stale_local(self):
+        with tempfile.TemporaryDirectory() as d, _IsolatedConfig(Path(d)):
+            target, stale_tip, remote_tip = _repo_with_remote_ahead_of_local(Path(d))
+            # The local `main` still exists but lags origin. The resolved base
+            # must be the remote-tracking ref, refreshed to the remote tip — not
+            # the stale local branch that would drag already-merged state back.
+            self.assertEqual(resolve_default_branch_ref(target), "origin/main")
+            self.assertEqual(_rev(target, "origin/main"), remote_tip)
+            self.assertEqual(_rev(target, "main"), stale_tip)
 
     def test_falls_back_to_remote_tracking_ref(self):
         with tempfile.TemporaryDirectory() as d, _IsolatedConfig(Path(d)):

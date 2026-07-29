@@ -205,16 +205,22 @@ def resolve_default_branch_ref(target: Path) -> str:
     PR's diff. shiki_loop.py asserts the opposite: a task branch "is cut from
     main".
 
-    The resolved name is bound to a local commit-ish, preferring the local
-    default branch and falling back to the remote-tracking ref. Preferring the
-    local branch keeps the cut consistent with the loop's own local base
-    operations (``git diff --cached main``) in the common ``main`` case. When
-    neither the local branch nor the remote-tracking ref exists the default
-    branch cannot be resolved, so this fails with a named reason instead of
-    silently cutting the new branch from HEAD.
+    The resolved name is bound to a commit-ish, preferring the remote-tracking
+    ref ``origin/<name>`` over the local ``<name>`` and refreshing it first with
+    a best-effort ``git fetch origin <name>``. This mirrors the loop's own
+    closeout path, which fetches and cuts from ``origin/main`` (shiki_loop.py).
+    The local branch can lag its remote after other goals merge, so cutting from
+    it would drag already-merged foreign state back into a fresh task branch;
+    the remote-tracking ref is the authority. The fetch is non-fatal so dispatch
+    still works offline when the refs are already present, and the local branch
+    remains the fallback when no remote-tracking ref exists. When neither the
+    remote-tracking ref nor the local branch exists the default branch cannot be
+    resolved, so this fails with a named reason instead of silently cutting the
+    new branch from HEAD.
     """
     name = _default_branch_name(target)
-    for ref in (name, f"origin/{name}"):
+    run(["git", "fetch", "origin", name], cwd=target, check=False)
+    for ref in (f"origin/{name}", name):
         verified = run(
             ["git", "rev-parse", "--verify", "--quiet", ref],
             cwd=target,
@@ -224,7 +230,7 @@ def resolve_default_branch_ref(target: Path) -> str:
             return ref
     raise ShikiError(
         f"cannot resolve default branch {name!r} to cut a task worktree from: "
-        f"neither local {name!r} nor origin/{name!r} exists in {target}. "
+        f"neither origin/{name!r} nor local {name!r} exists in {target}. "
         "Fetch or create the default branch before dispatch."
     )
 
