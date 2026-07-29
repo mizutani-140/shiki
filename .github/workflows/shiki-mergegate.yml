@@ -42,6 +42,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           rm -rf .shiki/gha
           mkdir -p .shiki/gha
@@ -51,6 +52,18 @@ jobs:
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
           git diff --name-status "origin/${base_ref}...HEAD" > .shiki/gha/changed-files-status.txt
 
+          # Live Guardian-approval evidence. A Contract PR (ADR 0015) forces the
+          # Guardian gate from the Goal's frozen-plan risk in THIS metadata job,
+          # independent of any CCA verdict, so the check needs the same live
+          # comment/label/timeline evidence shiki-cca-completion.yml gathers.
+          # Without these files a high/critical contract mode PR blocks on a
+          # MISSING INPUT ("Guardian comments evidence file is missing"), not a
+          # missing approval. Fall back to an empty array so a fetch failure is a
+          # deterministic "no approval evidence", never a broken run.
+          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" > .shiki/gha/live-guardian-comments.json || echo "[]" > .shiki/gha/live-guardian-comments.json
+          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/events" > .shiki/gha/live-guardian-events.json || echo "[]" > .shiki/gha/live-guardian-events.json
+          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/timeline" -H "Accept: application/vnd.github+json" > .shiki/gha/live-guardian-timeline.json || echo "[]" > .shiki/gha/live-guardian-timeline.json
+
       - name: MergeGate metadata check
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -58,4 +71,8 @@ jobs:
           python3 scripts/mergegate_check.py \
             --changed-files-status .shiki/gha/changed-files-status.txt \
             --expected-head-sha "$EXPECTED_HEAD_SHA" \
-            --allow-missing-cca
+            --allow-missing-cca \
+            --guardian-policy .shiki/guardian-policy.json \
+            --guardian-comments .shiki/gha/live-guardian-comments.json \
+            --guardian-events .shiki/gha/live-guardian-events.json \
+            --guardian-timeline .shiki/gha/live-guardian-timeline.json

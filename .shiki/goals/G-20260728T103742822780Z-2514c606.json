@@ -26,7 +26,8 @@
   },
   "id": "G-20260728T103742822780Z-2514c606",
   "ledger_evidence": [
-    "L-20260728T103742823680Z-ca9e548b"
+    "L-20260728T103742823680Z-ca9e548b",
+    "L-20260729T072459106791Z-ec8cc2ed"
   ],
   "non_goals": [
     "Exempting .shiki paths from files_outside_locks \u2014 that is ADR 0016's step B and requires the mirror-identity rule (remediation R-02) to be in force first.",
@@ -41,6 +42,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260728T103735707274Z-80f461eb",
-  "status": "planned",
+  "status": "complete",
   "title": "Guarantee mirror lock coverage at registration"
 }

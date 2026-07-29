@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T072437602381Z-cd8cdfd8.json"
+  ],
+  "goal_id": "G-20260729T072437600805Z-2502768a",
+  "id": "L-20260729T072437602468Z-27f4fde4",
+  "links": [],
+  "summary": "Task registered from plan: Let a Contract PR register its own source plan and evaluate Guardian evidence",
+  "task_id": "T-20260729T072437602381Z-cd8cdfd8",
+  "timestamp": "2026-07-29T07:24:37+00:00",
+  "type": "task-registered"
+}
