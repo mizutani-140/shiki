@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# T4 — loop task-lock guard (PRD 0002, gap #5 / Q5).
+# loop-lock advisory guard — derive-at-judgment-time mirror-lock model
+# (ADR 0016 / A-LOCKS).
 #
-# Asserts, through the real scripts/ modules:
-#   1. validate_shiki.loop_lock_warnings WARNS (never errors) for a loop task of
-#      an active goal that lacks .shiki/** coverage, and is scoped out for
-#      non-loop runtimes and terminal/archived goals.
-#   2. the dispatch-time guarantee (shiki_tasks.try_acquire_locks /
-#      allocate_worktree_record) records .shiki/** coverage for a loop task
-#      WITHOUT mutating the registered task file's declared locks.
+# Asserts, through the real scripts/ modules, that
+# validate_shiki.loop_lock_warnings NO LONGER warns for a narrow-lock
+# loop-executed task on an active goal. A registered task's stored locks are
+# exactly what the plan declared; MergeGate recomputes the task's id-scoped
+# mirror set at judgment time (mergegate_check._derive_task_mirror_locks) and
+# unions it into the effective locks, so a narrow-lock loop task is the intended,
+# fully-covered state. The advisory must stay silent and must not claim a
+# dispatch-time .shiki/** guarantee (which never existed).
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -17,19 +19,11 @@ cd "$ROOT"
 python3 - <<'PY'
 from __future__ import annotations
 
-import json
 import sys
-import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path.cwd() / "scripts"))
 
-from shiki_tasks import (
-    LOOP_SHIKI_STATE_LOCK,
-    allocate_worktree_record,
-    is_loop_executed_runtime,
-    locks_cover_shiki_state,
-)
 from validate_shiki import loop_lock_warnings
 
 GOAL = "G-20260617T031753970001Z-1de3b322"
@@ -40,42 +34,37 @@ def fail(message: str) -> None:
     raise SystemExit(f"loop-lock-guard: {message}")
 
 
-# --- (1) WARN-ONLY validator hint -------------------------------------------
-
 def task(runtime: str, locks: list[str]) -> dict:
     return {"id": TASK, "goal_id": GOAL, "assigned_runtime": runtime, "locks": locks}
 
 
-warns = loop_lock_warnings(
+# A narrow-lock loop task on an active goal is fully covered by the derived
+# mirror set at judgment time, so the advisory must not warn.
+if loop_lock_warnings(
     {GOAL: {"id": GOAL, "status": "ready"}},
     {GOAL: [task("claude-code", ["path:scripts/x.py"])]},
-)
-if len(warns) != 1 or ".shiki/**" not in warns[0] or TASK not in warns[0]:
-    fail(f"expected one .shiki/** warning for an active loop task, got {warns}")
+):
+    fail("narrow-lock loop task on an active goal must not warn under the derived-lock model")
 
+# Silent across loop runtimes and active goal statuses.
+for runtime in ("claude-code", "codex"):
+    for status in ("planned", "ready", "blocked"):
+        if loop_lock_warnings(
+            {GOAL: {"id": GOAL, "status": status}},
+            {GOAL: [task(runtime, ["path:scripts/x.py"])]},
+        ):
+            fail(f"loop task ({runtime}, {status}) must not warn")
+
+# A task may still declare path:.shiki/** as a circularity break; still silent.
 if loop_lock_warnings(
     {GOAL: {"id": GOAL, "status": "ready"}},
-    {GOAL: [task("codex", [LOOP_SHIKI_STATE_LOCK])]},
+    {GOAL: [task("claude-code", ["path:.shiki/**"])]},
 ):
-    fail("covered loop task must not warn")
+    fail("declaring path:.shiki/** must not warn")
 
-if loop_lock_warnings(
-    {GOAL: {"id": GOAL, "status": "ready"}},
-    {GOAL: [task("human", ["path:docs/**"])]},
-):
-    fail("non-loop runtime must not warn")
-
-for status in ("complete", "archived", "historical"):
-    if loop_lock_warnings(
-        {GOAL: {"id": GOAL, "status": status}},
-        {GOAL: [task("claude-code", ["path:scripts/x.py"])]},
-    ):
-        fail(f"terminal/archived goal ({status}) must be scoped out of warnings")
-
-if not is_loop_executed_runtime("claude-code") or not is_loop_executed_runtime("codex"):
-    fail("claude-code/codex must classify as loop-executed")
-if is_loop_executed_runtime("other") or is_loop_executed_runtime("hermes-runner"):
-    fail("placeholder runtimes must not classify as loop-executed")
+# Missing goal payload must not crash and must not warn.
+if loop_lock_warnings({}, {GOAL: [task("claude-code", ["path:scripts/x.py"])]}):
+    fail("missing goal payload must not warn")
 
 print("loop-lock-guard: ok")
 PY

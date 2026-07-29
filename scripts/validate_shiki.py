@@ -1875,52 +1875,30 @@ def validate_json_schema_contracts() -> None:
         raise ValidationError(f"{CANONICAL_REPAIR_PACKET_SCHEMA_PATH}: fixture validation failed: {error}") from error
 
 
-# Goals whose tasks are no longer loop-dispatched: the warning is scoped out so
-# it does not retroactively spam the pre-existing terminal/archived-goal tasks.
-_INACTIVE_GOAL_STATUSES = {"complete", "archived", "historical"}
-
-
 def loop_lock_warnings(
     goal_payloads: dict[str, dict[str, Any]],
     task_payloads_by_goal: dict[str, list[dict[str, Any]]],
 ) -> list[str]:
-    """WARN-ONLY hint for loop tasks lacking .shiki/** lock coverage.
+    """WARN-ONLY advisory hook for loop-task mirror-lock coverage.
 
-    A loop-executed task (claude-code/codex) is dispatched into a worktree where
-    the goal loop syncs the full .shiki evidence set onto the task branch, so its
-    locks should cover .shiki/**. This is advisory, never an error: auto-mutating
-    a registered task's locks would break goal_reconcile's frozen-plan lock-match
-    and retroactively warn pre-existing tasks. The loop instead guarantees
-    coverage at dispatch time (shiki_tasks.loop_guaranteed_locks). The warning is
-    scoped to ACTIVE goals so terminal/archived goals are not flagged.
+    Under the derive-at-judgment-time mirror-lock model (ADR 0016 / A-LOCKS) a
+    registered task's stored ``locks`` are EXACTLY what the plan declared —
+    nothing is injected, and no task declares a blanket ``path:.shiki/**``.
+    MergeGate recomputes the task's id-scoped mirror set at judgment time
+    (``mergegate_check._derive_task_mirror_locks``) and unions it into the
+    effective locks passed to ``files_outside_locks``. A loop-executed task with
+    narrow product-path locks is therefore the intended, fully-covered state, so
+    there is nothing to warn about.
+
+    The earlier advisory warned on exactly that narrow-lock case, claiming the
+    loop guaranteed a ``.shiki/**`` lock at dispatch time
+    (``shiki_tasks.loop_guaranteed_locks``). No such guarantee ever existed, and
+    the warning would fire on every task registered under the new model, so it is
+    removed. This hook is retained WARN-ONLY: the future mirror-identity rule
+    (ADR 0016 step B / remediation R-02) will decide any blocking behaviour, and
+    it must not become an error before R-02 is in force.
     """
-    # Lazy import: keep validate_shiki importable without pulling the task
-    # lifecycle module (and its transitive deps) at module load (T1 cycle-avoidance style).
-    from shiki_tasks import is_loop_executed_runtime, locks_cover_shiki_state
-
-    warnings: list[str] = []
-    for goal_id, tasks in task_payloads_by_goal.items():
-        goal = goal_payloads.get(goal_id)
-        # Without a goal payload we cannot prove the goal is active; stay quiet.
-        if not isinstance(goal, dict):
-            continue
-        if goal.get("status") in _INACTIVE_GOAL_STATUSES:
-            continue
-        for task in tasks:
-            runtime = task.get("assigned_runtime")
-            if not is_loop_executed_runtime(runtime):
-                continue
-            locks = task.get("locks") if isinstance(task.get("locks"), list) else []
-            if locks_cover_shiki_state(locks):
-                continue
-            warnings.append(
-                f".shiki/tasks/{task.get('id')}.json: loop-executed task "
-                f"({runtime}) on active goal {goal_id} lacks a lock covering "
-                f"'.shiki/**'; the goal loop syncs .shiki evidence to the task "
-                f"branch and guarantees this lock at dispatch time, but the "
-                f"registered locks do not declare it"
-            )
-    return warnings
+    return []
 
 
 def main() -> int:

@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260728T103742824401Z-f198cd24.json",
+    ".shiki/plans/P-20260728T103735707274Z-80f461eb.json"
+  ],
+  "goal_id": "G-20260728T103742822780Z-2514c606",
+  "id": "L-20260729T051316703574Z-2d1cb456",
+  "links": [],
+  "summary": "A3b: complete the lock set for criterion 6 (validator hint test + loop lock guard) after the implementer stopped and reported rather than widening its own locks.",
+  "task_id": "T-20260728T103742824401Z-f198cd24",
+  "timestamp": "2026-07-29T05:13:16+00:00",
+  "type": "review"
+}

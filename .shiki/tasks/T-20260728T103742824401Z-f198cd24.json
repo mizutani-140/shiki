@@ -29,7 +29,15 @@
     "L-20260729T040443272786Z-974a4d61",
     "L-20260729T041147315166Z-e8238571",
     "L-20260729T041203858134Z-e7ad0ab1",
-    "L-20260729T041208077921Z-b062ba5e"
+    "L-20260729T041208077921Z-b062ba5e",
+    "L-20260729T050053287906Z-21741ec2",
+    "L-20260729T050053363062Z-e306a1a1",
+    "L-20260729T050110141372Z-ad313a88",
+    "L-20260729T050709964948Z-cb0009ef",
+    "L-20260729T051316703574Z-2d1cb456",
+    "L-20260729T051316776096Z-f491a921",
+    "L-20260729T051350512379Z-6ce9af30",
+    "L-20260729T052202662912Z-b9578f99"
   ],
   "locks": [
     "path:scripts/shiki_tasks.py",
@@ -37,7 +45,10 @@
     "path:scripts/shiki_locks.py",
     "path:tests/test_mirror_lock_injection.py",
     "path:scripts/test_shiki_control_plane.sh",
-    "path:.shiki/**"
+    "path:.shiki/**",
+    "path:scripts/validate_shiki.py",
+    "path:tests/test_loop_lock_validator_hint.py",
+    "path:scripts/test_shiki_loop_lock_guard.sh"
   ],
   "non_goals": [
     "Exempting .shiki from files_outside_locks (ADR 0016 step B, needs R-02 first)",
