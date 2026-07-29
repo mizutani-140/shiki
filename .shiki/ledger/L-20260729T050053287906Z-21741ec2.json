@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260728T103742824401Z-f198cd24.json",
+    ".shiki/plans/P-20260728T103735707274Z-80f461eb.json",
+    "https://github.com/mizutani-140/shiki/pull/181"
+  ],
+  "goal_id": "G-20260728T103742822780Z-2514c606",
+  "id": "L-20260729T050053287906Z-21741ec2",
+  "links": [],
+  "summary": "CCA repair_required on PR #181: acceptance criterion 6 named scripts/validate_shiki.py, which the contract never locked. Lock added (A3).",
+  "task_id": "T-20260728T103742824401Z-f198cd24",
+  "timestamp": "2026-07-29T05:00:53+00:00",
+  "type": "review"
+}

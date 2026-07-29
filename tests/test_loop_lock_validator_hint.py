@@ -1,10 +1,15 @@
-"""T4 — validate_shiki loop-lock WARN-ONLY hint.
+"""validate_shiki loop-lock advisory — derive-at-judgment-time model.
 
-validate_shiki must WARN (never error) when a loop-executed task of an ACTIVE
-goal lacks .shiki/** lock coverage. The warning is scoped:
-  - only loop-executed runtimes (claude-code/codex),
-  - only goals that are still active (not complete/archived/historical),
-so it does not retroactively spam the ~40 pre-existing terminal-goal tasks.
+Under the mirror-lock model (ADR 0016 / A-LOCKS) a registered task's stored
+``locks`` are EXACTLY what the plan declared; nothing is injected. MergeGate
+recomputes the task's id-scoped mirror set at judgment time
+(``mergegate_check._derive_task_mirror_locks``) and unions it into the effective
+locks passed to ``files_outside_locks``. A narrow-lock loop task is therefore the
+intended, fully-covered state, so ``loop_lock_warnings`` must NOT warn about it,
+and its advisory text must not claim a dispatch-time ``.shiki/**`` guarantee — no
+such guarantee (``loop_guaranteed_locks``) ever existed. The advisory hook is kept
+WARN-ONLY; the future mirror-identity rule (ADR 0016 step B / remediation R-02)
+will decide any blocking behaviour.
 """
 
 from __future__ import annotations
@@ -24,38 +29,36 @@ def _task(*, runtime: str, locks: list[str], goal: str = GOAL) -> dict:
     return {"id": TASK, "goal_id": goal, "assigned_runtime": runtime, "locks": list(locks)}
 
 
-class LoopLockWarningTests(unittest.TestCase):
-    def test_warns_for_loop_task_missing_shiki_coverage_on_active_goal(self) -> None:
+class LoopLockAdvisoryTests(unittest.TestCase):
+    def test_no_warning_for_narrow_lock_loop_task_on_active_goal(self) -> None:
+        # The exact case the old advisory warned on. MergeGate now derives the
+        # task's mirror set at judgment time, so a narrow-lock loop task is fully
+        # covered and must not be flagged.
         goals = {GOAL: {"id": GOAL, "status": "ready"}}
         tasks = {GOAL: [_task(runtime="claude-code", locks=["path:scripts/x.py"])]}
-        warnings = loop_lock_warnings(goals, tasks)
-        self.assertEqual(len(warnings), 1)
-        self.assertIn(TASK, warnings[0])
-        self.assertIn(".shiki/**", warnings[0])
-
-    def test_no_warning_when_loop_task_covers_shiki(self) -> None:
-        goals = {GOAL: {"id": GOAL, "status": "ready"}}
-        tasks = {GOAL: [_task(runtime="codex", locks=["path:.shiki/**"])]}
         self.assertEqual(loop_lock_warnings(goals, tasks), [])
 
-    def test_no_warning_for_non_loop_runtime(self) -> None:
-        goals = {GOAL: {"id": GOAL, "status": "ready"}}
-        tasks = {GOAL: [_task(runtime="human", locks=["path:docs/**"])]}
-        self.assertEqual(loop_lock_warnings(goals, tasks), [])
+    def test_silent_across_loop_runtimes_and_active_statuses(self) -> None:
+        # No active-goal / loop-runtime combination may reintroduce the warning.
+        for runtime in ("claude-code", "codex"):
+            for status in ("planned", "ready", "blocked"):
+                goals = {GOAL: {"id": GOAL, "status": status}}
+                tasks = {GOAL: [_task(runtime=runtime, locks=["path:scripts/x.py"])]}
+                self.assertEqual(
+                    loop_lock_warnings(goals, tasks),
+                    [],
+                    f"runtime={runtime} status={status} must not warn",
+                )
 
-    def test_scoped_out_for_terminal_or_archived_goals(self) -> None:
-        # The ~40 pre-existing tasks live under complete/archived/historical goals;
-        # the warning must not fire for them.
-        for status in ("complete", "archived", "historical"):
-            goals = {GOAL: {"id": GOAL, "status": status}}
-            tasks = {GOAL: [_task(runtime="claude-code", locks=["path:scripts/x.py"])]}
-            self.assertEqual(
-                loop_lock_warnings(goals, tasks), [], f"status={status} must be scoped out"
-            )
+    def test_no_warning_when_task_declares_shiki_lock(self) -> None:
+        # A task may still declare path:.shiki/** as a circularity break; the
+        # advisory neither requires nor forbids it (ADR 0016 step B / R-02).
+        goals = {GOAL: {"id": GOAL, "status": "ready"}}
+        tasks = {GOAL: [_task(runtime="claude-code", locks=["path:.shiki/**"])]}
+        self.assertEqual(loop_lock_warnings(goals, tasks), [])
 
     def test_missing_goal_does_not_crash(self) -> None:
         tasks = {GOAL: [_task(runtime="claude-code", locks=["path:scripts/x.py"])]}
-        # No goal payload at all: be conservative and do not warn (can't prove active).
         self.assertEqual(loop_lock_warnings({}, tasks), [])
 
 

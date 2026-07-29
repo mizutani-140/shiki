@@ -1,0 +1,10 @@
+{
+  "command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+  "created_at": "2026-07-29T04:12:03+00:00",
+  "goal_id": "G-20260728T103742822780Z-2514c606",
+  "id": "EXEC-20260729T041203857617Z-5c4edd8c",
+  "returncode": 0,
+  "stderr": ".................................................................................................................................................................................................................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 433 tests in 7.403s\n\nOK\n",
+  "stdout": "Shiki validation passed\nShiki validation passed\nShiki validation passed\nshiki control-plane tests passed\nadversarial state/evidence/lock regression suite passed\nShiki validation passed\n[shiki] token verified: ok\n[shiki] token verified: ok\n{\n  \"repo\": \"owner/name\",\n  \"secret\": \"CLAUDE_CODE_OAUTH_TOKEN\",\n  \"source\": \"env:SHIKI_TEST_TOK\",\n  \"verified\": true\n}\n",
+  "task_id": "T-20260728T103742824401Z-f198cd24"
+}

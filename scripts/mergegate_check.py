@@ -171,6 +171,83 @@ def load_dag(target: Path, goal_id: str) -> dict[str, Any] | None:
     return load_json(target / ".shiki" / "dag" / f"{goal_id}.json")
 
 
+# The .shiki subtrees the goal loop syncs onto a task branch, keyed by the id
+# they are scoped to. Task-scoped: the task file, its worktree record, its lock
+# record. Goal-scoped: the goal file and its DAG (shared, read-only goal state).
+_MIRROR_TASK_SUBTREES: tuple[str, ...] = ("tasks", "worktrees", "locks")
+_MIRROR_GOAL_SUBTREES: tuple[str, ...] = ("goals", "dag")
+
+
+def _derive_task_mirror_locks(target: Path, task: dict[str, Any]) -> list[str]:
+    """The task's id-scoped .shiki mirror lock set, recomputed at judgment time.
+
+    A registered task's stored ``locks`` are EXACTLY what the plan declared —
+    nothing is injected. But the goal loop syncs the task's own .shiki evidence
+    onto its branch (shiki_loop._evidence_relatives_for_task): its task file,
+    worktree record and lock record (task-id scoped); its goal file and DAG
+    (goal-id scoped); the ledger entries it owns; AND every ``.shiki``-prefixed
+    path those ledgers' ``evidence`` arrays reference (a ``type:check`` gate ledger
+    -> ``.shiki/runner/EXEC-*.json``; a completion ledger ->
+    ``.shiki/reports/R-*.json``). MergeGate's files-outside-locks gate must accept
+    those mutations, so this recomputes the covering set from the task's own ids
+    and unions it into the effective locks. Deriving at read time (not injecting at
+    registration) is the point: the loop appends ledgers and writes runner/EXEC
+    records AFTER dispatch, so any coverage written into the stored locks would be
+    stale by the time MergeGate reads it.
+
+    The derivation is BOUNDED so a PR-authored task file cannot widen its own
+    effective locks by citing someone else's evidence: a ledger in
+    ``ledger_evidence`` is expanded ONLY when the ledger's own ``goal_id`` AND
+    ``task_id`` match this task's. Any other reference — a foreign ledger, a
+    missing/malformed one, or an evidence ref that escapes the ``.shiki`` subtree —
+    contributes nothing. Every lock is a concrete single-file path (never a
+    directory glob over a shared mirror namespace). Order-stable, de-duplicated.
+    """
+    task_id = str(task.get("id") or "")
+    goal_id = str(task.get("goal_id") or "")
+    locks: list[str] = []
+    if task_id:
+        for subtree in _MIRROR_TASK_SUBTREES:
+            locks.append(f"path:.shiki/{subtree}/{task_id}.json")
+    if goal_id:
+        for subtree in _MIRROR_GOAL_SUBTREES:
+            locks.append(f"path:.shiki/{subtree}/{goal_id}.json")
+
+    shiki_root = (target / ".shiki").resolve()
+    for ledger_id in task.get("ledger_evidence") or []:
+        ledger_id = str(ledger_id)
+        if not ledger_id:
+            continue
+        try:
+            entry = load_json(target / ".shiki" / "ledger" / f"{ledger_id}.json")
+        except (OSError, ValueError):
+            # Missing/malformed ledger: contribute nothing (fail open on read,
+            # matching the loop's own sync, and never widening).
+            continue
+        if not isinstance(entry, dict):
+            continue
+        # Bound to the task's OWN ledgers: a foreign goal_id/task_id is ignored so
+        # a PR-authored task file cannot pad ledger_evidence with someone else's
+        # ledger to inherit the .shiki paths its evidence references.
+        if str(entry.get("goal_id") or "") != goal_id or str(entry.get("task_id") or "") != task_id:
+            continue
+        locks.append(f"path:.shiki/ledger/{ledger_id}.json")
+        for ref in entry.get("evidence") or []:
+            ref = str(ref)
+            if not ref.startswith(".shiki/"):
+                continue
+            # Containment: a prefix check alone does not stop traversal
+            # ('.shiki/../x' passes startswith but resolves outside). Resolve and
+            # require the path to stay within .shiki, exactly as the loop's sync does.
+            candidate = (target / ref).resolve()
+            try:
+                candidate.relative_to(shiki_root)
+            except ValueError:
+                continue
+            locks.append(f"path:{ref}")
+    return list(dict.fromkeys(locks))
+
+
 def goal_reconcile_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
     """Decide whether a PR runs in goal_reconcile mode.
 
@@ -1577,7 +1654,14 @@ def main() -> int:
             locks = [str(lock) for lock in task.get("locks") or []]
             if files and not locks:
                 blocking.append(f"Task {resolved_task_id} has no locks but PR changes files")
-            for path in files_outside_locks(files, locks):
+            # The task's declared (product) locks stay exactly what the plan froze;
+            # the .shiki evidence the loop syncs onto the branch is covered by the
+            # id-scoped mirror set derived from the task's own ids/ledgers at read
+            # time. Union the two for the files-outside-locks gate only — lock
+            # CONFLICT detection stays on the declared locks, since shared mirror
+            # evidence is not a contended product resource.
+            effective_locks = list(dict.fromkeys([*locks, *_derive_task_mirror_locks(target, task)]))
+            for path in files_outside_locks(files, effective_locks):
                 blocking.append(f"Changed file {path} is outside declared task locks")
             blocking.extend(active_lock_conflicts(target, resolved_task_id, locks, files))
 

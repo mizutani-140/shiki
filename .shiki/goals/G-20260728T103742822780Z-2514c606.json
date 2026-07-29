@@ -1,0 +1,46 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "Task registration injects the task's own id-scoped mirror locks, derived deterministically from the task id and goal id.",
+    "The injected set is exactly what the loop's evidence sync can write, and nothing broader \u2014 no directory glob over a shared namespace.",
+    "Frozen-plan matching accepts a registered task whose locks are the plan's locks plus exactly the derivable injected set, and rejects any other difference.",
+    "Every task in the four frozen plans passes files_outside_locks against the files the loop syncs.",
+    "Two registered tasks' injected mirror locks never conflict with each other."
+  ],
+  "created_at": "2026-07-28T10:37:42+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "The A-LOCKS narrowing was correct about product paths and wrong to drop mirror coverage with no replacement: the loop unconditionally syncs .shiki/tasks/<task>.json, .shiki/worktrees/<task>.json, .shiki/goals/<goal>.json, .shiki/locks/<task>.json and every ledger in ledger_evidence, and files_outside_locks blocks each of them.",
+      "Plan-time locks cannot name these files because the ids do not exist until registration. Injection at registration is therefore the only narrow option; a directory glob would restore the collision A-LOCKS removed.",
+      "Injected locks are id-scoped, so two tasks' injected sets are disjoint by construction and never conflict.",
+      "Frozen-plan matching must not simply ignore locks \u2014 that would let a registration widen them. It accepts plan locks plus exactly the recomputed injected set, and rejects anything else.",
+      "This goal is deliberately single-task and declares path:.shiki/** for itself. That is the circularity break: it is the one task in flight, so the blanket lock contends with nothing, and it is the task that removes the need for it."
+    ],
+    "source": "Framework review 2026-07-28 (Workflow w0a858ss3), Wave 0 item 1. Verified against HEAD: 26 of 27 frozen tasks block on their own synced mirror files after the A-LOCKS narrowing, and loop_guaranteed_locks \u2014 the compensating control cited in validate_shiki's advisory docstring \u2014 does not exist.",
+    "status": "complete"
+  },
+  "id": "G-20260728T103742822780Z-2514c606",
+  "ledger_evidence": [
+    "L-20260728T103742823680Z-ca9e548b"
+  ],
+  "non_goals": [
+    "Exempting .shiki paths from files_outside_locks \u2014 that is ADR 0016's step B and requires the mirror-identity rule (remediation R-02) to be in force first.",
+    "Restoring path:.shiki/** to any task.",
+    "Changing what the loop syncs, or the lock conflict algorithm.",
+    "Changing product-path locks declared at plan time."
+  ],
+  "outcome": "A registered task's declared locks always cover the mirror files the goal loop will sync onto its branch, without any task declaring a blanket path:.shiki/** lock. Narrow product-path locks (ADR 0016 / A-LOCKS) and mirror lock coverage stop being mutually exclusive, so tasks can run concurrently and still pass files_outside_locks on their own evidence.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260728T103735707274Z-80f461eb",
+  "status": "planned",
+  "title": "Guarantee mirror lock coverage at registration"
+}
