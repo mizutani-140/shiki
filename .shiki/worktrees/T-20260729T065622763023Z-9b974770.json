@@ -1,0 +1,20 @@
+{
+  "branch": "shiki/t-20260729t065622763023z-9b974770-make-guardian-approval-evidence-current-and-revo",
+  "created_at": "2026-07-29T21:45:39+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "locks": [
+    "path:scripts/shiki_guardian.py",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:scripts/test_shiki_guardian_policy.sh",
+    "path:scripts/test_shiki_workflow_lint.sh",
+    "path:tests/test_guardian_evidence.py"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260729t065622763023z-9b974770-make-gua",
+  "pr": 189,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260729T065622763023Z-9b974770"
+}
