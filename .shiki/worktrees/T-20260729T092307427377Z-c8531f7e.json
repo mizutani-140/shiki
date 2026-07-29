@@ -1,0 +1,16 @@
+{
+  "branch": "shiki/t-20260729t092307427377z-c8531f7e-taskless-manifest",
+  "created_at": "2026-07-29T09:59:40+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260729T092307426018Z-584fb95e",
+  "locks": [
+    "path:.shiki/schemas/cca-evidence-manifest.schema.json",
+    "path:tests/test_cca_evidence_manifest_taskless.py",
+    "path:scripts/test_shiki_adversarial_state.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-c8531f7e-taskless-manifest",
+  "pr": 186,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260729T092307427377Z-c8531f7e"
+}
