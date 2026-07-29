@@ -1,0 +1,19 @@
+{
+  "branch": "shiki/t-20260729t072437602381z-cd8cdfd8-let-a-contract-pr-register-its-own-source-plan-a",
+  "created_at": "2026-07-29T07:46:38+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260729T072437600805Z-2502768a",
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:.github/workflows/shiki-mergegate.yml",
+    "path:tests/test_contract_plan_registration.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_workflow_lint.sh",
+    "path:.shiki/**"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260729t072437602381z-cd8cdfd8-let-a-co",
+  "pr": 184,
+  "runtime": "claude-code",
+  "state": "registered",
+  "task_id": "T-20260729T072437602381Z-cd8cdfd8"
+}

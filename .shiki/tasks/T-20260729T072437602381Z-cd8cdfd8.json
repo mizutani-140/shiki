@@ -1,0 +1,61 @@
+{
+  "acceptance_checks": [
+    "A contract-mode PR that ADDS an unmodified, spec-frozen source plan for its goal is accepted.",
+    "A contract-mode PR that MODIFIES an existing plan file is blocked.",
+    "A contract-mode PR carrying a plan that is not its goal's source_plan is blocked.",
+    "A contract-mode PR that adds or changes a spec_freeze block is blocked.",
+    "The MergeGate metadata job passes --guardian-policy and the three --guardian-* flags, and a high-risk contract-mode PR is no longer blocked there for missing Guardian evidence files.",
+    "scripts/test_shiki_control_plane.sh, scripts/test_shiki_adversarial_state.sh and scripts/test_shiki_workflow_lint.sh stay green.",
+    "This PR carries .shiki/plans/P-20260726T053204320783Z-2265e5c3.json to the default branch, so Contract PR #182's source plan is resolvable after it merges."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260729t072437602381z-cd8cdfd8-let-a-contract-pr-register-its-own-source-plan-a",
+  "expected_pr": 184,
+  "github_issue": null,
+  "goal_id": "G-20260729T072437600805Z-2502768a",
+  "id": "T-20260729T072437602381Z-cd8cdfd8",
+  "ledger_evidence": [
+    "L-20260729T072437602468Z-27f4fde4",
+    "L-20260729T074638596291Z-b7f33430",
+    "L-20260729T074638673350Z-f7882542",
+    "L-20260729T082519918726Z-2a96580d",
+    "L-20260729T083101993600Z-bf0aa57d",
+    "L-20260729T083119174697Z-927be8dd",
+    "L-20260729T083123540566Z-cfd02bd0"
+  ],
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:.github/workflows/shiki-mergegate.yml",
+    "path:tests/test_contract_plan_registration.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_workflow_lint.sh",
+    "path:.shiki/**"
+  ],
+  "non_goals": [
+    "Permitting a PR to author or modify a spec_freeze block",
+    "Changing goal_reconcile mode",
+    "Changing the required-check set or which job evaluates the Guardian gate",
+    "The base .shiki snapshot and --merged-prs plumbing for the metadata job (remediation task R-06)"
+  ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "The added `gh api .../issues/N/comments|events|timeline` calls in shiki-mergegate.yml do not use --paginate, so a Contract PR with more than one page (~30) of issue comments/events could miss a later-page Guardian approval and block until re-approved. This is exact parity with the existing shiki-cca-completion.yml (lines 62-64) and fails closed (it can only cause a spurious block requiring re-approval, never a wrongful approval), so it is a pre-existing shared limitation rather than a defect introduced by this diff. Worth tracking if PRs routinely exceed one page of comments.",
+        "severity": "info",
+        "title": "gh api comment/event fetch is unpaginated (fail-closed, matches CCA workflow)"
+      }
+    ],
+    "ledger_id": "L-20260729T083101993600Z-bf0aa57d",
+    "verdict": "clean"
+  },
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Two changes, both blocking Contract PR #182 today.\n\n(a) scripts/mergegate_check.py contract mode: permit .shiki/plans/<the goal's source_plan>.json when the PR ADDS it (status A) and its content is a spec-frozen plan, while continuing to reject a MODIFIED plan, a plan that is not the goal's source_plan, and any PR that authors or modifies a spec_freeze block. Today the mode blocks with 'source_plan <P> not found' when the plan is absent from the judged tree and with 'contract must not change <plan>' when the PR carries it \u2014 a deadlock that makes any Goal whose plan is not already on the default branch permanently unregisterable, and nothing else puts a plan there.\n\n(b) .github/workflows/shiki-mergegate.yml: the metadata job runs mergegate_check with only --changed-files-status, --expected-head-sha and --allow-missing-cca, so when contract mode forces Guardian evaluation from the Goal's risk level the gate blocks on 'Guardian comments evidence file is missing' \u2014 a missing input, not a missing approval. Gather the live Guardian comments, label events and timeline in Prepare PR context the way shiki-cca-completion.yml already does, and pass --guardian-policy and the three --guardian-* flags. The base-snapshot and --merged-prs half of that job's argv stays with remediation task R-06.\n\nREPRODUCIBILITY \u2014 what this task removes. Contract PR #182 registers the sixteen contracts that make the whole remediation backlog dispatchable, and it cannot merge: the plan it registers against is unreachable, and the metadata job blocks it for evidence it never receives. Until both are fixed, no Contract PR can register any Goal whose plan is not already on the default branch \u2014 which is every Goal, since nothing puts one there.\n  Manual step removed: none \u2014 this removes a hard deadlock rather than a manual workaround.\n  Observed: PR #182 blocked with both halves of the contradiction in consecutive runs, and with two missing Guardian evidence files.\n  Reproducible when: `shiki contract open` followed by opening the PR and applying the mergegate:contract label is sufficient to register a Goal, with no operator editing MergeGate or hand-placing a plan.",
+  "status": "review",
+  "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_workflow_lint.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
+  "title": "Let a Contract PR register its own source plan and evaluate Guardian evidence"
+}

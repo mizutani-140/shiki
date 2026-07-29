@@ -1,0 +1,44 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "Contract mode accepts a source plan that this PR ADDS, unmodified, and still rejects a modified plan or a plan that is not the goal's source_plan.",
+    "The MergeGate metadata job supplies the Guardian evidence its own gate reads, so a high-risk Contract PR is not blocked there for missing input files.",
+    "The audit-remediation plan is on the default branch when this PR merges, which is the bootstrap this task exists to perform.",
+    "validate_shiki and the full suite stay green."
+  ],
+  "created_at": "2026-07-29T07:24:37+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "Contract mode is deadlocked as delivered: it blocks with 'source_plan not found' when the plan is absent from the judged tree, and with 'contract must not change .shiki/plans/...' when the PR carries it. Nothing else puts a plan on the default branch, so no Goal whose plan is not already there can ever be registered.",
+      "The operator-approved resolution is the audit's recommendation: authoring or modifying a spec_freeze block stays forbidden; a Contract PR may register an unmodified source plan add-only, with the maintainer-applied mergegate:contract label as the human countersignature.",
+      "The metadata job's Guardian blockers are a second, independent defect: contract mode forces Guardian evaluation from the Goal's risk level, but that job passes no --guardian-* flags, so the evaluator blocks on missing input rather than on a missing approval. Scoped here because it blocks the same PR; the base-snapshot half stays with R-06.",
+      "This task is deliberately a single-task goal so it can land through the ordinary task-PR path, and it carries the audit-remediation plan itself. That is the same bootstrap shape as the Contract PR path in PR #179: the task that removes a circularity is the one task that must not depend on it."
+    ],
+    "source": "Live block on Contract PR #182, 2026-07-29. Predicted verbatim by the ADR 0015 audit and left as operator decision 2 until it came due.",
+    "status": "complete"
+  },
+  "id": "G-20260729T072437600805Z-2502768a",
+  "ledger_evidence": [
+    "L-20260729T072437601694Z-4e45840d"
+  ],
+  "non_goals": [
+    "Permitting a PR to author or modify a spec_freeze block \u2014 creation and modification stay forbidden; only add-only registration of an unmodified plan is allowed.",
+    "Changing goal_reconcile mode, which is a recovery path and correctly forbids the goal file and the plan.",
+    "Changing the required-check set or which job evaluates the Guardian gate.",
+    "Building the base .shiki snapshot or --merged-prs plumbing for the metadata job \u2014 that is remediation task R-06."
+  ],
+  "outcome": "A Contract PR can register a Goal whose spec-frozen plan is not yet on the default branch, and the MergeGate metadata check stops blocking a high-risk Contract PR for Guardian evidence it was never given. Contract PR #182, carrying the audit-remediation Goal's 16 task contracts, becomes mergeable \u2014 which is what unblocks every remaining planned task.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260729T072429722860Z-3a488b0d",
+  "status": "planned",
+  "title": "Unblock Contract PRs: register the source plan, and give the metadata check its Guardian evidence"
+}
