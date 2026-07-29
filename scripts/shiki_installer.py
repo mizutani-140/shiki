@@ -93,6 +93,18 @@ DEFAULT_GLOBAL_COMMAND_PATH = "~/.local/bin/shiki"
 DEFAULT_CLAUDE_COMMAND_PATH = "~/.claude/commands/shiki.md"
 DEFAULT_CODEX_SKILL_PATH = "~/.codex/skills/shiki/SKILL.md"
 
+# Target-owned stateful files: an operator's Guardian policy, MergeGate config,
+# and applied-migration state. These are seeded from the template on first
+# install, but afterwards they carry per-target governance decisions. A reinstall
+# with --force refreshes template code, yet must never silently overwrite these;
+# they are create-if-absent even under --force so a re-run cannot destroy an
+# existing target's policy/config/migration state.
+PRESERVE_UNDER_FORCE = (
+    ".shiki/guardian-policy.json",
+    ".shiki/config.yaml",
+    ".shiki/migrations/state.json",
+)
+
 def manifest_stage_paths(path: Path) -> list[str]:
     candidates = list(TEMPLATE_PATHS)
     candidates.append(".shiki/manifest.json")
@@ -165,6 +177,14 @@ def should_skip(path: Path, *, target_install: bool = False) -> bool:
     return False
 
 
+def preserved_under_force(source: Path) -> bool:
+    """Whether ``source`` is a target-owned stateful file kept even under --force."""
+    try:
+        return source.relative_to(ROOT).as_posix() in PRESERVE_UNDER_FORCE
+    except ValueError:
+        return False
+
+
 def copy_path(source: Path, target: Path, *, force: bool, target_install: bool = False) -> None:
     if should_skip(source, target_install=target_install):
         return
@@ -173,9 +193,14 @@ def copy_path(source: Path, target: Path, *, force: bool, target_install: bool =
             copy_path(child, target / child.name, force=force, target_install=target_install)
         return
 
-    if target.exists() and not force:
-        warn(f"kept existing file: {target}")
-        return
+    if target.exists():
+        preserve = preserved_under_force(source)
+        if not force:
+            warn(f"kept existing file: {target}")
+            return
+        if preserve:
+            warn(f"preserved existing stateful file (not overwritten by --force): {target}")
+            return
 
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, target)

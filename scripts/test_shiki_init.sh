@@ -182,6 +182,36 @@ python3 scripts/shiki.py init "$ADOPTED" \
   --no-protect >/tmp/shiki-init-adopt.out
 test "$(git -C "$ADOPTED" remote get-url origin)" = "https://github.com/example/shiki-init-test.git"
 
+# init must never reset an existing branch. HEAD is on `other`, init targets the
+# existing `main` at a different commit; main must be left untouched (a `-B main`
+# would silently move it to other's commit) and the reflog must show no reset.
+BRANCH_SAFE="$TMP_ROOT/branch-safe"
+mkdir -p "$BRANCH_SAFE"
+git -C "$BRANCH_SAFE" init -b main >/tmp/shiki-init-branch-safe-init.out
+git -C "$BRANCH_SAFE" remote add origin https://github.com/example/shiki-init-test.git
+printf 'a\n' >"$BRANCH_SAFE/a.txt"
+git -C "$BRANCH_SAFE" add a.txt
+git -C "$BRANCH_SAFE" commit -m "A on main" >/tmp/shiki-init-branch-safe-a.out
+MAIN_BEFORE="$(git -C "$BRANCH_SAFE" rev-parse main)"
+git -C "$BRANCH_SAFE" checkout -b other >/tmp/shiki-init-branch-safe-other.out 2>&1
+printf 'b\n' >"$BRANCH_SAFE/b.txt"
+git -C "$BRANCH_SAFE" add b.txt
+git -C "$BRANCH_SAFE" commit -m "B on other" >/tmp/shiki-init-branch-safe-b.out
+python3 scripts/shiki.py init "$BRANCH_SAFE" \
+  --repo example/shiki-init-test \
+  --execute \
+  --no-commit \
+  --no-push \
+  --no-set-secret \
+  --no-protect >/tmp/shiki-init-branch-safe.out
+test "$(git -C "$BRANCH_SAFE" rev-parse main)" = "$MAIN_BEFORE"
+git -C "$BRANCH_SAFE" reflog show main >/tmp/shiki-init-branch-safe-reflog.out 2>&1 || true
+if grep -qi "reset" /tmp/shiki-init-branch-safe-reflog.out; then
+  echo "shiki init reset an existing branch" >&2
+  cat /tmp/shiki-init-branch-safe-reflog.out >&2
+  exit 1
+fi
+
 STAGING="$TMP_ROOT/staging"
 mkdir -p "$STAGING"
 printf 'do not stage me\n' >"$STAGING/unrelated.txt"

@@ -175,4 +175,120 @@ if payload["can_approve_pull_request_reviews"] is not True:
     raise SystemExit("expected can_approve_pull_request_reviews to be true")
 PY
 
+# A first run that fails part-way through GitHub governance must be re-attemptable:
+# start now re-runs init unconditionally, so a retry re-drives secret, branch
+# protection, and workflow-permission setup instead of silently skipping them
+# because .shiki/repo.json + origin already exist.
+cat >"$FAKE_BIN/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "$*" >>"${SHIKI_FAKE_GH_LOG}"
+case "$*" in
+  "auth status")
+    exit 0
+    ;;
+  "repo view "*)
+    exit 1
+    ;;
+  "repo create "*)
+    echo "https://github.com/example/shiki-start-test"
+    exit 0
+    ;;
+  "issue create "*)
+    echo "https://github.com/example/shiki-start-test/issues/101"
+    exit 0
+    ;;
+  "secret set "*)
+    cat >/dev/null
+    exit 0
+    ;;
+  "secret list "*)
+    echo "CLAUDE_CODE_OAUTH_TOKEN"
+    exit 0
+    ;;
+  *"actions/permissions/workflow"*)
+    cat >/dev/null
+    exit 0
+    ;;
+  *"/protection"*)
+    n="$(cat "${SHIKI_FAKE_GH_PROTECT_COUNT}" 2>/dev/null || echo 0)"
+    n=$((n + 1))
+    echo "$n" >"${SHIKI_FAKE_GH_PROTECT_COUNT}"
+    if [ "$n" -le "${SHIKI_FAKE_GH_PROTECT_FAILS:-0}" ]; then
+      echo "branch protection rejected" >&2
+      exit 1
+    fi
+    cat >/dev/null
+    exit 0
+    ;;
+  "api repos/"*)
+    cat >/dev/null
+    exit 0
+    ;;
+esac
+echo "fake gh unsupported: $*" >&2
+exit 1
+SH
+chmod +x "$FAKE_BIN/gh"
+export SHIKI_FAKE_GH_PROTECT_COUNT="$TMP_ROOT/protect-count"
+
+# A1: protection fails on run 1, then succeeds. Run 2 must re-attempt BOTH the
+# protection and workflow-permissions calls (today both are zero).
+RETRY_PROTECT="$TMP_ROOT/retry-protect"
+mkdir -p "$RETRY_PROTECT"
+: >"$SHIKI_FAKE_GH_PROTECT_COUNT"
+export SHIKI_FAKE_GH_PROTECT_FAILS=1
+export CLAUDE_CODE_OAUTH_TOKEN="fake-test-token"
+: >"$SHIKI_FAKE_GH_LOG"
+if python3 scripts/shiki.py start "$RETRY_PROTECT" --answers-file "$TMP_ROOT/answers.json" --execute --no-push </dev/null >/tmp/shiki-start-retry1.out 2>&1; then
+  echo "expected start run 1 to fail when branch protection is rejected" >&2
+  exit 1
+fi
+test -f "$RETRY_PROTECT/.shiki/repo.json"
+: >"$SHIKI_FAKE_GH_LOG"
+python3 scripts/shiki.py start "$RETRY_PROTECT" --answers-file "$TMP_ROOT/answers.json" --execute --no-push </dev/null >/tmp/shiki-start-retry2.out
+grep "branches/main/protection -X PUT" "$SHIKI_FAKE_GH_LOG" >/dev/null
+grep "actions/permissions/workflow -X PUT" "$SHIKI_FAKE_GH_LOG" >/dev/null
+
+# A2: the runtime token is unset on run 1 (secret set never happens); run 2 with
+# the token present must attempt the secret set.
+RETRY_SECRET="$TMP_ROOT/retry-secret"
+mkdir -p "$RETRY_SECRET"
+: >"$SHIKI_FAKE_GH_PROTECT_COUNT"
+export SHIKI_FAKE_GH_PROTECT_FAILS=0
+unset CLAUDE_CODE_OAUTH_TOKEN
+: >"$SHIKI_FAKE_GH_LOG"
+if python3 scripts/shiki.py start "$RETRY_SECRET" --answers-file "$TMP_ROOT/answers.json" --execute --no-push </dev/null >/tmp/shiki-start-secret1.out 2>&1; then
+  echo "expected start run 1 to fail when the runtime token is unset" >&2
+  exit 1
+fi
+if grep -q "secret set" "$SHIKI_FAKE_GH_LOG"; then
+  echo "run 1 must not have set the secret without a token" >&2
+  exit 1
+fi
+test -f "$RETRY_SECRET/.shiki/repo.json"
+export CLAUDE_CODE_OAUTH_TOKEN="fake-test-token"
+: >"$SHIKI_FAKE_GH_LOG"
+python3 scripts/shiki.py start "$RETRY_SECRET" --answers-file "$TMP_ROOT/answers.json" --execute --no-push </dev/null >/tmp/shiki-start-secret2.out
+grep "secret set CLAUDE_CODE_OAUTH_TOKEN --repo example/shiki-start-test" "$SHIKI_FAKE_GH_LOG" >/dev/null
+
+# A3: run 2 still exits non-zero when the underlying cause is never fixed, yet it
+# still re-attempts the failing step rather than skipping it.
+RETRY_UNFIXED="$TMP_ROOT/retry-unfixed"
+mkdir -p "$RETRY_UNFIXED"
+: >"$SHIKI_FAKE_GH_PROTECT_COUNT"
+export SHIKI_FAKE_GH_PROTECT_FAILS=99
+export CLAUDE_CODE_OAUTH_TOKEN="fake-test-token"
+: >"$SHIKI_FAKE_GH_LOG"
+if python3 scripts/shiki.py start "$RETRY_UNFIXED" --answers-file "$TMP_ROOT/answers.json" --execute --no-push </dev/null >/tmp/shiki-start-unfixed1.out 2>&1; then
+  echo "expected start run 1 to fail while protection is rejected" >&2
+  exit 1
+fi
+: >"$SHIKI_FAKE_GH_LOG"
+if python3 scripts/shiki.py start "$RETRY_UNFIXED" --answers-file "$TMP_ROOT/answers.json" --execute --no-push </dev/null >/tmp/shiki-start-unfixed2.out 2>&1; then
+  echo "expected start run 2 to still fail while the cause is unfixed" >&2
+  exit 1
+fi
+grep "branches/main/protection -X PUT" "$SHIKI_FAKE_GH_LOG" >/dev/null
+
 echo "shiki start tests passed"
