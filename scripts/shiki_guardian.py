@@ -185,6 +185,37 @@ def _is_claude_actor(login: str) -> bool:
     return any(marker in lowered for marker in CLAUDE_LOGIN_MARKERS)
 
 
+# Negation/revocation cues that a Guardian-approval comment cannot satisfy the
+# gate. Detected independently of marker position so a negated or rescinded
+# marker is recorded as a soft blocker rather than silently ignored.
+COMMENT_NEGATION_MARKERS = (
+    "no guardian approval",
+    "not approving",
+    "not authorized",
+    "withheld",
+    "revok",
+    "rescind",
+)
+
+
+def _marker_is_line_initial(body: str, marker: str) -> bool:
+    """True when ``marker`` begins a line in ``body``.
+
+    Requiring the approval marker to be line-initial means a negation or
+    revocation that only mentions it mid-sentence ("No Guardian approval
+    granted…", "NOT approving. Guardian approval granted…") can never be read as
+    an affirmative approval.
+    """
+    if not marker:
+        return False
+    return any(line.lstrip().startswith(marker) for line in body.splitlines())
+
+
+def _comment_negates_approval(body: str) -> bool:
+    lowered = body.lower()
+    return any(cue in lowered for cue in COMMENT_NEGATION_MARKERS)
+
+
 def _pr_author(pr: dict[str, Any]) -> str:
     for key in ("author", "user"):
         author = pr.get(key)
@@ -222,17 +253,35 @@ def _valid_label_actor(policy: GuardianPolicy, label_events: list[dict[str, Any]
     if not policy.require_label_actor:
         return True, None
     expected = policy.label.lower()
-    for event in label_events:
+    matching: list[tuple[str, int, str, str]] = []
+    for index, event in enumerate(label_events):
         if not isinstance(event, dict):
             continue
         event_name = str(event.get("event") or "").lower()
+        if event_name not in {"labeled", "label_added", "unlabeled", "label_removed"}:
+            continue
         label = event.get("label")
         label_name = str(label.get("name") if isinstance(label, dict) else label or "").strip().lower()
-        if event_name not in {"labeled", "label_added"} or label_name != expected:
+        if label_name != expected:
             continue
-        actor = _actor_login(event.get("actor"))
-        if _configured_guardian(actor, policy) and _author_allowed(actor, pr_author, policy):
-            return True, actor
+        matching.append((str(event.get("created_at") or ""), index, event_name, _actor_login(event.get("actor"))))
+    if not matching:
+        return False, None
+    # Resolve the LATEST labeled/unlabeled transition, so a label removed then
+    # re-added (or re-added by a non-Guardian) is judged by its current state,
+    # not by an earlier Guardian labeling a later unlabel/relabel superseded.
+    # GitHub timestamps are ISO-8601 (lexically sortable); the enumerate index
+    # is a stable tiebreak so a concatenated events+timeline feed (or entries
+    # missing created_at) still resolves to the most recent action by input
+    # order rather than by which stream carried it.
+    matching.sort(key=lambda item: (item[0], item[1]))
+    _created_at, _index, latest_event, latest_actor = matching[-1]
+    if (
+        latest_event in {"labeled", "label_added"}
+        and _configured_guardian(latest_actor, policy)
+        and _author_allowed(latest_actor, pr_author, policy)
+    ):
+        return True, latest_actor
     return False, None
 
 
@@ -307,9 +356,21 @@ def _comment_source(
         if not isinstance(comment, dict):
             continue
         body = str(comment.get("body") or "")
-        if policy.comment_marker not in body:
-            if "guardian approval" in body.lower() and "no guardian approval" in body.lower():
-                warnings.append("negative Guardian approval text was ignored")
+        marker = policy.comment_marker
+        if not marker or marker not in body:
+            # Not a Guardian-approval comment at all.
+            continue
+        # A "negated marker": the approval phrase is present but the comment
+        # negates or revokes it. Detected regardless of marker position (unlike
+        # the old marker-absent-only branch) and recorded as a SOFT blocker
+        # (auditable, fatal only when it is the sole approval attempt) so a
+        # negation/revocation can never be a silent pass.
+        if _comment_negates_approval(body):
+            soft.append("Guardian approval comment negates or revokes approval")
+            continue
+        # The marker must be line-initial: a comment that only mentions it
+        # mid-sentence (a quote or a reference) is not an affirmative approval.
+        if not _marker_is_line_initial(body, marker):
             continue
         actor = _actor_login(comment.get("author") or comment.get("user"))
         if not _configured_guardian(actor, policy):
