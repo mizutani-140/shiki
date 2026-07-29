@@ -79,6 +79,18 @@ def locks_cover_shiki_state(locks: list[str] | None) -> bool:
 # `acceptance_checks` prose.
 DEFAULT_TEST_COMMAND = "python3 -m unittest discover -s tests"
 
+# The loop-owns-delivery prohibition. The Shiki goal loop owns the commit / push /
+# PR / merge state transitions; the implementer only edits files in the worktree.
+# The SAME line rides on BOTH the task handoff (initial implementation) and every
+# repair packet (bounded fix), so the runner's contract is identical in both
+# directions — a repair delivered by the runner must no more commit or push than
+# an initial implementation. The loop delivers the pushed fix to the PR head.
+LOOP_OWNS_DELIVERY_PROHIBITION = (
+    "The Shiki goal loop owns commit, push, PR creation (with the required "
+    "MergeGate PR body) and merge; opening your own commit or PR breaks the "
+    "loop's create_pr state transition and fails MergeGate."
+)
+
 
 def scan_ids(target: Path, prefix: str) -> list[int]:
     pattern = re.compile(rf"\b{re.escape(prefix)}-([0-9]{{4,}})\b")
@@ -1128,7 +1140,7 @@ def write_task_handoff(target: Path, task_id: str) -> tuple[Path, str]:
             "- Implement ONLY by editing files in this worktree to satisfy the Scope and Acceptance Checks below.",
             "- Do NOT run `git commit`, `git push`, `git checkout`/`git switch`, or any `gh` command.",
             "- Do NOT create, update, comment on, or merge a pull request.",
-            "- The Shiki goal loop owns commit, push, PR creation (with the required MergeGate PR body) and merge; opening your own commit or PR breaks the loop's create_pr state transition and fails MergeGate.",
+            f"- {LOOP_OWNS_DELIVERY_PROHIBITION}",
             "- Stay strictly within the declared Locks below; touch no files outside them.",
             "",
             "## Scope",
@@ -1189,6 +1201,12 @@ def cmd_handoff_repair(args: argparse.Namespace) -> int:
             "",
             "## Verification Commands",
             *[f"- `{command}`" for command in repair.get("verification_commands", [])],
+            "",
+            # Render the packet's evidence_required so the runner sees the delivery
+            # contract from the repair side too: the loop commits and pushes the fix
+            # to the PR head (the runner does not), and the required checks re-run.
+            "## Evidence Required",
+            *[f"- {item}" for item in repair.get("evidence_required", [])],
             "",
             "## Task Scope",
             task["scope"],
