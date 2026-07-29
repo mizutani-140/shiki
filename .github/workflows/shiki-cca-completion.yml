@@ -8,6 +8,8 @@ on:
       - reopened
       - ready_for_review
       - edited
+      - labeled
+      - unlabeled
   workflow_dispatch:
     inputs:
       pr_number:
@@ -59,9 +61,9 @@ jobs:
           # MergeGate policy check uses (recognizes label/review/comment OR an
           # external AI guardian review artifact, ADR 0010). The policy check
           # remains the authoritative gate.
-          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" > .shiki/gha/live-guardian-comments.json || echo "[]" > .shiki/gha/live-guardian-comments.json
-          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/events" > .shiki/gha/live-guardian-events.json || echo "[]" > .shiki/gha/live-guardian-events.json
-          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/timeline" -H "Accept: application/vnd.github+json" > .shiki/gha/live-guardian-timeline.json || echo "[]" > .shiki/gha/live-guardian-timeline.json
+          gh api --paginate "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" > .shiki/gha/live-guardian-comments.json || echo "[]" > .shiki/gha/live-guardian-comments.json
+          gh api --paginate "repos/${REPOSITORY}/issues/${PR_NUMBER}/events" > .shiki/gha/live-guardian-events.json || echo "[]" > .shiki/gha/live-guardian-events.json
+          gh api --paginate "repos/${REPOSITORY}/issues/${PR_NUMBER}/timeline" -H "Accept: application/vnd.github+json" > .shiki/gha/live-guardian-timeline.json || echo "[]" > .shiki/gha/live-guardian-timeline.json
           python3 scripts/guardian_approval_signal.py \
             --pr-json .shiki/gha/pr.json \
             --guardian-policy .shiki/guardian-policy.json \
@@ -346,6 +348,15 @@ jobs:
     name: MergeGate policy check
     runs-on: ubuntu-latest
     needs: cca
+    # MergeGate only reads PR state to reach a verdict; it must never mutate the
+    # PR. Pin this job to read-only, overriding the workflow write grants the CCA
+    # job needs (enforced by WORKFLOW_CONTRACTS job_permissions in validate_shiki).
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      checks: read
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -384,13 +395,13 @@ jobs:
             --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup \
             > .shiki/gha/live-pr.json
 
-          gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+          gh api --paginate "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
             > .shiki/gha/live-guardian-comments.json
 
-          gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/events" \
+          gh api --paginate "repos/${{ github.repository }}/issues/${PR_NUMBER}/events" \
             > .shiki/gha/live-guardian-events.json
 
-          gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/timeline" \
+          gh api --paginate "repos/${{ github.repository }}/issues/${PR_NUMBER}/timeline" \
             -H "Accept: application/vnd.github+json" \
             > .shiki/gha/live-guardian-timeline.json
 
