@@ -1,0 +1,34 @@
+{
+  "attempt": 1,
+  "created_at": "2026-07-29T22:32:33+00:00",
+  "evidence_required": [
+    "A recorded measurement showing 12/12 of the listed short-circuit reasons rejected and 0/4 of the genuine reasons rejected, run against the repaired enforcer.",
+    "A red-then-green record: the new must-reject cases fail before the marker lists are widened."
+  ],
+  "failing_acceptance_criteria": [
+    "A verdict marking a blocking item insufficient_evidence with an 'already blocked' style reason is rejected by the enforcer."
+  ],
+  "failing_checklist_items": [
+    "The reason detector in scripts/enforce_cca_verdict.py catches only the phrasings this task's own acceptance criterion literally names. Measured against 12 realistic 'already blocked' reasons a CCA judge would actually write, 8 slip through: 'Deferred pending resolution of CCA-08', 'Not reached: the verdict is blocked upstream', 'Superseded by the CCA-08 failure', 'Blocked by CCA-08, so this was left unjudged', 'Cannot be assessed while the Guardian gate fails', 'Irrelevant given the failing blocker above', 'N/A because the PR cannot merge anyway', 'Halted evaluation after the first blocking failure'. A governance gate that catches one third of realistic evasions manufactures false assurance.",
+    "The suite pins only the caught phrasings, so the 8 misses are invisible to it: the tests and the marker lists were written from the same wording, and nothing measures coverage against phrasings the criterion did not enumerate."
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "minimal_required_changes": [
+    "Widen SKIP_MARKERS and ALREADY_BLOCKED_CAUSE_MARKERS in scripts/enforce_cca_verdict.py so all 8 measured misses are detected. Cover at least: deferred/defer, not reached, superseded, left unjudged / unjudged, cannot be assessed / cannot assess, irrelevant, n/a and not applicable when combined with an external-blocker cause, halted, pending. Keep the existing two-signal design (a skip signal AND an external already-blocked cause, or a strong standalone phrase) \u2014 it is what holds false positives at zero. Where a new cue is only meaningful with an external cause ('deferred', 'pending', 'n/a', 'irrelevant', 'halted'), add it to the skip side, not the standalone side. Extend ALREADY_BLOCKED_CAUSE_MARKERS with the cause phrasings those reasons use: 'blocked upstream', 'the failing blocker', 'blocker above', 'guardian gate fails', 'cannot merge', 'first blocking failure', 'CCA-' style item references paired with a failure word.",
+    "In tests/test_cca_completeness.py add all 12 measured short-circuit reasons as must-reject cases and all 4 genuine insufficient-evidence reasons as must-accept cases ('no test covers the new short-circuit branch', 'the e2e check was skipped due to a missing binary', 'no CI artifact records the migration run', 'the PR body does not state a risk level'). Assert zero false positives explicitly, so a later widening that starts rejecting genuine reasons fails the suite."
+  ],
+  "pr": 191,
+  "prohibited_changes": [
+    "Do not widen the task's locks. Stay inside .github/prompts/cca-completion-check.md, scripts/enforce_cca_verdict.py, tests/test_cca_completeness.py and scripts/test_shiki_control_plane.sh.",
+    "Do not replace the reason-text mechanism with a structural rule (for example rejecting every insufficient_evidence blocking item whenever another blocking item fails). That is a different design decision, it would reject legitimate verdicts, and it is outside this frozen contract.",
+    "Do not accept any false positive on the four genuine reasons above in order to raise recall.",
+    "Do not edit the frozen task contract, its acceptance_checks, locks or risk_level."
+  ],
+  "repair_id": "RP-20260729T223233967433Z-2e287502",
+  "required_skill": "tdd",
+  "stop_condition": "If any of the 12 cannot be detected without also rejecting one of the 4 genuine reasons, stop and report that phrasing rather than trading a false positive for recall.",
+  "task_id": "T-20260729T065622770500Z-513839f0",
+  "verification_commands": [
+    "bash scripts/test_shiki_control_plane.sh && python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target ."
+  ]
+}

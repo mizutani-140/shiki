@@ -1,0 +1,16 @@
+{
+  "branch": "shiki/t-20260729t065622768255z-da448d45-codify-the-approval-record-prohibition-in-the-co",
+  "created_at": "2026-07-29T21:45:41+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "locks": [
+    "path:AGENTS.md",
+    "path:CLAUDE.md",
+    "path:docs/agents/**"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260729t065622768255z-da448d45-codify-t",
+  "pr": 190,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260729T065622768255Z-da448d45"
+}
