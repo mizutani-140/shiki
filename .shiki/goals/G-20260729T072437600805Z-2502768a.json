@@ -24,7 +24,8 @@
   },
   "id": "G-20260729T072437600805Z-2502768a",
   "ledger_evidence": [
-    "L-20260729T072437601694Z-4e45840d"
+    "L-20260729T072437601694Z-4e45840d",
+    "L-20260729T092417636676Z-bdd42fb6"
   ],
   "non_goals": [
     "Permitting a PR to author or modify a spec_freeze block \u2014 creation and modification stay forbidden; only add-only registration of an unmodified plan is allowed.",
@@ -39,6 +40,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260729T072429722860Z-3a488b0d",
-  "status": "planned",
+  "status": "complete",
   "title": "Unblock Contract PRs: register the source plan, and give the metadata check its Guardian evidence"
 }

@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-07-29T09:59:18+00:00",
+  "goal_id": "G-20260729T092307426018Z-584fb95e",
+  "locks": [
+    "path:.shiki/schemas/cca-evidence-manifest.schema.json",
+    "path:tests/test_cca_evidence_manifest_taskless.py",
+    "path:scripts/test_shiki_adversarial_state.sh"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260729T092307427377Z-c8531f7e"
+}

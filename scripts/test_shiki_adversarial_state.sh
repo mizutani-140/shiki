@@ -729,5 +729,56 @@ assert "--guardian-comments .shiki/gha/live-guardian-comments.json" in cca_workf
 assert "--guardian-events .shiki/gha/live-guardian-events.json" in cca_workflow
 assert "author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup" in mergegate_workflow
 
+
+# Guards T-20260729T092307427377Z-c8531f7e: the CCA evidence manifest schema now
+# accepts an empty verdict.task_id (contract-mode / task-less PRs), so the
+# identity binding in validate_cca_evidence_manifest — not a blanket schema
+# floor — is the only thing standing between a task-ful PR and a laundered empty
+# task_id. Assert it holds: the same empty-task_id manifest is accepted when the
+# PR resolves to no task and rejected the moment it resolves to a real one.
+import shiki_evidence
+
+launder_dir = tmp_root / "cca-manifest-launder" / ".shiki" / "gha"
+if launder_dir.exists():
+    shutil.rmtree(launder_dir)
+launder_dir.mkdir(parents=True)
+write_json(launder_dir / "cca-verdict.json", cca_payload(task_id=""))
+write_json(launder_dir / "pr.json", pr_payload())
+(launder_dir / "changed-files.txt").write_text("scripts/test_shiki_adversarial_state.sh\n", encoding="utf-8")
+(launder_dir / "changed-files-status.txt").write_text("M\tscripts/test_shiki_adversarial_state.sh\n", encoding="utf-8")
+launder_manifest = shiki_evidence.build_cca_evidence_manifest(
+    repository="OWNER/REPO",
+    pr=PR_NUMBER,
+    head_sha=HEAD,
+    workflow_name="Shiki CCA Completion",
+    run_id="1",
+    run_attempt="1",
+    event_name="pull_request",
+    artifact_name="shiki-cca-evidence",
+    evidence_dir=launder_dir,
+)
+launder_manifest["created_at"] = "2026-07-29T00:00:00Z"
+assert launder_manifest["verdict"]["task_id"] == "", launder_manifest["verdict"]
+
+
+def validate_launder(expected_task_id):
+    return shiki_evidence.validate_cca_evidence_manifest(
+        manifest=launder_manifest,
+        evidence_dir=launder_dir,
+        expected_repo="OWNER/REPO",
+        expected_pr=PR_NUMBER,
+        expected_head_sha=HEAD,
+        expected_task_id=expected_task_id,
+        expected_goal_id=GOAL_ID,
+    )
+
+
+taskful_errors = validate_launder(TASK_ID)
+assert any("task_id" in error for error in taskful_errors), (
+    f"task-ful PR must reject a laundered empty task_id, got {taskful_errors!r}"
+)
+taskless_errors = validate_launder(None)
+assert not taskless_errors, f"task-less manifest must validate, got {taskless_errors!r}"
+
 print("adversarial state/evidence/lock regression suite passed")
 PY

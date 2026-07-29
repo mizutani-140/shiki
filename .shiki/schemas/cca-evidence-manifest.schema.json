@@ -63,7 +63,7 @@
       "properties": {
         "verdict": { "type": "string", "minLength": 1 },
         "goal_id": { "type": "string", "minLength": 1 },
-        "task_id": { "type": "string", "minLength": 1 },
+        "task_id": { "type": "string" },
         "pr": { "type": "integer", "minimum": 1 },
         "head_sha": { "type": "string", "minLength": 7 }
       },
