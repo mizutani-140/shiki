@@ -268,6 +268,23 @@ env \
   python3 scripts/enforce_cca_verdict.py >/tmp/shiki-cca-valid-complete.out
 grep "CCA verdict complete" /tmp/shiki-cca-valid-complete.out >/dev/null
 
+# A verdict that leaves a blocking checklist item or acceptance criterion
+# insufficient_evidence with an "already blocked" reason short-circuits the
+# evaluation and must be rejected as invalid.
+expect_fail env \
+  CCA_VERDICT_FILE=/tmp/shiki-cca-shortcircuit.json \
+  STRUCTURED_OUTPUT='{"verdict":"blocked","summary":"short circuit","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[{"id":"CCA-08","status":"fail","blocking":true,"reason":"guardian approval is required and not recorded"},{"id":"CCA-05","status":"insufficient_evidence","blocking":true,"reason":"already blocked; not evaluated"}],"acceptance":[{"criterion":"A1","status":"insufficient_evidence","evidence":["n/a"],"reason":"verdict already determined"}],"mergegate":{},"confidence":0.5}' \
+  python3 scripts/enforce_cca_verdict.py
+grep "blocking evaluation short-circuited" /tmp/shiki-expected-fail.out >/dev/null
+
+# A blocked verdict whose blocking items are all evaluated on their own evidence
+# passes validation regardless of the verdict value; it still blocks MergeGate.
+expect_fail env \
+  CCA_VERDICT_FILE=/tmp/shiki-cca-blocked-evaluated.json \
+  STRUCTURED_OUTPUT='{"verdict":"blocked","summary":"fully evaluated","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[{"id":"CCA-08","status":"fail","blocking":true,"reason":"guardian approval is required and not recorded"},{"id":"CCA-05","status":"insufficient_evidence","blocking":true,"reason":"the PR body records no TDD command output for this path"}],"acceptance":[{"criterion":"A1","status":"pass","evidence":["fixture"]}],"mergegate":{},"confidence":0.5}' \
+  python3 scripts/enforce_cca_verdict.py
+grep "CCA verdict is blocked; MergeGate is blocked" /tmp/shiki-expected-fail.out >/dev/null
+
 mkdir -p "$TARGET"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-control-install.out
 test -f "$TARGET/.github/CODEOWNERS"
