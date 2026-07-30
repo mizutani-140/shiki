@@ -145,3 +145,32 @@ def branch_exists(target: Path, branch: str) -> bool:
         capture_output=True,
         check=False,
     ).returncode == 0
+
+
+def checkout_branch(target: Path, branch: str) -> None:
+    """Switch ``target`` to ``branch`` without ever moving an existing ref.
+
+    Shiki must never destroy an existing target: a ``git checkout -B`` would
+    reset ``branch`` to the current HEAD, silently discarding whatever commit it
+    pointed at. Instead this:
+
+    - is a no-op when the checkout is already on ``branch``;
+    - runs a plain ``git checkout`` when ``branch`` already exists, so the ref
+      keeps pointing where it did;
+    - creates the branch at the current HEAD (``git checkout -b``) only when it
+      does not exist yet.
+
+    A checkout git refuses raises ``ShikiError`` rather than being forced.
+    """
+    if current_branch(target) == branch:
+        return
+    if branch_exists(target, branch):
+        args = ["git", "checkout", branch]
+    else:
+        args = ["git", "checkout", "-b", branch]
+    result = run(args, cwd=target, check=False)
+    if result.returncode != 0:
+        raise ShikiError(
+            f"could not checkout branch {branch}: {result.stderr.strip()}. "
+            "Shiki refuses to force-reset an existing branch."
+        )

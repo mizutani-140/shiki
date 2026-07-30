@@ -11,7 +11,7 @@ from typing import Any
 
 from shiki_config import branch_protection_review_count, configured_required_checks
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
-from shiki_git import check_remote_adoption, commit_manifest, current_branch, ensure_git_repo, ensure_remote, github_origin, is_git_repo, push_branch
+from shiki_git import check_remote_adoption, checkout_branch, commit_manifest, ensure_git_repo, ensure_remote, github_origin, is_git_repo, push_branch
 from shiki_github import claude_secret_remediation, configure_claude_code_secret, configure_workflow_permissions, create_github_issue_for_task, ensure_github_repo, github_secret_status, protect_branch, require_github_repo_slug, set_default_branch
 from shiki_installer import install_template
 from shiki_provider import ProviderConfig, ProviderConfigError, canonical_remote_url, github_env, provider_config_as_json, provider_from_values
@@ -159,9 +159,7 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
     ensure_github_repo(repo, visibility, provider_config=provider_config)
     ensure_remote(repo, ROOT, adopt_existing_repo=args.adopt_existing_repo, provider_config=provider_config)
 
-    active_branch = current_branch(ROOT)
-    if active_branch != branch:
-        run(["git", "checkout", "-B", branch], cwd=ROOT)
+    checkout_branch(ROOT, branch)
 
     if args.commit:
         commit_manifest(ROOT, args.commit_message)
@@ -237,9 +235,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     install_template(target, force=args.force, validate=args.validate)
     write_target_repo_config(target, repo, branch, provider_config)
 
-    active_branch = current_branch(target)
-    if active_branch != branch:
-        run(["git", "checkout", "-B", branch], cwd=target)
+    checkout_branch(target, branch)
 
     if args.commit:
         commit_manifest(target, args.commit_message)
@@ -441,19 +437,19 @@ def cmd_start(args: argparse.Namespace) -> int:
     target = target_path(start_target_value(args))
     answers = load_start_answers(args)
 
-    already_initialized = (
-        target.exists()
-        and (target / ".shiki" / "repo.json").exists()
-        and is_git_repo(target)
-        and github_origin(target)
-    )
-    if not already_initialized:
-        initialize_target_from_start(args, target, answers["repo"])
-        if not execution_confirmed(args):
-            return 0
-    else:
-        require_github_first_target(target)
-        ensure_control_dirs(target)
+    # Always (re-)run init when executing. A first run that failed part-way
+    # through GitHub governance (setting the runtime secret, branch protection,
+    # or workflow permissions) leaves .shiki/repo.json + a git origin behind, so
+    # gating init on "already initialized" made a retry silently skip every
+    # governance step. init is idempotent for filesystem/git/remote setup and
+    # re-drives the governance calls, so a retry re-attempts them. In dry-run it
+    # only prints the planned operations and start stops.
+    initialize_target_from_start(args, target, answers["repo"])
+    if not execution_confirmed(args):
+        return 0
+
+    require_github_first_target(target)
+    ensure_control_dirs(target)
 
     plan = plan_from_start_answers(answers)
     plan_id = next_control_id(target, "P")
