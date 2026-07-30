@@ -9,8 +9,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260729t065622764822z-bac7ef27-deliver-the-repair-to-the-pr",
-  "expected_pr": 192,
+  "expected_branch": "shiki/t-20260729t065622764822z-bac7ef27-closeout",
+  "expected_pr": 195,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622764822Z-bac7ef27",
@@ -23,7 +23,8 @@
     "L-20260729T225326696944Z-c2e98bf1",
     "L-20260729T230853746496Z-3545054e",
     "L-20260729T230916954095Z-a941af60",
-    "L-20260729T230920274042Z-d7b73aeb"
+    "L-20260729T230920274042Z-d7b73aeb",
+    "L-20260730T003454914626Z-a3071c9d"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -66,7 +67,7 @@
   ],
   "risk_level": "high",
   "scope": "In execute_action's dispatch_repair branch in scripts/shiki_loop.py, call the existing _commit_and_push_implementation after _dispatch_repair returns, record its result, and fail closed to stop_blocked when it does not report a push \u2014 exactly as the create_pr branch already does. Render the repair packet's evidence_required in cmd_handoff_repair and add the same 'the goal loop owns commit/push' prohibition the task handoff carries, so the runner's contract is unambiguous in both directions.\n\nREPRODUCIBILITY \u2014 what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: committing and pushing a completed repair by hand, because dispatch_repair delivers nothing.\n  Observed: repair RP-20260729T051350511459Z-50b5c0d7 finished correctly in the worktree and PR #181 did not move; the coordinator had to commit and push the loop's own work.\n  Reproducible when: a repair that finishes green updates its PR without an operator running git, and a push failure stops the loop with a named reason instead of silently consuming a repair attempt.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_loop_e2e.sh && bash scripts/test_shiki_p2_repair_limit.sh && bash scripts/test_shiki_goal_loop.sh && python3 -m unittest discover -s tests",
   "title": "Deliver the repair to the PR"
 }
