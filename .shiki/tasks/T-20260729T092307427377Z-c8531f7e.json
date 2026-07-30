@@ -12,7 +12,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260729t092307427377z-c8531f7e-closeout",
-  "expected_pr": 186,
+  "expected_pr": 199,
   "github_issue": null,
   "goal_id": "G-20260729T092307426018Z-584fb95e",
   "id": "T-20260729T092307427377Z-c8531f7e",
@@ -24,7 +24,8 @@
     "L-20260729T101723632516Z-98987819",
     "L-20260729T101739621937Z-26152f45",
     "L-20260729T101743803761Z-66ff6b14",
-    "L-20260730T014952356458Z-646217d8"
+    "L-20260730T014952356458Z-646217d8",
+    "L-20260730T014955882338Z-8353596e"
   ],
   "locks": [
     "path:.shiki/schemas/cca-evidence-manifest.schema.json",
