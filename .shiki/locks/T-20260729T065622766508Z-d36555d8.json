@@ -13,6 +13,6 @@
     "path:tests/test_bootstrap_safety.py"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260729T065622766508Z-d36555d8"
 }
