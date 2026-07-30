@@ -11,6 +11,6 @@
     "path:tests/test_guardian_evidence.py"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260729T065622763023Z-9b974770"
 }
