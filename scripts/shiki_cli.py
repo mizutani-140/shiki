@@ -11,6 +11,7 @@ from shiki_bootstrap import cmd_bootstrap_github, cmd_init, cmd_preflight, cmd_s
 from shiki_doctor import cmd_doctor
 from shiki_github import cmd_github_issue, cmd_github_pr, cmd_secret_set_claude
 from shiki_guardian_review import cmd_guardian_packet, cmd_guardian_prompt, cmd_guardian_verify_response
+from shiki_guardian_status import cmd_guardian_status
 from shiki_installer import DEFAULT_CLAUDE_COMMAND_PATH, DEFAULT_CODEX_SKILL_PATH, DEFAULT_GLOBAL_COMMAND_PATH, cmd_install_command, cmd_install_global, cmd_install_target, cmd_status
 from shiki_loop import cmd_loop_run, cmd_loop_step
 from shiki_memory import cmd_memory_capture, cmd_memory_distill, cmd_memory_investigate, cmd_memory_list, cmd_memory_promote, cmd_memory_revoke, cmd_memory_supersede
@@ -490,6 +491,24 @@ def build_parser() -> argparse.ArgumentParser:
     guardian_verify.add_argument("--response", required=True, help="Path to the raw reviewer response text")
     guardian_verify.add_argument("--output", help="Write the verdict JSON to this path (also printed to stdout)")
     guardian_verify.set_defaults(func=cmd_guardian_verify_response)
+
+    guardian_status = guardian_subcommands.add_parser(
+        "status",
+        help="Show which Guardian approval sources are satisfied/missing and the paste-ready approval body (read-only; never applies a label or posts an approval)",
+    )
+    guardian_status.add_argument("--target", default=".", help="Target repository path")
+    guardian_status.add_argument("--pr", required=True, type=int, help="Pull request number to inspect")
+    guardian_status.add_argument("--repo", help="GitHub repository as OWNER/NAME; defaults to the configured repo or gh")
+    guardian_status.add_argument("--format", choices=["text", "comment"], default="text", help="text for operator output; comment for a paste-ready PR comment")
+    guardian_status.add_argument("--guardian-policy", help="Override the guardian policy path (default TARGET/.shiki/guardian-policy.json)")
+    guardian_status.add_argument("--head-sha", help="Override the head SHA (default: live PR headRefOid, read in full)")
+    guardian_status.add_argument("--no-git", action="store_true", help="Skip local git head-SHA stability detection (used in a clean CI checkout)")
+    guardian_status.add_argument("--pr-json", help="Read PR evidence from a file instead of live gh (offline mode; used by CI and tests)")
+    guardian_status.add_argument("--comments", help="Offline: PR issue comments JSON file")
+    guardian_status.add_argument("--events", help="Offline: PR issue events JSON file")
+    guardian_status.add_argument("--timeline", help="Offline: PR issue timeline JSON file")
+    guardian_status.add_argument("--output", help="Also write the rendered report to this path")
+    guardian_status.set_defaults(func=cmd_guardian_status)
 
     task = subcommands.add_parser("task", help="Manage Shiki task state")
     task_subcommands = task.add_subparsers(dest="task_command", required=True)

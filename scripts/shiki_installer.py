@@ -56,6 +56,7 @@ TEMPLATE_PATHS = [
     "scripts/shiki_github.py",
     "scripts/shiki_guardian.py",
     "scripts/shiki_guardian_review.py",
+    "scripts/shiki_guardian_status.py",
     "scripts/shiki_installer.py",
     "scripts/shiki_process.py",
     "scripts/shiki_runtime.py",

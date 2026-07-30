@@ -197,6 +197,64 @@ jobs:
           STRUCTURED_OUTPUT: ${{ steps.cca.outputs.structured_output }}
         run: python3 scripts/enforce_cca_verdict.py
 
+      - name: Post Guardian blockers comment
+        # Runs even after Enforce CCA verdict fails the job (a needs_guardian
+        # verdict is a non-zero exit). When the verdict is needs_guardian the
+        # approver otherwise only sees an identical red X; this surfaces the exact
+        # missing string on the PR. Reuses the SAME evaluate_guardian_approval via
+        # `shiki guardian status` over the evidence already gathered above.
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          verdict_file=.shiki/gha/cca-verdict.json
+          if [ ! -f "$verdict_file" ]; then
+            echo "No CCA verdict file was written; nothing to post."
+            exit 0
+          fi
+          verdict="$(jq -r '.verdict // ""' "$verdict_file")"
+          if [ "$verdict" != "needs_guardian" ]; then
+            echo "CCA verdict is '${verdict}', not needs_guardian; no Guardian blockers comment."
+            exit 0
+          fi
+
+          # Render the SAME blockers evaluate_guardian_approval computed, plus the
+          # paste-ready Guardian-approval body (marker + full live head SHA), from
+          # the evidence the Prepare CCA context step already fetched. --no-git:
+          # this checkout is the clean PR head, so there is no unpushed/unsynced
+          # SHA drift to detect here.
+          python3 scripts/shiki.py guardian status \
+            --pr "$PR_NUMBER" \
+            --repo "$REPOSITORY" \
+            --format comment \
+            --no-git \
+            --guardian-policy .shiki/guardian-policy.json \
+            --pr-json .shiki/gha/pr.json \
+            --comments .shiki/gha/live-guardian-comments.json \
+            --events .shiki/gha/live-guardian-events.json \
+            --timeline .shiki/gha/live-guardian-timeline.json \
+            --output .shiki/gha/guardian-status-comment.md
+
+          # Update the existing marker comment in place across re-runs instead of
+          # spamming a new comment on every synchronize (mid-run approval churn was
+          # a PR #179 failure mode). The comments feed was fetched above.
+          existing_id="$(jq -r 'map(select((.body // "") | contains("<!-- shiki:guardian-status -->"))) | (.[0].id // empty)' .shiki/gha/live-guardian-comments.json 2>/dev/null || true)"
+          if [ -n "${existing_id:-}" ]; then
+            # Read the markdown as a raw string into the request body so nothing in
+            # the comment is misinterpreted as a typed field.
+            jq -n --rawfile body .shiki/gha/guardian-status-comment.md '{body: $body}' \
+              | gh api --method PATCH "repos/${REPOSITORY}/issues/comments/${existing_id}" --input - >/dev/null
+            echo "Updated Guardian blockers comment ${existing_id}."
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPOSITORY" --body-file .shiki/gha/guardian-status-comment.md
+            echo "Posted Guardian blockers comment."
+          fi
+
       - name: CCA Review Bridge
         shell: bash
         env:
