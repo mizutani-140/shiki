@@ -12,12 +12,18 @@
     "T-20260729T065622764822Z-bac7ef27"
   ],
   "expected_branch": "shiki/t-20260729t065622765413z-a0055a9d-make-the-closeout-path-fail-closed-and-stop-dest",
-  "expected_pr": null,
+  "expected_pr": 200,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622765413Z-a0055a9d",
   "ledger_evidence": [
-    "L-20260729T065622765446Z-ccf90a42"
+    "L-20260729T065622765446Z-ccf90a42",
+    "L-20260730T010208656594Z-b927357a",
+    "L-20260730T010208657636Z-e04c82af",
+    "L-20260730T014856650525Z-4690ff76",
+    "L-20260730T015628373632Z-0d6a04dc",
+    "L-20260730T015656370699Z-02db446f",
+    "L-20260730T015659858077Z-91b33e31"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -31,13 +37,24 @@
     "Changing the merge decision",
     "Changing MAX_CCA_RERUNS"
   ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "git diff main...HEAD includes mergegate_check.py, shiki_runtime.py, shiki_guardian.py, ADR 0015, CONTEXT.md, and dozens of .shiki records from earlier PRs (#181-#198) of this goal that are unrelated to this task's two changed files (scripts/shiki_loop.py, tests/test_closeout.py, per git status). This is the documented stale-local-main base condition, not content authored by this task; MergeGate computes its base from origin/main where these commits already exist, so they resolve empty. Non-blocking rebase concern, consistent with prior clean reviews in this goal.",
+        "severity": "info",
+        "title": "Diff carries large foreign already-merged mirror/code state (stale-local-main base)"
+      }
+    ],
+    "ledger_id": "L-20260730T015628373632Z-0d6a04dc",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "high",
   "scope": "In scripts/shiki_loop.py: (a) compute completes_goal from the coordinator's tasks_for_goal and require every id to be present in the closeout worktree AND done there, so a multi-task goal is never completed on main after only its first task merges; (b) replace the whole-tree 'git checkout origin/main -- .shiki' in the goal_complete branch with an explicit pathspec list built from the completing goal, and re-append the loop's own merge/mark_done ledger ids after the sync; (c) reset cca_rerun_count in the closeout repoint block.",
-  "status": "planned",
+  "status": "review",
   "test_command": "bash scripts/test_shiki_goal_loop.sh && bash scripts/test_shiki_loop_e2e.sh && python3 -m unittest discover -s tests",
   "title": "Make the closeout path fail closed and stop destroying sibling state"
 }
