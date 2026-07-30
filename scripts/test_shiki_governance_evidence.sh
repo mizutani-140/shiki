@@ -368,6 +368,21 @@ expect_block(
     ),
     "Guardian approval requires a configured Guardian review or current-head Guardian comment",
 )
+# A negated marker that embeds the exact approval phrase mid-sentence must still
+# block the FULL gate (exit 1): line-initial + negation detection means it can
+# never satisfy Guardian approval.
+expect_block(
+    make_fixture(
+        "mg-guardian-negated-marker",
+        guardian_comments=[
+            {
+                "author": {"login": "mizutani-140"},
+                "body": f"No Guardian approval granted for head {HEAD}. This critical change is NOT authorized to merge.",
+            }
+        ],
+    ),
+    "Guardian approval requires a configured Guardian review or current-head Guardian comment",
+)
 expect_block(
     make_fixture(
         "mg-guardian-stale-head",
