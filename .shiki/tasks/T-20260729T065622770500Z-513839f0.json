@@ -7,8 +7,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260729t065622770500z-513839f0-require-the-cca-to-evaluate-every-blocking-item",
-  "expected_pr": 191,
+  "expected_branch": "shiki/t-20260729t065622770500z-513839f0-closeout",
+  "expected_pr": 198,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622770500Z-513839f0",
@@ -23,7 +23,8 @@
     "L-20260729T223233968046Z-d140c120",
     "L-20260729T224038603195Z-e6640e37",
     "L-20260729T224209203142Z-0e095ee1",
-    "L-20260729T224943538846Z-0135f299"
+    "L-20260729T224943538846Z-0135f299",
+    "L-20260730T010301090054Z-7ed8b572"
   ],
   "locks": [
     "path:.github/prompts/cca-completion-check.md",
@@ -58,7 +59,7 @@
   ],
   "risk_level": "medium",
   "scope": "Observed on PR #179: with CCA-08 already failing, the CCA judged that the verdict was determined and stopped, returning seven acceptance criteria as insufficient_evidence in 1m30s where an earlier run had evaluated the same criteria in detail. The verdict was right and the evidence record was hollow. Because complete requires every blocking criterion to pass, a short-circuited run can never become complete, and the record is systematically thin exactly when a blocker exists \u2014 which is most of the time. Require the prompt and the verdict enforcer to evaluate every blocking checklist item and acceptance criterion regardless of an already-known blocker, and reject a verdict that returns blocking items as insufficient_evidence with 'already blocked' as the reason.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_control_plane.sh && python3 -m unittest discover -s tests",
   "title": "Require the CCA to evaluate every blocking item"
 }
