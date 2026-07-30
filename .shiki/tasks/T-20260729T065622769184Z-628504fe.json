@@ -12,12 +12,18 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260729t065622769184z-628504fe-show-the-guardian-what-the-gate-is-waiting-for",
-  "expected_pr": null,
+  "expected_pr": 201,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622769184Z-628504fe",
   "ledger_evidence": [
-    "L-20260729T065622769199Z-b3b95f1b"
+    "L-20260729T065622769199Z-b3b95f1b",
+    "L-20260730T012347664059Z-ee31030d",
+    "L-20260730T012347665360Z-0feb6450",
+    "L-20260730T014728108141Z-450c90c7",
+    "L-20260730T020027929055Z-5bc0f04d",
+    "L-20260730T020041711990Z-06a32f42",
+    "L-20260730T020045106704Z-d7ef7974"
   ],
   "locks": [
     "path:scripts/shiki_guardian_status.py",
@@ -32,13 +38,18 @@
     "Weakening any approval requirement",
     "Applying labels or posting approvals on the operator's behalf"
   ],
+  "pre_pr_code_review": {
+    "findings": [],
+    "ledger_id": "L-20260730T020027929055Z-5bc0f04d",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "high",
   "scope": "Add `shiki guardian status --pr N`: run the existing evaluate_guardian_approval over live evidence and print (a) which approval sources are satisfied and by whom, (b) which are missing, (c) the exact paste-ready comment body carrying the marker and the current 40-character head SHA, (d) whether any unsynced ledger_evidence or unpushed commit means the SHA is about to change, so approval is not requested against a doomed SHA. Then make the CCA post the same blockers as a PR comment when it returns needs_guardian, so the information reaches the approver on GitHub rather than only inside a workflow log. Motivation is measured, not hypothetical: obtaining one approval on PR #179 took nine rounds across five distinct failure modes \u2014 missing label, missing head SHA, a marker written in Japanese rather than the English literal, a head SHA invalidated by a later push, and an approval that landed mid-run with no trigger to re-evaluate. All five presented to the approver as an identical red X.\n\nREPRODUCIBILITY \u2014 what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: computing the Guardian's missing requirements by hand by running evaluate_guardian_approval and assembling the comment body.\n  Observed: one approval took nine rounds across six distinct failure modes \u2014 missing label, missing head SHA, a marker written in Japanese instead of the English literal, a SHA invalidated by a later push, an approval landing mid-run, and a head SHA that the planner fabricated from a 12-character prefix. All six presented to the approver as the same red X while the gate knew the exact missing string.\n  Reproducible when: one command prints what is satisfied, what is missing, and a paste-ready approval body whose SHA is read from live PR state \u2014 never transcribed or reconstructed. Register scripts/shiki_guardian_status.py in shiki_installer.TEMPLATE_PATHS so the module is staged into target repositories; without it `shiki install-target` and validate_shiki's CLI module-boundary check fail inside the target with 'No module named shiki_guardian_status', which is a MergeGate-blocking red check.\n\nNOTE on test_command: scripts/test_shiki_guardian_policy.sh is deliberately NOT in this task's test_command. It calls `shiki doctor`, and doctor's unregistered-worktree check fails whenever any sibling git worktree lacks a .shiki/worktrees record \u2014 which is true of the coordinator's own session worktree from inside every dispatched task worktree, since they share one gitdir. The loop execs test_command as its TDD gate and fails closed, so including it would stop this task before a PR exists, for a reason the implementer cannot fix inside its locks. The cheapest green path would be to weaken the doctor assertion, which this task's non-goals forbid. Coverage is kept by an acceptance check requiring the script to pass in a clean checkout instead.",
-  "status": "planned",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Show the Guardian what the gate is waiting for"
 }
