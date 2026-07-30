@@ -25,7 +25,8 @@
   },
   "id": "G-20260729T092307426018Z-584fb95e",
   "ledger_evidence": [
-    "L-20260729T092307426813Z-29aa47b5"
+    "L-20260729T092307426813Z-29aa47b5",
+    "L-20260730T014952356458Z-646217d8"
   ],
   "non_goals": [
     "Relaxing any other minLength in the manifest schema, or relaxing `required` on task_id \u2014 the key must still be present.",
@@ -41,6 +42,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260729T092230135210Z-be7b9bcb",
-  "status": "planned",
+  "status": "complete",
   "title": "Let the CCA evidence manifest represent a task-less PR mode"
 }
