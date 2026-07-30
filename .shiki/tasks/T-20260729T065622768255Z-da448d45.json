@@ -9,7 +9,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260729t065622768255z-da448d45-closeout",
-  "expected_pr": 190,
+  "expected_pr": 197,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622768255Z-da448d45",
@@ -20,7 +20,8 @@
     "L-20260729T215059281132Z-9e940b6c",
     "L-20260729T222851395078Z-f67d92cc",
     "L-20260729T222859639989Z-1462df6c",
-    "L-20260729T222903478096Z-06494e77"
+    "L-20260729T222903478096Z-06494e77",
+    "L-20260730T010239392684Z-5990f18e"
   ],
   "locks": [
     "path:AGENTS.md",
