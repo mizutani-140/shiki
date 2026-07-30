@@ -11,8 +11,8 @@
   "dependencies": [
     "T-20260729T065622764822Z-bac7ef27"
   ],
-  "expected_branch": "shiki/t-20260729t065622765413z-a0055a9d-make-the-closeout-path-fail-closed-and-stop-dest",
-  "expected_pr": 200,
+  "expected_branch": "shiki/t-20260729t065622765413z-a0055a9d-closeout",
+  "expected_pr": 203,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622765413Z-a0055a9d",
@@ -23,7 +23,8 @@
     "L-20260730T014856650525Z-4690ff76",
     "L-20260730T015628373632Z-0d6a04dc",
     "L-20260730T015656370699Z-02db446f",
-    "L-20260730T015659858077Z-91b33e31"
+    "L-20260730T015659858077Z-91b33e31",
+    "L-20260730T104203313537Z-2700855a"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -54,7 +55,7 @@
   ],
   "risk_level": "high",
   "scope": "In scripts/shiki_loop.py: (a) compute completes_goal from the coordinator's tasks_for_goal and require every id to be present in the closeout worktree AND done there, so a multi-task goal is never completed on main after only its first task merges; (b) replace the whole-tree 'git checkout origin/main -- .shiki' in the goal_complete branch with an explicit pathspec list built from the completing goal, and re-append the loop's own merge/mark_done ledger ids after the sync; (c) reset cca_rerun_count in the closeout repoint block.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_goal_loop.sh && bash scripts/test_shiki_loop_e2e.sh && python3 -m unittest discover -s tests",
   "title": "Make the closeout path fail closed and stop destroying sibling state"
 }
