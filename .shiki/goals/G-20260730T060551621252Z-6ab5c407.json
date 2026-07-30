@@ -24,7 +24,8 @@
   },
   "id": "G-20260730T060551621252Z-6ab5c407",
   "ledger_evidence": [
-    "L-20260730T060551622042Z-47323369"
+    "L-20260730T060551622042Z-47323369",
+    "L-20260730T105456046002Z-6948c15e"
   ],
   "non_goals": [
     "Widening any task's stored locks, or reintroducing a `.shiki/**` directory glob.",
@@ -41,6 +42,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260730T054958975369Z-980764c5",
-  "status": "planned",
+  "status": "complete",
   "title": "Let a goal-completing closeout PR cover its own completion ledger and scorecard"
 }
