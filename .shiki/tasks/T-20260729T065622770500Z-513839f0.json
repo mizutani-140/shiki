@@ -7,7 +7,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260729t065622770500z-513839f0-require-the-cca-to-evaluate-every-blocking-item",
+  "expected_branch": "shiki/t-20260729t065622770500z-513839f0-closeout",
   "expected_pr": 191,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
@@ -58,7 +58,7 @@
   ],
   "risk_level": "medium",
   "scope": "Observed on PR #179: with CCA-08 already failing, the CCA judged that the verdict was determined and stopped, returning seven acceptance criteria as insufficient_evidence in 1m30s where an earlier run had evaluated the same criteria in detail. The verdict was right and the evidence record was hollow. Because complete requires every blocking criterion to pass, a short-circuited run can never become complete, and the record is systematically thin exactly when a blocker exists \u2014 which is most of the time. Require the prompt and the verdict enforcer to evaluate every blocking checklist item and acceptance criterion regardless of an already-known blocker, and reject a verdict that returns blocking items as insufficient_evidence with 'already blocked' as the reason.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_control_plane.sh && python3 -m unittest discover -s tests",
   "title": "Require the CCA to evaluate every blocking item"
 }
