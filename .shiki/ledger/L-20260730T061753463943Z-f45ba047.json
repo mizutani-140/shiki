@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/202"
+  ],
+  "goal_id": "G-20260730T060551621252Z-6ab5c407",
+  "id": "L-20260730T061753463943Z-f45ba047",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/202"
+  ],
+  "summary": "GitHub PR #202 created for T-20260730T060551622687Z-7bea1bc2",
+  "task_id": "T-20260730T060551622687Z-7bea1bc2",
+  "timestamp": "2026-07-30T06:17:53+00:00",
+  "type": "handoff"
+}

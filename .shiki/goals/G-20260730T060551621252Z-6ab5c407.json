@@ -1,0 +1,46 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A goal-completing closeout PR whose task declares only named-file locks passes files-outside-locks for its completion ledger and scorecard.",
+    "A PR still cannot inherit coverage from a foreign task's or foreign goal's ledger.",
+    "validate_shiki and the full suite stay green."
+  ],
+  "created_at": "2026-07-30T06:05:51+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "`_derive_task_mirror_locks` (scripts/mergegate_check.py) expands a ledger from `task.ledger_evidence` only when BOTH the ledger's goal_id AND its task_id equal this task's. A goal-completion ledger written by cmd_goal_complete is goal-level: its task_id is null. So the condition rejects it, and neither the ledger nor the `.shiki/reports/R-*.json` scorecard its evidence array references gains a lock.",
+      "The loop is not at fault: it mirrors the completion ledger into the task's ledger_evidence deliberately (shiki_loop, so the task PR's ledger check can see it) and `_evidence_relatives_for_task` syncs both files onto the branch. Only the judgment-time lock derivation refuses them.",
+      "The defect predates the lock-narrowing work but was masked. Closeout PR #185 carried the same completion ledger + scorecard and merged, because its task declared `path:.shiki/**` \u2014 the wide directory glob that ADR 0016 and the A-LOCKS narrowing removed. PR #199's task declares three named files, so nothing masks it any more. Narrowing locks did not create this; it revealed it.",
+      "The bound exists for a real reason and must survive: it stops a PR-authored task file from padding `ledger_evidence` with a FOREIGN ledger to inherit the `.shiki` paths that ledger's evidence array cites. Relaxing task_id to 'empty or matching' preserves that: a ledger belonging to a different task is still rejected, a ledger belonging to a different goal is still rejected, and every derived path is still required to resolve inside the `.shiki` subtree.",
+      "This is a single-task goal so it can land through the ordinary task-PR path, the same bootstrap shape used for PRs #181, #184 and #186: the task that removes a circularity must not depend on it. It locks only scripts/mergegate_check.py and its new test file, because scripts/test_shiki_adversarial_state.sh is held by the very task whose closeout is blocked and scripts/test_shiki_control_plane.sh is held by another ready task."
+    ],
+    "source": "Live block on closeout PR #199, 2026-07-30: MergeGate metadata reported both the completion ledger and its scorecard report as outside declared task locks.",
+    "status": "complete"
+  },
+  "id": "G-20260730T060551621252Z-6ab5c407",
+  "ledger_evidence": [
+    "L-20260730T060551622042Z-47323369"
+  ],
+  "non_goals": [
+    "Widening any task's stored locks, or reintroducing a `.shiki/**` directory glob.",
+    "Accepting a ledger whose goal_id differs from the task's goal_id, under any circumstances.",
+    "Accepting a ledger whose task_id is set and differs from the task's id.",
+    "Removing the `.shiki`-subtree containment check on derived evidence paths.",
+    "Changing how the loop writes or mirrors the completion ledger, or changing cmd_goal_complete.",
+    "Touching scripts/test_shiki_adversarial_state.sh or scripts/test_shiki_control_plane.sh \u2014 both are held by other tasks' locks."
+  ],
+  "outcome": "A closeout PR that completes its goal can pass MergeGate's files-outside-locks gate. Today the goal-completion ledger and the scorecard report it references are covered by no lock, so every goal-completing closeout is permanently unmergeable unless its task declared a wide `.shiki/**` glob \u2014 which the lock-narrowing discipline removed. Unblocks closeout PR #199, and with it the MergeGate-scope task whose lock it holds.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260730T054958975369Z-980764c5",
+  "status": "planned",
+  "title": "Let a goal-completing closeout PR cover its own completion ledger and scorecard"
+}

@@ -197,11 +197,16 @@ def _derive_task_mirror_locks(target: Path, task: dict[str, Any]) -> list[str]:
 
     The derivation is BOUNDED so a PR-authored task file cannot widen its own
     effective locks by citing someone else's evidence: a ledger in
-    ``ledger_evidence`` is expanded ONLY when the ledger's own ``goal_id`` AND
-    ``task_id`` match this task's. Any other reference — a foreign ledger, a
-    missing/malformed one, or an evidence ref that escapes the ``.shiki`` subtree —
-    contributes nothing. Every lock is a concrete single-file path (never a
-    directory glob over a shared mirror namespace). Order-stable, de-duplicated.
+    ``ledger_evidence`` is expanded ONLY when its own ``goal_id`` matches this
+    task's goal AND its ``task_id`` is either this task's id or empty. An empty
+    ``task_id`` means a goal-level ledger of this goal — e.g. the completion
+    ledger ``cmd_goal_complete`` writes for a closeout, whose evidence cites
+    ``.shiki/reports/R-*.json`` — which the loop syncs onto the branch. Any other
+    reference — a foreign goal's ledger, one owned by a DIFFERENT task of this
+    goal, a missing/malformed one, or an evidence ref that escapes the ``.shiki``
+    subtree — contributes nothing. Every lock is a concrete single-file path
+    (never a directory glob over a shared mirror namespace). Order-stable,
+    de-duplicated.
     """
     task_id = str(task.get("id") or "")
     goal_id = str(task.get("goal_id") or "")
@@ -226,10 +231,19 @@ def _derive_task_mirror_locks(target: Path, task: dict[str, Any]) -> list[str]:
             continue
         if not isinstance(entry, dict):
             continue
-        # Bound to the task's OWN ledgers: a foreign goal_id/task_id is ignored so
-        # a PR-authored task file cannot pad ledger_evidence with someone else's
-        # ledger to inherit the .shiki paths its evidence references.
-        if str(entry.get("goal_id") or "") != goal_id or str(entry.get("task_id") or "") != task_id:
+        # Bound to the task's OWN goal: a foreign goal_id is ignored so a
+        # PR-authored task file cannot pad ledger_evidence with someone else's
+        # ledger to inherit the .shiki paths its evidence references. A ledger
+        # explicitly owned by a DIFFERENT task of this goal is also ignored (the
+        # anti-padding property). But a ledger with an EMPTY task_id is a
+        # goal-level ledger of this goal — e.g. cmd_goal_complete's type:completion
+        # entry, whose evidence cites .shiki/reports/R-*.json — and the loop syncs
+        # it onto the closeout branch, so it is accepted.
+        entry_goal = str(entry.get("goal_id") or "")
+        entry_task = str(entry.get("task_id") or "")
+        if entry_goal != goal_id:
+            continue
+        if entry_task and entry_task != task_id:
             continue
         locks.append(f"path:.shiki/ledger/{ledger_id}.json")
         for ref in entry.get("evidence") or []:
