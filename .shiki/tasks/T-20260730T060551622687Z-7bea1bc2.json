@@ -1,0 +1,61 @@
+{
+  "acceptance_checks": [
+    "A goal-level completion ledger of the task's own goal contributes both its own path and every `.shiki`-contained path in its evidence array to the derived locks.",
+    "A ledger whose goal_id is foreign contributes nothing.",
+    "A ledger whose task_id is set and differs from the task's id contributes nothing.",
+    "A goal-level ledger whose evidence ref resolves outside `.shiki` contributes nothing.",
+    "An end-to-end closeout-shaped case with three named-file task locks plus a completion ledger and scorecard returns no files-outside-locks blocker.",
+    "tests/test_completion_lock_scope.py exists and covers all of the above.",
+    "bash scripts/test_shiki_adversarial_state.sh and bash scripts/test_shiki_control_plane.sh stay green without being modified.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260730t060551622687z-7bea1bc2-cover-the-goal-completion-ledger-and-its-scoreca",
+  "expected_pr": 202,
+  "github_issue": null,
+  "goal_id": "G-20260730T060551621252Z-6ab5c407",
+  "id": "T-20260730T060551622687Z-7bea1bc2",
+  "ledger_evidence": [
+    "L-20260730T060551622784Z-2b1e108b",
+    "L-20260730T060551626671Z-b3ecdd1b",
+    "L-20260730T060551627622Z-5c7ceef4",
+    "L-20260730T060600582796Z-123c3a9a",
+    "L-20260730T061303754895Z-47e42793",
+    "L-20260730T061729255405Z-461fc8f3",
+    "L-20260730T061749993673Z-09864886",
+    "L-20260730T061753463943Z-f45ba047"
+  ],
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:tests/test_completion_lock_scope.py"
+  ],
+  "non_goals": [
+    "Widening any task's stored locks or reintroducing a `.shiki/**` glob",
+    "Accepting a ledger whose goal_id differs from the task's goal_id",
+    "Accepting a ledger whose task_id is set and differs from the task's id",
+    "Removing the `.shiki`-subtree containment check on derived evidence paths",
+    "Changing the loop or cmd_goal_complete",
+    "Touching scripts/test_shiki_adversarial_state.sh or scripts/test_shiki_control_plane.sh (held by other tasks)"
+  ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "The loosened bound lets a same-goal ledger with empty task_id contribute its evidence refs to effective locks. As before this change (which already applied to own-task ledgers), a PR that authors such a ledger could cite arbitrary .shiki-contained paths in its evidence array to widen coverage. This is not introduced by this task and is defended in depth by the planned mirror-scope rule R-02 (T-...ee01f3c4, status planned) which blocks modification/deletion of foreign mirror records regardless of locks. No action required for this change.",
+        "severity": "info",
+        "title": "Evidence-ref expansion can reference arbitrary in-.shiki paths via a self-authored same-goal ledger (pre-existing, out of scope)"
+      }
+    ],
+    "ledger_id": "L-20260730T061729255405Z-461fc8f3",
+    "verdict": "clean"
+  },
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "One change in `scripts/mergegate_check.py`, inside `_derive_task_mirror_locks`. The ledger-expansion bound is currently:\n\n    if str(entry.get(\"goal_id\") or \"\") != goal_id or str(entry.get(\"task_id\") or \"\") != task_id:\n        continue\n\nSplit it so a GOAL-LEVEL ledger of this task's own goal is accepted while every foreign reference stays rejected:\n\n    entry_goal = str(entry.get(\"goal_id\") or \"\")\n    entry_task = str(entry.get(\"task_id\") or \"\")\n    if entry_goal != goal_id:\n        continue          # foreign goal: never\n    if entry_task and entry_task != task_id:\n        continue          # a DIFFERENT task's ledger: never\n    # entry_task empty -> a goal-level ledger of this goal (e.g. cmd_goal_complete's\n    # type:completion entry, whose evidence cites .shiki/reports/R-*.json)\n\nLeave the `.shiki/`-prefix check and the resolve-and-contain check on each evidence ref exactly as they are. Update the docstring: it currently states the bound as 'goal_id AND task_id match', which will no longer be accurate.\n\nAdd `tests/test_completion_lock_scope.py` covering, against `_derive_task_mirror_locks` and through the files-outside-locks gate:\n  - a goal-level completion ledger (goal_id matches, task_id null) whose evidence cites `.shiki/reports/R-*.json` -> both the ledger path and the report path appear in the derived locks;\n  - the same ledger with a FOREIGN goal_id -> contributes nothing;\n  - a ledger with a DIFFERENT task_id but the right goal_id -> contributes nothing (this is the anti-padding property; it must not regress);\n  - a goal-level ledger whose evidence ref escapes the subtree (`.shiki/../outside.json`) -> contributes nothing;\n  - a goal-level ledger whose evidence ref is not `.shiki/`-prefixed -> contributes nothing;\n  - an end-to-end case shaped like PR #199: a task with three named-file locks, a closeout diff containing the task/lock/worktree/goal files plus a completion ledger and its scorecard, returns no 'outside declared task locks' blocker.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a closeout PR that completes its goal blocks with `Changed file .shiki/ledger/L-<id>.json is outside declared task locks` and `Changed file .shiki/reports/R-<id>.json is outside declared task locks`, even though the ledger IS listed in the task's own `ledger_evidence` and the report is the evidence that ledger cites.\n  Root cause: `_derive_task_mirror_locks` requires a ledger's `task_id` to equal the task's id before expanding it. `cmd_goal_complete` writes the completion ledger at GOAL level with `task_id: null`, so the ledger is skipped and its scorecard reference is never derived.\n  Why it appeared only now: closeout PR #185 carried the identical pair and merged, because its task declared `path:.shiki/**`. The lock-narrowing discipline (ADR 0016) replaced directory globs with named files, so nothing masks the gap any more. Every goal-completing closeout is now unmergeable.\n  Exact change that reproduces this result: in `_derive_task_mirror_locks`, replace the single combined goal_id/task_id inequality with a foreign-goal rejection plus a `if entry_task and entry_task != task_id` rejection, so an empty `task_id` on a same-goal ledger is accepted.\n  Manual step removed: hand-editing a stale lock record, or re-widening a task's locks to `.shiki/**`, to get a closeout merged.\n  Observed: PR #199, MergeGate metadata check, blocking_reasons naming exactly `.shiki/ledger/L-20260730T014952356458Z-646217d8.json` and `.shiki/reports/R-20260730T014952341651Z-aa477a7e.json`; the completion ledger reads `type: completion, goal_id: G-20260729T092307426018Z-584fb95e, task_id: None, evidence: ['.shiki/reports/R-20260730T014952341651Z-aa477a7e.json']`.\n  Reproducible when: `shiki loop step` can drive a goal-completing closeout to merge with no operator lock surgery, and the anti-padding tests still reject foreign-goal and foreign-task ledgers.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
+  "title": "Cover the goal-completion ledger and its scorecard in the derived mirror locks"
+}

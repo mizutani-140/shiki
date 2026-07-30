@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260730T060551622687Z-7bea1bc2.json"
+  ],
+  "goal_id": "G-20260730T060551621252Z-6ab5c407",
+  "id": "L-20260730T060551622784Z-2b1e108b",
+  "links": [],
+  "summary": "Task registered from plan: Cover the goal-completion ledger and its scorecard in the derived mirror locks",
+  "task_id": "T-20260730T060551622687Z-7bea1bc2",
+  "timestamp": "2026-07-30T06:05:51+00:00",
+  "type": "task-registered"
+}
