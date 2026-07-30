@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T065622769632Z-9ee6b8e0.json",
+    ".shiki/locks/T-20260729T065622769632Z-9ee6b8e0.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260729T214301288986Z-87e23d78",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/188"
+  ],
+  "summary": "Autonomous closeout PR #188 (/pull/188): task done + lock released pushed to main by the goal loop (ADR 0012).",
+  "task_id": "T-20260729T065622769632Z-9ee6b8e0",
+  "timestamp": "2026-07-29T21:43:01+00:00",
+  "type": "lock"
+}
