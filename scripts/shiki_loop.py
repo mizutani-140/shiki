@@ -380,7 +380,7 @@ def _dispatch(target: Path, task: dict[str, Any], *, repair_id: str | None = Non
 
 
 def _dispatch_repair(target: Path, task: dict[str, Any], failed_checks: list[str], attempt: int) -> dict[str, Any]:
-    from shiki_tasks import cmd_handoff_repair, create_repair_packet
+    from shiki_tasks import LOOP_OWNS_DELIVERY_PROHIBITION, cmd_handoff_repair, create_repair_packet
 
     pr = task.get("expected_pr")
     if not pr:
@@ -393,10 +393,23 @@ def _dispatch_repair(target: Path, task: dict[str, Any], failed_checks: list[str
         failing_items=[f"required check failed: {name}" for name in failed_checks] or ["task is repair-needed"],
         failing_acceptance_criteria=[],
         minimal_changes=["Fix the failing required checks without broadening scope."],
-        prohibited_changes=["Do not modify files outside the task locks.", "Do not weaken checks or validators."],
+        # The commit/push prohibition is the SAME line the task handoff carries, so
+        # the runner's delivery contract is unambiguous in both directions: a repair
+        # is edited in the worktree and delivered by the loop, never self-pushed.
+        prohibited_changes=[
+            "Do not modify files outside the task locks.",
+            "Do not weaken checks or validators.",
+            LOOP_OWNS_DELIVERY_PROHIBITION,
+        ],
         required_skill="diagnose",
         verification_commands=["python3 scripts/validate_shiki.py"],
-        evidence_required=["Push the fix to the task branch and let required checks re-run."],
+        # Loop-owned delivery: the runner edits the worktree; the goal loop commits
+        # and PUSHES the fix to the task branch so the required checks re-run against
+        # the updated PR head. States the push explicitly, attributed to the loop.
+        evidence_required=[
+            "Make the fix in the worktree only; the goal loop commits and pushes it "
+            "to the task branch so the required checks re-run against the updated PR head.",
+        ],
         stop_condition="Stop after this packet is satisfied or after three failed attempts.",
     )
     cmd_handoff_repair(argparse.Namespace(target=str(target), repair_id=repair_id))
@@ -445,6 +458,35 @@ def _commit_and_push_implementation(target: Path, task_id: str) -> str:
     if push.returncode != 0:
         return "implementation committed; push failed — push the task branch manually"
     return "implementation committed and pushed to the task branch"
+
+
+def _pr_branch_head(target: Path, task_id: str) -> str | None:
+    """The task branch's pushed head (the PR head) via the origin tracking ref.
+
+    Reads ``refs/remotes/origin/<expected_branch>`` from the task worktree — the
+    ref ``git push`` updates on a successful push. Returns the SHA, or ``None``
+    when it cannot be resolved (no worktree, no branch, branch not yet pushed).
+    The ``dispatch_repair`` branch snapshots this before and after delivery so a
+    push that reports success but did NOT advance the head (a repair that produced
+    no change: ``git push`` prints "Everything up-to-date") is caught and fails
+    closed, rather than silently consuming a repair attempt against an unmoved PR.
+    """
+    record = worktree_record(target, task_id)
+    if not record:
+        return None
+    worktree_path = Path(record["path"]).expanduser().resolve()
+    if not worktree_path.exists():
+        return None
+    branch = str(load_task(target, task_id).get("expected_branch") or "")
+    if not branch:
+        return None
+    result = run(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{branch}"],
+        cwd=worktree_path,
+        check=False,
+    )
+    head = (result.stdout or "").strip()
+    return head or None
 
 
 def _evidence_relatives_for_task(target: Path, task: dict[str, Any]) -> list[str]:
@@ -1089,6 +1131,39 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
     elif action == "dispatch_repair":
         attempt = repair_attempts_for(target, task_id) + 1
         result.update(_dispatch_repair(target, task, decision.get("failed_checks", []), attempt))
+        # Deliver the repair to the PR head, exactly as the create_pr branch
+        # delivers the initial implementation. The repair runner writes its fix
+        # into the worktree but — like the impl runner — does not commit/push;
+        # without this the repair finishes green in the worktree and the PR never
+        # moves (the manual `git commit && git push` this task removes). Commit and
+        # push the fix, then require BOTH a reported push AND an advanced PR head:
+        # a delivery failure (or a repair that produced no change, so `git push`
+        # reports "Everything up-to-date" and the head never moves) stops the loop
+        # with a NAMED reason instead of silently spinning — and burning — further
+        # repair attempts against an unchanged head that can never turn its checks
+        # green. Snapshot the pushed head before and after so the guarantee is that
+        # the head actually MOVED, not merely that the push command returned 0.
+        head_before = _pr_branch_head(target, task_id)
+        impl = _commit_and_push_implementation(target, task_id)
+        result["impl_commit"] = impl
+        head_after = _pr_branch_head(target, task_id)
+        if "pushed to the task branch" not in impl:
+            result["action"] = "stop_blocked"
+            result["reason"] = (
+                f"repair fix was not delivered to the task branch ({impl}); the PR "
+                "head did not move, so its required checks cannot re-run — diagnose "
+                "or re-dispatch"
+            )
+            return result
+        if head_after is None or head_after == head_before:
+            result["action"] = "stop_blocked"
+            result["reason"] = (
+                "repair produced no change: the PR head did not advance past "
+                f"{head_before or '(unpushed)'} ({impl}), so its required checks "
+                "cannot re-run and the repair did not fix the failure — diagnose "
+                "or re-dispatch"
+            )
+            return result
     elif action == "create_closeout_pr":
         # ADR 0012: the impl PR merged; open a closeout PR that pushes the terminal
         # state (task=done + lock=released + goal=complete) to main. The effector
