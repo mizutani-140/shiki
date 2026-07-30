@@ -1,0 +1,47 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "Merging a PR no longer makes another open PR's CCA context step fail with `no merge base`.",
+    "A verdict's head_sha equals the checked-out head SHA regardless of what the model wrote, and a disagreement is recorded rather than lost.",
+    "The full suite and validate_shiki stay green, including the workflow-lint script this task does not modify."
+  ],
+  "created_at": "2026-07-30T11:06:03+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "(a) `.github/workflows/shiki-cca-completion.yml` checks out with `fetch-depth: 0` and then runs `git fetch origin \"$base_ref\" --depth=1` (lines 52 and 400). The depth-1 fetch shallows the base ref to a single commit, so the next step's `git diff --name-only \"origin/${base_ref}...HEAD\"` has no reachable merge base the moment the base tip is no longer the branch's cut point. The step dies `fatal: origin/main...HEAD: no merge base`, exit 128, in ~5s, before any verdict exists. Observed on PR #191 right after #190 merged, and again on #193 and #199. The depth flag is pointless: the checkout already fetched full history.",
+      "The cost is not the crash, it is what the crash forces. Unblocking requires merging the base into the PR branch, which moves the head, which invalidates the head-bound Guardian approval comment, which costs another approval round. That is why approval count today scaled with the number of PRs open at once rather than with the number of decisions.",
+      "(b) The CCA model retypes the 40-character head SHA into its structured output. On PR #195 it emitted 36 characters \u2014 `9585b399e30df02429dc25a0afdaa37eaebb` against the real `9585b399e30df02429dc25a0afdaa37efa7aeebb` \u2014 and MergeGate correctly refused the verdict on both `CCA head_sha does not match the current PR headRefOid` and the same mismatch in the evidence manifest. The gate did its job; the input was wrong. A commit identifier is not a judgment, so the model should not be its source.",
+      "Injection must not silently paper over a confused judge. The workflow checks out exactly `github.event.pull_request.head.sha`, so that value is authoritative; but if the model's own value disagrees, that disagreement is worth keeping. So: overwrite authoritatively AND record the model's original value, so a mismatch stays visible in the evidence artifact instead of vanishing.",
+      "Scope excludes the closeout risk-inheritance question. Seven of today's 21 approvals were zero-code closeout bookkeeping, but removing that cost means deciding that a high-risk task's completion record may reach main without Guardian sight. That is a governance relaxation and belongs in its own ADR and operator decision, not folded into a defect fix.",
+      "`scripts/test_shiki_workflow_lint.sh` is held by another task's lock and is deliberately not in this task's locks. It is run by the test command but never modified."
+    ],
+    "source": "Measured across 26 merged PRs on 2026-07-29/30. Of 21 Guardian approval actions, 6 were pure re-approvals caused by defect (a) and PR #195 alone burned three full CCA re-runs, one of them on defect (b).",
+    "status": "complete"
+  },
+  "id": "G-20260730T110603196220Z-c50d61b5",
+  "ledger_evidence": [
+    "L-20260730T110603197083Z-930f5b9c"
+  ],
+  "non_goals": [
+    "Changing the closeout PR's risk inheritance, or any rule about which PRs need Guardian approval.",
+    "Modifying scripts/test_shiki_workflow_lint.sh or any other file held by another task's lock.",
+    "Removing head_sha from the CCA verdict schema, or making the model stop emitting it.",
+    "Discarding the model's own head_sha value without recording it.",
+    "Changing what MergeGate compares, or relaxing any head-SHA binding check.",
+    "Touching the Guardian approval evaluator or the guardian-status command."
+  ],
+  "outcome": "Merging a PR no longer breaks every other open PR's CCA, and the head SHA a verdict binds to is read from the event rather than retyped by the model. Two mechanism defects that today generate approval and CI cost proportional to the number of open PRs, on every goal, are removed.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260730T110603096221Z-edb64566",
+  "status": "planned",
+  "title": "Stop the CCA workflow from invalidating other PRs and from hand-transcribing the head SHA"
+}
