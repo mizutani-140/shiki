@@ -11,8 +11,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260729t092307427377z-c8531f7e-taskless-manifest",
-  "expected_pr": 186,
+  "expected_branch": "shiki/t-20260729t092307427377z-c8531f7e-closeout",
+  "expected_pr": 199,
   "github_issue": null,
   "goal_id": "G-20260729T092307426018Z-584fb95e",
   "id": "T-20260729T092307427377Z-c8531f7e",
@@ -23,7 +23,9 @@
     "L-20260729T100929258425Z-96311857",
     "L-20260729T101723632516Z-98987819",
     "L-20260729T101739621937Z-26152f45",
-    "L-20260729T101743803761Z-66ff6b14"
+    "L-20260729T101743803761Z-66ff6b14",
+    "L-20260730T014952356458Z-646217d8",
+    "L-20260730T014955882338Z-8353596e"
   ],
   "locks": [
     "path:.shiki/schemas/cca-evidence-manifest.schema.json",
@@ -49,7 +51,7 @@
   ],
   "risk_level": "high",
   "scope": "One change. In `.shiki/schemas/cca-evidence-manifest.schema.json`, remove `\"minLength\": 1` from `properties.verdict.properties.task_id`. Leave `task_id` in the `required` array. Change nothing else in the schema.\n\nWhy this is the correct fix and not a weakening. The manifest schema wraps a CCA verdict, and `.shiki/schemas/cca-verdict.schema.json` already declares the same field as `{ \"type\": \"string\" }` with no minLength. The wrapper being stricter than the wrapped document is the defect. The identity binding for task_id lives in `scripts/shiki_evidence.py:151` \u2014 `if expected_task_id and verdict.get(\"task_id\") != expected_task_id` \u2014 which is guarded on the PR's *resolved* task id, not on the manifest's. A task-ful PR that submits an empty task_id is caught there, before and after this change. Deleting the minLength therefore removes a false rejection without removing a check.\n\nAdd `tests/test_cca_evidence_manifest_taskless.py` covering four cases against `validate_cca_evidence_manifest`, all four of which have been measured to behave as stated:\n  - expected_task_id=None, manifest task_id='' -> accepted (the task-less mode this unblocks)\n  - expected_task_id='T-real', manifest task_id='' -> rejected\n  - expected_task_id='T-real', manifest task_id='T-other' -> rejected\n  - expected_task_id='T-real', manifest task_id='T-real' -> accepted\nAdd a schema-level case asserting that a manifest whose verdict.task_id is '' validates against the manifest schema, so the two schemas cannot silently diverge again. Add an adversarial case to `scripts/test_shiki_adversarial_state.sh` asserting that a task-ful PR cannot launder an empty task_id through the manifest.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get today's result.\n  Symptom: `MergeGate policy check` blocks with `CCA evidence manifest schema violation: $.verdict.task_id: expected string length >= 1` on a PR whose CCA verdict is `complete` and whose Guardian approval is satisfied. It is a schema rejection of a legitimate document, not a governance failure, and nothing in the message says so.\n  Root cause: ADR 0015 introduced contract mode \u2014 a PR mode that registers many task contracts and has no single task \u2014 but the CCA evidence manifest schema was written when every judged PR had exactly one task. Contract mode was never exercised end to end through the policy check, because the policy check job is `needs: cca` with no `if: always()`, so while the CCA was failing for other reasons this block stayed invisible. It is the third defect of this shape found on the Contract PR path (PRs #181, #184, this one), all of them the same underlying cause: a new PR mode added to the decision logic but not to the surfaces the decision reads.\n  Exact change that reproduces today's result: delete the single line `\"minLength\": 1` from `properties.verdict.properties.task_id` in `.shiki/schemas/cca-evidence-manifest.schema.json`.\n  Manual step removed: the operator would otherwise have to hand-edit a governance schema on the merge path, or abandon contract mode and register sixteen contracts one PR at a time.\n  Observed: PR #182, run 30437263205 \u2014 `CCA verdict: success`, guardian evaluation `approved: True` via guardian_label + guardian_comment, `MergeGate policy check: blocked` on this schema violation alone. Verified against the run's `shiki-cca-evidence` artifact that the real manifest validates once the minLength is gone, and that the full binding check then returns no errors.\n  Reproducible when: any Contract PR reaches a `complete` CCA verdict and the policy check evaluates its evidence manifest without a task-id-shaped rejection.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Let the CCA evidence manifest represent a task-less PR mode"
 }

@@ -913,7 +913,23 @@ def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, A
         _save_task(worktree, wt_task)
         _release_lock(worktree, task_id)
 
-        completes_goal = all(t.get("status") == "done" for t in tasks_for_goal(worktree, goal_id))
+        # completes_goal must reflect the WHOLE goal, judged against the closeout
+        # worktree (cut from origin/main) — not just whatever rode onto main so far.
+        # The old `all(status == done for tasks_for_goal(worktree))` is vacuously
+        # true for a multi-task goal whose first task merged but whose siblings'
+        # files are not yet on main (the worktree carries only that one task), so it
+        # wrongly completed the goal on main after a single task. Require EVERY task
+        # id the COORDINATOR knows for this goal to be present in the worktree AND
+        # done there: a single-task goal (its one task set done above) stays true; a
+        # multi-task goal completes only once its last task's closeout finds all
+        # siblings already done on main.
+        coordinator_task_ids = [str(t.get("id")) for t in tasks_for_goal(target, goal_id)]
+        worktree_status = {
+            str(t.get("id")): str(t.get("status")) for t in tasks_for_goal(worktree, goal_id)
+        }
+        completes_goal = bool(coordinator_task_ids) and all(
+            worktree_status.get(tid) == "done" for tid in coordinator_task_ids
+        )
         if completes_goal:
             # Complete the goal IN THE WORKTREE so the scorecard report + goal=complete
             # land on the HEAD (validate_shiki's coupling requires it there). Suppress
@@ -997,6 +1013,12 @@ def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, A
         task["closeout_pr"] = num
         task["expected_pr"] = num
         task["expected_branch"] = branch
+        # The closeout PR is a FRESH PR head with its own CCA rerun budget: reset the
+        # impl PR's rerun tally so the closeout's CCA same-head race can still rerun.
+        # A task that exhausted its 2 reruns on the impl PR would otherwise fail
+        # closed to stop_blocked on the closeout PR's first CCA race (decide_task_
+        # action reads cca_rerun_count from this coordinator task file).
+        task["cca_rerun_count"] = 0
         _save_task(target, task)
         return {"action": "create_closeout_pr", "task_id": task_id, "closeout_pr": num, "completes_goal": completes_goal, "url": url}
     except Exception as error:  # noqa: BLE001 — the effector must NEVER raise into the loop
@@ -1004,6 +1026,166 @@ def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, A
     finally:
         if worktree is not None:
             run(["git", "worktree", "remove", "--force", str(worktree)], cwd=target, check=False)
+
+
+def _loop_own_ledger_ids(target: Path, task: dict[str, Any]) -> list[str]:
+    """This task's loop-authored merge + mark_done ledger ids.
+
+    The ``merge`` effector appends a ``mergegate`` ledger and ``_mark_done`` appends
+    a ``check`` ledger whose summary starts ``Goal loop marked``; both are written to
+    the coordinator task only and are never pushed to main. The ``goal_complete``
+    origin/main sync therefore reverts them off the task file, so they are captured
+    here (before the sync) to be re-appended after it. Order preserved; unreadable or
+    absent ledgers are skipped.
+    """
+    own: list[str] = []
+    for ledger_id in task.get("ledger_evidence") or []:
+        path = target / ".shiki" / "ledger" / f"{ledger_id}.json"
+        if not path.is_file():
+            continue
+        try:
+            entry = read_json(path)
+        except Exception:
+            continue
+        ledger_type = entry.get("type")
+        summary = str(entry.get("summary") or "")
+        if ledger_type == "mergegate" or (ledger_type == "check" and summary.startswith("Goal loop marked")):
+            own.append(ledger_id)
+    return own
+
+
+def _sync_goal_complete_mirror(target: Path, goal_id: str) -> dict[str, Any]:
+    """Sync ONLY the completing goal's ``.shiki`` paths from ``origin/main``.
+
+    After the closeout PR merged, main is authoritative for this goal (goal=complete
+    + scorecard + task=done + lock=released) and the coordinator mirror must catch
+    up — but NOT with a whole-tree ``git checkout origin/main -- .shiki``. That
+    reverts every unrelated in-flight goal's files to main's stale version and drops
+    the loop's own merge/mark_done ledger ids (coordinator-only, never on main) off
+    the completing task. This effector instead:
+
+      * captures the loop's own merge/mark_done ledger ids per task (pre-sync);
+      * checks out only this goal's own id-named files (goal, dag, tasks, locks,
+        worktrees) and the ledgers/reports those main-side files reference —
+        restricted to paths that actually exist on ``origin/main`` so the checkout
+        cannot error on a not-yet-pushed candidate;
+      * re-appends the captured merge/mark_done ids the checkout reverted;
+      * unstages every synced path, so the coordinator carries them exactly as the
+        loop normally leaves ``.shiki`` mutations — in the working tree, unstaged.
+
+    Fail-open: on any sync failure the goal is still reflected ``complete`` locally
+    so the run reports the durable truth. Never raises into the loop.
+    """
+    run(["git", "fetch", "origin", "main"], cwd=target, check=False)
+
+    coordinator_tasks = tasks_for_goal(target, goal_id)
+    task_ids = [str(t.get("id")) for t in coordinator_tasks]
+    own_ledgers = {str(t.get("id")): _loop_own_ledger_ids(target, t) for t in coordinator_tasks}
+
+    # One listing of every .shiki path on origin/main: `git checkout <ref> -- <spec>`
+    # errors if ANY pathspec is absent from the ref, so candidates are filtered
+    # against this before every checkout.
+    ls = run(["git", "ls-tree", "-r", "--name-only", "origin/main", "--", ".shiki"], cwd=target, check=False)
+    present = set((ls.stdout or "").splitlines()) if ls.returncode == 0 else set()
+
+    synced_paths: list[str] = []
+    checkout_ok = True
+
+    def _sync(paths: list[str]) -> None:
+        nonlocal checkout_ok
+        pending = [p for p in paths if p in present and p not in synced_paths]
+        if not pending:
+            return
+        res = run(["git", "checkout", "origin/main", "--", *pending], cwd=target, check=False)
+        if res.returncode == 0:
+            synced_paths.extend(pending)
+        else:
+            checkout_ok = False
+
+    # Pass 1: this goal's id-named files (deterministic filenames).
+    id_named = [f".shiki/goals/{goal_id}.json", f".shiki/dag/{goal_id}.json"]
+    for task_id in task_ids:
+        id_named += [
+            f".shiki/tasks/{task_id}.json",
+            f".shiki/locks/{task_id}.json",
+            f".shiki/worktrees/{task_id}.json",
+        ]
+    _sync(id_named)
+
+    # Pass 2: ledgers referenced by the now-synced (main-side) goal + task files.
+    # main's new completion/pull ledgers are absent from the coordinator's pre-sync
+    # references, so read them from the FRESHLY checked-out files.
+    ledger_refs: list[str] = []
+
+    def _collect_ledgers(entity: dict[str, Any] | None) -> None:
+        if not isinstance(entity, dict):
+            return
+        for ledger_id in entity.get("ledger_evidence") or []:
+            rel = f".shiki/ledger/{ledger_id}.json"
+            if rel not in ledger_refs:
+                ledger_refs.append(rel)
+
+    try:
+        _collect_ledgers(load_goal(target, goal_id))
+    except ShikiError:
+        pass
+    for task_id in task_ids:
+        try:
+            _collect_ledgers(load_task(target, task_id))
+        except ShikiError:
+            continue
+    _sync(ledger_refs)
+
+    # Pass 3: reports (and any other .shiki evidence) those ledgers reference, read
+    # from the now-local ledger files.
+    report_refs: list[str] = []
+    for rel in ledger_refs:
+        path = target / rel
+        if not path.is_file():
+            continue
+        try:
+            entry = read_json(path)
+        except Exception:
+            continue
+        for ref in entry.get("evidence") or []:
+            ref = str(ref)
+            if ref.startswith(".shiki/") and ref not in ledger_refs and ref not in report_refs:
+                report_refs.append(ref)
+    _sync(report_refs)
+
+    # Re-append the loop's own merge/mark_done ledger ids the Pass-1 checkout
+    # reverted off the task files (they are not on main; the ledger files stay on
+    # disk locally, so the references are never dangling).
+    for task_id, ids in own_ledgers.items():
+        if not ids:
+            continue
+        try:
+            task_obj = load_task(target, task_id)
+        except ShikiError:
+            continue
+        evidence = task_obj.setdefault("ledger_evidence", [])
+        added = [ledger_id for ledger_id in ids if ledger_id not in evidence]
+        if added:
+            evidence.extend(added)
+            write_json(shiki_path(target, "tasks", f"{task_id}.json"), task_obj)
+
+    # Leave no reverted path staged: the coordinator carries .shiki mutations
+    # unstaged (the loop writes JSON directly), so unstage what the checkout staged.
+    if synced_paths:
+        run(["git", "reset", "-q", "--", *synced_paths], cwd=target, check=False)
+
+    mirror_synced = checkout_ok and bool(synced_paths)
+    if not mirror_synced:
+        # Fail open: reflect completion locally so the run reports the durable truth
+        # (the closeout merged; main is authoritative).
+        try:
+            goal = load_goal(target, goal_id)
+        except ShikiError:
+            goal = None
+        if goal and goal.get("status") != "complete":
+            goal["status"] = "complete"
+            write_json(shiki_path(target, "goals", f"{goal_id}.json"), goal)
+    return {"mirror_synced": mirror_synced}
 
 
 def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repair_limit: int) -> dict[str, Any]:
@@ -1015,22 +1197,11 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
         if action == "goal_complete":
             # The completing task's closeout PR already pushed goal=complete (with
             # the scorecard report + completion ledger) to main (ADR 0012). Sync the
-            # coordinator mirror to main's authoritative state so it is not left
-            # diverged (goal=complete locally but missing the scorecard/ledger), and
-            # do NOT re-run cmd_goal_complete (which would mint a duplicate scorecard).
-            run(["git", "fetch", "origin", "main"], cwd=target, check=False)
-            synced = run(["git", "checkout", "origin/main", "--", ".shiki"], cwd=target, check=False)
-            result["mirror_synced"] = synced.returncode == 0
-            if synced.returncode != 0:
-                # Fail open: at least reflect completion locally so the run reports
-                # the durable truth (the closeout merged; main is authoritative).
-                try:
-                    goal = load_goal(target, goal_id)
-                except ShikiError:
-                    goal = None
-                if goal and goal.get("status") != "complete":
-                    goal["status"] = "complete"
-                    write_json(shiki_path(target, "goals", f"{goal_id}.json"), goal)
+            # coordinator mirror to main's authoritative state for THIS goal only —
+            # never a whole-tree checkout, which would revert unrelated in-flight
+            # goals' files and drop the loop's own merge/mark_done ledger ids off the
+            # completing task. Do NOT re-run cmd_goal_complete (duplicate scorecard).
+            result.update(_sync_goal_complete_mirror(target, goal_id))
             result["goal_status"] = "complete"
         return result
 

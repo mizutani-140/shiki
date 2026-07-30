@@ -7,6 +7,6 @@
     "path:scripts/test_shiki_adversarial_state.sh"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260729T092307427377Z-c8531f7e"
 }
