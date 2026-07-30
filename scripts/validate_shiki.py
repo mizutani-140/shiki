@@ -244,6 +244,18 @@ WORKFLOW_CONTRACTS = {
             "id-token": "write",
         },
         "jobs": {"cca": "CCA verdict", "mergegate": "MergeGate policy check"},
+        # The MergeGate job only reads PR state to reach a verdict; pin it to
+        # read-only so it cannot mutate the PR even though the CCA job (which
+        # posts comments/checks) needs the workflow's top-level write grants.
+        "job_permissions": {
+            "mergegate": {
+                "contents": "read",
+                "pull-requests": "read",
+                "issues": "read",
+                "checks": "read",
+                "actions": "read",
+            },
+        },
     },
     "shiki-mergegate.yml": {
         "name": "Shiki MergeGate",

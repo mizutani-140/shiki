@@ -256,17 +256,119 @@ test "$(finding_status /tmp/shiki-doctor-online-permission.json doctor.github.wo
 test "$(finding_status /tmp/shiki-doctor-online-permission.json doctor.secrets.claude_code_oauth_token)" = "warn"
 test "$(finding_status /tmp/shiki-doctor-online-permission.json doctor.guardian.github_events)" = "warn"
 
+# A default branch that is genuinely not protected returns HTTP 404 ("Branch not
+# protected"); MergeGate is toothless, so this is a hard failure (exit 1), not a
+# warn. Everything else is healthy so branch protection is the isolated fail.
+cat >"$FAKE_BIN/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$*" in
+  "--version")
+    echo "gh version 2.74.0"
+    ;;
+  "auth status")
+    echo "github.com" >&2
+    ;;
+  "repo view example/shiki-doctor --json name,defaultBranchRef")
+    echo '{"name":"shiki-doctor","defaultBranchRef":{"name":"main"}}'
+    ;;
+  "secret list --repo example/shiki-doctor")
+    echo "CLAUDE_CODE_OAUTH_TOKEN 2026-06-04T00:00:00Z"
+    ;;
+  "api repos/example/shiki-doctor/branches/main/protection")
+    echo "gh: Branch not protected (HTTP 404)" >&2
+    exit 1
+    ;;
+  "api repos/example/shiki-doctor/actions/permissions/workflow")
+    echo '{"default_workflow_permissions":"read","can_approve_pull_request_reviews":true}'
+    ;;
+  "api repos/example/shiki-doctor/issues/comments?per_page=1")
+    echo '[]'
+    ;;
+  "api repos/example/shiki-doctor/issues/events?per_page=1")
+    echo '[]'
+    ;;
+  *)
+    echo "fake gh unsupported: $*" >&2
+    exit 1
+    ;;
+esac
+SH
+chmod +x "$FAKE_BIN/gh"
+if PATH="$FAKE_BIN:$PATH" python3 scripts/shiki.py doctor --json --online --target "$VALID" >/tmp/shiki-doctor-online-notprotected.json; then
+  echo "expected doctor to fail on an unprotected default branch" >&2
+  exit 1
+fi
+test "$(finding_status /tmp/shiki-doctor-online-notprotected.json doctor.github.branch_protection)" = "fail"
+
+# A 403 means Shiki could not READ protection, not that the branch is
+# unprotected, so it stays a warn.
+cat >"$FAKE_BIN/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$*" in
+  "--version")
+    echo "gh version 2.74.0"
+    ;;
+  "auth status")
+    echo "github.com" >&2
+    ;;
+  "repo view example/shiki-doctor --json name,defaultBranchRef")
+    echo '{"name":"shiki-doctor","defaultBranchRef":{"name":"main"}}'
+    ;;
+  "secret list --repo example/shiki-doctor")
+    echo "CLAUDE_CODE_OAUTH_TOKEN 2026-06-04T00:00:00Z"
+    ;;
+  "api repos/example/shiki-doctor/branches/main/protection")
+    echo "gh: Resource not accessible by integration (HTTP 403)" >&2
+    exit 1
+    ;;
+  "api repos/example/shiki-doctor/actions/permissions/workflow")
+    echo '{"default_workflow_permissions":"read","can_approve_pull_request_reviews":true}'
+    ;;
+  "api repos/example/shiki-doctor/issues/comments?per_page=1")
+    echo '[]'
+    ;;
+  "api repos/example/shiki-doctor/issues/events?per_page=1")
+    echo '[]'
+    ;;
+  *)
+    echo "fake gh unsupported: $*" >&2
+    exit 1
+    ;;
+esac
+SH
+chmod +x "$FAKE_BIN/gh"
+PATH="$FAKE_BIN:$PATH" python3 scripts/shiki.py doctor --json --online --target "$VALID" >/tmp/shiki-doctor-online-403.json
+test "$(finding_status /tmp/shiki-doctor-online-403.json doctor.github.branch_protection)" = "warn"
+
 python3 scripts/shiki.py doctor --target "$NO_REPO" >/tmp/shiki-doctor-human.out
 grep "provider:" /tmp/shiki-doctor-human.out >/dev/null
 grep "remediation:" /tmp/shiki-doctor-human.out >/dev/null
 
-# An unregistered git worktree is a governance violation and must be flagged.
-UNREGISTERED_WT="$TMP_ROOT/unregistered-worktree"
-make_target "$UNREGISTERED_WT"
-git -C "$UNREGISTERED_WT" add .
-git -C "$UNREGISTERED_WT" -c user.name="Shiki Test" -c user.email="shiki@example.test" commit -m "init" >/tmp/shiki-doctor-wt-commit.out
-git -C "$UNREGISTERED_WT" worktree add "$TMP_ROOT/stray-worktree" -b stray-branch >/tmp/shiki-doctor-wt-add.out 2>&1
-expect_fail python3 scripts/shiki.py doctor --json --target "$UNREGISTERED_WT"
+# A sibling git worktree that carries no Shiki task — the coordinator's own
+# session worktree as seen from inside a dispatched task worktree via the shared
+# gitdir, or any developer worktree — is NOT under the Shiki worktree root
+# (<main-parent>/.worktrees). It is reported for information only, never as a
+# failure a dispatched implementer cannot fix.
+INFORMATIONAL_WT="$TMP_ROOT/informational-worktree"
+make_target "$INFORMATIONAL_WT"
+git -C "$INFORMATIONAL_WT" add .
+git -C "$INFORMATIONAL_WT" -c user.name="Shiki Test" -c user.email="shiki@example.test" commit -m "init" >/tmp/shiki-doctor-info-commit.out
+git -C "$INFORMATIONAL_WT" worktree add "$TMP_ROOT/stray-worktree" -b stray-branch >/tmp/shiki-doctor-info-add.out 2>&1
+python3 scripts/shiki.py doctor --json --target "$INFORMATIONAL_WT" >/tmp/shiki-doctor-info-wt.json || true
+test "$(finding_status /tmp/shiki-doctor-info-wt.json doctor.worktrees.unregistered)" = "pass"
+
+# A genuinely orphaned Shiki task worktree — one under the Shiki worktree root
+# (<main-parent>/.worktrees) with no .shiki/worktrees record — is still a hard
+# failure.
+ORPHAN_WT="$TMP_ROOT/orphan-worktree"
+make_target "$ORPHAN_WT"
+git -C "$ORPHAN_WT" add .
+git -C "$ORPHAN_WT" -c user.name="Shiki Test" -c user.email="shiki@example.test" commit -m "init" >/tmp/shiki-doctor-orphan-commit.out
+mkdir -p "$TMP_ROOT/.worktrees"
+git -C "$ORPHAN_WT" worktree add "$TMP_ROOT/.worktrees/shiki-orphan-task" -b shiki/orphan-task >/tmp/shiki-doctor-orphan-add.out 2>&1
+expect_fail python3 scripts/shiki.py doctor --json --target "$ORPHAN_WT"
 test "$(finding_status /tmp/shiki-doctor-expected-fail.out doctor.worktrees.unregistered)" = "fail"
 
 echo "shiki doctor tests passed"

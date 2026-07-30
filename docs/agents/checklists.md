@@ -186,6 +186,7 @@ ledger entries.
 | CCA-09 | Ledger evidence is complete. | blocking |
 | CCA-10 | Verdict is one of the allowed statuses. | blocking |
 | CCA-11 | Non-complete verdict includes precise next action. | blocking |
+| CCA-12 | The PR does not introduce, edit, or backfill an operative approval record (`spec_freeze` block, Spec Amendment approval, Guardian approval evidence, or CCA `complete` verdict) authored by the implementation runtime. Approval-record schemas and clearly-scoped test fixtures that never enter the real `.shiki/` mirror are exempt. A PR that adds a runtime-authored approval record fails this item. | blocking |
 
 ## RP — Repair Packet Checklist
 

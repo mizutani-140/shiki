@@ -44,6 +44,7 @@ Goal Seek
 9. **Repair is bounded.** CCA failures become repair packets. Default automatic repair limit is 3 attempts.
 10. **Evidence is durable.** Important decisions and verification must live in GitHub and/or `.shiki/`, not chat memory.
 11. **Spec Freeze gates execution.** No plan runs without an operator-approved `spec_freeze` block (ADR 0009). Post-freeze scope changes require an operator-approved, recorded Spec Amendment; non-scope-moving interpretations are recorded in the Assumption Log.
+12. **Approval records are authored only by their authority.** An implementation runtime must never author, edit, forge, or backfill an operative approval record — a `spec_freeze` block, a Spec Amendment approval, Guardian approval evidence, a CCA `complete` verdict, or any other artifact whose meaning is that an authority approved something. An acceptance criterion that cannot be satisfied from the worktree because the missing artifact is such a record is reported as a stop, never closed by manufacturing it. This does not cover approval-record schemas or clearly-scoped test fixtures that never enter the real `.shiki/` mirror (ADR 0009/0010).
 
 ## Phase 0 — Repository Setup
 
@@ -189,6 +190,8 @@ Required behavior:
 
 Codex must not claim completion. It may state that implementation is ready for CCA.
 
+The implementer must not author an approval record. `spec_freeze` blocks, Spec Amendment approvals, Guardian approval evidence, and CCA `complete` verdicts are produced by their authority — the operator, the Guardian, or GitHub CCA — never by the implementation runtime. If an acceptance criterion cannot be satisfied with the artifacts present in the worktree because the missing artifact is an approval record, that is a stop to report, not a gap to fill by manufacturing the record.
+
 Coordinator dispatch rule:
 
 - If the task is ready and assigned to `claude-code` (the default), the
@@ -262,6 +265,8 @@ If CCA or MergeGate rejects completion:
 6. Stop after 3 failed automatic attempts.
 
 Repair packets must be bounded. They must say what failed, what evidence is missing, what to change, what not to change, and how to verify.
+
+A repair must never be closed by authoring an approval record. If the failing criterion needs a `spec_freeze` block, Guardian approval, a CCA `complete` verdict, or any other approval record its authority has not produced, the repairer stops and reports the blocker instead of manufacturing the artifact.
 
 ## Phase 10 — MergeGate
 

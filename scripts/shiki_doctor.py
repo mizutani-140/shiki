@@ -8,6 +8,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 from typing import Any, Literal
@@ -274,12 +275,27 @@ def _git_findings(target: Path, provider_config: ProviderConfig | None) -> list[
     return findings
 
 
-def _worktree_registry_finding(target: Path) -> DoctorFinding:
-    """Unregistered git worktrees are a non-negotiable MergeGate block.
+def _is_within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
 
-    Every physical worktree of the target (other than the main checkout) must
-    have a record in .shiki/worktrees. Orchestration residue (e.g. session
-    worktrees) must be removed or registered before dispatch.
+
+def _worktree_registry_finding(target: Path) -> DoctorFinding:
+    """Unregistered *Shiki task* worktrees are a non-negotiable MergeGate block.
+
+    Shiki allocates every task worktree under ``<main-checkout-parent>/.worktrees``
+    and records it in ``.shiki/worktrees``. Such a worktree with no record is a
+    real governance orphan and fails.
+
+    A git worktree that shares this gitdir but is NOT under the Shiki worktree
+    root carries no Shiki task — e.g. the coordinator's own session worktree,
+    which every dispatched task worktree sees via the shared gitdir, or an
+    unrelated developer worktree. It is reported for information only, never as a
+    failure: a dispatched implementer cannot register it and must not be blocked
+    by it.
     """
     result = subprocess.run(
         ["git", "worktree", "list", "--porcelain"],
@@ -290,12 +306,18 @@ def _worktree_registry_finding(target: Path) -> DoctorFinding:
     )
     if result.returncode != 0:
         return _finding("doctor.worktrees.unregistered", "warn", "Worktree registry", "Could not list git worktrees.")
-    physical = []
-    for line in result.stdout.splitlines():
-        if line.startswith("worktree "):
-            physical.append(Path(line.split(" ", 1)[1]).resolve())
-    main_checkout = target.resolve()
-    registered = {main_checkout}
+    physical = [
+        Path(line.split(" ", 1)[1]).resolve()
+        for line in result.stdout.splitlines()
+        if line.startswith("worktree ")
+    ]
+    if not physical:
+        return _finding("doctor.worktrees.unregistered", "pass", "Worktree registry", "No git worktrees to check.")
+    # `git worktree list` always emits the main working tree first; Shiki
+    # allocates task worktrees as siblings of it under `.worktrees`.
+    main_checkout = physical[0]
+    shiki_worktree_root = (main_checkout.parent / ".worktrees").resolve()
+    registered = {main_checkout, target.resolve()}
     registry = target / ".shiki" / "worktrees"
     if registry.exists():
         for record_path in registry.glob("*.json"):
@@ -306,16 +328,30 @@ def _worktree_registry_finding(target: Path) -> DoctorFinding:
             recorded = record.get("path")
             if recorded:
                 registered.add(Path(recorded).expanduser().resolve())
-    unregistered = sorted(str(path) for path in physical if path not in registered)
+    orphaned: list[str] = []
+    informational: list[str] = []
+    for path in physical[1:]:
+        if path in registered:
+            continue
+        if _is_within(path, shiki_worktree_root):
+            orphaned.append(str(path))
+        else:
+            informational.append(str(path))
+    orphaned.sort()
+    informational.sort()
+    if orphaned:
+        summary = f"Unregistered Shiki task worktrees: {', '.join(orphaned)}."
+    else:
+        summary = "All Shiki task worktrees are registered in .shiki/worktrees."
+        if informational:
+            summary += f" Ignoring {len(informational)} non-Shiki worktree(s) that carry no Shiki task."
     return _finding(
         "doctor.worktrees.unregistered",
-        "pass" if not unregistered else "fail",
+        "fail" if orphaned else "pass",
         "Worktree registry",
-        "All git worktrees are registered in .shiki/worktrees."
-        if not unregistered
-        else f"Unregistered git worktrees: {', '.join(unregistered)}.",
-        "Remove the worktree (`git worktree remove`) or register it with `shiki worktree allocate`." if unregistered else "",
-        {"unregistered": unregistered},
+        summary,
+        "Remove the worktree (`git worktree remove`) or register it with `shiki worktree allocate`." if orphaned else "",
+        {"unregistered_task_worktrees": orphaned, "informational_worktrees": informational},
     )
 
 
@@ -743,6 +779,46 @@ def _gh(args: list[str], config: ProviderConfig) -> subprocess.CompletedProcess[
     return subprocess.run(["gh", *args], text=True, capture_output=True, check=False, env=env)
 
 
+def _branch_protection_read_failure(result: subprocess.CompletedProcess[str]) -> DoctorFinding:
+    """Classify a failed branch-protection read into warn vs fail.
+
+    A 403 (or any explicit permission/forbidden failure) means Shiki could not
+    READ the protection state, not that the branch is unprotected -> warn. A 404
+    / "branch not protected" / not-found means the branch genuinely has no
+    protection, so MergeGate is toothless -> fail. Any other non-zero outcome
+    fails closed too: doctor must never imply protection exists when it could not
+    confirm it, and a not-protected default branch is the exact silent gap this
+    check exists to catch.
+    """
+    text = ((result.stderr or "") + "\n" + (result.stdout or "")).strip()
+    lowered = text.lower()
+    match = re.search(r"http[ /]?(\d{3})", lowered)
+    code = match.group(1) if match else None
+    permission = (
+        code == "403"
+        or "permission" in lowered
+        or "forbidden" in lowered
+        or "not accessible" in lowered
+    )
+    if permission:
+        return _finding(
+            "doctor.github.branch_protection",
+            "warn",
+            "Branch protection",
+            "Could not read branch protection (insufficient permission).",
+            "Grant branch protection read permission, then rerun doctor.",
+            {"error": first_line(result.stderr), "http_status": code},
+        )
+    return _finding(
+        "doctor.github.branch_protection",
+        "fail",
+        "Branch protection",
+        "Default branch is not protected or protection could not be confirmed.",
+        "Configure branch protection through Shiki init/start (`--protect`) or repair repository rules.",
+        {"error": first_line(result.stderr), "http_status": code},
+    )
+
+
 def _online_findings(config: ProviderConfig | None, local_config: dict[str, Any]) -> list[DoctorFinding]:
     if config is None:
         return [
@@ -807,16 +883,7 @@ def _online_findings(config: ProviderConfig | None, local_config: dict[str, Any]
     required_checks = _required_checks(local_config)
     required_review = _required_review(local_config)
     if protection.returncode != 0:
-        findings.append(
-            _finding(
-                "doctor.github.branch_protection",
-                "warn",
-                "Branch protection",
-                "Could not read branch protection.",
-                "Grant branch protection read permission or configure protection through Shiki init/start.",
-                {"error": first_line(protection.stderr)},
-            )
-        )
+        findings.append(_branch_protection_read_failure(protection))
     else:
         try:
             data = json.loads(protection.stdout or "{}")

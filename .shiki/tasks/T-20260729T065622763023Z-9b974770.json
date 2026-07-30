@@ -15,12 +15,18 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260729t065622763023z-9b974770-make-guardian-approval-evidence-current-and-revo",
-  "expected_pr": null,
+  "expected_pr": 189,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622763023Z-9b974770",
   "ledger_evidence": [
-    "L-20260729T065622763084Z-5b9e8d6d"
+    "L-20260729T065622763084Z-5b9e8d6d",
+    "L-20260729T214514430146Z-d6455d64",
+    "L-20260729T214539427987Z-b1ba8f81",
+    "L-20260729T221606085589Z-75f4c769",
+    "L-20260729T222631570501Z-ac5d2802",
+    "L-20260729T222643154943Z-f2e96722",
+    "L-20260729T222647147389Z-024bfa04"
   ],
   "locks": [
     "path:scripts/shiki_guardian.py",
@@ -37,13 +43,29 @@
     "Anything in guardian_approval_signal.py",
     "Adding evaluate_contract_approval (ADR 0015 T5 owns it)"
   ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "In _comment_source, each comment is evaluated independently: a valid line-initial, current-head approval comment yields a 'guardian_comment' source, while a separate revocation comment only adds a soft blocker that is demoted to a warning when any approval source exists. test_guardian_evidence.py::test_negated_marker_is_soft_not_hard explicitly asserts that [valid approval, 'Guardian approval granted earlier is now RESCINDED'] => approved=True. So a Guardian who approves via comment and later posts a rescind comment does NOT revoke approval unless new commits invalidate the head SHA or the label is removed. This is intentional and tested, and true revocation is delivered via the label path (latest transition) and head-SHA staleness, so the task's acceptance criteria (which test each comment in isolation) are met \u2014 but the 'revocable' guarantee for the comment channel specifically is weaker than the title implies. Worth confirming this matches the intended governance model.",
+        "severity": "low",
+        "title": "Comment-based approval cannot be revoked by a later comment while the original approval comment persists"
+      },
+      {
+        "detail": "_comment_negates_approval matches a fixed cue list ('no guardian approval', 'not approving', 'not authorized', 'withheld', 'revok', 'rescind'). A revocation phrased without those cues yet still line-initial and carrying the current head SHA (e.g. a comment beginning 'Guardian approval granted ... is no longer valid') would be read as an approval. This is strictly stronger than the prior behavior and covers all tested phrasings; noted only as a residual gap inherent to marker-text approval, not a regression.",
+        "severity": "info",
+        "title": "Negation-cue heuristic can miss creatively-worded revocations"
+      }
+    ],
+    "ledger_id": "L-20260729T222631570501Z-ac5d2802",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "critical",
   "scope": "In scripts/shiki_guardian.py require the comment marker to be line-initial so a negation or revocation can never satisfy the gate, and move negative-text detection out of the 'marker not in body' branch so a negated marker becomes a soft blocker. In _valid_label_actor resolve the LATEST labeled/unlabeled transition for policy.label and accept only when it is a labeled event by a configured Guardian. Add labeled and unlabeled to shiki-cca-completion.yml's pull_request types so a label change re-runs the only job that evaluates Guardian approval, and pin a read-only job_permissions block for its mergegate job in WORKFLOW_CONTRACTS.\n\nREPRODUCIBILITY \u2014 what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: re-running the CCA by hand after a Guardian approval, because approving does not re-evaluate anything.\n  Observed: five separate races: the approval landed 32-45 seconds after the run that would have read it, and there is no labeled/unlabeled trigger on shiki-cca-completion.yml, so a recorded approval never reaches a verdict on its own.\n  Reproducible when: applying guardian:approved, or posting a current-head approval comment, re-runs the CCA without an operator touching the CLI, and an approval that lands mid-run is still honoured by the next evaluation.\n\nNOTE on test_command: scripts/test_shiki_guardian_policy.sh is deliberately NOT in this task's test_command. It calls `shiki doctor`, and doctor's unregistered-worktree check fails whenever any sibling git worktree lacks a .shiki/worktrees record \u2014 which is true of the coordinator's own session worktree from inside every dispatched task worktree, since they share one gitdir. The loop execs test_command as its TDD gate and fails closed, so including it would stop this task before a PR exists, for a reason the implementer cannot fix inside its locks. The cheapest green path would be to weaken the doctor assertion, which this task's non-goals forbid. Coverage is kept by an acceptance check requiring the script to pass in a clean checkout instead.",
-  "status": "planned",
+  "status": "review",
   "test_command": "bash scripts/test_shiki_governance_evidence.sh && bash scripts/test_shiki_workflow_lint.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Make Guardian approval evidence current and revocable"
 }

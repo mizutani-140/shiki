@@ -34,12 +34,16 @@ Read only the files needed to judge the PR contract. Prefer this order:
 9. linked Goal, PRD, and task issue
 10. `.shiki/` task, lock, ledger, prior CCA, and repair evidence when present
 
-Stop reading as soon as you have enough durable evidence for a verdict. Do not
-perform a broad repository audit in this job.
+Stop reading as soon as you have enough durable evidence to evaluate every
+blocking checklist item and acceptance criterion. Bounding how much you read
+never licenses leaving a blocking item unevaluated. Do not perform a broad
+repository audit in this job.
 
 ## Judgment Rules
 
 - Evaluate every applicable checklist item.
+- Evaluate every blocking checklist item and every acceptance criterion on its own durable evidence, even when another checklist item already fails and the verdict is therefore already determined. A known blocker never excuses leaving a blocking item unevaluated: `complete` is impossible once any blocker exists, but the record must still show why each blocking item passes or fails.
+- Do not mark a blocking checklist item or acceptance criterion `insufficient_evidence` with an "already blocked", "verdict already determined", or "not evaluated" style reason. The verdict enforcer rejects any verdict that short-circuits a blocking item that way. Reserve `insufficient_evidence` for an item whose own durable evidence is genuinely missing, and name that specific missing evidence in the reason.
 - Map every acceptance criterion to evidence.
 - Separate wrong implementation from missing evidence.
 - Treat green CI as necessary but not sufficient.

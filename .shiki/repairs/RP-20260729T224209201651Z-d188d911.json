@@ -1,0 +1,35 @@
+{
+  "attempt": 2,
+  "created_at": "2026-07-29T22:42:09+00:00",
+  "evidence_required": [
+    "A measurement run against the twelve VERBATIM strings showing 12/12 detected, plus 0/4 on the genuine reasons, plus the ten extra wild genuine reasons from attempt 1 still accepted.",
+    "A test asserting that a reason naming only the item's OWN id is not treated as an external cause."
+  ],
+  "failing_acceptance_criteria": [
+    "A verdict marking a blocking item insufficient_evidence with an 'already blocked' style reason is rejected by the enforcer."
+  ],
+  "failing_checklist_items": [
+    "Attempt 1 raised detection from 4/12 to 10/12 with 0 false positives, but two of the twelve MEASURED phrasings still pass: 'Deferred pending resolution of CCA-08' and 'Blocked by CCA-08, so this was left unjudged'. Verified by running _is_already_blocked_reason against the exact strings.",
+    "The reason those two survive is that tests/test_cca_completeness.py does not pin the measured strings. MEASURED_SHORT_CIRCUIT_REASONS PARAPHRASES them and each paraphrase adds an external-cause clause the new markers already cover: 'Deferred pending resolution of CCA-08' became 'Deferred because CCA-08 already fails.' (gains 'already fails'), and 'Blocked by CCA-08, so this was left unjudged' became 'Left unjudged because the blocker above means we cannot merge.' (gains 'blocker above'). The suite therefore reports 12/12 while the measured inputs are 10/12: the test vocabulary was derived from the implementation's own marker list, so it cannot detect what the marker list misses. This is the third occurrence of that pattern in this goal."
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "minimal_required_changes": [
+    "Replace the contents of MEASURED_SHORT_CIRCUIT_REASONS with the twelve strings VERBATIM, character for character, no added clauses: 'CCA-08 already blocked; not evaluated' / 'Verdict already determined by CCA-08 failure' / 'No need to evaluate; a blocker already exists' / 'Skipped because another blocker is present' / 'Deferred pending resolution of CCA-08' / 'Not reached: the verdict is blocked upstream' / 'Superseded by the CCA-08 failure' / 'Blocked by CCA-08, so this was left unjudged' / 'Cannot be assessed while the Guardian gate fails' / 'Irrelevant given the failing blocker above' / 'N/A because the PR cannot merge anyway' / 'Halted evaluation after the first blocking failure'. Paraphrasing a measured input defeats the measurement; if a string cannot be detected, that is a finding to report, not a string to rewrite.",
+    "Make a checklist-item reference to a DIFFERENT item count as an external already-blocked cause. Both survivors name another item's id ('CCA-08') as the reason with no failure word attached, which is the most natural way a judge phrases a cross-item short-circuit. short_circuited_evaluations already holds the item being judged, so pass its id into the reason test and treat any item-id reference that is NOT the item's own id as a cause-side signal; a reason naming its own id is self-reference and must NOT count. Keep the two-signal requirement: this cause signal still needs a skip signal ('deferred', 'pending', 'unjudged', ...) to trigger, so 'CCA-06 has no durable artifact' on item CCA-03 stays accepted."
+  ],
+  "pr": 191,
+  "prohibited_changes": [
+    "Do not paraphrase, soften, or drop any of the twelve measured strings.",
+    "Do not let a reason that names only its OWN item id count as an external cause.",
+    "Do not replace the reason-text mechanism with a structural rule such as rejecting every insufficient_evidence blocking item whenever another blocking item fails.",
+    "Do not accept any false positive among the four genuine reasons in order to raise recall.",
+    "Do not widen the task's locks or edit the frozen contract, its acceptance_checks, locks or risk_level."
+  ],
+  "repair_id": "RP-20260729T224209201651Z-d188d911",
+  "required_skill": "tdd",
+  "stop_condition": "If either survivor cannot be detected without a false positive on the genuine set, stop and report that exact string rather than rewriting it or trading a false positive for recall.",
+  "task_id": "T-20260729T065622770500Z-513839f0",
+  "verification_commands": [
+    "bash scripts/test_shiki_control_plane.sh && python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target ."
+  ]
+}
