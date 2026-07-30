@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/runner/EXEC-20260730T020041711430Z-dea38606.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260730T020041711990Z-06a32f42",
+  "links": [],
+  "summary": "Loop-observed TDD gate (skill: tdd) exited 0 for T-20260729T065622769184Z-628504fe: python3 -m unittest discover -s tests",
+  "task_id": "T-20260729T065622769184Z-628504fe",
+  "timestamp": "2026-07-30T02:00:41+00:00",
+  "type": "check"
+}

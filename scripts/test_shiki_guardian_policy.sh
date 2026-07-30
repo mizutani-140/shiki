@@ -480,6 +480,80 @@ printf '[]\n' >"$MG/.shiki/gha/live-guardian-timeline.json"
 python3 scripts/mergegate_check.py --target "$MG" --pr-json "$MG/.shiki/gha/live-pr.json" --cca-verdict "$MG/.shiki/gha/cca-verdict.json" --cca-evidence-manifest "$MG/.shiki/gha/cca-evidence-manifest.json" --expected-repository example/shiki --changed-files "$MG/.shiki/gha/live-changed-files.txt" --changed-files-status "$MG/.shiki/gha/live-changed-files-status.txt" --result-file "$MG/.shiki/gha/mergegate-result.json" --guardian-policy .shiki/guardian-policy.json --guardian-comments .shiki/gha/live-guardian-comments.json --guardian-events .shiki/gha/live-guardian-events.json --guardian-timeline .shiki/gha/live-guardian-timeline.json >/tmp/shiki-guardian-mergegate-pass.out
 grep '"mergegate": "ready"' /tmp/shiki-guardian-mergegate-pass.out >/dev/null
 
+# --------------------------------------------------------------------------- #
+# `shiki guardian status`: show the Guardian what the gate is waiting for.
+# Read-only advisory over the SAME evaluate_guardian_approval; it must never
+# apply a label or post an approval. Driven offline (no gh/network) so it runs
+# as ordinary coverage.
+# --------------------------------------------------------------------------- #
+GS="$TMP_ROOT/guardian-status"
+mkdir -p "$GS"
+HEAD_SHA="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+cat >"$GS/pr.json" <<JSON
+{"number":4242,"title":"x","body":"T-0001","author":{"login":"mizutani-140"},"headRefName":"shiki/t","baseRefName":"main","headRefOid":"$HEAD_SHA","labels":[{"name":"guardian:approved"}],"reviews":[]}
+JSON
+cat >"$GS/events.json" <<'JSON'
+[{"event":"labeled","label":{"name":"guardian:approved"},"actor":{"login":"mizutani-140"}}]
+JSON
+printf '[]\n' >"$GS/comments-empty.json"
+cat >"$GS/comments-approved.json" <<JSON
+[{"user":{"login":"mizutani-140"},"body":"Guardian approval granted\n\n$HEAD_SHA"}]
+JSON
+
+# Label present, no current-head comment: report the label satisfied, name the
+# missing comment, and print a paste-ready body carrying the marker and the FULL
+# 40-character head SHA.
+python3 scripts/shiki.py guardian status --pr 4242 --repo mizutani-140/shiki --no-git \
+  --guardian-policy .shiki/guardian-policy.json \
+  --pr-json "$GS/pr.json" --comments "$GS/comments-empty.json" --events "$GS/events.json" \
+  --output "$GS/label-only.txt" >/dev/null
+grep -q "Result: NOT APPROVED" "$GS/label-only.txt"
+grep -q "guardian_label" "$GS/label-only.txt"
+grep -q "current-head Guardian comment" "$GS/label-only.txt"
+grep -q "Guardian approval granted" "$GS/label-only.txt"
+grep -q "$HEAD_SHA" "$GS/label-only.txt"
+
+# Label + current-head Guardian comment: approved, approver named.
+python3 scripts/shiki.py guardian status --pr 4242 --repo mizutani-140/shiki --no-git \
+  --guardian-policy .shiki/guardian-policy.json \
+  --pr-json "$GS/pr.json" --comments "$GS/comments-approved.json" --events "$GS/events.json" \
+  --output "$GS/approved.txt" >/dev/null
+grep -q "Result: APPROVED" "$GS/approved.txt"
+grep -q "mizutani-140" "$GS/approved.txt"
+
+# Comment format for the CCA-posted PR comment: carries the idempotency marker,
+# the blockers, and the paste-ready body.
+python3 scripts/shiki.py guardian status --pr 4242 --repo mizutani-140/shiki --no-git --format comment \
+  --guardian-policy .shiki/guardian-policy.json \
+  --pr-json "$GS/pr.json" --comments "$GS/comments-empty.json" --events "$GS/events.json" \
+  --output "$GS/comment.md" >/dev/null
+grep -q "<!-- shiki:guardian-status -->" "$GS/comment.md"
+grep -q "What the gate is waiting for" "$GS/comment.md"
+grep -q "$HEAD_SHA" "$GS/comment.md"
+
+# The command is READ-ONLY: it must never apply a label, approve, merge, or post.
+if grep -Eq "gh pr (review|comment|merge|edit)|--add-label|--approve" scripts/shiki_guardian_status.py; then
+  echo "shiki_guardian_status.py must never apply a label or post an approval" >&2
+  exit 1
+fi
+
+# The CCA workflow posts the same blockers as a PR comment when it returns
+# needs_guardian, so they reach the approver on GitHub, not only the run log.
+grep -q "Post Guardian blockers comment" .github/workflows/shiki-cca-completion.yml
+grep -q 'verdict" != "needs_guardian"' .github/workflows/shiki-cca-completion.yml
+grep -q "guardian status" .github/workflows/shiki-cca-completion.yml
+grep -q -- "--format comment" .github/workflows/shiki-cca-completion.yml
+grep -q "shiki:guardian-status" .github/workflows/shiki-cca-completion.yml
+
+# The new module must stage into a fresh target so the target's own validate_shiki
+# (which imports shiki_cli -> shiki_guardian_status) passes; otherwise the target
+# fails with 'No module named shiki_guardian_status'.
+GST="$TMP_ROOT/guardian-status-target"
+mkdir -p "$GST"
+python3 scripts/shiki.py install-target "$GST" --local-only >/dev/null
+test -f "$GST/scripts/shiki_guardian_status.py"
+(cd "$GST" && python3 scripts/validate_shiki.py >/dev/null)
+
 python3 scripts/shiki.py doctor --json --target . >/tmp/shiki-guardian-doctor.json
 grep '"id": "doctor.guardian.policy"' /tmp/shiki-guardian-doctor.json >/dev/null
 grep '"id": "doctor.guardian.approvers"' /tmp/shiki-guardian-doctor.json >/dev/null
