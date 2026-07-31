@@ -999,5 +999,183 @@ expect_guardian_fallback(
 expect_guardian_fallback(build_closeout("close-smuggle-unmerged"), merged="")
 
 
+# ============================================================================
+# T-20260729T065622763684Z-ee01f3c4: MergeGate scope enforcement sees the WHOLE
+# diff. Renames are judged through both legs, the eleven generic mirror
+# directories block foreign/deleted records, the runtime-evidence match is exact
+# (so the CCA schema is mergeable), and no PR may author a spec_freeze block.
+# ============================================================================
+
+# (a) A rename that moves a file OUT of locked scope is seen through its source
+# (delete) leg, identically to the explicit delete+add form.
+expect_block(
+    make_fixture(
+        "mg-rename-outside-locks",
+        locks=["path:docs/**"],
+        changed=["docs/moved.py"],
+        status_entries=["R100\ttests/moved.py\tdocs/moved.py"],
+    ),
+    "Changed file tests/moved.py is outside declared task locks",
+)
+expect_block(
+    make_fixture(
+        "mg-delete-add-outside-locks",
+        locks=["path:docs/**"],
+        changed=["docs/moved.py", "tests/moved.py"],
+        status_entries=["A\tdocs/moved.py", "D\ttests/moved.py"],
+    ),
+    "Changed file tests/moved.py is outside declared task locks",
+)
+# A rename entirely inside the declared locks is clean (no false positive).
+expect_ready(
+    make_fixture(
+        "mg-rename-inside-locks",
+        locks=["path:docs/**"],
+        changed=["docs/b.py"],
+        status_entries=["R100\tdocs/a.py\tdocs/b.py"],
+    )
+)
+
+# (b) The generic mirror-class rule. A broad lock (path:.shiki/**) satisfies
+# files-outside-locks, so ONLY the mirror-class rule can reject these.
+# Deleting a foreign goal's DAG blocks (base snapshot absent here — the head-diff
+# rule alone must catch it).
+expect_block(
+    make_fixture(
+        "mg-delete-foreign-dag",
+        locks=["path:.shiki/**"],
+        changed=[".shiki/dag/G-9999.json"],
+        status_entries=["D\t.shiki/dag/G-9999.json"],
+    ),
+    "PR must not delete Shiki dag record .shiki/dag/G-9999.json",
+)
+# And with a base snapshot present too.
+expect_block(
+    make_fixture(
+        "mg-delete-foreign-dag-based",
+        locks=["path:.shiki/**"],
+        changed=[".shiki/dag/G-9999.json"],
+        status_entries=["D\t.shiki/dag/G-9999.json"],
+        base={"dag": {"G-9999": {"goal_id": "G-9999", "nodes": [], "edges": []}}},
+    ),
+    "PR must not delete Shiki dag record .shiki/dag/G-9999.json",
+)
+# Modifying a foreign report/worktree/runner record blocks (not own-scoped).
+mg_foreign_report = make_fixture(
+    "mg-foreign-report-modify",
+    locks=["path:.shiki/**"],
+    changed=[".shiki/reports/R-foreign.json"],
+    status_entries=["M\t.shiki/reports/R-foreign.json"],
+)
+write_json(mg_foreign_report / ".shiki" / "reports" / "R-foreign.json", {"id": "R-foreign", "goal_id": "G-9999"})
+expect_block(mg_foreign_report, f"not scoped to task {TASK_ID} or goal {GOAL_ID}")
+expect_block(
+    make_fixture(
+        "mg-foreign-worktree-delete",
+        locks=["path:.shiki/**"],
+        changed=[".shiki/worktrees/T-9999.json"],
+        status_entries=["D\t.shiki/worktrees/T-9999.json"],
+    ),
+    "PR must not delete Shiki worktrees record .shiki/worktrees/T-9999.json",
+)
+# The base-snapshot loop now delete-protects every mirror directory: a base
+# runner record absent at head blocks even with no diff entry naming it.
+expect_block(
+    make_fixture(
+        "mg-base-runner-delete",
+        locks=["path:scripts/test_shiki_adversarial_state.sh"],
+        changed=["scripts/test_shiki_adversarial_state.sh"],
+        base={"runner": {"EXEC-BASE": {"id": "EXEC-BASE", "goal_id": GOAL_ID, "task_id": TASK_ID}}},
+    ),
+    "PR must not delete base Shiki runner record .shiki/runner/EXEC-BASE.json",
+)
+# The PR's own goal/task-scoped mirror records still pass.
+mg_own_worktree = make_fixture(
+    "mg-own-worktree-change",
+    locks=["path:scripts/test_shiki_adversarial_state.sh"],
+    changed=[f".shiki/worktrees/{TASK_ID}.json"],
+    status_entries=[f"M\t.shiki/worktrees/{TASK_ID}.json"],
+)
+write_json(mg_own_worktree / ".shiki" / "worktrees" / f"{TASK_ID}.json", {"id": TASK_ID, "task_id": TASK_ID, "goal_id": GOAL_ID})
+expect_ready(mg_own_worktree)
+
+# (c) The CCA verdict SCHEMA is a real repository contract, not forged runtime
+# evidence — it must be mergeable under a schemas lock.
+expect_ready(
+    make_fixture(
+        "mg-cca-schema-mergeable",
+        locks=["path:.shiki/schemas/**"],
+        changed=[".shiki/schemas/cca-verdict.schema.json"],
+        status_entries=["M\t.shiki/schemas/cca-verdict.schema.json"],
+    )
+)
+
+# Spec Freeze is operator-only (ADR 0009). A new plan that is not the goal's
+# source_plan is blocked; authoring or amending a spec_freeze block on the goal's
+# OWN source plan is blocked; touching the source plan without altering
+# spec_freeze is unaffected.
+SOURCE_PLAN = "P-20260731T010000000000Z-50c3ce0f"
+
+
+def with_source_plan(target: pathlib.Path) -> None:
+    goal = read_json(target / ".shiki" / "goals" / f"{GOAL_ID}.json")
+    goal["source_plan"] = SOURCE_PLAN
+    write_json(target / ".shiki" / "goals" / f"{GOAL_ID}.json", goal)
+
+
+mg_foreign_plan = make_fixture(
+    "mg-foreign-plan-add",
+    locks=["path:.shiki/**"],
+    changed=[".shiki/plans/P-OTHER.json"],
+    status_entries=["A\t.shiki/plans/P-OTHER.json"],
+)
+with_source_plan(mg_foreign_plan)
+write_json(mg_foreign_plan / ".shiki" / "plans" / "P-OTHER.json", {"id": "P-OTHER"})
+expect_block(mg_foreign_plan, f"is not goal {GOAL_ID}'s source_plan")
+
+mg_self_freeze = make_fixture(
+    "mg-spec-freeze-self-grant",
+    locks=["path:.shiki/**"],
+    changed=[f".shiki/plans/{SOURCE_PLAN}.json"],
+    status_entries=[f"M\t.shiki/plans/{SOURCE_PLAN}.json"],
+    base={"plans": {SOURCE_PLAN: {"id": SOURCE_PLAN, "title": "p"}}},
+)
+with_source_plan(mg_self_freeze)
+write_json(
+    mg_self_freeze / ".shiki" / "plans" / f"{SOURCE_PLAN}.json",
+    {"id": SOURCE_PLAN, "title": "p", "spec_freeze": {"status": "frozen", "approved_by": "not-the-operator"}},
+)
+expect_block(mg_self_freeze, f"must not create or modify the spec_freeze block of .shiki/plans/{SOURCE_PLAN}.json")
+
+mg_amend_freeze = make_fixture(
+    "mg-spec-freeze-amend",
+    locks=["path:.shiki/**"],
+    changed=[f".shiki/plans/{SOURCE_PLAN}.json"],
+    status_entries=[f"M\t.shiki/plans/{SOURCE_PLAN}.json"],
+    base={"plans": {SOURCE_PLAN: {"id": SOURCE_PLAN, "spec_freeze": {"status": "frozen", "amendments": []}}}},
+)
+with_source_plan(mg_amend_freeze)
+write_json(
+    mg_amend_freeze / ".shiki" / "plans" / f"{SOURCE_PLAN}.json",
+    {"id": SOURCE_PLAN, "spec_freeze": {"status": "frozen", "amendments": ["smuggled amendment"]}},
+)
+expect_block(mg_amend_freeze, f"must not create or modify the spec_freeze block of .shiki/plans/{SOURCE_PLAN}.json")
+
+_FROZEN = {"status": "frozen", "approved_by": "operator"}
+mg_plan_touch = make_fixture(
+    "mg-plan-touch-no-freeze-change",
+    locks=[f"path:.shiki/plans/{SOURCE_PLAN}.json"],
+    changed=[f".shiki/plans/{SOURCE_PLAN}.json"],
+    status_entries=[f"M\t.shiki/plans/{SOURCE_PLAN}.json"],
+    base={"plans": {SOURCE_PLAN: {"id": SOURCE_PLAN, "title": "p", "spec_freeze": _FROZEN, "notes": "old"}}},
+)
+with_source_plan(mg_plan_touch)
+write_json(
+    mg_plan_touch / ".shiki" / "plans" / f"{SOURCE_PLAN}.json",
+    {"id": SOURCE_PLAN, "title": "p", "spec_freeze": _FROZEN, "notes": "new"},
+)
+expect_ready(mg_plan_touch)
+
+
 print("adversarial state/evidence/lock regression suite passed")
 PY

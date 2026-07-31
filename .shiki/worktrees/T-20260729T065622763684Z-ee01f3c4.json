@@ -1,0 +1,19 @@
+{
+  "branch": "shiki/t-20260729t065622763684z-ee01f3c4-make-mergegate-scope-enforcement-see-the-whole-d",
+  "created_at": "2026-07-31T06:43:58+00:00",
+  "created_by": "shiki-run",
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:scripts/shiki_locks.py",
+    "path:scripts/test_shiki_adversarial_state.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_state_classes.sh",
+    "path:tests/test_mirror_scope.py"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260729t065622763684z-ee01f3c4-make-mer",
+  "pr": 223,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260729T065622763684Z-ee01f3c4"
+}
