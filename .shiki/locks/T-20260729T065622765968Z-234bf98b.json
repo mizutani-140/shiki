@@ -11,6 +11,6 @@
     "path:tests/test_workflow_invocation.py"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260729T065622765968Z-234bf98b"
 }

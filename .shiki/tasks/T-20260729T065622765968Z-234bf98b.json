@@ -9,7 +9,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260729t065622765968z-234bf98b-make-workflows-invoke-the-scripts-they-claim-to-",
+  "expected_branch": "shiki/t-20260729t065622765968z-234bf98b-closeout",
   "expected_pr": 218,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
@@ -49,7 +49,7 @@
   ],
   "risk_level": "high",
   "scope": "In .github/workflows/shiki-mergegate.yml build a base .shiki snapshot in Prepare PR context and pass --base-shiki and --merged-prs to the metadata check, mirroring the CCA workflow, so post_merge_reconcile PRs can actually pass. In .github/workflows/shiki-orchestrator.yml stage before the guard (git add .shiki then git diff --cached --quiet) so newly created untracked evidence is not silently discarded, and pass comment- and input-derived values through env: instead of splicing GitHub expressions into run: bodies. Extend validate_shiki so the workflow contract asserts the invocation (required flags per job, and no expression interpolation inside a run: body), not just the presence of strings.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_run_orchestrator.sh && bash scripts/test_shiki_workflow_lint.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Make workflows invoke the scripts they claim to, and assert it"
 }
