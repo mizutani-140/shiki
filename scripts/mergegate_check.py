@@ -1626,14 +1626,36 @@ def normalize_repo_path(path: str) -> str:
     return normalized
 
 
+def lock_scope_paths(changed_files_status: list[ChangedFile]) -> list[str]:
+    """The path set the lock-scope gates must see across the WHOLE diff.
+
+    ``parse_changed_files_status`` decomposes a rename into two entries —
+    ``D(old)`` and ``A(new)`` — so collecting each entry's path yields BOTH legs
+    of every rename. git's name-only diff (``changed-files.txt``) carries only a
+    rename's NEW path, so feeding it to ``files_outside_locks`` /
+    ``active_lock_conflicts`` would let a rename move a file out of locked scope
+    unseen. Deriving from ``files_status`` closes that gap. Order-stable,
+    de-duplicated.
+    """
+    return list(dict.fromkeys(normalize_repo_path(entry.path) for entry in changed_files_status if entry.path))
+
+
 def runtime_evidence_path(path: str) -> bool:
+    """Whether a path is workflow-owned runtime evidence a PR must never author.
+
+    The runtime filenames are matched EXACTLY (``cca-verdict.json`` /
+    ``mergegate-result.json``), not by a ``startswith`` prefix: a prefix match
+    also caught ``.shiki/schemas/cca-verdict.schema.json`` — a real repository
+    contract — and made it permanently unmergeable. The whole ``.shiki/gha`` and
+    ``.shiki/cca`` subtrees are still runtime evidence by location.
+    """
     normalized = normalize_repo_path(path)
     name = Path(normalized).name
     return (
         normalized.startswith(".shiki/gha/")
         or normalized.startswith(".shiki/cca/")
-        or (normalized.startswith(".shiki/") and name.startswith("cca-verdict") and name.endswith(".json"))
-        or (normalized.startswith(".shiki/") and name.startswith("mergegate-result") and name.endswith(".json"))
+        or (normalized.startswith(".shiki/") and name == "cca-verdict.json")
+        or (normalized.startswith(".shiki/") and name == "mergegate-result.json")
     )
 
 
@@ -1668,6 +1690,71 @@ def ledger_entry_allowed_for_task(entry: dict[str, Any], *, task_id: str, goal_i
     if entry_task == task_id:
         return True
     return not entry_task and entry_goal == goal_id
+
+
+# The .shiki mirror directories governed by the GENERIC mirror-class rule: every
+# tracked mirror directory that lacks a dedicated per-record rule of its own.
+# tasks/goals/locks/ledger/repairs are handled by their own branches above, and
+# plans has the extra spec_freeze guard below, so all six are excluded here. For
+# these the rule is uniform: a PR may never delete a record, and every added or
+# modified record must be scoped to the PR's own task or goal. Without it, a PR
+# with a broad lock (path:.shiki/**) could delete a foreign goal's DAG or rewrite
+# another goal's report and files-outside-locks would wave it through.
+_GENERIC_MIRROR_DIRS: tuple[str, ...] = (
+    "dag",
+    "reports",
+    "memories",
+    "runs",
+    "worktrees",
+    "handoffs",
+    "runner",
+    "smoke",
+    "starts",
+    "inbox",
+)
+
+
+def _tracked_mirror_subdirs(manifest: dict[str, Any]) -> list[str]:
+    """The last path component of every tracked ``state_class: mirror`` directory
+    in the manifest (e.g. ``.shiki/reports`` -> ``reports``). Drives the
+    base-snapshot delete-protection loop so it covers every mirror directory, not
+    only tasks/goals/locks. Order-stable.
+
+    ``tasks``, ``goals`` and ``locks`` are a hardcoded floor: they were protected
+    before this generalization, so they stay protected even when the manifest is
+    missing/unreadable (``manifest`` empty) — never protecting LESS than before.
+    """
+    subdirs: list[str] = ["tasks", "goals", "locks"]
+    directories = manifest.get("directories") if isinstance(manifest, dict) else None
+    for raw_path, metadata in (directories or {}).items():
+        if not isinstance(raw_path, str) or not isinstance(metadata, dict):
+            continue
+        if metadata.get("state_class") != "mirror" or metadata.get("tracked") is not True:
+            continue
+        normalized = normalize_repo_path(raw_path)
+        if normalized.startswith(".shiki/"):
+            subdirs.append(normalized[len(".shiki/") :])
+    return list(dict.fromkeys(subdirs))
+
+
+def _mirror_record_scoped(data: Any, path: str, *, task_id: str, goal_id: str) -> bool:
+    """Whether a mirror record is scoped to the PR's own task or goal.
+
+    A record is own-scoped when its filename stem is this task's or goal's id
+    (id-named records such as ``dag/<goal>.json`` and ``worktrees/<task>.json``),
+    or when its JSON content is task/goal scoped by the same rule the ledger gate
+    uses (``ledger_entry_allowed_for_task``): its ``task_id`` equals this task, or
+    it carries no ``task_id`` and its ``goal_id`` equals this goal. A record naming
+    a DIFFERENT task — even one of the same goal — is NOT own-scoped
+    (anti-padding). Unreadable/malformed content (``data`` not a dict) is
+    fail-closed: not scoped.
+    """
+    stem = Path(path).stem
+    if stem and (stem == task_id or stem == goal_id):
+        return True
+    if isinstance(data, dict):
+        return ledger_entry_allowed_for_task(data, task_id=task_id, goal_id=goal_id)
+    return False
 
 
 def enforce_untrusted_shiki_mutations(
@@ -1765,6 +1852,64 @@ def enforce_untrusted_shiki_mutations(
             if repair_pr != pr_number:
                 blocking.append(f"Repair packet {repair_id} does not reference current PR #{pr_number}")
 
+        if path.startswith(".shiki/plans/") and path.endswith(".json"):
+            state_class = classify_shiki_path(path, manifest or {})
+            plan_stem = Path(path).stem
+            if entry.status == "D":
+                blocking.append(f"PR must not delete Shiki plan {path}; state_class={state_class}")
+                continue
+            goal = load_goal(target, goal_id)
+            source_plan_id = str(goal.get("source_plan") or "") if isinstance(goal, dict) else ""
+            if not source_plan_id or plan_stem != source_plan_id:
+                blocking.append(
+                    f"PR changes plan {path} that is not goal {goal_id}'s source_plan; state_class={state_class}"
+                )
+                continue
+            # Spec Freeze is operator-only (ADR 0009). No PR may author or alter a
+            # spec_freeze block — not even on its own goal's source plan, which
+            # goal scoping alone would permit: an implementation PR could grant
+            # itself a freeze or append amendments to the plan that governs it.
+            # Compared against the base snapshot so an unchanged, pre-existing
+            # freeze passes; base absence is fail-closed (a freeze present at head
+            # with no base to prove it was already there reads as newly authored).
+            try:
+                head_plan = load_json(target / path)
+            except (OSError, ValueError):
+                head_plan = None
+            head_freeze = head_plan.get("spec_freeze") if isinstance(head_plan, dict) else None
+            base_plan = None
+            if base_shiki is not None and base_shiki.exists():
+                try:
+                    base_plan = load_json(base_shiki / "plans" / f"{plan_stem}.json")
+                except (OSError, ValueError):
+                    base_plan = None
+            base_freeze = base_plan.get("spec_freeze") if isinstance(base_plan, dict) else None
+            if head_freeze != base_freeze:
+                blocking.append(
+                    f"PR must not create or modify the spec_freeze block of {path}; "
+                    f"Spec Freeze is operator-only; state_class={state_class}"
+                )
+            continue
+
+        for mirror_dir in _GENERIC_MIRROR_DIRS:
+            prefix = f".shiki/{mirror_dir}/"
+            if not (path.startswith(prefix) and path.endswith(".json")):
+                continue
+            state_class = classify_shiki_path(path, manifest or {})
+            if entry.status == "D":
+                blocking.append(f"PR must not delete Shiki {mirror_dir} record {path}; state_class={state_class}")
+            else:
+                try:
+                    record = load_json(target / path)
+                except (OSError, ValueError):
+                    record = None
+                if not _mirror_record_scoped(record, path, task_id=task_id, goal_id=goal_id):
+                    blocking.append(
+                        f"PR changes {mirror_dir} record {path} not scoped to task {task_id} or goal {goal_id}; "
+                        f"state_class={state_class}"
+                    )
+            break
+
     if base_shiki is None:
         warnings.append("No base .shiki snapshot provided; protected base-state comparison was skipped")
         return
@@ -1781,18 +1926,18 @@ def enforce_untrusted_shiki_mutations(
         if file_bytes(source_path) != file_bytes(target_path):
             blocking.append(f"PR must not modify existing base ledger file {base_path}; state_class={state_class}")
 
-    for subdir in ["tasks", "goals"]:
+    # Every tracked mirror directory's base records are delete-protected, not only
+    # tasks/goals/locks: a base record absent at HEAD is a deletion the PR must not
+    # make. The current task's OWN lock is the sole exception (a release may delete
+    # it). ledger is handled by its own byte-equality loop above (it is
+    # append-only-evidence, not a mirror class, so it is not in this set).
+    for subdir in _tracked_mirror_subdirs(manifest or {}):
         for base_path in protected_base_files(base_shiki, subdir):
-            state_class = classify_shiki_path(base_path, manifest or {})
+            if subdir == "locks" and base_path == lock_file:
+                continue
             if not (target / base_path).exists():
-                blocking.append(f"PR must not delete base Shiki {subdir[:-1]} file {base_path}; state_class={state_class}")
-
-    for base_path in protected_base_files(base_shiki, "locks"):
-        if base_path == lock_file:
-            continue
-        if not (target / base_path).exists():
-            state_class = classify_shiki_path(base_path, manifest or {})
-            blocking.append(f"PR must not delete unrelated base Shiki lock file {base_path}; state_class={state_class}")
+                state_class = classify_shiki_path(base_path, manifest or {})
+                blocking.append(f"PR must not delete base Shiki {subdir} record {base_path}; state_class={state_class}")
 
 
 def main() -> int:
@@ -2019,9 +2164,13 @@ def main() -> int:
             # CONFLICT detection stays on the declared locks, since shared mirror
             # evidence is not a contended product resource.
             effective_locks = list(dict.fromkeys([*locks, *_derive_task_mirror_locks(target, task)]))
-            for path in files_outside_locks(files, effective_locks):
+            # Judge the lock-scope gates against the WHOLE diff, both legs of every
+            # rename included. Using the name-only `files` list would let a rename
+            # move a file out of locked scope unseen (git shows only the new leg).
+            scope_paths = lock_scope_paths(files_status)
+            for path in files_outside_locks(scope_paths, effective_locks):
                 blocking.append(f"Changed file {path} is outside declared task locks")
-            blocking.extend(active_lock_conflicts(target, resolved_task_id, locks, files))
+            blocking.extend(active_lock_conflicts(target, resolved_task_id, locks, scope_paths))
 
             # ADR 0017: a proven bookkeeping closeout (task terminal state only, no
             # implementation) is evaluated as if low risk at the Guardian gate
