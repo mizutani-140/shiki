@@ -24,7 +24,8 @@
   },
   "id": "G-20260731T004111130646Z-0dbace30",
   "ledger_evidence": [
-    "L-20260731T004111131536Z-162c8130"
+    "L-20260731T004111131536Z-162c8130",
+    "L-20260731T022353239019Z-e237cdb0"
   ],
   "non_goals": [
     "Exempting `.shiki`-only PRs generally \u2014 contract mode and goal_reconcile register contracts and freeze specs and need MORE scrutiny, not less.",
@@ -41,6 +42,6 @@
   ],
   "risk_level": "critical",
   "source_plan": "P-20260731T004111035488Z-289a6f0b",
-  "status": "planned",
+  "status": "complete",
   "title": "Classify a bookkeeping closeout from the diff and exempt it from risk inheritance (ADR 0017)"
 }
