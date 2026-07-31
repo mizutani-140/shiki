@@ -23,6 +23,7 @@ complete-with-failures rejections: reverting either guard in
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import unittest
 from pathlib import Path
@@ -31,6 +32,7 @@ import shiki_test_support  # noqa: F401  (path bootstrap)
 
 import enforce_cca_verdict
 import mergegate_check
+import validate_shiki
 from shiki_schema import SchemaValidationError
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -204,6 +206,51 @@ class ChecklistProfileCoverage(unittest.TestCase):
         self.assertEqual(mergegate_check.checklist_profile_coverage_failures({}, verdict), [])
         self.assertEqual(mergegate_check.checklist_profile_coverage_failures({"cca_checklist_profile": []}, verdict), [])
         self.assertEqual(mergegate_check.checklist_profile_coverage_failures(None, verdict), [])
+
+
+class TaskSchemaRequiredConsistency(unittest.TestCase):
+    """``task.schema.json`` ``required`` and ``validate_shiki.TASK_REQUIRED`` must agree.
+
+    The two surfaces encode the same contract — which fields a task record must
+    carry — and must never disagree about ``cca_checklist_profile``. When they
+    do, a field is required by one surface and optional by the other, so no task
+    file can satisfy both: exactly the self-contradiction this task removed. The
+    schema once listed ``cca_checklist_profile`` in ``required`` while
+    ``TASK_REQUIRED`` deliberately omitted it (promoting it to required would
+    force backfilling every pre-existing task file, which is out of this task's
+    locks). These tests fail if that divergence is ever re-introduced by
+    promoting the field in one surface without the other.
+    """
+
+    def _schema_required(self) -> list[str]:
+        schema = json.loads((REPO_ROOT / ".shiki/schemas/task.schema.json").read_text())
+        return schema["required"]
+
+    def test_schema_required_and_task_required_agree_on_cca_checklist_profile(self):
+        # The named landmine. cca_checklist_profile must be required by both
+        # surfaces or neither; requiring it in the schema alone plants a
+        # constraint no existing task file — including this task's own record —
+        # can satisfy, because TASK_REQUIRED (and the backfill it would need) is
+        # out of scope here.
+        schema_required = self._schema_required()
+        self.assertEqual(
+            "cca_checklist_profile" in schema_required,
+            "cca_checklist_profile" in validate_shiki.TASK_REQUIRED,
+            "task.schema.json `required` and validate_shiki.TASK_REQUIRED disagree "
+            "about cca_checklist_profile; promote it in both surfaces (after "
+            "backfilling every task file) or neither.",
+        )
+
+    def test_schema_required_matches_task_required_field_set(self):
+        # Stronger guard covering the same class of divergence for any field:
+        # the two surfaces must describe the identical required-field set.
+        schema_required = self._schema_required()
+        self.assertEqual(
+            set(schema_required),
+            set(validate_shiki.TASK_REQUIRED),
+            "task.schema.json `required` and validate_shiki.TASK_REQUIRED must "
+            "list the same required task fields.",
+        )
 
 
 if __name__ == "__main__":
