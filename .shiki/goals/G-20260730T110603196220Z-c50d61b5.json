@@ -25,7 +25,8 @@
   },
   "id": "G-20260730T110603196220Z-c50d61b5",
   "ledger_evidence": [
-    "L-20260730T110603197083Z-930f5b9c"
+    "L-20260730T110603197083Z-930f5b9c",
+    "L-20260731T002819220346Z-2fc56d9c"
   ],
   "non_goals": [
     "Changing the closeout PR's risk inheritance, or any rule about which PRs need Guardian approval.",
@@ -42,6 +43,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260730T110603096221Z-edb64566",
-  "status": "planned",
+  "status": "complete",
   "title": "Stop the CCA workflow from invalidating other PRs and from hand-transcribing the head SHA"
 }
