@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260731T004111132162Z-bfcf2c9e.json"
+  ],
+  "goal_id": "G-20260731T004111130646Z-0dbace30",
+  "id": "L-20260731T004111132246Z-8f9e2388",
+  "links": [],
+  "summary": "Task registered from plan: Derive the bookkeeping-closeout exemption in MergeGate and prove it fails closed",
+  "task_id": "T-20260731T004111132162Z-bfcf2c9e",
+  "timestamp": "2026-07-31T00:41:11+00:00",
+  "type": "task-registered"
+}
