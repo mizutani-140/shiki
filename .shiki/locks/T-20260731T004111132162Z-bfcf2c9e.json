@@ -1,0 +1,13 @@
+{
+  "created_at": "2026-07-31T00:41:19+00:00",
+  "goal_id": "G-20260731T004111130646Z-0dbace30",
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:tests/test_bookkeeping_closeout.py",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:scripts/test_shiki_adversarial_state.sh"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260731T004111132162Z-bfcf2c9e"
+}

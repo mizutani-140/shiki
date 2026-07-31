@@ -1,0 +1,46 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A genuine bookkeeping closeout for a high/critical task no longer requires Guardian approval.",
+    "Every disqualifying mutation falls back to risk inheritance, proven by adversarial tests.",
+    "The full suite, the governance-evidence suite and validate_shiki stay green."
+  ],
+  "created_at": "2026-07-31T00:41:11+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "The exemption must be DERIVED, not declared. A maintainer-applied label \u2014 the second factor contract mode uses \u2014 cannot work here, because the operator who would apply it is the same operator whose approval it removes. That makes the label the approval under another name, not an independent factor. So the classifier reads the diff, the base snapshot and live PR state, and ignores the PR body, labels and markers entirely.",
+      "The classification is computed where `requires_guardian` is already decided (`_builtin_guardian_risk_required` fed by `_guardian_risk_labels` in scripts/mergegate_check.py), so there is exactly one place that answers 'does this PR need a Guardian'. Adding a second, parallel answer would be the bug.",
+      "Fail closed on every axis. Any condition that cannot be established \u2014 missing base snapshot, unreadable task file, unresolvable implementation PR, an unexpected status value \u2014 means NOT a bookkeeping closeout, and the PR inherits the task's risk exactly as today. The relaxation is opt-in per PR by evidence, never by default.",
+      "This is now security-relevant surface, so the contract requires adversarial coverage equivalent to test_shiki_governance_evidence.sh: one non-`.shiki` byte, a governance-field edit, a deletion, an unexpected status transition, a second scorecard, and an unmerged implementation PR must each fall back to risk inheritance.",
+      "scripts/test_shiki_control_plane.sh is held by another task's lock and is deliberately excluded from this task's locks; it is run by the test command but never modified."
+    ],
+    "source": "Measured over 31 PRs merged 2026-07-29/30: 7 of 21 Guardian approval actions were zero-code closeout bookkeeping.",
+    "status": "complete"
+  },
+  "id": "G-20260731T004111130646Z-0dbace30",
+  "ledger_evidence": [
+    "L-20260731T004111131536Z-162c8130"
+  ],
+  "non_goals": [
+    "Exempting `.shiki`-only PRs generally \u2014 contract mode and goal_reconcile register contracts and freeze specs and need MORE scrutiny, not less.",
+    "Letting a label, marker, PR-body claim, or task field mark a PR as a bookkeeping closeout.",
+    "Changing what CCA judges, what the required checks are, or contract immutability.",
+    "Auto-merging closeouts, or having any runtime author an approval record.",
+    "Relaxing files-outside-locks, lock conflicts, or the head-SHA binding.",
+    "Modifying scripts/test_shiki_control_plane.sh or any file held by another task's lock."
+  ],
+  "outcome": "A closeout PR carrying only its task's terminal state stops demanding a second Guardian approval for work the Guardian already approved. The exemption is derived by MergeGate from the diff and base state \u2014 never from anything the PR says about itself \u2014 and fails closed on every doubt.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_plan": "P-20260731T004111035488Z-289a6f0b",
+  "status": "planned",
+  "title": "Classify a bookkeeping closeout from the diff and exempt it from risk inheritance (ADR 0017)"
+}
