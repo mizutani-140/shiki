@@ -24,7 +24,8 @@
   },
   "id": "G-20260731T045548842404Z-dac91fc1",
   "ledger_evidence": [
-    "L-20260731T045548843244Z-d3095b3d"
+    "L-20260731T045548843244Z-d3095b3d",
+    "L-20260731T052935076908Z-d856a044"
   ],
   "non_goals": [
     "Changing the six ADR 0017 conditions or the classifier.",
@@ -40,6 +41,6 @@
   ],
   "risk_level": "critical",
   "source_plan": "P-20260731T045548737812Z-97cc8363",
-  "status": "planned",
+  "status": "complete",
   "title": "Give the MergeGate policy job the merged-PR proof a closeout needs"
 }
