@@ -3,8 +3,7 @@
     "A verdict complete with can_merge false and a failing acceptance entry exits non-zero from enforce_cca_verdict.py, naming the failing criterion.",
     "The same verdict through mergegate_check.py blocks with a reason for the failing acceptance entry and one for can_merge != true.",
     "A verdict with an empty checklist against a task declaring a non-empty cca_checklist_profile blocks; the same verdict with every profile id present and pass returns ready.",
-    "Mutation guard: reverting the complete-with-failures guard in enforce_cca_verdict.py makes at least one test fail (today the whole suite survives that mutation).",
-    "validate_shiki passes with cca_checklist_profile newly required, after backfilling the task files that lack it."
+    "Mutation guard: reverting the complete-with-failures guard in enforce_cca_verdict.py makes at least one test fail (today the whole suite survives that mutation)."
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [
@@ -25,7 +24,8 @@
     "L-20260731T092335166838Z-73e97f8f",
     "L-20260731T092339066537Z-5cb5e084",
     "L-20260731T092411918498Z-4d4b1a7d",
-    "L-20260731T093443731183Z-88b550a7"
+    "L-20260731T093443731183Z-88b550a7",
+    "L-20260731T103805656085Z-f5448285"
   ],
   "locks": [
     "path:scripts/enforce_cca_verdict.py",
@@ -59,7 +59,7 @@
     "code-review"
   ],
   "risk_level": "high",
-  "scope": "In scripts/enforce_cca_verdict.validate_verdict and mergegate_check.main's CCA branch, reject verdict=complete when any acceptance entry is fail or insufficient_evidence, and promote can_merge is not True from a warning to a blocking reason. Block unless every id in the task's cca_checklist_profile appears in the verdict checklist with a terminal status. Add minItems 1 to the schema's checklist, and add cca_checklist_profile to task.schema.json and validate_shiki's required task fields.",
+  "scope": "In scripts/enforce_cca_verdict.validate_verdict and mergegate_check.main's CCA branch, reject verdict=complete when any acceptance entry is fail or insufficient_evidence, and promote can_merge is not True from a warning to a blocking reason. Block unless every id in the task's cca_checklist_profile appears in the verdict checklist with a terminal status. Add minItems 1 to the schema's checklist. Promoting cca_checklist_profile to a required field in task.schema.json and validate_shiki's required task fields is DEFERRED by an operator-approved Spec Amendment recorded at L-20260731T103805656085Z-f5448285: it needs ~98 pre-existing task files backfilled, and MergeGate blocks a task PR from touching any task file but its own.",
   "status": "review",
   "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Refuse a self-contradictory CCA verdict"
