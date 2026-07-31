@@ -125,14 +125,27 @@ test ! -f "$TARGET/claude-marker.txt"
 
 python3 "$ROOT/scripts/shiki.py" runner claude --target "$TARGET" --task-id "$TASK_ID" >/tmp/shiki-runner-claude-execute.json
 WORKTREE="$(json_get /tmp/shiki-runner-claude-execute.json worktree)"
+GOAL_ID="$(json_get /tmp/shiki-runner-claude-next.json goal_id)"
 test -f "$WORKTREE/claude-marker.txt"
 grep "$TASK_ID" "$WORKTREE/claude-prompt.txt" >/dev/null
 grep '"status": "review"' "$TARGET/.shiki/tasks/$TASK_ID.json" >/dev/null
 grep "claude -p" "$TARGET"/.shiki/runner/EXEC-*.json >/dev/null
 
+# The dispatch carried THIS task's current contract into the worktree before the
+# session (the amended-contract gap): the worktree's task file, goal file and
+# lock record are synced from the coordinator, so a repair judges against current
+# terms rather than the stale copy the branch was cut with. The worktree was cut
+# from main, which lacks these locally-created mirror files; only the pre-session
+# sync puts them there, so their presence proves the wiring.
+test -f "$WORKTREE/.shiki/tasks/$TASK_ID.json"
+test -f "$WORKTREE/.shiki/goals/$GOAL_ID.json"
+test -f "$WORKTREE/.shiki/locks/$TASK_ID.json"
+grep '"path:claude-marker.txt"' "$WORKTREE/.shiki/tasks/$TASK_ID.json" >/dev/null
+
 # The worktree was cut from main even though the coordinator sat on
 # coordinator-feature: its tip equals main's tip and the foreign goal file the
-# feature branch carries is absent from the worktree.
+# feature branch carries is absent from the worktree — the contract sync carries
+# only this task's own goal, never a foreign one.
 test "$(git -C "$WORKTREE" rev-parse HEAD)" = "$MAIN_TIP"
 test ! -f "$WORKTREE/.shiki/goals/G-FOREIGN0000.json"
 

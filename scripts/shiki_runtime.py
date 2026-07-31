@@ -319,6 +319,61 @@ def record_runner_result(target: Path, task: dict[str, Any], command: str, retur
     return record_file, ledger_id
 
 
+def sync_contract_into_worktree(target: Path, task: dict[str, Any], worktree_path: Path) -> list[str]:
+    """Carry the coordinator's CURRENT contract into the dispatch worktree.
+
+    A dispatched session renders its handoff from the coordinator but verifies
+    against the worktree's own ``.shiki``. When the contract was amended after
+    the worktree was cut — a repair dispatched after a Spec Amendment tightened
+    the locks — the worktree still holds the stale terms and the implementer
+    judges against the wrong contract. The observed failure mode: a repair read a
+    6-lock contract while the coordinator held 9. The safe direction (a lock
+    still present in the worktree that the coordinator dropped) merely refuses
+    authorised work; the mirror image (a constraint removed in the worktree but
+    still enforced) produces a wrong implementation.
+
+    Copy this task's own file, its goal file, and its lock record from the
+    coordinator's ``.shiki`` into the worktree's ``.shiki`` before the session
+    starts, so it judges against current terms. Only THIS task's / goal's
+    id-named files are carried — never a sibling task's or a foreign goal's — so
+    the worktree cannot inherit unrelated mirror state. Copy-in-place over
+    deterministic id-named paths is idempotent: re-running a dispatch overwrites
+    rather than duplicating. Missing coordinator files are skipped, never
+    fabricated. Returns the ``.shiki``-relative paths actually synced.
+    """
+    task_id = str(task.get("id") or "")
+    goal_id = str(task.get("goal_id") or "")
+    worktree_path = worktree_path.expanduser().resolve()
+    if not task_id or not worktree_path.exists() or worktree_path == target.resolve():
+        # Headless dispatch requires an isolated worktree; syncing onto the
+        # target checkout itself would be a no-op self-copy.
+        return []
+
+    relatives = [f".shiki/tasks/{task_id}.json", f".shiki/locks/{task_id}.json"]
+    if goal_id:
+        relatives.append(f".shiki/goals/{goal_id}.json")
+
+    shiki_root = (target / ".shiki").resolve()
+    worktree_shiki_root = (worktree_path / ".shiki").resolve()
+    synced: list[str] = []
+    for relative in relatives:
+        source = (target / relative).resolve()
+        destination = (worktree_path / relative).resolve()
+        # Containment: never read from outside the coordinator's .shiki nor write
+        # outside the worktree's .shiki (defense in depth; these ids are trusted
+        # coordinator state, but the copy target is a worktree we must not escape).
+        try:
+            source.relative_to(shiki_root)
+            destination.relative_to(worktree_shiki_root)
+        except ValueError:
+            continue
+        if source.is_file():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            synced.append(relative)
+    return synced
+
+
 def dispatch_runner_task(args: argparse.Namespace, adapter: RunnerAdapter) -> int:
     target = target_path(args.target)
     require_github_first_target(target)
@@ -372,6 +427,12 @@ def dispatch_runner_task(args: argparse.Namespace, adapter: RunnerAdapter) -> in
 
     task["status"] = "running"
     write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
+    # Refresh the worktree's contract mirror from the coordinator before the
+    # session starts, so the implementer judges against the CURRENT task, goal
+    # and lock record — not the stale copy the worktree was cut with. This closes
+    # the repair-after-amendment gap where a session verifies against outdated
+    # locks in its own .shiki.
+    sync_contract_into_worktree(target, task, worktree_path)
     prompt = handoff_file.read_text()
     result = adapter.execute(worktree_path, prompt)
     record_file, ledger_id = record_runner_result(
