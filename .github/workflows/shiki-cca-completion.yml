@@ -55,6 +55,38 @@ jobs:
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
           git diff --name-status "origin/${base_ref}...HEAD" > .shiki/gha/changed-files-status.txt
 
+          # ADR 0017 bookkeeping-closeout exemption inputs, built the SAME way the
+          # mergegate job builds them below. The Guardian-approval signal must
+          # resolve a proven closeout as low risk exactly as the MergeGate policy
+          # check does; without these inputs the CCA path could not classify a
+          # closeout at all, so the exemption would be unreachable and a closeout
+          # would still return needs_guardian. Base .shiki snapshot from
+          # origin/<base_ref> (the fetch above already ran — do NOT add a second, or
+          # the base fetch would go shallow).
+          rm -rf .shiki/gha/base-shiki
+          mkdir -p .shiki/gha/base-shiki
+          git archive "origin/${base_ref}" .shiki | tar -x -C .shiki/gha/base-shiki || true
+
+          # Implementation-PR merge proof: resolve the task id with the SAME
+          # semantics mergegate_check.py uses (first T-<4+ digits> OR
+          # T-<timestamp>-<hex>), read the BASE snapshot's expected_pr (a field the
+          # PR head cannot write, unlike the head's) and pass it as --merged-prs
+          # only when gh proves it MERGED. Fails closed to "" on any missing or
+          # unresolvable input, so the exemption is never granted without proof.
+          MERGED_PRS=""
+          body="$(jq -r '.body // ""' .shiki/gha/pr.json)"
+          task_id="$(printf '%s' "$body" | grep -oE 'T-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})' | head -1 || true)"
+          base_task=".shiki/gha/base-shiki/.shiki/tasks/${task_id}.json"
+          if [ -n "$task_id" ] && [ -f "$base_task" ]; then
+            base_pr="$(jq -r '.expected_pr // empty' "$base_task")"
+            if [ -n "$base_pr" ]; then
+              state="$(gh pr view "$base_pr" --repo "$REPOSITORY" --json state -q .state 2>/dev/null || echo UNKNOWN)"
+              if [ "$state" = "MERGED" ]; then
+                MERGED_PRS="$base_pr"
+              fi
+            fi
+          fi
+
           # Deterministic Guardian-approval signal for CCA-08. The CCA must not
           # judge Guardian approval by LLM-reading raw comments; it reads the
           # result of the SAME authoritative evaluate_guardian_approval the
@@ -72,6 +104,9 @@ jobs:
             --guardian-timeline .shiki/gha/live-guardian-timeline.json \
             --expected-repository "${REPOSITORY}" \
             --shiki-root . \
+            --base-shiki .shiki/gha/base-shiki/.shiki \
+            --changed-files-status .shiki/gha/changed-files-status.txt \
+            --merged-prs "$MERGED_PRS" \
             --output .shiki/gha/guardian-approval.json
           echo "::group::guardian-approval signal"
           cat .shiki/gha/guardian-approval.json
