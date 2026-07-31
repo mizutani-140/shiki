@@ -1025,6 +1025,70 @@ def blocking_checklist_failures(verdict: dict[str, Any]) -> list[str]:
     return failures
 
 
+def failing_acceptance_criteria(verdict: dict[str, Any]) -> list[str]:
+    """Acceptance criteria whose status is ``fail`` or ``insufficient_evidence``.
+
+    Every acceptance criterion is blocking (there is no ``blocking`` flag on
+    acceptance entries), so a ``complete`` verdict may not carry a criterion
+    that durable evidence shows failed (``fail``) or that lacks proof
+    (``insufficient_evidence``): either contradicts the ``complete`` judgment.
+    Each offender is named so MergeGate can point at the specific criterion.
+    """
+    failures: list[str] = []
+    for item in verdict.get("acceptance") or []:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "").strip().lower()
+        if status in {"fail", "insufficient_evidence"}:
+            failures.append(str(item.get("criterion") or "<unknown>"))
+    return failures
+
+
+# A checklist item is judged to a TERMINAL status when its work is resolved:
+# ``pass`` (proven satisfied), ``fail`` (proven missing/incorrect), or
+# ``not_applicable`` (justified exclusion). ``insufficient_evidence`` is NOT
+# terminal — it means proof is still missing, so the item was not actually
+# resolved. A task's ``cca_checklist_profile`` id must appear in the verdict
+# checklist judged to one of these terminal statuses; absent, or present only at
+# ``insufficient_evidence``, means the required item was silently dropped or left
+# unresolved.
+TERMINAL_CHECKLIST_STATUSES = {"pass", "fail", "not_applicable"}
+
+
+def checklist_profile_coverage_failures(task: dict[str, Any] | None, verdict: dict[str, Any]) -> list[str]:
+    """Profile ids the verdict fails to cover with a terminal checklist status.
+
+    Every id in the task's ``cca_checklist_profile`` must appear in the verdict
+    checklist judged to a terminal status (see ``TERMINAL_CHECKLIST_STATUSES``).
+    An id that is absent, or present only at ``insufficient_evidence``, is
+    reported so MergeGate blocks — a verdict cannot claim completion while
+    silently omitting a required checklist item or leaving it unresolved. A task
+    with no (or an empty) profile imposes no requirement and yields no reasons.
+    """
+    if not isinstance(task, dict):
+        return []
+    profile = task.get("cca_checklist_profile")
+    if not isinstance(profile, list) or not profile:
+        return []
+    statuses: dict[str, str] = {}
+    for item in verdict.get("checklist") or []:
+        if isinstance(item, dict) and item.get("id") is not None:
+            statuses[str(item.get("id"))] = str(item.get("status") or "").strip().lower()
+    reasons: list[str] = []
+    for raw_id in profile:
+        profile_id = str(raw_id)
+        status = statuses.get(profile_id)
+        if status is None:
+            reasons.append(
+                f"CCA checklist profile id {profile_id} is missing from the verdict checklist"
+            )
+        elif status not in TERMINAL_CHECKLIST_STATUSES:
+            reasons.append(
+                f"CCA checklist profile id {profile_id} has non-terminal status {status!r} in the verdict checklist"
+            )
+    return reasons
+
+
 def validate_cca_contract(target: Path, cca: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     try:
@@ -2244,10 +2308,18 @@ def main() -> int:
             elif pr.get("headRefOid") and cca.get("head_sha") != pr.get("headRefOid"):
                 blocking.append("CCA head_sha does not match the current PR headRefOid")
         if cca.get("can_merge") is not True:
-            warnings.append("CCA verdict did not set can_merge=true; MergeGate will rely on required checks and policy inputs")
+            blocking.append("CCA verdict did not set can_merge=true")
         failures = blocking_checklist_failures(cca)
         if failures:
             blocking.append("CCA verdict contains blocking failed checklist items: " + ", ".join(failures))
+        if cca.get("verdict") == "complete":
+            acceptance_failures = failing_acceptance_criteria(cca)
+            if acceptance_failures:
+                blocking.append(
+                    "complete CCA verdict contains failing acceptance criteria: " + ", ".join(acceptance_failures)
+                )
+        for reason in checklist_profile_coverage_failures(task, cca):
+            blocking.append(reason)
         acceptance = cca.get("acceptance")
         if not isinstance(acceptance, list) or not acceptance:
             blocking.append("CCA verdict acceptance evidence is empty")

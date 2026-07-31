@@ -1221,6 +1221,18 @@ def validate_task(path: Path, data: dict[str, Any]) -> tuple[str, list[str]]:
 
     validate_skill_names(path, require_list(path, data, "required_skills"), key="required_skills")
 
+    # cca_checklist_profile lists the CCA checklist ids a PR's structured verdict
+    # must judge to a terminal status; MergeGate blocks a verdict that omits or
+    # leaves one unresolved (scripts/mergegate_check.checklist_profile_coverage_failures).
+    # Validated when present so a declared profile is well-formed. It is not yet in
+    # TASK_REQUIRED: promoting it to a required field means every pre-existing task
+    # file must be backfilled with the field, and those files are outside this
+    # task's declared locks.
+    if "cca_checklist_profile" in data:
+        for entry in require_list(path, data, "cca_checklist_profile"):
+            if not isinstance(entry, str) or not entry.strip():
+                raise ValidationError(f"{path}: cca_checklist_profile must contain non-empty strings")
+
     return task_id, dependencies
 
 

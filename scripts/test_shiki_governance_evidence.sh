@@ -435,6 +435,61 @@ expect_block(make_fixture("cca-stale-head", cca=cca_payload(head=OLD_HEAD)), "CC
 expect_block(make_fixture("cca-wrong-pr", cca=cca_payload(number=778)), "CCA pr 778 does not match PR #777")
 
 
+# Group B2: a complete CCA verdict must agree with its own evidence. A failing
+# acceptance entry and can_merge != true each become a blocking reason (can_merge
+# is no longer a mere warning); both appear together on the same contradictory
+# verdict.
+contradictory = make_fixture(
+    "cca-complete-contradictory",
+    cca={
+        **cca_payload(),
+        "can_merge": False,
+        "acceptance": [
+            {"criterion": "A1", "status": "pass", "evidence": ["ok"]},
+            {"criterion": "A2-regressed", "status": "fail", "evidence": ["behaviour regressed"]},
+        ],
+    },
+)
+contradictory_result = run_mergegate(contradictory)
+assert contradictory_result.returncode != 0, contradictory_result.stdout
+assert_contains(contradictory_result.stdout, "A2-regressed")
+assert_contains(contradictory_result.stdout, "can_merge=true")
+
+# An insufficient_evidence acceptance entry is equally contradictory on complete.
+expect_block(
+    make_fixture(
+        "cca-complete-unproven-acceptance",
+        cca={
+            **cca_payload(),
+            "acceptance": [
+                {"criterion": "A9", "status": "insufficient_evidence", "evidence": [], "reason": "no output recorded"},
+            ],
+        },
+    ),
+    "complete CCA verdict contains failing acceptance criteria: A9",
+)
+
+
+# Group B3: the task's cca_checklist_profile must be covered by terminal statuses.
+profile_task = {**task_payload(locks=["path:scripts/test_shiki_governance_evidence.sh"]), "cca_checklist_profile": ["CCA-01"]}
+# Every profile id present and judged pass (a terminal status) -> ready.
+expect_ready(make_fixture("cca-profile-covered", task=profile_task))
+# An empty checklist against a non-empty profile leaves the required id uncovered -> block.
+expect_block(
+    make_fixture("cca-profile-empty-checklist", task=profile_task, cca={**cca_payload(), "checklist": []}),
+    "CCA checklist profile id CCA-01 is missing from the verdict checklist",
+)
+# A required id present only at insufficient_evidence is non-terminal -> block.
+expect_block(
+    make_fixture(
+        "cca-profile-non-terminal",
+        task=profile_task,
+        cca={**cca_payload(), "checklist": [{"id": "CCA-01", "status": "insufficient_evidence", "blocking": False, "reason": "no proof"}]},
+    ),
+    "CCA checklist profile id CCA-01 has non-terminal status",
+)
+
+
 # Group C: forged ledger refs and integrity must fail validation or MergeGate.
 ledger = ledger_payload()
 refs = evidence_reference_for_ledger(

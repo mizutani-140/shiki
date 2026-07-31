@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-07-31T08:30:51+00:00",
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "locks": [
+    "path:scripts/enforce_cca_verdict.py",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/validate_shiki.py",
+    "path:.shiki/schemas/cca-verdict.schema.json",
+    "path:.shiki/schemas/task.schema.json",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:tests/test_cca_verdict_consistency.py"
+  ],
+  "owner": "shiki-run",
+  "state": "active",
+  "task_id": "T-20260729T065622764296Z-48021407"
+}

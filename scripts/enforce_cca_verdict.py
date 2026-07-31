@@ -189,6 +189,26 @@ def blocking_checklist_failures(verdict: dict[str, Any]) -> list[str]:
     return failures
 
 
+def failing_acceptance_criteria(verdict: dict[str, Any]) -> list[str]:
+    """Acceptance criteria whose status is ``fail`` or ``insufficient_evidence``.
+
+    A ``complete`` verdict may not carry any such criterion: a criterion durable
+    evidence shows failed (``fail``) or that lacks proof
+    (``insufficient_evidence``) contradicts a ``complete`` judgment. Unlike the
+    checklist, every acceptance criterion is blocking, so ``blocking`` is not
+    consulted here. Each failing criterion is named so the enforcer can reject
+    the self-contradictory verdict and point at the specific offender.
+    """
+    failures: list[str] = []
+    for item in verdict.get("acceptance") or []:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "").strip().lower()
+        if status in {"fail", "insufficient_evidence"}:
+            failures.append(str(item.get("criterion") or "<unknown>"))
+    return failures
+
+
 def _normalize_reason(reason: str) -> str:
     lowered = reason.lower().replace("'", "").replace("’", "")
     return re.sub(r"[\s_-]+", " ", lowered).strip()
@@ -271,6 +291,12 @@ def validate_verdict(verdict: dict[str, Any]) -> None:
     if status == "complete" and failures:
         raise SchemaValidationError(
             "complete verdict contains blocking failed checklist items: " + ", ".join(failures)
+        )
+
+    acceptance_failures = failing_acceptance_criteria(verdict)
+    if status == "complete" and acceptance_failures:
+        raise SchemaValidationError(
+            "complete verdict contains failing acceptance criteria: " + ", ".join(acceptance_failures)
         )
 
     short_circuited = short_circuited_evaluations(verdict)

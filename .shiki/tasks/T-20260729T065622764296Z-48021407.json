@@ -16,7 +16,10 @@
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622764296Z-48021407",
   "ledger_evidence": [
-    "L-20260729T065622764314Z-c9aa9624"
+    "L-20260729T065622764314Z-c9aa9624",
+    "L-20260731T083051738746Z-bd5021c1",
+    "L-20260731T083051740275Z-fa59aacc",
+    "L-20260731T084610166422Z-fc41d46b"
   ],
   "locks": [
     "path:scripts/enforce_cca_verdict.py",
@@ -40,7 +43,7 @@
   ],
   "risk_level": "high",
   "scope": "In scripts/enforce_cca_verdict.validate_verdict and mergegate_check.main's CCA branch, reject verdict=complete when any acceptance entry is fail or insufficient_evidence, and promote can_merge is not True from a warning to a blocking reason. Block unless every id in the task's cca_checklist_profile appears in the verdict checklist with a terminal status. Add minItems 1 to the schema's checklist, and add cca_checklist_profile to task.schema.json and validate_shiki's required task fields.",
-  "status": "planned",
+  "status": "running",
   "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Refuse a self-contradictory CCA verdict"
 }

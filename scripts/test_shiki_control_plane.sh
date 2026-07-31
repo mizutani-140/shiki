@@ -304,6 +304,14 @@ expect_fail env \
   python3 scripts/enforce_cca_verdict.py
 grep "CCA verdict is blocked; MergeGate is blocked" /tmp/shiki-expected-fail.out >/dev/null
 
+# A complete verdict with can_merge false and a failing acceptance entry is
+# self-contradictory: the enforcer rejects it non-zero, naming the criterion.
+expect_fail env \
+  CCA_VERDICT_FILE=/tmp/shiki-cca-complete-failing-acceptance.json \
+  STRUCTURED_OUTPUT='{"verdict":"complete","summary":"complete","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[{"id":"CCA-01","status":"pass","blocking":true,"evidence":"fixture"}],"acceptance":[{"criterion":"A-broke","status":"fail","evidence":["regressed"]}],"mergegate":{"required_checks":"pass"},"confidence":1.0,"repair_packet":null}' \
+  python3 scripts/enforce_cca_verdict.py
+grep "failing acceptance criteria: A-broke" /tmp/shiki-expected-fail.out >/dev/null
+
 mkdir -p "$TARGET"
 python3 scripts/shiki.py install-target "$TARGET" --local-only >/tmp/shiki-control-install.out
 test -f "$TARGET/.github/CODEOWNERS"
