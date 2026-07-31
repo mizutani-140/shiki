@@ -11,7 +11,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260731t040711237895z-21826083-closeout",
-  "expected_pr": 211,
+  "expected_pr": 212,
   "github_issue": null,
   "goal_id": "G-20260731T040711236459Z-50972900",
   "id": "T-20260731T040711237895Z-21826083",
@@ -24,7 +24,8 @@
     "L-20260731T041938094471Z-2ba57da3",
     "L-20260731T042002407283Z-df08fbef",
     "L-20260731T042005963440Z-c3bab9f2",
-    "L-20260731T042543828869Z-aea7518f"
+    "L-20260731T042543828869Z-aea7518f",
+    "L-20260731T042547019814Z-bd345d55"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
