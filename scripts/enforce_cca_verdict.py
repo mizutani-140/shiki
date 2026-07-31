@@ -21,6 +21,18 @@ VALID_VERDICTS = {
     "insufficient_evidence",
 }
 
+# The head SHA in the structured output is model-supplied and has been mistyped
+# (PR #195 wrote a value four characters short of the real head SHA), which then
+# fails the MergeGate head_sha checks even though the run head and the PR head
+# are byte-identical. When the workflow provides an authoritative head SHA via
+# ``SHIKI_HEAD_SHA``, that value -- not the model's -- is the source of truth.
+HEAD_SHA_ENV = "SHIKI_HEAD_SHA"
+
+# The model's reported head SHA is preserved here when it disagrees with the
+# authoritative value, so the disagreement is auditable in the uploaded evidence
+# rather than silently erased.
+REPORTED_HEAD_SHA_KEY = "head_sha_reported"
+
 # A blocking item is "short-circuited" when its reason marks the item
 # ``insufficient_evidence`` because another blocker is already known / the
 # verdict is already determined, rather than because the item's own durable
@@ -124,6 +136,39 @@ def load_verdict() -> dict[str, Any]:
 
     path = Path(os.environ.get("CCA_VERDICT_FILE", ".shiki/gha/cca-verdict.json"))
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def inject_authoritative_head_sha(verdict: dict[str, Any]) -> dict[str, Any]:
+    """Overwrite ``verdict['head_sha']`` with the workflow-supplied head SHA.
+
+    When ``SHIKI_HEAD_SHA`` is set and non-empty, treat it as the authoritative
+    head SHA: set ``verdict['head_sha']`` to it (before validation and before the
+    verdict file is written). If the model reported a different value, preserve
+    the model's value under ``head_sha_reported`` and warn, naming both, so the
+    disagreement is auditable rather than silently erased.
+
+    When ``SHIKI_HEAD_SHA`` is unset or empty, the verdict is returned untouched
+    so local and offline invocations behave exactly as before.
+    """
+    authoritative = os.environ.get(HEAD_SHA_ENV, "").strip()
+    if not authoritative:
+        return verdict
+
+    reported = verdict.get("head_sha")
+    if reported == authoritative:
+        return verdict
+
+    if isinstance(reported, str) and reported:
+        verdict[REPORTED_HEAD_SHA_KEY] = reported
+        print(
+            f"WARNING: CCA head_sha reported by the model ({reported!r}) does not "
+            f"match the authoritative {HEAD_SHA_ENV} ({authoritative!r}); using the "
+            f"authoritative value and preserving the reported value under "
+            f"{REPORTED_HEAD_SHA_KEY!r}.",
+            file=sys.stderr,
+        )
+    verdict["head_sha"] = authoritative
+    return verdict
 
 
 def load_schema(path: Path) -> dict[str, Any]:
@@ -244,6 +289,7 @@ def main() -> int:
         verdict = load_verdict()
         if not isinstance(verdict, dict):
             return fail("CCA verdict must be a JSON object")
+        verdict = inject_authoritative_head_sha(verdict)
         validate_verdict(verdict)
     except Exception as error:  # noqa: BLE001 - this is a CLI boundary.
         return fail(f"invalid CCA verdict: {error}")

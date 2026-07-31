@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260730T110603197694Z-c903d404.json"
+  ],
+  "goal_id": "G-20260730T110603196220Z-c50d61b5",
+  "id": "L-20260730T110603197768Z-967b72b1",
+  "links": [],
+  "summary": "Task registered from plan: Fetch the base ref in full and inject the authoritative head SHA into the CCA verdict",
+  "task_id": "T-20260730T110603197694Z-c903d404",
+  "timestamp": "2026-07-30T11:06:03+00:00",
+  "type": "task-registered"
+}

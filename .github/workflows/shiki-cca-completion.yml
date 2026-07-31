@@ -51,7 +51,7 @@ jobs:
           mkdir -p .shiki/gha
           gh pr view "$PR_NUMBER" --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
           base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
-          git fetch origin "$base_ref" --depth=1
+          git fetch origin "$base_ref"
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
           git diff --name-status "origin/${base_ref}...HEAD" > .shiki/gha/changed-files-status.txt
 
@@ -195,6 +195,7 @@ jobs:
       - name: Enforce CCA verdict
         env:
           STRUCTURED_OUTPUT: ${{ steps.cca.outputs.structured_output }}
+          SHIKI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 scripts/enforce_cca_verdict.py
 
       - name: Post Guardian blockers comment
@@ -466,7 +467,7 @@ jobs:
           base_ref="$(jq -r '.baseRefName' .shiki/gha/live-pr.json)"
           head_oid="$(jq -r '.headRefOid' .shiki/gha/live-pr.json)"
 
-          git fetch origin "$base_ref" --depth=1
+          git fetch origin "$base_ref"
 
           git diff --name-only "origin/${base_ref}...HEAD" \
             > .shiki/gha/live-changed-files.txt
