@@ -8,8 +8,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260729t065622767228z-3b4c41c2-make-migrations-applicable-in-a-target-repositor",
-  "expected_pr": 217,
+  "expected_branch": "shiki/t-20260729t065622767228z-3b4c41c2-closeout",
+  "expected_pr": 220,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622767228Z-3b4c41c2",
@@ -20,7 +20,8 @@
     "L-20260731T054845223007Z-3cb75f24",
     "L-20260731T061333503889Z-a282e717",
     "L-20260731T061439857988Z-a6f8edf7",
-    "L-20260731T061443669434Z-136371a3"
+    "L-20260731T061443669434Z-136371a3",
+    "L-20260731T063542552694Z-4b38ec18"
   ],
   "locks": [
     "path:scripts/shiki_migrations.py",
@@ -45,7 +46,7 @@
   ],
   "risk_level": "medium",
   "scope": "Remove the platform-repo-only goal artifact from the baseline migration's required list, keeping the four layout entries, so migrations can apply in a target at all. Make MigrationError subclass ShikiError so failures use the [shiki] error: exit contract instead of a raw traceback. Delete the add_baseline_goal workaround from the migration test so the suite exercises the real target path.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_migrations.sh && bash scripts/test_shiki_doctor.sh && python3 -m unittest discover -s tests",
   "title": "Make migrations applicable in a target repository"
 }
