@@ -281,7 +281,7 @@ def add_cca_manifest(target: pathlib.Path, *, repository: str = "mizutani-140/sh
     return path
 
 
-def run_mergegate(target: pathlib.Path, *, expected_head: str = HEAD, expected_repository: str = "", use_manifest: bool = False, allow_missing_cca: bool = False) -> subprocess.CompletedProcess:
+def run_mergegate(target: pathlib.Path, *, expected_head: str = HEAD, expected_repository: str = "", use_manifest: bool = False, allow_missing_cca: bool = False, base_shiki: str = "", merged_prs: str = "") -> subprocess.CompletedProcess:
     cmd = [
         sys.executable,
         str(root / "scripts" / "mergegate_check.py"),
@@ -308,6 +308,10 @@ def run_mergegate(target: pathlib.Path, *, expected_head: str = HEAD, expected_r
         "--result-file",
         str(target / ".shiki" / "gha" / "mergegate-result.json"),
     ]
+    if base_shiki:
+        cmd.extend(["--base-shiki", base_shiki])
+    if merged_prs:
+        cmd.extend(["--merged-prs", merged_prs])
     if expected_repository:
         cmd.extend(["--expected-repository", expected_repository])
     if use_manifest:
@@ -627,6 +631,228 @@ for needle in [
 
 installer_text = (root / "scripts" / "shiki_installer.py").read_text(encoding="utf-8")
 assert_contains(installer_text, "scripts/test_shiki_governance_evidence.sh")
+
+
+# ============================================================================
+# ADR 0017: bookkeeping-closeout Guardian exemption smuggling cases.
+#
+# A closeout PR carries only a merged task's terminal state (task done, lock
+# released, and — when it completes the goal — goal complete + exactly one
+# scorecard) with zero implementation, so a PROVEN bookkeeping closeout is
+# evaluated as if the task were low risk at the single Guardian decision point.
+# Each smuggling case below is a CRITICAL-risk closeout with ONE defect that must
+# disqualify it, so the task re-inherits its risk and — with NO approval evidence
+# present — the Guardian approval requirement fires. We assert the SPECIFIC
+# Guardian approval fallback, never merely that the PR blocks, so an unrelated
+# future block cannot mask a classifier regression. The clean control proves the
+# classifier CAN exempt (the same critical PR, with no approval, does NOT block on
+# Guardian).
+# ============================================================================
+CLOSE_TASK = "T-20260731T004111132162Z-c105e001"
+CLOSE_GOAL = "G-20260731T004111130646Z-c105e0a1"
+CLOSE_IMPL_PR = 940
+CLOSE_PR = 941
+CLOSE_HEAD = "c" * 40
+CLOSE_BRANCH = "shiki/t-c105e001-closeout"
+CLOSE_COMP = "L-20260731T010000000000Z-c105ec3d"
+CLOSE_PULL = "L-20260731T010000000001Z-c105e91d"
+CLOSE_REPORT_ID = "R-20260731T010000000002Z-c105e5cd"
+CLOSE_REPORT_REL = f".shiki/reports/{CLOSE_REPORT_ID}.json"
+CLOSE_URL = f"https://github.com/mizutani-140/shiki/pull/{CLOSE_PR}"
+GUARDIAN_APPROVAL_FALLBACK = "Guardian approval requires a configured Guardian review or current-head Guardian comment"
+
+CLOSE_GOVERNANCE = {
+    "title": "Closeout smuggling fixture",
+    "scope": "Push the merged task's terminal state to main.",
+    "non_goals": ["No code change."],
+    "dependencies": [],
+    "locks": ["path:scripts/close_fixture_placeholder.py"],
+    "assigned_runtime": "claude-code",
+    "risk_level": "critical",
+    "required_skills": [],
+    "acceptance_checks": ["task done, lock released, goal complete"],
+    "test_command": "python3 -m unittest discover -s tests",
+    "expected_branch": CLOSE_BRANCH,
+}
+
+
+def close_pr() -> dict:
+    return {
+        "number": CLOSE_PR,
+        "title": "Closeout smuggling fixture",
+        "body": "\n".join([
+            "## Scope", f"Task {CLOSE_TASK} for Goal {CLOSE_GOAL}.",
+            "## Acceptance", "Terminal state pushed to main.",
+            "## Evidence", f"Closeout PR #{CLOSE_PR}; {CLOSE_URL}.",
+            "## MergeGate", "Ready when checks pass.",
+        ]),
+        "author": {"login": "mizutani-140"},
+        "headRefName": CLOSE_BRANCH,
+        "baseRefName": "main",
+        "headRefOid": CLOSE_HEAD,
+        "labels": [],
+        "reviews": [{"state": "APPROVED", "author": {"login": "github-actions"}}],
+        "reviewDecision": "APPROVED",
+        "statusCheckRollup": [
+            {"name": "Validate Shiki mirror", "status": "COMPLETED", "conclusion": "SUCCESS", "headSha": CLOSE_HEAD},
+            {"name": "MergeGate metadata check", "status": "COMPLETED", "conclusion": "SUCCESS", "headSha": CLOSE_HEAD},
+        ],
+    }
+
+
+def close_cca() -> dict:
+    return {
+        "verdict": "complete", "summary": "closeout complete",
+        "goal_id": CLOSE_GOAL, "task_id": CLOSE_TASK, "pr": CLOSE_PR, "head_sha": CLOSE_HEAD,
+        "can_merge": True,
+        "checklist": [{"id": "CCA-01", "status": "pass", "blocking": True, "evidence": "closeout"}],
+        "acceptance": [{"criterion": "terminal state", "status": "pass", "evidence": ["closeout"]}],
+        "mergegate": {"closeout": "pass"}, "confidence": 1.0, "repair_packet": None,
+    }
+
+
+def build_closeout(
+    name: str,
+    *,
+    completes: bool = True,
+    head_mutate=None,
+    goal_head_status: str = "complete",
+    lock_head_state: str = "released",
+    base_lock_state: str = "active",
+    extra_changed: list[tuple[str, str]] | None = None,
+    comp_evidence: list[str] | None = None,
+    extra_target_files: dict[str, dict] | None = None,
+) -> pathlib.Path:
+    target = tmp_root / name
+    if target.exists():
+        shutil.rmtree(target)
+    copy_base_support(target)
+    S = target / ".shiki"
+    B = S / "gha" / "base-shiki" / ".shiki"
+
+    write_json(B / "tasks" / f"{CLOSE_TASK}.json",
+               {"id": CLOSE_TASK, "goal_id": CLOSE_GOAL, **CLOSE_GOVERNANCE,
+                "status": "review", "expected_pr": CLOSE_IMPL_PR, "ledger_evidence": ["L-close-base"]})
+    write_json(B / "locks" / f"{CLOSE_TASK}.json",
+               {"task_id": CLOSE_TASK, "goal_id": CLOSE_GOAL, "state": base_lock_state, "owner": "shiki-run"})
+    write_json(B / "goals" / f"{CLOSE_GOAL}.json",
+               {"id": CLOSE_GOAL, "status": "in-progress", "title": "g", "risk_level": "critical"})
+
+    head_ledgers = [CLOSE_COMP, CLOSE_PULL] if completes else [CLOSE_PULL]
+    head_task = {"id": CLOSE_TASK, "goal_id": CLOSE_GOAL, **CLOSE_GOVERNANCE,
+                 "status": "done", "expected_pr": CLOSE_PR, "closeout_pr": CLOSE_PR,
+                 "ledger_evidence": head_ledgers}
+    if head_mutate:
+        head_mutate(head_task)
+    write_json(S / "tasks" / f"{CLOSE_TASK}.json", head_task)
+    write_json(S / "locks" / f"{CLOSE_TASK}.json",
+               {"task_id": CLOSE_TASK, "goal_id": CLOSE_GOAL, "state": lock_head_state, "owner": "shiki-run"})
+    write_json(S / "goals" / f"{CLOSE_GOAL}.json",
+               {"id": CLOSE_GOAL, "status": goal_head_status, "title": "g", "risk_level": "critical"})
+    write_json(S / "ledger" / f"{CLOSE_PULL}.json",
+               {"id": CLOSE_PULL, "goal_id": CLOSE_GOAL, "task_id": CLOSE_TASK, "type": "lock",
+                "summary": f"closeout /pull PR #{CLOSE_PR}", "evidence": [f".shiki/tasks/{CLOSE_TASK}.json"], "links": [CLOSE_URL]})
+
+    if completes:
+        write_json(S / "dag" / f"{CLOSE_GOAL}.json", {"goal_id": CLOSE_GOAL, "nodes": [CLOSE_TASK], "edges": []})
+        write_json(S / "ledger" / f"{CLOSE_COMP}.json",
+                   {"id": CLOSE_COMP, "goal_id": CLOSE_GOAL, "task_id": None, "type": "completion",
+                    "summary": "goal complete", "evidence": comp_evidence or [CLOSE_REPORT_REL]})
+        write_json(S / CLOSE_REPORT_REL, {"id": CLOSE_REPORT_ID, "goal_id": CLOSE_GOAL, "status": "complete"})
+        changed = [
+            ("M", f".shiki/tasks/{CLOSE_TASK}.json"),
+            ("M", f".shiki/locks/{CLOSE_TASK}.json"),
+            ("M", f".shiki/goals/{CLOSE_GOAL}.json"),
+            ("A", CLOSE_REPORT_REL),
+            ("A", f".shiki/ledger/{CLOSE_COMP}.json"),
+            ("A", f".shiki/ledger/{CLOSE_PULL}.json"),
+        ]
+    else:
+        write_json(S / "dag" / f"{CLOSE_GOAL}.json",
+                   {"goal_id": CLOSE_GOAL, "nodes": [CLOSE_TASK, f"{CLOSE_TASK}-sib"], "edges": []})
+        write_json(S / "tasks" / f"{CLOSE_TASK}-sib.json",
+                   {"id": f"{CLOSE_TASK}-sib", "goal_id": CLOSE_GOAL, "status": "running", "title": "s"})
+        changed = [
+            ("M", f".shiki/tasks/{CLOSE_TASK}.json"),
+            ("M", f".shiki/locks/{CLOSE_TASK}.json"),
+            ("A", f".shiki/ledger/{CLOSE_PULL}.json"),
+        ]
+
+    if extra_target_files:
+        for rel, payload in extra_target_files.items():
+            write_json(S / rel, payload)
+    if extra_changed:
+        changed = changed + extra_changed
+
+    write_json(S / "gha" / "pr.json", close_pr())
+    write_json(S / "gha" / "cca-verdict.json", close_cca())
+    # No Guardian approval evidence: a non-exempted critical PR must fall back to
+    # REQUIRING approval and block for its absence; an exempted one skips the gate.
+    for gname in ("live-guardian-comments.json", "live-guardian-events.json", "live-guardian-timeline.json"):
+        write_json(S / "gha" / gname, [])
+    files = [path for _, path in changed]
+    (S / "gha" / "changed-files.txt").write_text("\n".join(files) + "\n", encoding="utf-8")
+    (S / "gha" / "changed-files-status.txt").write_text("\n".join(f"{s}\t{p}" for s, p in changed) + "\n", encoding="utf-8")
+    return target
+
+
+def close_run(target: pathlib.Path, *, merged: str = str(CLOSE_IMPL_PR)) -> subprocess.CompletedProcess:
+    return run_mergegate(
+        target,
+        expected_head=CLOSE_HEAD,
+        base_shiki=str(target / ".shiki" / "gha" / "base-shiki" / ".shiki"),
+        merged_prs=merged,
+    )
+
+
+def expect_guardian_fallback(target: pathlib.Path, *, merged: str = str(CLOSE_IMPL_PR)) -> None:
+    result = close_run(target, merged=merged)
+    if result.returncode == 0:
+        raise AssertionError(f"expected the Guardian approval fallback to block, got success:\n{result.stdout}")
+    assert_contains(result.stdout, GUARDIAN_APPROVAL_FALLBACK)
+
+
+def expect_exempted(target: pathlib.Path, *, merged: str = str(CLOSE_IMPL_PR)) -> None:
+    result = close_run(target, merged=merged)
+    if GUARDIAN_APPROVAL_FALLBACK in result.stdout:
+        raise AssertionError(f"bookkeeping exemption did not fire; Guardian block present:\n{result.stdout}")
+
+
+# Clean control: a proven completing closeout of a CRITICAL task with NO Guardian
+# approval evidence is exempted, so the approval requirement does NOT fire.
+expect_exempted(build_closeout("close-clean-completing"))
+expect_exempted(build_closeout("close-clean-noncompleting", completes=False))
+
+# Smuggling 1: one non-.shiki file (covered by a declared lock, so ONLY the
+# under-.shiki rule can reject it).
+expect_guardian_fallback(
+    build_closeout("close-smuggle-nonshiki", extra_changed=[("M", "scripts/close_fixture_placeholder.py")])
+)
+# Smuggling 2: editing a governance field (acceptance_checks) of the task contract.
+expect_guardian_fallback(
+    build_closeout("close-smuggle-governance",
+                   head_mutate=lambda t: t.__setitem__("acceptance_checks", ["a smuggled criterion"]))
+)
+# Smuggling 3: deleting a mirror record.
+expect_guardian_fallback(
+    build_closeout("close-smuggle-delete", extra_changed=[("D", f".shiki/worktrees/{CLOSE_TASK}.json")])
+)
+# Smuggling 4: setting a status outside the terminal set (goal -> blocked).
+expect_guardian_fallback(build_closeout("close-smuggle-status", goal_head_status="blocked"))
+# Smuggling 5: adding a second scorecard report (covered by the completion ledger
+# so ONLY the one-report rule can reject it).
+_second_report = ".shiki/reports/R-20260731T010000000003Z-c105e5ce.json"
+expect_guardian_fallback(
+    build_closeout(
+        "close-smuggle-second-report",
+        comp_evidence=[CLOSE_REPORT_REL, _second_report],
+        extra_target_files={_second_report.split(".shiki/", 1)[1]: {"id": "R-20260731T010000000003Z-c105e5ce", "goal_id": CLOSE_GOAL}},
+        extra_changed=[("A", _second_report)],
+    )
+)
+# Smuggling 6: the task's implementation PR is not proven merged.
+expect_guardian_fallback(build_closeout("close-smuggle-unmerged"), merged="")
+
 
 print("governance evidence adversarial fixtures passed")
 PY

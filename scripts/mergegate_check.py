@@ -1239,10 +1239,19 @@ def _guardian_policy_path(target: Path, value: str) -> Path:
     return path if path.is_absolute() else target / path
 
 
-def _guardian_risk_labels(pr: dict[str, Any], task: dict[str, Any] | None) -> list[str]:
+def _guardian_risk_labels(
+    pr: dict[str, Any], task: dict[str, Any] | None, *, bookkeeping_closeout: bool = False
+) -> list[str]:
     labels = list(pr_label_names(pr))
     if task:
         risk = str(task.get("risk_level") or "").strip().lower()
+        if bookkeeping_closeout:
+            # ADR 0017: a PROVEN bookkeeping closeout carries no implementation and
+            # inherits no new risk, so the TASK's risk is evaluated as if low at this
+            # single Guardian decision point. PR labels (an independent
+            # maintainer-applied signal) are left untouched, so a maintainer can
+            # still force the gate by labelling the PR.
+            risk = "low"
         if risk:
             labels.append(risk)
             labels.append(f"risk:{risk}")
@@ -1252,6 +1261,208 @@ def _guardian_risk_labels(pr: dict[str, Any], task: dict[str, Any] | None) -> li
 def _builtin_guardian_risk_required(risk_labels: list[str]) -> bool:
     normalized = {label.strip().lower().removeprefix("risk:") for label in risk_labels if label.strip()}
     return bool(normalized.intersection({"high", "critical"}))
+
+
+# Task-file keys a bookkeeping closeout may legitimately move between the base
+# snapshot and the PR head. Every OTHER key is the frozen governance contract
+# (scope, non_goals, required_skills, risk_level, locks, acceptance_checks,
+# test_command, title, dependencies, …) and must be byte-identical, so the
+# exemption can never ride a smuggled contract edit.
+_CLOSEOUT_MUTABLE_TASK_FIELDS = frozenset({"status", "expected_pr", "closeout_pr", "ledger_evidence"})
+
+
+def _closeout_completes_goal(target: Path, goal_id: str) -> bool | None:
+    """Whether this closeout completes its goal: every task node of the goal's DAG
+    is ``done`` at HEAD (this task set ``done`` by the closeout). Returns None when
+    it cannot be established (missing/empty DAG, or an unresolvable node) so the
+    caller fails closed. The DAG is read at HEAD, but a bookkeeping closeout may
+    not change the DAG (``is_bookkeeping_closeout`` rejects any ``.shiki/dag`` path
+    in the diff), so the DAG this reads is the authoritative base DAG."""
+    dag = load_dag(target, goal_id)
+    nodes = dag.get("nodes") if isinstance(dag, dict) else None
+    if not isinstance(nodes, list) or not nodes:
+        return None
+    for node in nodes:
+        node_task = load_task(target, str(node))
+        if not isinstance(node_task, dict):
+            return None
+        if str(node_task.get("status")) != "done":
+            return False
+    return True
+
+
+def is_bookkeeping_closeout(
+    *,
+    target: Path,
+    task: dict[str, Any] | None,
+    task_id: str,
+    goal_id: str,
+    base_shiki: Path | None,
+    changed_files_status: list[ChangedFile],
+    merged_pr_numbers: set[int],
+) -> bool:
+    """Classify whether a PR is a pure bookkeeping closeout (ADR 0017).
+
+    A bookkeeping closeout carries ONLY the terminal state that a merged task's
+    completion writes to ``main``: the task moves ``review -> done``, its lock
+    ``active -> released``, and — ONLY when this task completes its goal — the goal
+    moves ``-> complete`` with exactly one added scorecard report. It contains zero
+    implementation, so it needed no code review to produce and inherits no new
+    risk; a qualifying PR is therefore evaluated as if the task were low risk at
+    the single Guardian decision point (``enforce_guardian_policy``), while every
+    OTHER gate runs unchanged.
+
+    Every condition is proven from the diff, the base snapshot, and live PR state
+    (``merged_pr_numbers``) — NEVER from the PR body, a label, a marker, or any
+    task field the PR head can write (note: this function never reads the PR at
+    all). It FAILS CLOSED on every axis: any condition that cannot be established
+    (missing base snapshot, unreadable task file, unresolvable implementation PR,
+    missing DAG, …) returns False, and the PR inherits the task's real risk exactly
+    as before.
+
+    The six ADR 0017 conditions:
+      1. every changed path is under ``.shiki/`` (one byte outside disqualifies);
+      2. no path is deleted;
+      3. every changed path is inside the task's declared locks unioned with its
+         derived id-scoped mirror locks (the existing files-outside-locks rule);
+      4. the task file's governance fields are byte-identical to the base snapshot
+         — only status, expected_pr, closeout_pr and ledger_evidence may differ;
+      5. the transitions are exactly the terminal set: task ``review -> done``,
+         lock ``active -> released``, and ONLY when this task completes its goal,
+         goal ``-> complete`` with exactly one added scorecard report;
+      6. the task's implementation PR (named by the BASE snapshot's expected_pr,
+         which the PR head cannot write) is proven merged.
+    """
+    try:
+        if base_shiki is None or not base_shiki.exists():
+            return False
+        if not isinstance(task, dict) or str(task.get("id") or "") != task_id or not goal_id:
+            return False
+        base_task = load_json(base_shiki / "tasks" / f"{task_id}.json")
+        if not isinstance(base_task, dict):
+            return False
+
+        # Condition 4: every task-file key outside the mutable set is the frozen
+        # governance contract and must equal the base snapshot exactly.
+        for key in set(base_task) | set(task):
+            if key in _CLOSEOUT_MUTABLE_TASK_FIELDS:
+                continue
+            if base_task.get(key) != task.get(key):
+                return False
+
+        # Condition 5 (task leg): status transitions review -> done, exactly.
+        if str(base_task.get("status")) != "review" or str(task.get("status")) != "done":
+            return False
+
+        # Condition 6: the implementation PR is named by the BASE expected_pr (a
+        # field the PR head cannot write) and must be proven merged.
+        try:
+            impl_pr_num = int(base_task.get("expected_pr"))
+        except (TypeError, ValueError):
+            return False
+        if impl_pr_num not in (merged_pr_numbers or set()):
+            return False
+
+        # Whether this closeout completes its goal, judged from the HEAD DAG.
+        completes_goal = _closeout_completes_goal(target, goal_id)
+        if completes_goal is None:
+            return False
+
+        task_file = f".shiki/tasks/{task_id}.json"
+        lock_file = f".shiki/locks/{task_id}.json"
+        goal_file = f".shiki/goals/{goal_id}.json"
+        worktree_file = f".shiki/worktrees/{task_id}.json"
+
+        task_changed = False
+        lock_released = False
+        goal_completed = False
+        reports_added = 0
+        changed_paths: list[str] = []
+
+        for entry in changed_files_status:
+            path = normalize_repo_path(entry.path)
+            old_path = normalize_repo_path(entry.old_path or "")
+            # Condition 1: every changed path (both legs of a rename) under .shiki/.
+            for candidate in (candidate for candidate in (path, old_path) if candidate):
+                if not candidate.startswith(".shiki/"):
+                    return False
+                changed_paths.append(candidate)
+            # Condition 2: no deletion (a rename splits into a delete leg too).
+            if entry.status == "D":
+                return False
+
+            if path == task_file:
+                task_changed = True
+            elif path == lock_file:
+                # Condition 5 (lock leg): active -> released, proven against base.
+                base_lock = load_json(base_shiki / "locks" / f"{task_id}.json")
+                head_lock = load_json(target / path)
+                if not (isinstance(base_lock, dict) and base_lock.get("state") == "active"):
+                    return False
+                if not (isinstance(head_lock, dict) and head_lock.get("state") == "released"):
+                    return False
+                lock_released = True
+            elif path == goal_file:
+                # Condition 5 (goal leg): a goal transition is allowed ONLY when
+                # this task completes its goal, and must be -> complete.
+                if not completes_goal:
+                    return False
+                base_goal = load_json(base_shiki / "goals" / f"{goal_id}.json")
+                head_goal = load_json(target / path)
+                if not (isinstance(head_goal, dict) and str(head_goal.get("status")) == "complete"):
+                    return False
+                if isinstance(base_goal, dict) and str(base_goal.get("status")) == "complete":
+                    # Already complete on base: not a real completion transition.
+                    return False
+                goal_completed = True
+            elif path.startswith(".shiki/reports/") and path.endswith(".json"):
+                # A scorecard is ADDED by goal completion; a modified report is not
+                # part of the terminal set.
+                if entry.status != "A":
+                    return False
+                reports_added += 1
+            elif path == worktree_file:
+                # This task's own worktree record is benign id-scoped mirror state
+                # (no governance transition); condition 3 still covers it.
+                pass
+            elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
+                # Ledgers are append-only mirror bookkeeping (condition 3 and the
+                # untrusted-mutation gate police them); an ADD carries no transition,
+                # but a modify is never part of a closeout's terminal set.
+                if entry.status != "A":
+                    return False
+            else:
+                # Any other .shiki path (dag, memories, guardian-policy, another
+                # task/goal/lock, a plan, …) is not part of the terminal set.
+                return False
+
+        # Condition 3: every changed path inside the task's declared locks unioned
+        # with its derived id-scoped mirror locks. HEAD locks equal base locks
+        # (frozen by condition 4), so a PR cannot widen them to sneak a file in.
+        declared_locks = [str(lock) for lock in task.get("locks") or []]
+        effective_locks = list(dict.fromkeys([*declared_locks, *_derive_task_mirror_locks(target, task)]))
+        if files_outside_locks(changed_paths, effective_locks):
+            return False
+
+        # The task's review -> done transition is the closeout; its lock release is
+        # a merged task's residue. Both are mandatory.
+        if not task_changed or not lock_released:
+            return False
+
+        if completes_goal:
+            # A completing closeout MUST carry the goal -> complete transition and
+            # EXACTLY ONE added scorecard report.
+            if not goal_completed or reports_added != 1:
+                return False
+        else:
+            # A non-completing closeout must carry NO goal transition and NO report.
+            if goal_completed or reports_added != 0:
+                return False
+
+        return True
+    except (OSError, ValueError, TypeError):
+        # Unreadable/malformed evidence is fail-closed: NOT a bookkeeping closeout.
+        return False
 
 
 def _load_guardian_evidence(
@@ -1296,8 +1507,9 @@ def enforce_guardian_policy(
     blocking: list[str],
     warnings: list[str],
     expected_repository: str = "",
+    bookkeeping_closeout: bool = False,
 ) -> None:
-    risk_labels = _guardian_risk_labels(pr, task)
+    risk_labels = _guardian_risk_labels(pr, task, bookkeeping_closeout=bookkeeping_closeout)
     requires_guardian = _builtin_guardian_risk_required(risk_labels)
     try:
         policy = load_guardian_policy_file(_guardian_policy_path(target, guardian_policy))
@@ -1600,6 +1812,18 @@ def main() -> int:
     reconcile_mode = False
     post_merge_mode = False
     contract_mode = False
+    # PR numbers proven merged (live PR state gathered by the workflow). Used by
+    # post_merge_reconcile to prove its referenced PR merged, and by the bookkeeping
+    # closeout classifier to prove the task's implementation PR merged (ADR 0017).
+    merged_prs = {
+        int(token.strip())
+        for token in str(args.merged_prs or "").split(",")
+        if token.strip().isdigit()
+    }
+    # Whether the (normal single-task) PR is a proven bookkeeping closeout, so the
+    # Guardian gate evaluates it as if the task were low risk (ADR 0017). Stays
+    # False for contract / goal_reconcile / post_merge_reconcile PRs.
+    bookkeeping_closeout = False
     manifest: dict[str, Any] | None = None
     try:
         manifest = load_manifest(target)
@@ -1727,11 +1951,6 @@ def main() -> int:
         files_status = parse_changed_files_status(
             Path(args.changed_files_status), changed_files(Path(args.changed_files))
         )
-        merged_prs = {
-            int(token.strip())
-            for token in str(args.merged_prs or "").split(",")
-            if token.strip().isdigit()
-        }
         enforce_post_merge_reconcile(
             target=target,
             task_id=resolved_task_id or "",
@@ -1788,6 +2007,21 @@ def main() -> int:
             for path in files_outside_locks(files, effective_locks):
                 blocking.append(f"Changed file {path} is outside declared task locks")
             blocking.extend(active_lock_conflicts(target, resolved_task_id, locks, files))
+
+            # ADR 0017: a proven bookkeeping closeout (task terminal state only, no
+            # implementation) is evaluated as if low risk at the Guardian gate
+            # below. Computed here (where the head task, base snapshot, diff and
+            # merged-PR proof are all in hand); consulted only by
+            # enforce_guardian_policy. Read-only — it never adds a blocking reason.
+            bookkeeping_closeout = is_bookkeeping_closeout(
+                target=target,
+                task=task,
+                task_id=resolved_task_id,
+                goal_id=task_goal_id,
+                base_shiki=Path(args.base_shiki) if args.base_shiki else None,
+                changed_files_status=files_status,
+                merged_pr_numbers=merged_prs,
+            )
 
             ledger_entries = load_ledger_entries(target, task, warnings, blocking)
             if pr:
@@ -1886,6 +2120,7 @@ def main() -> int:
                 blocking=blocking,
                 warnings=warnings,
                 expected_repository=args.expected_repository,
+                bookkeeping_closeout=bookkeeping_closeout,
             )
     elif not args.allow_missing_cca:
         blocking.append(f"CCA verdict file not found at {args.cca_verdict}")
