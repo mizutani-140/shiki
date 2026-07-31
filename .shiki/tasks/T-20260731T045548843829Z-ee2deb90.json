@@ -10,8 +10,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260731t045548843829z-ee2deb90-resolve-the-merged-pr-proof-for-every-pr-the-pol",
-  "expected_pr": 214,
+  "expected_branch": "shiki/t-20260731t045548843829z-ee2deb90-closeout",
+  "expected_pr": 215,
   "github_issue": null,
   "goal_id": "G-20260731T045548842404Z-dac91fc1",
   "id": "T-20260731T045548843829Z-ee2deb90",
@@ -23,7 +23,9 @@
     "L-20260731T050602253074Z-3fc4c509",
     "L-20260731T051047277832Z-63e7ab70",
     "L-20260731T051109143031Z-566c2fec",
-    "L-20260731T051112799569Z-8114242f"
+    "L-20260731T051112799569Z-8114242f",
+    "L-20260731T052935076908Z-d856a044",
+    "L-20260731T052939657139Z-ec25b251"
   ],
   "locks": [
     "path:.github/workflows/shiki-cca-completion.yml",
@@ -47,7 +49,7 @@
   ],
   "risk_level": "critical",
   "scope": "In `.github/workflows/shiki-cca-completion.yml`, move the `MERGED_PRS` resolution in the `Enforce MergeGate` step out of the `post_merge_reconcile`-marker conditional so it is computed for every PR the job judges. Resolve it the same way the Prepare CCA context step already does for the CCA signal: take the task id from the PR body with the same TASK_ID semantics `mergegate_check.py` uses, read `expected_pr` from the BASE snapshot task file (`.shiki/gha/base-shiki/.shiki/tasks/<task_id>.json` \u2014 the base value, never the head's, which the PR can write), and include that number in `MERGED_PRS` only when `gh pr view` reports its state MERGED.\n\nThe post_merge_reconcile path must keep receiving exactly the value it receives today; that mode consumes the same `--merged-prs` input to prove its referenced PR merged, so its behaviour must not change. Computing the value for other modes as well is additive.\n\nAdd `tests/test_policy_job_merged_prs.py` asserting the workflow's shape: the `Enforce MergeGate` step's `MERGED_PRS` resolution is not nested inside a `post_merge_reconcile` marker test; it reads the base snapshot's task file rather than the head's; and it gates inclusion on a MERGED state. Add a wiring-completeness assertion that enumerates the invocations of `mergegate_check.py` and `guardian_approval_signal.py` in this workflow and requires each to receive `--base-shiki` and `--merged-prs`, so a future invocation added without them fails the suite instead of silently reintroducing this gap.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a closeout PR for a high/critical task shows `CCA verdict` PASS with `.shiki/gha/guardian-approval.json` reporting `required: false, bookkeeping_closeout_exemption: true`, and `MergeGate policy check` FAIL with `Guardian label 'guardian:approved' is missing`. One gate exempts the PR and the other does not, so the ADR 0017 exemption still cannot produce a merge without an operator approval.\n  Root cause: the policy job passes `--base-shiki` but computes `MERGED_PRS` only inside `if printf '%s' \"$body\" | grep -q '<!-- shiki:post_merge_reconcile -->'`. A bookkeeping closeout carries no such marker, so `MERGED_PRS` is empty and ADR 0017 condition 6 cannot be established. The classifier then fails closed \u2014 correct behaviour on an input the job never supplied.\n  Exact change that reproduces this result: hoist the `MERGED_PRS` resolution out of the marker conditional so it runs for every judged PR, reading `expected_pr` from the BASE task snapshot and including it only when that PR is MERGED.\n  Manual step removed: one Guardian approval per closeout of a high/critical task \u2014 the last remaining piece of the cost ADR 0017 was written to remove.\n  Observed: PR #212 (head 39da367baaab745d0e6c100fa4b53b5d6699b7ff) and PR #213 (head 4be8fb7341520aaf9d3b8f577b0d24a66a7f28da), both closeouts of critical tasks: CCA signal exempt, policy check blocked, each merged only after a manual approval.\n  Reproducible when: `shiki loop step` drives a critical task's closeout from creation to merge with zero Guardian approvals, and every ADR 0017 disqualifier still blocks on BOTH gates.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_workflow_lint.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Resolve the merged-PR proof for every PR the policy job judges, not only post_merge_reconcile"
 }
