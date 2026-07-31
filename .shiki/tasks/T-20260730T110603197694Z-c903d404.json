@@ -12,7 +12,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260730t110603197694z-c903d404-fetch-the-base-ref-in-full-and-inject-the-author",
+  "expected_branch": "shiki/t-20260730t110603197694z-c903d404-closeout",
   "expected_pr": 206,
   "github_issue": null,
   "goal_id": "G-20260730T110603196220Z-c50d61b5",
@@ -25,7 +25,8 @@
     "L-20260730T111405022571Z-1c9333e7",
     "L-20260730T111818664689Z-fb75da27",
     "L-20260730T111845261192Z-510f04d3",
-    "L-20260730T111848690452Z-73d61e50"
+    "L-20260730T111848690452Z-73d61e50",
+    "L-20260731T002819220346Z-2fc56d9c"
   ],
   "locks": [
     "path:.github/workflows/shiki-cca-completion.yml",
@@ -67,7 +68,7 @@
   ],
   "risk_level": "high",
   "scope": "Two changes.\n\n(a) In `.github/workflows/shiki-cca-completion.yml`, drop `--depth=1` from both base-ref fetches (lines 52 and 400 as of this writing): `git fetch origin \"$base_ref\" --depth=1` becomes `git fetch origin \"$base_ref\"`. Both jobs already check out with `fetch-depth: 0`, so full history is present and the depth flag only shallows the base ref back down, destroying the merge base that the following `git diff --name-only \"origin/${base_ref}...HEAD\"` needs. Change nothing else about those steps.\n\n(b) In `scripts/enforce_cca_verdict.py`, treat the head SHA as workflow-supplied rather than model-supplied. Read an authoritative value from a new environment variable (`SHIKI_HEAD_SHA`); when it is set and non-empty, set `verdict[\"head_sha\"]` to it before validation and before the verdict file is written. If the model's original value differs from the authoritative one, keep the original under a non-authoritative key (for example `head_sha_reported`) and print a warning naming both, so the disagreement is auditable in the uploaded evidence rather than silently erased. When the variable is unset, behave exactly as today (so local and offline invocations are unaffected). Pass `SHIKI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}` in the `Enforce CCA verdict` step's env \u2014 the same expression the manifest builder already uses for `--head-sha`.\n\nAdd `tests/test_cca_head_sha_injection.py` covering: an authoritative SHA replaces a mismatched model value and the original is preserved under the non-authoritative key; a matching model value is unchanged and no spurious warning key appears; an unset/empty variable leaves the verdict untouched; the injected value is what downstream validation sees. Add a workflow-shape assertion that neither base fetch carries `--depth=1` and that the Enforce step passes `SHIKI_HEAD_SHA` \u2014 placed in this task's own test file, because `scripts/test_shiki_workflow_lint.sh` is held by another task's lock and must not be edited.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom (a): a CCA job dies in 2-8 seconds with `fatal: origin/main...HEAD: no merge base`, exit 128, on a PR that was green minutes earlier. The trigger is always the same: some other PR merged. Every open PR must then take a merge from the base, which moves its head, which invalidates its head-bound Guardian approval comment and costs a fresh approval.\n  Symptom (b): `MergeGate policy check` blocks with `CCA head_sha does not match the current PR headRefOid` and `CCA evidence manifest verdict.head_sha does not match current PR headRefOid`, on a PR whose run head and PR head are byte-identical, because the model mistyped the SHA into its structured output.\n  Exact change that reproduces this result: delete `--depth=1` from the two `git fetch origin \"$base_ref\"` invocations; add `SHIKI_HEAD_SHA` to the Enforce step's env and have `enforce_cca_verdict.py` overwrite `verdict[\"head_sha\"]` from it while preserving the model's value under a separate key.\n  Manual steps removed: merging the base into every other open PR after each merge, and the Guardian re-approval each of those forces; plus re-running a CCA purely to get a correctly transcribed SHA.\n  Observed: PR #191 (crash right after #190 merged), PR #193 (crash, 8s), PR #199 (crash, 2s), PR #195 (SHA short by four characters: wrote `9585b399e30df02429dc25a0afdaa37eaebb`, actual `9585b399e30df02429dc25a0afdaa37efa7aeebb`; three full re-runs to clear). Across 26 merged PRs, 6 of 21 Guardian approval actions were re-approvals attributable to (a).\n  Reproducible when: merging one PR leaves every other open PR's CCA able to reach a verdict without a base merge, and a verdict's head_sha is correct even if the model writes it wrong.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_workflow_lint.sh && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Fetch the base ref in full and inject the authoritative head SHA into the CCA verdict"
 }
