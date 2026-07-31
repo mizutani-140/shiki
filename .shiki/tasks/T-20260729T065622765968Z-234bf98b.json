@@ -10,7 +10,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260729t065622765968z-234bf98b-closeout",
-  "expected_pr": 218,
+  "expected_pr": 219,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622765968Z-234bf98b",
@@ -21,7 +21,8 @@
     "L-20260731T060829915702Z-8527b54a",
     "L-20260731T061853929925Z-c1a07ebd",
     "L-20260731T061921869076Z-76a24404",
-    "L-20260731T061925533979Z-34f53ab3"
+    "L-20260731T061925533979Z-34f53ab3",
+    "L-20260731T063531955072Z-34a7a7cd"
   ],
   "locks": [
     "path:.github/workflows/shiki-mergegate.yml",
