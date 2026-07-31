@@ -16,8 +16,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260731t004111132162z-bfcf2c9e-derive-the-bookkeeping-closeout-exemption-in-mer",
-  "expected_pr": 208,
+  "expected_branch": "shiki/t-20260731t004111132162z-bfcf2c9e-closeout",
+  "expected_pr": 209,
   "github_issue": null,
   "goal_id": "G-20260731T004111130646Z-0dbace30",
   "id": "T-20260731T004111132162Z-bfcf2c9e",
@@ -29,7 +29,9 @@
     "L-20260731T012003323504Z-f3b05d67",
     "L-20260731T012825537931Z-20504848",
     "L-20260731T012857621873Z-465686a2",
-    "L-20260731T012901080429Z-e0a48ea5"
+    "L-20260731T012901080429Z-e0a48ea5",
+    "L-20260731T022353239019Z-e237cdb0",
+    "L-20260731T022356704813Z-55bc95bf"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
@@ -62,7 +64,7 @@
   ],
   "risk_level": "critical",
   "scope": "In `scripts/mergegate_check.py`, add a classifier \u2014 call it `is_bookkeeping_closeout` \u2014 and consult it where the Guardian requirement is decided, so a qualifying PR is evaluated as if the task were low risk while every other gate runs unchanged. Today `_guardian_risk_labels` appends the task's `risk_level` and `_builtin_guardian_risk_required` returns true for high/critical; the exemption belongs at that single decision point, not as a second parallel answer.\n\nA PR qualifies ONLY when all six ADR 0017 conditions are proven from the diff, the base snapshot and live PR state \u2014 never from the PR body, a label, a marker, or any task field the PR itself can write:\n  1. every changed path is under `.shiki/` (one byte outside disqualifies);\n  2. no path is deleted;\n  3. every changed path is inside the task's declared locks unioned with its derived id-scoped mirror locks (the existing files_outside_locks rule, unchanged);\n  4. the task file's governance fields (scope, non_goals, required_skills, risk_level, locks, acceptance_checks, test_command) are byte-identical to the base snapshot \u2014 only status, expected_pr, closeout_pr and ledger_evidence may differ;\n  5. the transitions are exactly the terminal set: task review -> done, lock active -> released, and ONLY when this task completes its goal, goal -> complete with exactly one added scorecard report. Any other status value, any other transition, or a second report disqualifies;\n  6. the task's implementation PR is merged.\nFail closed on every axis: a condition that cannot be established (missing base snapshot, unreadable task file, unresolvable implementation PR) means NOT a bookkeeping closeout, and the PR inherits the task's risk exactly as today.\n\nAdd `tests/test_bookkeeping_closeout.py` for the positive case and for each disqualifier in isolation. Extend the adversarial suites with the smuggling cases: a closeout carrying one non-`.shiki` file; one editing a governance field; one deleting a mirror record; one setting an unexpected status; one adding a second scorecard; one whose implementation PR is not merged. Each must be REJECTED as a bookkeeping closeout and fall back to requiring Guardian approval \u2014 assert the fallback, not merely that the PR blocks, so a future change that blocks for an unrelated reason cannot mask a classifier regression.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: after a high/critical task's implementation PR merges under full Guardian approval, the loop opens a closeout PR containing `task.status = done`, `lock.state = released` and (when the goal completes) `goal.status = complete` plus one scorecard \u2014 zero lines of code \u2014 and MergeGate demands a second Guardian approval for it, because `_guardian_risk_labels` derives the requirement from the same task's risk_level.\n  Measured cost: across 31 PRs merged 2026-07-29/30, 7 of 21 Guardian approval actions were exactly this. PRs #185, #188, #194, #195, #196, #203, #204, #205 and #207 were each a zero-code closeout that required its own approval round.\n  Exact change that reproduces this result: add the six-condition classifier and consult it at the `_builtin_guardian_risk_required` decision point, so a proven bookkeeping closeout is evaluated as low risk.\n  Manual step removed: one operator approval per high/critical task, for a PR containing no implementation.\n  Reproducible when: `shiki loop step` can drive a high-risk task's closeout to merge with no Guardian approval, while every listed smuggling case still requires one.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_governance_evidence.sh && bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Derive the bookkeeping-closeout exemption in MergeGate and prove it fails closed"
 }
