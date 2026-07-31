@@ -12,7 +12,7 @@ import re
 import tempfile
 from typing import Any, Callable, Literal
 
-from shiki_process import print_json
+from shiki_process import ShikiError, print_json
 
 MigrationStatus = Literal["applied", "pending", "failed", "skipped"]
 
@@ -27,8 +27,12 @@ MIGRATION_ID_RE = re.compile(r"^M-[0-9]{8}-[0-9]{4}-[a-z0-9][a-z0-9-]*$")
 MIGRATION_SOURCE_OF_TRUTH = "Repository-local Shiki migration state. GitHub operational state remains authoritative."
 
 
-class MigrationError(Exception):
-    """Raised when migration state, registry, or apply policy is invalid."""
+class MigrationError(ShikiError):
+    """Raised when migration state, registry, or apply policy is invalid.
+
+    Subclasses ShikiError so the CLI surfaces migration failures through the
+    ``[shiki] error:`` exit contract instead of a raw Python traceback.
+    """
 
 
 @dataclass(frozen=True)
@@ -63,7 +67,6 @@ def _baseline_apply(root: Path, dry_run: bool) -> dict[str, Any]:
         ".shiki/tasks",
         ".shiki/goals",
         ".shiki/ledger",
-        ".shiki/goals/G-0012.json",
     ]
     missing = [relative for relative in required if not (root / relative).exists()]
     if missing:
@@ -73,7 +76,6 @@ def _baseline_apply(root: Path, dry_run: bool) -> dict[str, Any]:
         "evidence": [
             ".shiki/manifest.json exists.",
             ".shiki/tasks, .shiki/goals, and .shiki/ledger exist.",
-            "G-0012 exists.",
             "Known prior state is accepted as the baseline without rewriting historical records.",
         ],
         "dry_run": dry_run,
