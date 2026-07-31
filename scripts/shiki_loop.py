@@ -61,7 +61,7 @@ ACTION_PRIORITY = (
     "dispatch",
     "unblock",
 )
-STOP_ACTIONS = {"stop_guardian", "stop_blocked"}
+STOP_ACTIONS = {"stop_guardian", "stop_blocked", "stop_lock_blocked"}
 WAIT_ACTIONS = {"wait_checks", "wait_runner", "wait_dependencies", "none"}
 
 
@@ -341,8 +341,82 @@ def _mark_done(target: Path, task_id: str, reason: str) -> dict[str, Any]:
     return {"task_id": task_id, "status": "done", "ledger_id": ledger_id}
 
 
-def _unblock_ready_tasks(target: Path, goal_id: str) -> list[str]:
+# active_lock_conflicts renders each conflict as "Lock conflict: <lock> held by
+# <owner>" (optionally "... overlaps <file>"). The loop groups these by owner so a
+# single owner holding several overlapping locks reads as one message.
+_LOCK_CONFLICT_PREFIX = "Lock conflict: "
+_LOCK_CONFLICT_HOLDER = " held by "
+
+
+def _split_lock_conflict(blocker: str) -> tuple[str | None, str]:
+    """Parse (overlapping lock, owner task) from an ``active_lock_conflicts``
+    message. An unparseable message yields ``(None, <verbatim message>)`` so it is
+    surfaced under its own key rather than silently dropped."""
+    body = blocker
+    if body.startswith(_LOCK_CONFLICT_PREFIX):
+        body = body[len(_LOCK_CONFLICT_PREFIX):]
+    holder = body.find(_LOCK_CONFLICT_HOLDER)
+    if holder == -1:
+        return None, blocker
+    held = body[:holder]
+    owner = body[holder + len(_LOCK_CONFLICT_HOLDER):]
+    overlaps = owner.find(" overlaps ")
+    if overlaps != -1:
+        owner = owner[:overlaps]
+    return held, owner
+
+
+def _group_lock_conflicts(blockers: list[str]) -> list[dict[str, Any]]:
+    """Collapse ``active_lock_conflicts`` output to one record per owning task.
+
+    Several overlapping locks held by the SAME owner collapse to a single record
+    (one message per owner, not one per held-lock x owner pair). First-seen order
+    is preserved for both owners and their locks."""
+    by_owner: dict[str, list[str]] = {}
+    order: list[str] = []
+    for blocker in blockers:
+        held, owner = _split_lock_conflict(blocker)
+        if owner not in by_owner:
+            by_owner[owner] = []
+            order.append(owner)
+        if held and held not in by_owner[owner]:
+            by_owner[owner].append(held)
+    return [{"owner_task": owner, "locks": by_owner[owner]} for owner in order]
+
+
+def _lock_blocked_stop(lock_blocked: list[dict[str, Any]]) -> dict[str, Any]:
+    """Turn recorded lock blocks into a distinct, NAMED stop.
+
+    Serialization behind another task's active lock is not a deadlock, so it gets
+    its own action (``stop_lock_blocked``) — distinguishable in loop output from a
+    Guardian stop and from a blocked-evidence ``stop_blocked`` — and a reason that
+    names the owning task and the overlapping locks."""
+    first = lock_blocked[0]
+    task_id = first["task_id"]
+    owners = "; ".join(
+        f"{conflict['owner_task']} holds {', '.join(conflict['locks'])}"
+        for conflict in first["conflicts"]
+    )
+    scope = (
+        f" ({len(lock_blocked)} tasks are blocked on active locks)"
+        if len(lock_blocked) > 1
+        else ""
+    )
+    return {
+        "action": "stop_lock_blocked",
+        "task_id": task_id,
+        "reason": (
+            f"task {task_id} is blocked on an active lock: {owners}{scope} — this is "
+            "lock serialization, not a deadlock; the task runs once the owning task "
+            "releases its lock"
+        ),
+        "lock_conflicts": lock_blocked,
+    }
+
+
+def _unblock_ready_tasks(target: Path, goal_id: str) -> tuple[list[str], list[dict[str, Any]]]:
     unblocked: list[str] = []
+    lock_blocked: list[dict[str, Any]] = []
     for task in tasks_for_goal(target, goal_id):
         if task.get("status") != "planned":
             continue
@@ -351,6 +425,12 @@ def _unblock_ready_tasks(target: Path, goal_id: str) -> list[str]:
             continue
         ok, blockers, _ = try_acquire_locks(target, task["id"])
         if not ok:
+            # A dependency-complete task whose locks overlap another task's ACTIVE
+            # lock is SERIALIZED behind that owner, not deadlocked. Record the
+            # conflict (owner + overlapping locks, deduped per owner) so the loop
+            # NAMES the stop instead of silently skipping — a silent skip read as
+            # the PR #179 deadlock stall.
+            lock_blocked.append({"task_id": task["id"], "conflicts": _group_lock_conflicts(blockers)})
             continue
         if worktree_record(target, task["id"]) is None:
             allocate_worktree_record(target, task["id"])
@@ -358,7 +438,7 @@ def _unblock_ready_tasks(target: Path, goal_id: str) -> list[str]:
         # Rules section, so a stale cached handoff must never be reused (§3.7).
         write_task_handoff(target, task["id"])
         unblocked.append(task["id"])
-    return unblocked
+    return unblocked, lock_blocked
 
 
 def _dispatch(target: Path, task: dict[str, Any], *, repair_id: str | None = None) -> int:
@@ -1366,13 +1446,17 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
         # CLOSEOUT PR merges, the `mark_done` action (below) records done + unblocks.
     elif action == "mark_done":
         result.update(_mark_done(target, task_id, "PR already merged"))
-        result["unblocked"] = _unblock_ready_tasks(target, goal_id)
+        result["unblocked"], _ = _unblock_ready_tasks(target, goal_id)
     elif action == "unblock":
-        unblocked = _unblock_ready_tasks(target, goal_id)
+        unblocked, lock_blocked = _unblock_ready_tasks(target, goal_id)
         result["unblocked"] = unblocked
-        if not unblocked:
+        if not unblocked and lock_blocked:
+            # Serialization behind another task's active lock — name the owner and
+            # overlapping locks so the loop output is not mistaken for a deadlock.
+            result.update(_lock_blocked_stop(lock_blocked))
+        elif not unblocked:
             result["action"] = "stop_blocked"
-            result["reason"] = "dependency-blocked tasks could not be unblocked (incomplete dependencies or lock conflicts)"
+            result["reason"] = "dependency-blocked tasks could not be unblocked (incomplete dependencies)"
     else:
         raise ShikiError(f"goal loop cannot execute unknown action {action!r}")
     return result
