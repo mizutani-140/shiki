@@ -25,7 +25,8 @@
   },
   "id": "G-20260731T031357585622Z-8d094bd1",
   "ledger_evidence": [
-    "L-20260731T031357586482Z-b834623d"
+    "L-20260731T031357586482Z-b834623d",
+    "L-20260731T044325726030Z-28a36398"
   ],
   "non_goals": [
     "Reimplementing the six ADR 0017 conditions anywhere; there must remain exactly one classifier.",
@@ -42,6 +43,6 @@
   ],
   "risk_level": "critical",
   "source_plan": "P-20260731T031357490117Z-dfdd2289",
-  "status": "planned",
+  "status": "complete",
   "title": "Carry the bookkeeping-closeout exemption to the CCA Guardian signal"
 }
