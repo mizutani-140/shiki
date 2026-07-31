@@ -1,0 +1,17 @@
+{
+  "branch": "shiki/t-20260729t065622770911z-a8db8b69-make-a-dispatch-carry-the-complete-current-contr",
+  "created_at": "2026-07-31T07:12:07+00:00",
+  "created_by": "shiki-run",
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "locks": [
+    "path:scripts/shiki_runtime.py",
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_dispatch_state_sync.py",
+    "path:scripts/test_shiki_runner_claude.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260729t065622770911z-a8db8b69-make-a-d",
+  "pr": 222,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260729T065622770911Z-a8db8b69"
+}
