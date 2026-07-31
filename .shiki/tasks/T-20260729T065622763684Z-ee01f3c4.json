@@ -15,7 +15,7 @@
   "dependencies": [
     "T-20260729T065622763023Z-9b974770"
   ],
-  "expected_branch": "shiki/t-20260729t065622763684z-ee01f3c4-make-mergegate-scope-enforcement-see-the-whole-d",
+  "expected_branch": "shiki/t-20260729t065622763684z-ee01f3c4-closeout",
   "expected_pr": 223,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
@@ -65,7 +65,7 @@
   ],
   "risk_level": "high",
   "scope": "In scripts/mergegate_check.py: (a) derive the lock-scope path set from files_status (which already decomposes a rename into D(old)+A(new)) and pass it to both files_outside_locks and active_lock_conflicts, so a rename cannot move a file out of locked scope unseen; (b) add a generic mirror-class rule covering the eleven unscoped directories (dag, plans, reports, memories, runs, worktrees, handoffs, runner, smoke, starts, inbox) \u2014 block deletion and require goal/task scoping \u2014 and extend the base-snapshot delete-protection loop to every tracked mirror directory in the manifest; (c) match the exact runtime filenames cca-verdict.json and mergegate-result.json in runtime_evidence_path() instead of a startswith prefix, which today makes .shiki/schemas/cca-verdict.schema.json permanently unmergeable. Additionally, forbid a PR from creating or modifying a spec_freeze block in ANY mirror state, including its own goal's source plan. Goal/task scoping alone is not sufficient: it stops a PR from writing a foreign plan, but still lets an implementation PR grant itself a Spec Freeze, or append amendments, on the plan that governs it. Spec Freeze is operator-only (ADR 0009), so no PR may author the record of it.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_state_classes.sh && bash scripts/test_shiki_control_plane.sh && python3 -m unittest discover -s tests",
   "title": "Make MergeGate scope enforcement see the whole diff and the whole mirror"
 }
