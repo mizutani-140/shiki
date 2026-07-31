@@ -1,0 +1,45 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A high/critical task's bookkeeping closeout passes the MergeGate policy check with no Guardian approval.",
+    "Every ADR 0017 disqualifier still blocks on the policy path.",
+    "post_merge_reconcile PRs behave exactly as before.",
+    "The full suite, the governance-evidence suite, the workflow-lint script and validate_shiki stay green."
+  ],
+  "created_at": "2026-07-31T04:55:48+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "The policy job in `.github/workflows/shiki-cca-completion.yml` passes `--base-shiki` but computes `MERGED_PRS` inside `if printf '%s' \"$body\" | grep -q '<!-- shiki:post_merge_reconcile -->'`. A bookkeeping closeout carries no such marker, so `MERGED_PRS` is empty, ADR 0017 condition 6 (the implementation PR is merged) cannot be established, and the classifier fails closed \u2014 correctly, on an input the job simply never supplied.",
+      "The fix is to resolve the merged-PR proof unconditionally, exactly as the CCA job's Prepare CCA context step already does: read the BASE task's `expected_pr` (a field the PR head cannot write) and include it only when `gh pr view` reports it MERGED. The post_merge_reconcile path keeps consuming the same value, so its behaviour must not change.",
+      "The wiring points were enumerated mechanically this time rather than guessed, because the count has been wrong four times in this ADR's rollout. Decision sites in code: `mergegate_check.py` `_builtin_guardian_risk_required` and `risk_requires_guardian` (both read `_guardian_risk_labels`, already exempt-aware), and `guardian_approval_signal.py` (already wired). Invocation sites that must supply classifier inputs: `shiki-cca-completion.yml` line 67 (the signal, wired), line 518 (the policy job \u2014 THIS task), and `shiki-mergegate.yml` line 71 (the metadata job).",
+      "The metadata job is deliberately out of scope and is not a gap: it passes no `--pr-json`, so it does not evaluate the Guardian gate for a normal PR at all. Verified empirically on PRs #212 and #213, where the metadata check passed while the policy check blocked on Guardian. Its file is also held by another task's lock."
+    ],
+    "source": "Live on closeout PRs #212 and #213, 2026-07-31: the CCA guardian signal reported required=false with bookkeeping_closeout_exemption=true, while `MergeGate policy check` blocked on 'Guardian label guardian:approved is missing'.",
+    "status": "complete"
+  },
+  "id": "G-20260731T045548842404Z-dac91fc1",
+  "ledger_evidence": [
+    "L-20260731T045548843244Z-d3095b3d"
+  ],
+  "non_goals": [
+    "Changing the six ADR 0017 conditions or the classifier.",
+    "Changing post_merge_reconcile's merge-proof semantics or the mode's validation.",
+    "Resolving the implementation PR from the HEAD task's expected_pr \u2014 it must come from the BASE snapshot, which the PR cannot write.",
+    "Modifying .github/workflows/shiki-mergegate.yml or scripts/mergegate_check.py (held by other tasks / out of scope).",
+    "Making the policy check more permissive than the CCA signal, or vice versa."
+  ],
+  "outcome": "The ADR 0017 exemption reaches the last gate. The CCA signal already exempts a proven bookkeeping closeout; the MergeGate policy check still requires Guardian approval because its merged-PR proof is only computed for `post_merge_reconcile` PRs, which a closeout is not. After this, a high/critical task's closeout merges with zero Guardian approvals.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_plan": "P-20260731T045548737812Z-97cc8363",
+  "status": "planned",
+  "title": "Give the MergeGate policy job the merged-PR proof a closeout needs"
+}
