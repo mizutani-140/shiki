@@ -13,7 +13,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260730t110603197694z-c903d404-closeout",
-  "expected_pr": 206,
+  "expected_pr": 207,
   "github_issue": null,
   "goal_id": "G-20260730T110603196220Z-c50d61b5",
   "id": "T-20260730T110603197694Z-c903d404",
@@ -26,7 +26,8 @@
     "L-20260730T111818664689Z-fb75da27",
     "L-20260730T111845261192Z-510f04d3",
     "L-20260730T111848690452Z-73d61e50",
-    "L-20260731T002819220346Z-2fc56d9c"
+    "L-20260731T002819220346Z-2fc56d9c",
+    "L-20260731T002822514563Z-c12f257b"
   ],
   "locks": [
     "path:.github/workflows/shiki-cca-completion.yml",
