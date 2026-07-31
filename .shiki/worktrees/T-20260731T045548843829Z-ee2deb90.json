@@ -1,0 +1,15 @@
+{
+  "branch": "shiki/t-20260731t045548843829z-ee2deb90-resolve-the-merged-pr-proof-for-every-pr-the-pol",
+  "created_at": "2026-07-31T04:55:48+00:00",
+  "created_by": "shiki-run",
+  "goal_id": "G-20260731T045548842404Z-dac91fc1",
+  "locks": [
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:tests/test_policy_job_merged_prs.py"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260731t045548843829z-ee2deb90-resolve-",
+  "pr": 214,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260731T045548843829Z-ee2deb90"
+}

@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-07-31T04:55:59+00:00",
+  "goal_id": "G-20260731T045548842404Z-dac91fc1",
+  "locks": [
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:tests/test_policy_job_merged_prs.py"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260731T045548843829Z-ee2deb90"
+}

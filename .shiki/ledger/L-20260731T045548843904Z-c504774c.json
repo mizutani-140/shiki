@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260731T045548843829Z-ee2deb90.json"
+  ],
+  "goal_id": "G-20260731T045548842404Z-dac91fc1",
+  "id": "L-20260731T045548843904Z-c504774c",
+  "links": [],
+  "summary": "Task registered from plan: Resolve the merged-PR proof for every PR the policy job judges, not only post_merge_reconcile",
+  "task_id": "T-20260731T045548843829Z-ee2deb90",
+  "timestamp": "2026-07-31T04:55:48+00:00",
+  "type": "task-registered"
+}
