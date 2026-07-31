@@ -639,6 +639,21 @@ def _evidence_relatives_for_task(target: Path, task: dict[str, Any]) -> list[str
             # read_json raises ShikiError (not OSError/ValueError) on a non-dict
             # ledger; a malformed ledger must never crash the sync.
             continue
+        # Ownership bound: expand a ledger's referenced .shiki paths onto the
+        # branch ONLY when the ledger is unambiguously THIS task's own — its
+        # goal_id AND task_id both equal the task's. The ledger FILE is always
+        # carried (it is listed in ledger_evidence); only the transitive
+        # expansion of the paths its evidence references is bounded. This is
+        # deliberately STRICTER than mergegate_check.ledger_entry_allowed_for_task,
+        # which also accepts a goal-scoped ledger with an empty task_id: reusing
+        # that looser bound would let a PR-authored task file pad ledger_evidence
+        # with a foreign or goal-level ledger and inherit the .shiki paths its
+        # evidence references. The completion ledger's own goal-scoped evidence is
+        # synced by _sync_goal_complete_mirror on the closeout path, not here.
+        if str(entry.get("goal_id") or "") != goal_id:
+            continue
+        if str(entry.get("task_id") or "") != task_id:
+            continue
         for ref in entry.get("evidence") or []:
             ref = str(ref)
             if ref.startswith(".shiki/"):
