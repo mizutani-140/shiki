@@ -1,0 +1,45 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A real bookkeeping closeout classifies as exempt on both gates.",
+    "Every ADR 0017 disqualifier still blocks, including any governance-field edit.",
+    "The full suite, the governance-evidence and adversarial suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-07-31T04:07:11+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "The blocking field is `expected_branch`: base `shiki/t-...-derive-the-bookkeeping-closeout-exemption-in-mer`, head `shiki/t-...-closeout`. `scripts/shiki_loop.py` sets it on the closeout worktree's task file, and must, because MergeGate independently blocks when `expected_branch` differs from the PR's head ref (scripts/mergegate_check.py, the `Task expected_branch ... does not match PR head` rule).",
+      "Confirmed by toggling only that value: with `_CLOSEOUT_MUTABLE_TASK_FIELDS` as shipped the classifier returns False on PR #209's real data; adding `expected_branch` returns True. Nothing else about the PR changes.",
+      "Letting it differ grants no power to a PR. `expected_branch` is not a governance field \u2014 it does not affect risk, locks, acceptance or scope \u2014 and the independent head-ref equality rule means a PR cannot set it to any branch other than the one it is actually on. That rule is what makes the whitelist entry safe, so it must not be weakened.",
+      "The defect is in ADR 0017's first draft, not in the implementation: the implementation matched the whitelist the ADR stated. The ADR has been amended to include `expected_branch` and to record why the omission made the exemption unreachable.",
+      "This is the third time in this ADR's rollout that the specification, not the implementation, was wrong about the shape of real operational data. So this contract requires an acceptance check that the classifier returns True for a REAL closeout diff \u2014 a synthetic fixture alone may not satisfy it."
+    ],
+    "source": "Live block on closeout PR #209, 2026-07-31. The classifier was traced against the PR's real base snapshot, real diff and real merged-PR set; it returned False at condition 4.",
+    "status": "complete"
+  },
+  "id": "G-20260731T040711236459Z-50972900",
+  "ledger_evidence": [
+    "L-20260731T040711237305Z-5f8b8dff"
+  ],
+  "non_goals": [
+    "Adding any governance field (scope, non_goals, required_skills, risk_level, locks, acceptance_checks, test_command) to the mutable set.",
+    "Weakening or removing the independent rule that `expected_branch` must equal the PR's head ref \u2014 that rule is what makes this entry safe.",
+    "Changing any of the other five ADR 0017 conditions.",
+    "Changing the CCA signal path, which already delegates to this same classifier.",
+    "Modifying scripts/shiki_loop.py or any file held by another task's lock."
+  ],
+  "outcome": "The ADR 0017 exemption becomes reachable. Today it can never fire: condition 4's mutable-field whitelist omits `expected_branch`, which the goal loop rewrites on every closeout branch by construction, so every real closeout is disqualified on a field that has nothing to do with governance.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_plan": "P-20260731T040711140582Z-16e6260f",
+  "status": "planned",
+  "title": "Let the bookkeeping-closeout exemption survive the branch rewrite the loop always makes"
+}
