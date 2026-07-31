@@ -1,0 +1,16 @@
+{
+  "branch": "shiki/t-20260731t031357587095z-2cb11839-give-the-cca-guardian-signal-the-bookkeeping-clo",
+  "created_at": "2026-07-31T03:13:57+00:00",
+  "created_by": "shiki-run",
+  "goal_id": "G-20260731T031357585622Z-8d094bd1",
+  "locks": [
+    "path:scripts/guardian_approval_signal.py",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:tests/test_guardian_signal_closeout.py"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260731t031357587095z-2cb11839-give-the",
+  "pr": 210,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260731T031357587095Z-2cb11839"
+}

@@ -1,0 +1,58 @@
+{
+  "acceptance_checks": [
+    "scripts/guardian_approval_signal.py imports is_bookkeeping_closeout from scripts/mergegate_check.py and does not contain a second implementation of the six conditions.",
+    "A proven bookkeeping closeout for a critical task yields required=false in the emitted signal JSON.",
+    "Each ADR 0017 disqualifier in isolation \u2014 a non-.shiki path, a governance-field edit, a deletion, a non-terminal status, a second scorecard, an unmerged implementation PR \u2014 yields required=true.",
+    "A missing base snapshot, a missing changed-files status file, or an unresolvable implementation PR each yield required=true.",
+    "The emitted signal JSON records whether the exemption was applied.",
+    "For a representative matrix of cases the signal's exemption decision equals MergeGate's, and the signal is never more permissive.",
+    "The workflow's Prepare CCA context step builds the base snapshot and merge proof and passes them to the signal; the implementation PR is resolved from the BASE task's expected_pr, never the head's.",
+    "tests/test_guardian_signal_closeout.py exists and covers all of the above.",
+    "bash scripts/test_shiki_governance_evidence.sh and bash scripts/test_shiki_workflow_lint.sh stay green without being modified.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260731t031357587095z-2cb11839-give-the-cca-guardian-signal-the-bookkeeping-clo",
+  "expected_pr": 210,
+  "github_issue": null,
+  "goal_id": "G-20260731T031357585622Z-8d094bd1",
+  "id": "T-20260731T031357587095Z-2cb11839",
+  "ledger_evidence": [
+    "L-20260731T031357587187Z-658a3576",
+    "L-20260731T031357589989Z-751d5fa4",
+    "L-20260731T031357590649Z-e0b8807d",
+    "L-20260731T031410355070Z-c233cbdc",
+    "L-20260731T033648288274Z-d070f8b0",
+    "L-20260731T034257867241Z-b8481759",
+    "L-20260731T034320921457Z-105fba80",
+    "L-20260731T034324927224Z-893ac088"
+  ],
+  "locks": [
+    "path:scripts/guardian_approval_signal.py",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:tests/test_guardian_signal_closeout.py"
+  ],
+  "non_goals": [
+    "Reimplementing the six ADR 0017 conditions; exactly one classifier must exist",
+    "Modifying scripts/mergegate_check.py or scripts/test_shiki_workflow_lint.sh (held by other tasks)",
+    "Changing or relaxing the six conditions",
+    "Making the CCA signal more permissive than MergeGate under any input",
+    "Changing enforce_cca_verdict's non-complete-fails rule",
+    "Changing what the CCA prompt reads beyond the existing signal file"
+  ],
+  "pre_pr_code_review": {
+    "findings": [],
+    "ledger_id": "L-20260731T034257867241Z-b8481759",
+    "verdict": "clean"
+  },
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "scope": "In `scripts/guardian_approval_signal.py`, apply the ADR 0017 bookkeeping-closeout exemption to the `required` decision, by IMPORTING and calling `is_bookkeeping_closeout` from `scripts/mergegate_check.py`. Do not reimplement the six conditions: one classifier, called from both gates, is what keeps them from diverging \u2014 the file's own comments already require that the signal resolve risk the same way MergeGate does. `scripts/mergegate_check.py` is held by another task's lock and must not be modified; importing from it requires no change to it.\n\nAdd the inputs the classifier needs, as optional arguments that default to no-exemption: a base `.shiki` snapshot path, the changed-files-status file, and the set of merged PR numbers. In `.github/workflows/shiki-cca-completion.yml`, have the Prepare CCA context step produce them for the `cca` job the same way the `mergegate` job in the same file already does \u2014 the base snapshot with `git archive \"origin/${base_ref}\" .shiki` into a scratch directory, the changed-files status file that step already writes, and the implementation-PR merge proof resolved from the BASE task's `expected_pr` (never the head's, which the PR can write) via `gh pr view --json state`. Pass them to `guardian_approval_signal.py`.\n\nFail closed on every axis. When any input is absent, unreadable, or cannot be built \u2014 no base snapshot, no changed-files status, an unresolvable implementation PR, a task id that does not resolve \u2014 grant NO exemption and require Guardian approval exactly as today. Record in the emitted signal JSON whether the exemption was applied, so the decision is auditable in the uploaded evidence rather than invisible.\n\nAdd `tests/test_guardian_signal_closeout.py` covering: a proven bookkeeping closeout yields required=false; each ADR 0017 disqualifier in isolation yields required=true; each missing input yields required=true; and a parity property \u2014 for a representative matrix of cases, the signal's exemption decision equals MergeGate's for the same inputs, so the two gates cannot diverge. Assert specifically that the signal is never more permissive than MergeGate.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a closeout PR for a high or critical task shows `MergeGate metadata check` PASS (ADR 0017 exemption applied) but `CCA verdict` FAIL with `needs_guardian`, and `MergeGate policy check` SKIPPED because it depends on the CCA job. The exemption is real but unreachable: the PR still cannot merge without the Guardian approval ADR 0017 removed.\n  Root cause: two independent code paths answer 'does this PR need a Guardian'. `scripts/mergegate_check.py` learned the exemption; `scripts/guardian_approval_signal.py`, which the CCA job runs to produce `.shiki/gha/guardian-approval.json`, did not. The signal resolves risk from the PR body's task id and the head task's `risk_level` and has no base snapshot, no changed-files status and no merged-PR proof, so it cannot classify a closeout at all.\n  Prior warning ignored: `docs/adr/0015-contract-approval-before-dispatch.md` records the identical duality for contract approval and states that without carrying the decision to the CCA signal 'the gate this ADR changes would never be reached'. The ADR 0017 contract nonetheless asserted a single decision point and locked only the MergeGate path.\n  Exact change that reproduces this result: import `is_bookkeeping_closeout` into the signal, plumb the base snapshot / changed-files status / merged-PR proof from the workflow into it, and let a proven closeout resolve as low risk on the signal path too.\n  Observed: PR #209 (closeout of the critical ADR 0017 task) \u2014 metadata PASS, CCA `needs_guardian`, policy SKIPPED, on head 437bdacfc420d6f41ef28c3aef41936a04384d4c.\n  Reproducible when: `shiki loop step` can drive a critical task's closeout from creation to merge with zero Guardian approvals, while every ADR 0017 disqualifier still requires one on BOTH gates.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_governance_evidence.sh && bash scripts/test_shiki_workflow_lint.sh && python3 scripts/validate_shiki.py --target .",
+  "title": "Give the CCA guardian signal the bookkeeping-closeout classifier and its inputs"
+}
