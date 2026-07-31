@@ -6,6 +6,6 @@
     "path:tests/test_bookkeeping_closeout.py"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260731T040711237895Z-21826083"
 }

@@ -24,7 +24,8 @@
   },
   "id": "G-20260731T040711236459Z-50972900",
   "ledger_evidence": [
-    "L-20260731T040711237305Z-5f8b8dff"
+    "L-20260731T040711237305Z-5f8b8dff",
+    "L-20260731T042543828869Z-aea7518f"
   ],
   "non_goals": [
     "Adding any governance field (scope, non_goals, required_skills, risk_level, locks, acceptance_checks, test_command) to the mutable set.",
@@ -40,6 +41,6 @@
   ],
   "risk_level": "critical",
   "source_plan": "P-20260731T040711140582Z-16e6260f",
-  "status": "planned",
+  "status": "complete",
   "title": "Let the bookkeeping-closeout exemption survive the branch rewrite the loop always makes"
 }

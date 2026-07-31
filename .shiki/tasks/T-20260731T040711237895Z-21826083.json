@@ -10,7 +10,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260731t040711237895z-21826083-add-expected-branch-to-the-closeout-mutable-set-",
+  "expected_branch": "shiki/t-20260731t040711237895z-21826083-closeout",
   "expected_pr": 211,
   "github_issue": null,
   "goal_id": "G-20260731T040711236459Z-50972900",
@@ -23,7 +23,8 @@
     "L-20260731T041553720963Z-860034b8",
     "L-20260731T041938094471Z-2ba57da3",
     "L-20260731T042002407283Z-df08fbef",
-    "L-20260731T042005963440Z-c3bab9f2"
+    "L-20260731T042005963440Z-c3bab9f2",
+    "L-20260731T042543828869Z-aea7518f"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
@@ -47,7 +48,7 @@
   ],
   "risk_level": "critical",
   "scope": "In `scripts/mergegate_check.py`, add `expected_branch` to `_CLOSEOUT_MUTABLE_TASK_FIELDS`, so ADR 0017's condition 4 stops disqualifying a closeout for the branch rewrite the goal loop performs on every closeout by construction. Change nothing else about condition 4 \u2014 every governance field stays byte-identical-or-reject \u2014 and change none of the other five conditions.\n\nDocument at the definition why this entry is safe: `expected_branch` is not a governance field, and MergeGate independently blocks a PR whose task `expected_branch` differs from the PR's actual head ref, so a PR cannot set it to a branch it is not on. That independent rule is load-bearing for this whitelist entry and must not be weakened.\n\nExtend `tests/test_bookkeeping_closeout.py` with two things. First, a case built from a REAL closeout's field shape \u2014 a base task on the implementation branch and a head task on `<branch>-closeout`, differing in `expected_branch` as well as `status`, `expected_pr`, `closeout_pr` and `ledger_evidence` \u2014 asserting the classifier returns True. A synthetic fixture whose base and head share an `expected_branch` does not exercise this and must not be the only positive case. Second, a guard asserting that every governance field is still rejected when it differs, so widening the whitelist by one entry cannot drift into widening it further.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the ADR 0017 exemption never fires. A closeout carrying nothing but its task's terminal state still reports `bookkeeping_closeout_exemption: false` on the CCA guardian signal and `required: true`, so a zero-code closeout for a high/critical task still demands a Guardian approval \u2014 the exact cost ADR 0017 was written to remove.\n  Root cause: condition 4's mutable-field whitelist is `{status, expected_pr, closeout_pr, ledger_evidence}`. The goal loop sets `expected_branch` to the closeout branch on the closeout worktree's task file (scripts/shiki_loop.py), because MergeGate independently requires `expected_branch` to equal the PR head ref. So every real closeout differs from base on a field the whitelist forbids, and condition 4 rejects it before any of the other conditions are even reached.\n  Why it survived review and tests: the ADR stated the whitelist and the implementation matched it, and the unit fixtures constructed base and head task files that shared an `expected_branch`, so no test ever exercised the field the loop always changes.\n  Exact change that reproduces this result: add `expected_branch` to `_CLOSEOUT_MUTABLE_TASK_FIELDS`.\n  Observed: PR #209 (closeout of the critical ADR 0017 task) on head 054b343c65a8b5e753be6b8a6f2b2c1c630adef0 \u2014 traced against its real base snapshot and diff, the classifier returned False at condition 4 with `expected_branch` base `shiki/t-20260731t004111132162z-bfcf2c9e-derive-the-bookkeeping-closeout-exemption-in-mer` vs head `shiki/t-20260731t004111132162z-bfcf2c9e-closeout`. Toggling only that whitelist entry flipped the result to True.\n  Reproducible when: `shiki loop step` can drive a high/critical task's closeout from creation to merge with zero Guardian approvals, and every ADR 0017 disqualifier still requires one.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_governance_evidence.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Add expected_branch to the closeout mutable set and pin it to a real closeout diff"
 }
