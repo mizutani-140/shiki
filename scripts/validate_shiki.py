@@ -292,6 +292,33 @@ WORKFLOW_CONTRACTS = {
     },
 }
 
+# The workflow invocation contract. Beyond the presence of job names and strings
+# (WORKFLOW_CONTRACTS), these assert that a workflow actually *invokes* the scripts
+# it depends on with the flags those scripts need, and that the hardened workflows
+# never splice a ${{ }} GitHub expression into a run: body.
+#
+# Required per-job invocation flags: {workflow file: {job id: {script token: flags}}}.
+# The metadata check must pass --base-shiki and --merged-prs so a
+# post_merge_reconcile PR (and the ADR 0017 bookkeeping-closeout exemption) can be
+# proven; without them mergegate_check.py fails closed on a missing base snapshot.
+WORKFLOW_INVOCATION_REQUIRED_FLAGS: dict[str, dict[str, dict[str, tuple[str, ...]]]] = {
+    "shiki-mergegate.yml": {
+        "mergegate": {
+            "scripts/mergegate_check.py": ("--base-shiki", "--merged-prs"),
+        },
+    },
+}
+
+# Workflows whose run: bodies must be free of ${{ }} interpolation: every
+# comment- or input-derived value has to flow through env: and be referenced as a
+# quoted shell variable, so a crafted comment/input body cannot inject shell. The
+# CCA and Claude-review workflows legitimately pass GitHub context into run:
+# bodies and are intentionally out of scope here.
+WORKFLOW_RUN_EXPRESSION_FREE: tuple[str, ...] = (
+    "shiki-mergegate.yml",
+    "shiki-orchestrator.yml",
+)
+
 NODE24_OFFICIAL_ACTIONS = {
     "actions/checkout": {"v5", "v6"},
     "actions/upload-artifact": {"v6", "v7"},
@@ -1639,6 +1666,58 @@ def validate_workflow_contracts() -> None:
     validate_node24_workflow_policy(models)
 
 
+def workflow_job_step_runs(model: dict[str, Any], job_id: str) -> list[str]:
+    """The run: bodies of a single job's steps, in order."""
+    job = workflow_jobs(model).get(job_id)
+    if not isinstance(job, dict):
+        return []
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return []
+    return [step["run"] for step in steps if isinstance(step, dict) and isinstance(step.get("run"), str)]
+
+
+def validate_workflow_invocation_contracts(root: Path = ROOT) -> None:
+    """Assert workflows invoke their scripts with the required flags, and that the
+    hardened workflows keep ${{ }} expressions out of run: bodies.
+
+    This is the invocation half of the workflow contract: WORKFLOW_CONTRACTS pins
+    names/permissions/jobs, this pins that a job actually runs the script it
+    depends on with the flags the script needs, and that no run: body splices a
+    GitHub expression (an injection surface) into the shell.
+    """
+    workflow_dir = root / ".github" / "workflows"
+
+    for filename, jobs in WORKFLOW_INVOCATION_REQUIRED_FLAGS.items():
+        path = workflow_dir / filename
+        model = load_workflow_contract(path)
+        for job_id, scripts in jobs.items():
+            runs = workflow_job_step_runs(model, job_id)
+            for script, required_flags in scripts.items():
+                invocation = next((run for run in runs if script in run), None)
+                if invocation is None:
+                    raise ValidationError(f"{path}: job {job_id!r} must invoke {script}")
+                # Read flags only from the invocation itself (script token onward),
+                # never from surrounding shell that may carry unrelated flags.
+                tail = invocation[invocation.index(script):]
+                for flag in required_flags:
+                    if flag not in tail:
+                        raise ValidationError(
+                            f"{path}: job {job_id!r} invocation of {script} must pass {flag}"
+                        )
+
+    for filename in WORKFLOW_RUN_EXPRESSION_FREE:
+        path = workflow_dir / filename
+        model = load_workflow_contract(path)
+        for job_id in workflow_jobs(model):
+            for run in workflow_job_step_runs(model, job_id):
+                if "${{" in run:
+                    raise ValidationError(
+                        f"{path}: job {job_id!r} run: body must not interpolate a "
+                        "${{ }} expression; pass GitHub context through env: instead"
+                    )
+
+
 def config_required_checks() -> list[str]:
     config_path = ROOT / ".shiki" / "config.yaml"
     model = config_model()
@@ -1930,6 +2009,7 @@ def main() -> int:
         validate_source_of_truth_contracts()
         validate_completion_check_docs()
         validate_workflow_contracts()
+        validate_workflow_invocation_contracts()
         validate_validate_workflow_coverage()
         validate_shiki_manifest()
         validate_shiki_cli_module_boundaries()

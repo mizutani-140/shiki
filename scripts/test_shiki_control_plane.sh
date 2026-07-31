@@ -53,6 +53,18 @@ grep "commit-evidence:" .github/workflows/shiki-orchestrator.yml >/dev/null
 # shellcheck disable=SC2016
 grep 'git push -u origin "$evidence_branch"' .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "gh pr create" .github/workflows/shiki-orchestrator.yml >/dev/null
+# The commit-evidence guard must stage .shiki, then diff the INDEX (not the bare
+# working tree), so newly created untracked evidence is committed instead of
+# silently dropped. Comment/input-derived values flow through env: as quoted
+# shell variables, never spliced into the run: body as ${{ }} expressions.
+grep "git add .shiki" .github/workflows/shiki-orchestrator.yml >/dev/null
+grep "git diff --cached --quiet" .github/workflows/shiki-orchestrator.yml >/dev/null
+if grep "if git diff --quiet" .github/workflows/shiki-orchestrator.yml >/dev/null; then
+  echo "orchestrator still guards on the bare 'git diff --quiet' (misses new files)" >&2
+  exit 1
+fi
+# shellcheck disable=SC2016
+grep -- '--plan-file "$PLAN_PATH"' .github/workflows/shiki-orchestrator.yml >/dev/null
 grep "CANONICAL_CCA_VERDICT_SCHEMA_PATH" scripts/shiki_contracts.py >/dev/null
 grep "CANONICAL_REPAIR_PACKET_SCHEMA_PATH" scripts/shiki_contracts.py >/dev/null
 grep "CANONICAL_SOURCE_OF_TRUTH_ORDER" scripts/shiki_contracts.py >/dev/null
@@ -100,6 +112,13 @@ grep -- "--expected-head-sha" .github/workflows/shiki-cca-completion.yml >/dev/n
 grep "author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup" .github/workflows/shiki-mergegate.yml >/dev/null
 grep "rm -rf .shiki/gha" .github/workflows/shiki-mergegate.yml >/dev/null
 grep "changed-files-status.txt" .github/workflows/shiki-mergegate.yml >/dev/null
+# The metadata check must build the base .shiki snapshot and pass both the base
+# snapshot and the merged-PR proof, mirroring shiki-cca-completion.yml, so a
+# post_merge_reconcile PR can pass instead of blocking on a missing base snapshot.
+grep "git archive" .github/workflows/shiki-mergegate.yml >/dev/null
+grep -- "--base-shiki .shiki/gha/base-shiki/.shiki" .github/workflows/shiki-mergegate.yml >/dev/null
+# shellcheck disable=SC2016
+grep -- '--merged-prs "$MERGED_PRS"' .github/workflows/shiki-mergegate.yml >/dev/null
 
 python3 - "$ROOT" <<'PY'
 import json
