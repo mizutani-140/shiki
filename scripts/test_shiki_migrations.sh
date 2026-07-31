@@ -53,12 +53,6 @@ make_target() {
   python3 scripts/shiki.py install-target "$target" --local-only --no-validate >/tmp/shiki-migrations-install.out
 }
 
-add_baseline_goal() {
-  local target="$1"
-  mkdir -p "$target/.shiki/goals"
-  printf '{"id":"G-0012"}\n' >"$target/.shiki/goals/G-0012.json"
-}
-
 cd "$ROOT"
 
 python3 - <<'PY'
@@ -149,7 +143,6 @@ grep "migrations: none" /tmp/shiki-migrate-plan.out >/dev/null
 
 MISSING_STATE="$TMP_ROOT/missing-state"
 make_target "$MISSING_STATE"
-add_baseline_goal "$MISSING_STATE"
 rm "$MISSING_STATE/.shiki/migrations/state.json"
 expect_fail python3 scripts/shiki.py migrate status --json --target "$MISSING_STATE"
 test "$(json_get /tmp/shiki-migrations-expected-fail.out valid)" = "False"
@@ -181,7 +174,6 @@ grep "migrations: none" /tmp/shiki-migrate-apply-idempotent.out >/dev/null
 
 I_UNDERSTAND="$TMP_ROOT/i-understand"
 make_target "$I_UNDERSTAND"
-add_baseline_goal "$I_UNDERSTAND"
 rm "$I_UNDERSTAND/.shiki/migrations/state.json"
 python3 scripts/shiki.py migrate apply --i-understand --target "$I_UNDERSTAND" >/tmp/shiki-migrate-i-understand.out
 test -f "$I_UNDERSTAND/.shiki/migrations/state.json"
