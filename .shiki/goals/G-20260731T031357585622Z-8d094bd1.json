@@ -1,0 +1,47 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A proven bookkeeping closeout returns required=false from the CCA guardian signal, so the CCA can reach `complete`.",
+    "Every ADR 0017 disqualifier still yields required=true on the signal path, matching MergeGate exactly.",
+    "Missing or unbuildable inputs yield required=true (fail closed).",
+    "The full suite, the governance-evidence suite and validate_shiki stay green."
+  ],
+  "created_at": "2026-07-31T03:13:57+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "There are TWO paths that answer whether a PR needs a Guardian: `scripts/mergegate_check.py` (which ADR 0017's implementation changed) and `scripts/guardian_approval_signal.py` (which the CCA job runs and which knows nothing about the exemption \u2014 zero occurrences of `bookkeeping`). The ADR 0017 contract asserted a single decision point; that assertion was wrong, and the resulting contract was scoped to one path.",
+      "ADR 0015 already recorded this exact duality for contract approval: 'The same OR-merge must reach the deterministic CCA Guardian signal, not only MergeGate ... Without the OR-merge at the signal, a contract-approved PR still returns needs_guardian, the CCA job fails, and the MergeGate policy check never runs \u2014 the gate this ADR changes would never be reached.' The same failure mode has now recurred for ADR 0017.",
+      "The signal must CALL the same `is_bookkeeping_closeout` that MergeGate calls, not reimplement the six conditions. `scripts/guardian_approval_signal.py` already states the invariant in its own comments \u2014 'The signal MUST resolve risk the same way MergeGate does so the two gates never diverge' \u2014 and a second implementation is exactly how that invariant breaks. `scripts/mergegate_check.py` is held by another task's lock and needs no change to be imported from.",
+      "The classifier needs three inputs the signal does not have today: a base `.shiki` snapshot, the changed-files status, and proof that the implementation PR merged. The policy job in the same workflow already builds all three (base snapshot via `git archive \"origin/${base_ref}\" .shiki`, the changed-files status file, and the base task's `expected_pr` merge state); the CCA job's Prepare CCA context step gains the equivalent.",
+      "Fail closed, and never be more permissive than MergeGate. If any input is missing or unbuildable the signal grants no exemption and requires Guardian approval exactly as today. An asymmetry in the other direction \u2014 the CCA exempting a PR that MergeGate would not \u2014 would let a PR reach the policy gate on a softer judgment, so it is explicitly forbidden and tested."
+    ],
+    "source": "Live block on closeout PR #209, 2026-07-31: `MergeGate metadata check` passed with the exemption applied, `CCA verdict` returned needs_guardian, and `MergeGate policy check` was skipped because it depends on the CCA job.",
+    "status": "complete"
+  },
+  "id": "G-20260731T031357585622Z-8d094bd1",
+  "ledger_evidence": [
+    "L-20260731T031357586482Z-b834623d"
+  ],
+  "non_goals": [
+    "Reimplementing the six ADR 0017 conditions anywhere; there must remain exactly one classifier.",
+    "Modifying scripts/mergegate_check.py, scripts/test_shiki_workflow_lint.sh, or any other file held by another task's lock.",
+    "Changing the six conditions themselves, or relaxing any of them.",
+    "Making the CCA signal more permissive than MergeGate under any input.",
+    "Changing enforce_cca_verdict's rule that a non-complete verdict fails the job.",
+    "Changing what the CCA prompt reads beyond the existing guardian-approval signal file."
+  ],
+  "outcome": "A proven bookkeeping closeout stops returning `needs_guardian` from the CCA, so the exemption ADR 0017 introduced actually reaches a merge. Today MergeGate applies it and the CCA does not, which leaves the closeout blocked and the exemption inert.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_plan": "P-20260731T031357490117Z-dfdd2289",
+  "status": "planned",
+  "title": "Carry the bookkeeping-closeout exemption to the CCA Guardian signal"
+}

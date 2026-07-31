@@ -29,6 +29,13 @@ from shiki_guardian import (
     validate_guardian_policy,
 )
 
+# The bookkeeping-closeout exemption (ADR 0017) must resolve risk IDENTICALLY on
+# this signal path and on the MergeGate policy check. Importing and calling the
+# SAME classifier — never a second copy of its six conditions — is what keeps the
+# two Guardian decision points from diverging. ``parse_changed_files_status``
+# comes from the same module so the diff is parsed exactly as MergeGate parses it.
+from mergegate_check import is_bookkeeping_closeout, parse_changed_files_status
+
 # The canonical Shiki task-id pattern, identical to the MergeGate policy check's
 # TASK_ID. The signal MUST resolve risk the same way MergeGate does so the two
 # gates never diverge.
@@ -87,6 +94,72 @@ def _resolve_task_risk_level(shiki_root: str, pr_body: str) -> str | None:
     return risk or None
 
 
+def _parse_merged_prs(value: str) -> set[int]:
+    """Parse the comma-separated ``--merged-prs`` list exactly as MergeGate does."""
+    return {int(token.strip()) for token in str(value or "").split(",") if token.strip().isdigit()}
+
+
+def _load_changed_files_status(path: str) -> list | None:
+    """Parse the git ``--name-status`` changed-files file into ChangedFile entries.
+
+    Returns ``None`` when the path is empty or the file is absent, so the caller
+    FAILS CLOSED (no exemption) rather than classifying against an assumed diff. A
+    real-but-empty status list is intentionally NOT ``None``: the classifier will
+    simply find no terminal transitions and reject it.
+    """
+    if not path:
+        return None
+    status_path = Path(path)
+    if not status_path.exists():
+        return None
+    return parse_changed_files_status(status_path, [])
+
+
+def _bookkeeping_closeout_exemption(
+    *,
+    shiki_root: str,
+    pr_body: str,
+    base_shiki: str,
+    changed_files_status: str,
+    merged_prs: str,
+) -> bool:
+    """Whether this PR is a proven ADR 0017 bookkeeping closeout.
+
+    The entire decision is delegated to the SAME ``is_bookkeeping_closeout``
+    classifier the MergeGate policy check calls, over the SAME inputs (the base
+    ``.shiki`` snapshot, the changed-files status, and the merged-PR proof). Reusing
+    the one classifier — never a second copy of its six conditions — is what keeps
+    this signal and MergeGate from diverging.
+
+    FAILS CLOSED (returns ``False``, i.e. no exemption) on every axis: no task id
+    in the PR body, an unreadable/missing head task file, or a missing changed-files
+    status file returns ``False`` here; a missing/unreadable base snapshot,
+    unresolvable implementation PR, or any disqualifying diff returns ``False`` from
+    the classifier itself. The classifier never reads the PR, a label, or a marker,
+    so only durable evidence can grant the exemption.
+    """
+    match = _TASK_ID_RE.search(pr_body or "")
+    if not match:
+        return False
+    task_id = match.group(0)
+    target = Path(shiki_root)
+    task = _load_json(str(target / ".shiki" / "tasks" / f"{task_id}.json"))
+    if not isinstance(task, dict):
+        return False
+    files_status = _load_changed_files_status(changed_files_status)
+    if files_status is None:
+        return False
+    return is_bookkeeping_closeout(
+        target=target,
+        task=task,
+        task_id=task_id,
+        goal_id=str(task.get("goal_id") or ""),
+        base_shiki=Path(base_shiki) if base_shiki else None,
+        changed_files_status=files_status,
+        merged_pr_numbers=_parse_merged_prs(merged_prs),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pr-json", required=True)
@@ -96,12 +169,35 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--guardian-timeline", default="")
     parser.add_argument("--expected-repository", default="")
     parser.add_argument("--shiki-root", default=".")
+    # ADR 0017 bookkeeping-closeout exemption inputs. All default to values that
+    # grant NO exemption, so an invocation that omits them behaves exactly as
+    # before (require Guardian approval from the task's real risk).
+    parser.add_argument(
+        "--base-shiki",
+        default="",
+        help="Path to the base branch's .shiki snapshot; required for the ADR 0017 closeout exemption.",
+    )
+    parser.add_argument(
+        "--changed-files-status",
+        default="",
+        help="git --name-status changed-files file; required for the ADR 0017 closeout exemption.",
+    )
+    parser.add_argument(
+        "--merged-prs",
+        default="",
+        help="Comma-separated PR numbers proven merged; the implementation PR must be here for the exemption.",
+    )
     parser.add_argument("--output", required=True)
     args = parser.parse_args(argv)
 
     pr = _load_json(args.pr_json)
     if not isinstance(pr, dict):
-        signal = {"required": True, "approved": False, "error": "pr.json missing or invalid"}
+        signal = {
+            "required": True,
+            "approved": False,
+            "error": "pr.json missing or invalid",
+            "bookkeeping_closeout_exemption": False,
+        }
         Path(args.output).write_text(json.dumps(signal, indent=2) + "\n", encoding="utf-8")
         return 0
 
@@ -112,11 +208,32 @@ def main(argv: list[str] | None = None) -> int:
     # undetermined risk collapse to "not required" (which would let the CCA treat
     # CCA-08 as not applicable for an unapproved high/critical PR).
     head_sha = str(pr.get("headRefOid") or "")
-    task_risk = _resolve_task_risk_level(args.shiki_root, str(pr.get("body") or ""))
-    risk_unknown = task_risk is None
-    # PR labels may only ESCALATE risk; they can never downgrade the task's risk
-    # and are ignored when the task risk is undetermined (fail closed wins).
-    labels = _label_names(pr) + ([task_risk, f"risk:{task_risk}"] if task_risk else [])
+    pr_body = str(pr.get("body") or "")
+    task_risk = _resolve_task_risk_level(args.shiki_root, pr_body)
+
+    # ADR 0017: a PROVEN bookkeeping closeout carries no implementation and
+    # inherits no new risk, so at this single Guardian decision point the task's
+    # risk is evaluated as if low — IDENTICALLY to the MergeGate policy check,
+    # which calls the same is_bookkeeping_closeout classifier over the same inputs.
+    # It fails closed to "no exemption" whenever any input is absent or unbuildable,
+    # so a missing base snapshot / changed-files status / merge proof requires
+    # Guardian approval exactly as before.
+    exemption = _bookkeeping_closeout_exemption(
+        shiki_root=args.shiki_root,
+        pr_body=pr_body,
+        base_shiki=args.base_shiki,
+        changed_files_status=args.changed_files_status,
+        merged_prs=args.merged_prs,
+    )
+    # The risk that actually gates Guardian approval: "low" for a proven closeout,
+    # otherwise the real task risk. task_risk is still reported as risk_level for
+    # audit. PR labels may only ESCALATE the effective risk (a maintainer can force
+    # the gate even on an exempted PR) and are ignored when the effective risk is
+    # undetermined (fail closed wins) — exactly as in MergeGate's
+    # _guardian_risk_labels.
+    effective_risk = "low" if exemption else task_risk
+    risk_unknown = effective_risk is None
+    labels = _label_names(pr) + ([effective_risk, f"risk:{effective_risk}"] if effective_risk else [])
 
     try:
         policy = load_guardian_policy_file(Path(args.guardian_policy))
@@ -129,6 +246,7 @@ def main(argv: list[str] | None = None) -> int:
             "approved": not required,
             "error": f"guardian policy unreadable: {error}",
             "head_sha": head_sha,
+            "bookkeeping_closeout_exemption": exemption,
         }
         Path(args.output).write_text(json.dumps(signal, indent=2) + "\n", encoding="utf-8")
         return 0
@@ -141,12 +259,17 @@ def main(argv: list[str] | None = None) -> int:
             "approved": False,
             "error": "; ".join(policy_errors),
             "head_sha": head_sha,
+            "bookkeeping_closeout_exemption": exemption,
         }
         Path(args.output).write_text(json.dumps(signal, indent=2) + "\n", encoding="utf-8")
         return 0
 
     if not required:
-        # Risk is KNOWN and below the Guardian threshold (low/medium).
+        # Risk is KNOWN and below the Guardian threshold (low/medium, or a proven
+        # bookkeeping closeout evaluated as if low).
+        note = f"Guardian approval not required for risk level {task_risk!r}"
+        if exemption:
+            note += " (ADR 0017 bookkeeping-closeout exemption applied)"
         signal = {
             "required": False,
             "approved": True,
@@ -154,7 +277,8 @@ def main(argv: list[str] | None = None) -> int:
             "ai_reviewers": [],
             "approvers": [],
             "head_sha": head_sha,
-            "note": f"Guardian approval not required for risk level {task_risk!r}",
+            "bookkeeping_closeout_exemption": exemption,
+            "note": note,
         }
         Path(args.output).write_text(json.dumps(signal, indent=2) + "\n", encoding="utf-8")
         return 0
@@ -186,6 +310,7 @@ def main(argv: list[str] | None = None) -> int:
         "expected_repository": args.expected_repository,
         "risk_level": task_risk,
         "risk_determined": not risk_unknown,
+        "bookkeeping_closeout_exemption": exemption,
     }
     Path(args.output).write_text(json.dumps(signal, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return 0

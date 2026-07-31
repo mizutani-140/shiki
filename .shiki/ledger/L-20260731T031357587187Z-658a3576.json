@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260731T031357587095Z-2cb11839.json"
+  ],
+  "goal_id": "G-20260731T031357585622Z-8d094bd1",
+  "id": "L-20260731T031357587187Z-658a3576",
+  "links": [],
+  "summary": "Task registered from plan: Give the CCA guardian signal the bookkeeping-closeout classifier and its inputs",
+  "task_id": "T-20260731T031357587095Z-2cb11839",
+  "timestamp": "2026-07-31T03:13:57+00:00",
+  "type": "task-registered"
+}
