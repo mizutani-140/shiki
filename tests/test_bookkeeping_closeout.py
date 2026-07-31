@@ -54,12 +54,25 @@ IMPL_PR = 300
 CLOSEOUT_PR = 301
 HEAD_SHA = "a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4"
 
+# A real closeout is cut from the implementation branch onto ``<branch>-closeout``
+# (scripts/shiki_loop.py: ``branch = f"shiki/{task_id.lower()}-closeout"``), and the
+# goal loop rewrites the closeout task file's ``expected_branch`` to that new branch.
+# So on EVERY real closeout the base task's expected_branch (the implementation
+# branch) and the head task's expected_branch (the closeout branch) DIFFER. The
+# fixture reflects that real shape; a fixture that shared one expected_branch would
+# never exercise the field the loop always changes.
+IMPL_BRANCH = "shiki/t-20260731t004111132162z-bfcf2c9e-derive-the-bookkeeping-closeout-exemption-in-mer"
+CLOSEOUT_BRANCH = "shiki/t-20260731t004111132162z-bfcf2c9e-closeout"
+
 COMPLETION_LEDGER = "L-20260731T010000000000Z-c0mp0001"
 PULL_LEDGER = "L-20260731T010000000001Z-pu110001"
 REPORT_ID = "R-20260731T010000000002Z-5c0re001"
 REPORT_REL = f".shiki/reports/{REPORT_ID}.json"
 
 # The frozen governance contract shared byte-for-byte by the base and head task.
+# expected_branch is deliberately NOT in here: the goal loop rewrites it to the
+# closeout branch on every closeout, so it is supplied per-task (base -> impl
+# branch, head -> closeout branch) and is EXPECTED to differ.
 _GOVERNANCE = {
     "title": "Derive the bookkeeping closeout exemption in MergeGate",
     "scope": "Add is_bookkeeping_closeout and consult it at the Guardian decision point.",
@@ -74,7 +87,6 @@ _GOVERNANCE = {
     "required_skills": ["tdd", "code-review"],
     "acceptance_checks": ["a bookkeeping closeout does not require Guardian approval"],
     "test_command": "python3 -m unittest discover -s tests",
-    "expected_branch": "shiki/t-20260731-closeout",
     "github_issue": 210,
 }
 
@@ -109,9 +121,10 @@ class Closeout:
 
     # --- construction -----------------------------------------------------
 
-    def _task(self, *, status: str, expected_pr, ledger_evidence, closeout_pr=None) -> dict:
+    def _task(self, *, status: str, expected_pr, ledger_evidence, expected_branch, closeout_pr=None) -> dict:
         task = {"id": TASK_ID, "goal_id": GOAL_ID, **_GOVERNANCE,
                 "status": status, "expected_pr": expected_pr,
+                "expected_branch": expected_branch,
                 "ledger_evidence": list(ledger_evidence)}
         if closeout_pr is not None:
             task["closeout_pr"] = closeout_pr
@@ -119,17 +132,20 @@ class Closeout:
 
     def build(self, *, completes: bool = True) -> "Closeout":
         # Base snapshot (origin/main): the merged impl PR left the task at review,
-        # naming the impl PR, its lock active and its goal in-progress.
+        # naming the impl PR, on the implementation branch, its lock active and its
+        # goal in-progress.
         _write(self.base / "tasks" / f"{TASK_ID}.json",
-               self._task(status="review", expected_pr=IMPL_PR, ledger_evidence=["L-base00001"]))
+               self._task(status="review", expected_pr=IMPL_PR, expected_branch=IMPL_BRANCH,
+                          ledger_evidence=["L-base00001"]))
         _write(self.base / "locks" / f"{TASK_ID}.json",
                {"task_id": TASK_ID, "goal_id": GOAL_ID, "state": "active", "owner": "shiki-run"})
         _write(self.base / "goals" / f"{GOAL_ID}.json",
                {"id": GOAL_ID, "status": "in-progress", "title": "g", "risk_level": "high"})
 
-        # HEAD (closeout branch cut from origin/main): terminal state.
+        # HEAD (closeout branch cut from origin/main): terminal state, with
+        # expected_branch rewritten to the closeout branch (as the goal loop does).
         head_ledgers = [COMPLETION_LEDGER, PULL_LEDGER] if completes else [PULL_LEDGER]
-        self.head_task = self._task(status="done", expected_pr=CLOSEOUT_PR,
+        self.head_task = self._task(status="done", expected_pr=CLOSEOUT_PR, expected_branch=CLOSEOUT_BRANCH,
                                     ledger_evidence=head_ledgers, closeout_pr=CLOSEOUT_PR)
         _write(self.target / ".shiki" / "tasks" / f"{TASK_ID}.json", self.head_task)
         _write(self.target / ".shiki" / "locks" / f"{TASK_ID}.json",
@@ -265,6 +281,24 @@ class BookkeepingCloseoutTest(unittest.TestCase):
         self.assertTrue(c.classify())
         self.assertFalse(c.guardian_required_decision(bookkeeping=True))
 
+    def test_positive_expected_branch_differs_is_classified(self) -> None:
+        # A REAL closeout is cut onto <branch>-closeout, so base.expected_branch (the
+        # implementation branch) and head.expected_branch (the closeout branch)
+        # DIFFER — the goal loop performs this rewrite on every closeout by
+        # construction. A closeout that moves ONLY the terminal-state fields plus
+        # expected_branch must still classify as a bookkeeping closeout. This case is
+        # the point of ADR 0017's whitelist fix: it FAILS if expected_branch is
+        # removed from _CLOSEOUT_MUTABLE_TASK_FIELDS, because condition 4 would then
+        # reject the branch rewrite before any other condition is reached.
+        c = self.new().build(completes=True)
+        base_task = json.loads((c.base / "tasks" / f"{TASK_ID}.json").read_text())
+        self.assertEqual(base_task["expected_branch"], IMPL_BRANCH)
+        self.assertEqual(c.head_task["expected_branch"], CLOSEOUT_BRANCH)
+        self.assertNotEqual(base_task["expected_branch"], c.head_task["expected_branch"])
+        self.assertTrue(c.classify())
+        # The single decision point still exempts it (no Guardian required).
+        self.assertFalse(c.guardian_required_decision(bookkeeping=True))
+
     # --- disqualifiers (each in isolation; assert the Guardian fallback) ---
 
     def _assert_disqualified(self, c: Closeout) -> None:
@@ -302,6 +336,34 @@ class BookkeepingCloseoutTest(unittest.TestCase):
         c.head_task["acceptance_checks"] = ["a smuggled acceptance criterion"]
         c.rewrite_head_task()
         self._assert_disqualified(c)
+
+    def test_every_governance_field_change_disqualifies(self) -> None:
+        # Guard against the whitelist drifting wider than the one entry ADR 0017
+        # adds. Two independent locks:
+        #   (a) the mutable set is EXACTLY these five entries — adding a sixth (or
+        #       dropping one) fails here directly; and
+        #   (b) every field of the frozen governance contract STILL disqualifies a
+        #       closeout when the head diverges from the base on it.
+        # (b) iterates the hardcoded _GOVERNANCE contract, NOT the complement of the
+        # mutable set — so promoting a governance field INTO the mutable set does not
+        # silently drop it from this guard: the tampered field would then be skipped
+        # by condition 4, the closeout would classify, and the assertFalse would fail.
+        self.assertEqual(
+            mergegate_check._CLOSEOUT_MUTABLE_TASK_FIELDS,
+            frozenset({"status", "expected_pr", "closeout_pr", "ledger_evidence", "expected_branch"}),
+        )
+        # expected_branch is now mutable, so it must NOT be part of the frozen
+        # contract; a couple of real contract fields must be.
+        self.assertNotIn("expected_branch", _GOVERNANCE)
+        self.assertIn("risk_level", _GOVERNANCE)
+        self.assertIn("acceptance_checks", _GOVERNANCE)
+        for field in _GOVERNANCE:
+            with self.subTest(field=field):
+                c = self.new().build()
+                self.assertTrue(c.classify())  # qualifies before tampering
+                c.head_task[field] = "shiki:governance-tamper-sentinel"
+                c.rewrite_head_task()
+                self.assertFalse(c.classify())
 
     def test_risk_level_downgrade_is_not_classified(self) -> None:
         # A closeout that downgrades its own risk_level differs from the base

@@ -1,0 +1,15 @@
+{
+  "branch": "shiki/t-20260731t040711237895z-21826083-add-expected-branch-to-the-closeout-mutable-set-",
+  "created_at": "2026-07-31T04:07:11+00:00",
+  "created_by": "shiki-run",
+  "goal_id": "G-20260731T040711236459Z-50972900",
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:tests/test_bookkeeping_closeout.py"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260731t040711237895z-21826083-add-expe",
+  "pr": 211,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260731T040711237895Z-21826083"
+}

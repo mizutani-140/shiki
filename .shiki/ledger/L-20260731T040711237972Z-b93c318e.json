@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260731T040711237895Z-21826083.json"
+  ],
+  "goal_id": "G-20260731T040711236459Z-50972900",
+  "id": "L-20260731T040711237972Z-b93c318e",
+  "links": [],
+  "summary": "Task registered from plan: Add expected_branch to the closeout mutable set and pin it to a real closeout diff",
+  "task_id": "T-20260731T040711237895Z-21826083",
+  "timestamp": "2026-07-31T04:07:11+00:00",
+  "type": "task-registered"
+}

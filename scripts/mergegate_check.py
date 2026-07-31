@@ -1268,7 +1268,20 @@ def _builtin_guardian_risk_required(risk_labels: list[str]) -> bool:
 # (scope, non_goals, required_skills, risk_level, locks, acceptance_checks,
 # test_command, title, dependencies, …) and must be byte-identical, so the
 # exemption can never ride a smuggled contract edit.
-_CLOSEOUT_MUTABLE_TASK_FIELDS = frozenset({"status", "expected_pr", "closeout_pr", "ledger_evidence"})
+#
+# ``expected_branch`` belongs here — it is NOT a governance field. The goal loop
+# cuts the closeout onto ``shiki/<task_id>-closeout`` and rewrites the closeout
+# task file's ``expected_branch`` to that new branch on EVERY closeout by
+# construction (scripts/shiki_loop.py), because MergeGate independently requires a
+# PR's task ``expected_branch`` to equal the PR's actual head ref: the metadata gate
+# in ``main`` blocks when ``expected_branch != headRefName``.
+# So every real closeout differs from its base on ``expected_branch``, and without
+# this entry condition 4 would reject every closeout before any other condition is
+# reached — the exact defect ADR 0017 exists to remove. That independent head-ref
+# binding is load-bearing for THIS whitelist entry: a PR cannot set
+# ``expected_branch`` to a branch it is not on, so admitting the field here cannot
+# let a closeout impersonate another branch. Do not weaken that binding.
+_CLOSEOUT_MUTABLE_TASK_FIELDS = frozenset({"status", "expected_pr", "closeout_pr", "ledger_evidence", "expected_branch"})
 
 
 def _closeout_completes_goal(target: Path, goal_id: str) -> bool | None:
@@ -1326,7 +1339,9 @@ def is_bookkeeping_closeout(
       3. every changed path is inside the task's declared locks unioned with its
          derived id-scoped mirror locks (the existing files-outside-locks rule);
       4. the task file's governance fields are byte-identical to the base snapshot
-         — only status, expected_pr, closeout_pr and ledger_evidence may differ;
+         — only the ``_CLOSEOUT_MUTABLE_TASK_FIELDS`` (status, expected_pr,
+         closeout_pr, ledger_evidence and expected_branch — see that definition for
+         why the branch rewrite is safe) may differ;
       5. the transitions are exactly the terminal set: task ``review -> done``,
          lock ``active -> released``, and ONLY when this task completes its goal,
          goal ``-> complete`` with exactly one added scorecard report;
