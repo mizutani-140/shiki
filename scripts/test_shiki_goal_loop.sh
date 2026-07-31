@@ -296,4 +296,54 @@ if python3 "$ROOT/scripts/shiki.py" loop step --target "$TARGET" --goal-id "$RGO
 fi
 test "$(json_get_last /tmp/shiki-goal-loop-limit.json action)" = "stop_guardian"
 
+# A dependency-complete task whose lock overlaps another task's ACTIVE lock must
+# produce a NAMED stop_lock_blocked (owning task + overlapping lock) instead of
+# silently skipping — a silent skip read as the PR #179 deadlock stall. The stop
+# is a distinct action from the guardian/blocked-evidence stops above.
+python3 "$ROOT/scripts/shiki.py" goal create --target "$TARGET" --title "Lock gate" --outcome "Serialized task names its blocker" >/tmp/shiki-goal-loop-lock-goal.json
+LGOAL="$(json_get /tmp/shiki-goal-loop-lock-goal.json goal_id)"
+python3 "$ROOT/scripts/shiki.py" issue plan --target "$TARGET" --goal-id "$LGOAL" \
+  --title "Lock-blocked slice" --scope "Shares a lock with an active owner" \
+  --acceptance-check "Runs once the owner releases" >/tmp/shiki-goal-loop-lock-task.json
+LTASK="$(json_get /tmp/shiki-goal-loop-lock-task.json task_id)"
+# Pin the blocked task's lock to a unique path and clear its dependencies so it is
+# dependency-complete and ONLY its lock is contended.
+python3 - "$TARGET/.shiki/tasks/$LTASK.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+task = json.load(open(path))
+task["status"] = "planned"
+task["dependencies"] = []
+task["locks"] = ["path:lock-conflict-slice.txt"]
+json.dump(task, open(path, "w"), indent=2)
+PY
+# An external task holds the SAME path as an active lock (the contention owner).
+LOCK_OWNER="T-20260729T000000000000Z-extowner"
+python3 - "$TARGET/.shiki/locks/$LOCK_OWNER.json" "$LOCK_OWNER" <<'PY'
+import json
+import sys
+
+path, owner = sys.argv[1], sys.argv[2]
+record = {
+    "task_id": owner,
+    "goal_id": "G-external",
+    "locks": ["path:lock-conflict-slice.txt"],
+    "state": "active",
+    "owner": "shiki-run",
+    "created_at": "2026-07-29T00:00:00+00:00",
+}
+json.dump(record, open(path, "w"), indent=2)
+PY
+if python3 "$ROOT/scripts/shiki.py" loop step --target "$TARGET" --goal-id "$LGOAL" >/tmp/shiki-goal-loop-lock.json; then
+  echo "expected lock-blocked stop to exit non-zero" >&2
+  exit 1
+fi
+test "$(json_get_last /tmp/shiki-goal-loop-lock.json action)" = "stop_lock_blocked"
+# The stop NAMES the owning task and the overlapping lock, so the goal reports the
+# fact rather than appearing idle.
+grep "$LOCK_OWNER" /tmp/shiki-goal-loop-lock.json >/dev/null
+grep "lock-conflict-slice.txt" /tmp/shiki-goal-loop-lock.json >/dev/null
+
 echo "shiki goal loop tests passed"
