@@ -11,7 +11,7 @@
     "T-20260729T065622763684Z-ee01f3c4"
   ],
   "expected_branch": "shiki/t-20260729t065622764296z-48021407-refuse-a-self-contradictory-cca-verdict",
-  "expected_pr": null,
+  "expected_pr": 226,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622764296Z-48021407",
@@ -19,7 +19,11 @@
     "L-20260729T065622764314Z-c9aa9624",
     "L-20260731T083051738746Z-bd5021c1",
     "L-20260731T083051740275Z-fa59aacc",
-    "L-20260731T084610166422Z-fc41d46b"
+    "L-20260731T084610166422Z-fc41d46b",
+    "L-20260731T091454945960Z-d320c94a",
+    "L-20260731T092301921048Z-2b851dcd",
+    "L-20260731T092335166838Z-73e97f8f",
+    "L-20260731T092339066537Z-5cb5e084"
   ],
   "locks": [
     "path:scripts/enforce_cca_verdict.py",
@@ -37,13 +41,24 @@
     "Judging checklist quality (profile coverage is still LLM-attested)",
     "The needs: cca job dependency (owned by ADR 0015 T5)"
   ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "task.schema.json adds cca_checklist_profile to its `required` array, but the same diff's validate_shiki.py comment deliberately keeps it OUT of TASK_REQUIRED ('promoting it to a required field means every pre-existing task file must be backfilled'), TASK_REQUIRED omits it, and no task file in the repo \u2014 including this PR's own .shiki/tasks/T-\u202648021407.json \u2014 provides the field. I confirmed nothing currently validates task records against task.schema.json (validate_task uses the manual TASK_REQUIRED path; the per-record schema loop is the still-planned task T-\u2026f138eccf), so there is no current CI/MergeGate breakage and the PR merges cleanly. However, it is an internal inconsistency and a latent landmine: when the mirror-schema-validation task lands and runs every task record through task.schema.json, all ~98 task files lacking cca_checklist_profile will fail. Consider making the field optional in task.schema.json (matching the documented reasoning) until backfill is in scope.",
+        "severity": "low",
+        "title": "task.schema.json marks cca_checklist_profile required, contradicting the PR's own validator decision and all existing data"
+      }
+    ],
+    "ledger_id": "L-20260731T092301921048Z-2b851dcd",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "high",
   "scope": "In scripts/enforce_cca_verdict.validate_verdict and mergegate_check.main's CCA branch, reject verdict=complete when any acceptance entry is fail or insufficient_evidence, and promote can_merge is not True from a warning to a blocking reason. Block unless every id in the task's cca_checklist_profile appears in the verdict checklist with a terminal status. Add minItems 1 to the schema's checklist, and add cca_checklist_profile to task.schema.json and validate_shiki's required task fields.",
-  "status": "running",
+  "status": "review",
   "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Refuse a self-contradictory CCA verdict"
 }
