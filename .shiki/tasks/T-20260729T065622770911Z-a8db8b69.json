@@ -8,7 +8,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260729t065622770911z-a8db8b69-make-a-dispatch-carry-the-complete-current-contr",
+  "expected_branch": "shiki/t-20260729t065622770911z-a8db8b69-closeout",
   "expected_pr": 222,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
@@ -45,7 +45,7 @@
   ],
   "risk_level": "high",
   "scope": "A dispatch hands the implementer a worktree, but nothing guarantees that worktree holds the contract the coordinator currently has, nor the evidence that contract references. Two gaps, one seam. (a) shiki runner claude --repair-id renders the handoff from the coordinator while the implementer verifies against the worktree's own .shiki: sync the task, its goal and its lock record into the worktree before the session starts, so the implementer judges against current terms. (b) The delivery path syncs each id in ledger_evidence but not the .shiki paths those ledgers' evidence arrays reference \u2014 repair packets and runner EXEC records \u2014 leaving dangling pointers that MergeGate blocks on. Walk ledger_evidence transitively and carry everything it points at, with the ownership bound stated directly and reimplemented in shiki_loop.py: expand a ledger only when its own goal_id AND task_id both equal the task's. Do not reuse mergegate_check.ledger_entry_allowed_for_task \u2014 it accepts a goal-scoped ledger with an empty task_id, which would defeat this bound.\n\nREPRODUCIBILITY \u2014 what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes two of them.\n  Manual steps removed: copying the amended contract into the task worktree, and copying the transitive evidence a ledger references before a push.\n  Observed: the repair on PR #181 read a 6-lock contract while the coordinator held 9 and correctly refused work it believed unauthorised \u2014 it failed safe, but the mirror-image case, a constraint removed in the coordinator and still present in the worktree, produces a wrong implementation instead. Separately the CCA returned repair_required with all seven acceptance criteria passing because ledger L-20260729T052202662912Z-b9578f99 pointed at a runner EXEC record that was never carried onto the branch.\n  Reproducible when: a dispatched session always sees the coordinator's current contract, and no PR is ever blocked for evidence the loop itself produced.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_runner_claude.sh && python3 -m unittest discover -s tests",
   "title": "Make a dispatch carry the complete current contract and its evidence"
 }
