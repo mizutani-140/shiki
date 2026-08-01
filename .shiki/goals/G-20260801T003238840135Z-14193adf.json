@@ -25,7 +25,8 @@
   },
   "id": "G-20260801T003238840135Z-14193adf",
   "ledger_evidence": [
-    "L-20260801T003238840960Z-562dd38a"
+    "L-20260801T003238840960Z-562dd38a",
+    "L-20260801T023302964136Z-970dd9b2"
   ],
   "non_goals": [
     "Blocking the lifecycle fields a task PR legitimately writes: status, expected_pr, closeout_pr, expected_branch, ledger_evidence.",
@@ -41,6 +42,6 @@
   ],
   "risk_level": "critical",
   "source_plan": "P-20260801T003238742497Z-cd2c1b4e",
-  "status": "planned",
+  "status": "complete",
   "title": "Stop a task PR from rewriting the contract that governs it"
 }
