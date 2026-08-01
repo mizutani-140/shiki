@@ -1,0 +1,53 @@
+{
+  "acceptance_checks": [
+    "Amendment mode is entered only with BOTH the <!-- shiki:amendment --> marker and the mergegate:amendment label; the marker alone is blocked with the label message.",
+    "Head spec_freeze equals base on every key except amendments, and base's amendments is a strict prefix of head's with at least one new entry; editing, removing or reordering an existing entry, and changing status/approved_by/prd/source, are each blocked.",
+    "An amendment with no new amendments entry is blocked.",
+    "A plan that is not the goal's source_plan, or that is not spec-frozen at base, is blocked.",
+    "Each modified task matches the amended HEAD plan's frozen definition for its title; one that does not is blocked.",
+    "A task of another goal, a task whose title is absent from the amended plan, and an ADDed task file are each blocked.",
+    "status may move only to planned or ready; any other value is blocked.",
+    "expected_pr, closeout_pr, expected_branch and ledger_evidence are frozen to base \u2014 one blocking case per field.",
+    "The DAG restore covers every task in the amended plan under the existing contract-mode rules.",
+    "A goal-scoped contract-amended ledger entry is required, and contract-amended is in the ledger schema enum.",
+    "An implementation file, or any record outside the four allowed classes, is blocked with the mode named.",
+    "Guardian risk is forced from the frozen plan and resolves as the stronger of base and head, proved with a head plan weaker than base.",
+    "contract, goal_reconcile, post_merge_reconcile, bookkeeping-closeout and normal-path PRs behave exactly as before, with no duplicated blocking reason.",
+    "tests/test_contract_amendment.py drives the gate for every case above.",
+    "scripts/test_shiki_adversarial_state.sh and scripts/test_shiki_governance_evidence.sh assert that an amendment cannot lower its own Guardian gate.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260801t041653348134z-bf8a3c4b-enforce-an-amendment-mode-that-may-correct-a-reg",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260801T041653346645Z-7d402f1b",
+  "id": "T-20260801T041653348134Z-bf8a3c4b",
+  "ledger_evidence": [
+    "L-20260801T041653348197Z-8256d190"
+  ],
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:.shiki/schemas/ledger.schema.json",
+    "path:tests/test_contract_amendment.py",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:scripts/test_shiki_adversarial_state.sh"
+  ],
+  "non_goals": [
+    "Touching implementation code or any record outside the four allowed classes",
+    "Editing or removing an existing amendment entry, or changing status/approved_by/prd/source",
+    "Changing contract, goal_reconcile, post_merge_reconcile, closeout or normal-path handling",
+    "Changing the plan schema's amendments item type",
+    "Touching any file outside the declared locks"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "scope": "In `scripts/mergegate_check.py`, add an `amendment` mode alongside the existing `contract` and `goal_reconcile` modes. It is entered only when BOTH the `<!-- shiki:amendment -->` marker is in the PR body AND the maintainer-applied `mergegate:amendment` label is present \u2014 the same two-factor shape `contract_decision` already implements for contract mode, with the same message when the label is missing.\n\nIn amendment mode, and deny-by-default for everything else, a PR may change exactly four things:\n  1. The goal's own `source_plan` (MODIFY). Head's `spec_freeze` must equal base's on every key except `amendments`; base's `amendments` must be a strict PREFIX of head's; at least one new entry must be present. The plan's `id` must not change. A plan that is not this goal's `source_plan` is blocked, as is a plan that is not spec-frozen at base.\n  2. Task files of THIS goal (MODIFY). Each modified task must match the HEAD plan's frozen definition for its title, using the existing `_frozen_task_match_errors` binding against the amended plan. `status` may change only to `planned` or `ready`; `expected_pr`, `closeout_pr`, `expected_branch` and `ledger_evidence` are frozen to base. A task of another goal, or a task whose title is not in the amended plan, is blocked. ADDs are blocked \u2014 registration is contract mode's job.\n  3. The goal's DAG, restored under the same rules contract mode already applies: every node resolves to a frozen-plan task anchored to this goal, and the DAG must cover every task in the amended plan.\n  4. A goal-scoped ledger entry of a new type `contract-amended`, which is REQUIRED, mirroring contract mode's `task-registered` requirement. Add `contract-amended` to the enum in `.shiki/schemas/ledger.schema.json`.\nEverything else \u2014 implementation files, locks, repairs, memories, reports, guardian-policy, another goal's records \u2014 is blocked with the mode named.\n\nGuardian risk is forced from the goal's frozen plan exactly as contract mode does through `contract_guardian_risk`, resolved as the STRONGER of the base plan's risk and the head plan's risk, so an amendment can never lower the gate that approves it. Reuse the existing resolution rather than writing a second one.\n\nThe other modes must be untouched: contract and goal_reconcile keep ADD-only task registration, post_merge_reconcile and the ADR 0017 closeout classifier keep their own base comparisons, and the normal path keeps `normal_task_contract_immutability_reasons`. No mode may report a blocking reason twice.\n\nAdd `tests/test_contract_amendment.py` driving the real gate: a well-formed amendment passes; the marker without the label is blocked with the label message; the label without the marker does not enter the mode; a spec_freeze change that edits an existing amendment entry, removes one, reorders them, or changes status/approved_by/prd/source is blocked \u2014 one case each; an amendment with no new entry is blocked; a foreign plan is blocked; a task of another goal is blocked; a task whose title is not in the amended plan is blocked; a task that does not match the amended plan's definition is blocked; an ADDed task file is blocked; `status` moved to anything other than planned or ready is blocked; each of expected_pr, closeout_pr, expected_branch and ledger_evidence differing from base is blocked \u2014 one case each; an implementation file in the diff is blocked; a missing `contract-amended` ledger entry is blocked; the resolved Guardian risk is the stronger of base and head, proved with a head plan whose risk is weaker than base. Add adversarial cases to `scripts/test_shiki_adversarial_state.sh` and `scripts/test_shiki_governance_evidence.sh` asserting that an amendment cannot lower its own Guardian gate and that contract, goal_reconcile, post_merge_reconcile, closeout and normal-path PRs behave exactly as before.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: implementation proves a frozen contract wrong \u2014 an acceptance criterion that cannot be satisfied, locks too narrow for the change the task actually requires \u2014 and there is no way to correct it. The loop's only options are to stop, or for the operator to commit to main by hand, losing branch protection and the audit trail.\n  Measured on main at c0082fe, three independent blocks, all of them correct: (1) `enforce_untrusted_shiki_mutations` blocks any PR from creating or modifying a spec_freeze block, and its comment states the reason \u2014 an implementation PR could 'append amendments to the plan that governs it'; (2) contract and goal_reconcile mode reject a task file whose diff status is not `A`, with 'may only ADD planned task files, not modify'; (3) since PR #229 the normal task-PR path freezes its own contract's seven governance fields against the base snapshot. Together: zero routes.\n  History: before PR #229 an amendment was delivered by editing the task file on the implementation branch \u2014 an unguarded route that the same PR closed deliberately. That route was used three times on 2026-07-29..31. Closing it was right; leaving no replacement was the gap.\n  Exact change that reproduces this result: a two-factor amendment mode whose relaxations are (a) append-only to `spec_freeze.amendments` on the goal's own source plan, and (b) MODIFY of this goal's task files bound to the amended plan's definitions.\n  Why the plan and not the task file is the authority: the operator approves a PR, and what they read is the amended plan. Binding the task files to it means the thing approved and the thing enforced are the same object.\n  Reproducible when: a task whose locks were too narrow is amended and re-dispatched with no hand-commit to main, and every negative case above is blocked.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target .",
+  "title": "Enforce an amendment mode that may correct a registered contract"
+}

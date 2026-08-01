@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T040836631930Z-97030be9.json"
+  ],
+  "goal_id": "G-20260801T040836630398Z-f28167e5",
+  "id": "L-20260801T040836631997Z-07db85bc",
+  "links": [],
+  "summary": "Task registered from plan: Evaluate Contract Approval as a distinct approval source",
+  "task_id": "T-20260801T040836631930Z-97030be9",
+  "timestamp": "2026-08-01T04:08:36+00:00",
+  "type": "task-registered"
+}
