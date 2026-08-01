@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T065622764296Z-48021407.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260801T000308795657Z-986c2816",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/226#issuecomment-5148461435"
+  ],
+  "summary": "Records the operator's SECOND Spec Amendment for T-20260729T065622764296Z-48021407, authored by the operator at https://github.com/mizutani-140/shiki/pull/226#issuecomment-5148461435 (mizutani-140, 2026-08-01T00:02:17Z). This entry REFERENCES that decision; it does not assert it. The amendment defers the scope item 'Add minItems 1 to the schema's checklist' to a dedicated follow-up task. Reason, as stated by the operator: applying minItems:1 breaks empty-checklist ready-path fixtures in scripts/test_shiki_evidence_integrity.sh and scripts/test_shiki_guardian_policy.sh, both outside this task's declared locks; widening a frozen task's locks mid-flight is what ADR 0015 contract immutability exists to prevent. Measured on the branch: with minItems:1 applied, test_shiki_evidence_integrity.sh, test_shiki_guardian_policy.sh and test_shiki_control_plane.sh fail while 652 unit tests and test_shiki_governance_evidence.sh pass; both out-of-lock files are currently unheld by any active lock, so a dedicated task can own all four files from registration. The four remaining acceptance criteria are delivered and verified. The empty-checklist gap - a verdict may still claim completion while judging nothing - remains open and is tracked as its own task.",
+  "task_id": "T-20260729T065622764296Z-48021407",
+  "timestamp": "2026-08-01T00:03:08+00:00",
+  "type": "review"
+}
