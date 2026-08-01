@@ -1,0 +1,52 @@
+{
+  "acceptance_checks": [
+    "A needs_guardian CCA verdict yields stop_guardian, never a repair dispatch, and leaves the repair-attempt counter unchanged.",
+    "A blocked CCA verdict yields stop_blocked, never a repair dispatch, and leaves the repair-attempt counter unchanged.",
+    "repair_required still dispatches a repair and still increments the attempt counter \u2014 unchanged from today.",
+    "insufficient_evidence still dispatches a repair \u2014 unchanged from today.",
+    "A complete verdict against a red check stops with a distinct reason instead of repairing.",
+    "An unresolvable verdict (missing, unreadable, malformed artifact, or a CCA that crashed before writing one) never dispatches a repair and stops with its own distinct reason.",
+    "Resolving the verdict is read-only and an error resolving it is the unresolvable case, never a loop crash.",
+    "POLICY_GATE handling is unchanged \u2014 asserted directly.",
+    "After a rerun_cca action, every id in task.ledger_evidence resolves to a file present on the task branch, including the transitive .shiki evidence those ledgers cite.",
+    "After a dispatch_repair action, the same holds.",
+    "_sync_state_to_branch's selection logic is unchanged; only its call sites changed.",
+    "scripts/test_shiki_goal_loop.sh covers a needs_guardian verdict producing a Guardian stop rather than a repair.",
+    "scripts/test_shiki_adversarial_state.sh asserts no emittable repair packet names the CCA verdict check as its only failing item.",
+    "tests/test_loop_verdict_gating.py drives the real decide_task_action and effectors for every case above.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260801t085710529159z-575d4080-read-the-cca-verdict-value-before-repairing-and-",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260801T085710527889Z-5ec41eba",
+  "id": "T-20260801T085710529159Z-575d4080",
+  "ledger_evidence": [
+    "L-20260801T085710529220Z-0f435929"
+  ],
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_loop_verdict_gating.py",
+    "path:scripts/test_shiki_goal_loop.sh",
+    "path:scripts/test_shiki_adversarial_state.sh"
+  ],
+  "non_goals": [
+    "Changing what repair_required or insufficient_evidence verdicts do",
+    "Changing POLICY_GATE handling",
+    "Changing the repair attempt limit, the CCA rerun limit, or the closeout path",
+    "Broadening what _sync_state_to_branch copies",
+    "Making the loop merge, approve, or author any approval record",
+    "Touching any file outside the declared locks"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "scope": "DEFECT A \u2014 verdict-aware repair gating. `decide_task_action` in `scripts/shiki_loop.py` currently decides from check conclusions alone. When the `CCA verdict` check is red, the loop must resolve the verdict's VALUE from durable CI evidence \u2014 the `shiki-cca-evidence` artifact the CCA workflow uploads from `.shiki/gha`, which contains `cca-verdict.json` \u2014 and branch on it:\n  - `needs_guardian` -> `stop_guardian`, with a reason naming the verdict. Never a repair, and it must NOT consume a repair attempt.\n  - `blocked` -> `stop_blocked`, with a reason naming the verdict. Never a repair, and it must NOT consume a repair attempt.\n  - `repair_required` or `insufficient_evidence` -> unchanged behaviour: dispatch a repair exactly as today, including the existing rerun-then-repair sequencing and the attempt limit.\n  - `complete` with a red check -> the check and the verdict disagree; stop with a distinct reason rather than repairing.\n  - value unresolvable (no artifact, unreadable, malformed, or the CCA crashed before writing one) -> NEVER dispatch a repair; stop with a distinct reason that says the verdict could not be read. Fail-closed, because an unresolvable verdict may be a Guardian stop and because a CCA that crashed before judging is not repairable by an implementer either.\nResolution must be read-only and must not fail the loop when the network or `gh` is unavailable \u2014 an error resolving the verdict is the unresolvable case, not a crash. Keep the existing POLICY_GATE handling exactly as it is; this change must not alter it.\n\nDEFECT B \u2014 push the evidence the task cites. `_sync_state_to_branch` (line 716) already commits the task file, the worktree record, and every file referenced by `task.ledger_evidence` including the transitive `.shiki`-relative evidence each ledger cites. It is called from exactly one place: line 1410, in the `create_pr` action. Every OTHER loop action that appends to `ledger_evidence` after the PR exists \u2014 `rerun_cca` and `dispatch_repair` at minimum \u2014 must call it too, after its own ledger append, so the branch never cites a record it does not carry. Do not broaden what `_sync_state_to_branch` selects; the defect is where it is called, not what it copies.\n\nAdd `tests/test_loop_verdict_gating.py` driving the real `decide_task_action` and the real effectors against fixtures, one case per branch: each of the five verdict values above; the unresolvable case; an assertion that `needs_guardian` and `blocked` leave the repair-attempt counter UNCHANGED; an assertion that `repair_required` still dispatches and still increments; and an assertion that POLICY_GATE handling is byte-for-byte unchanged. For DEFECT B, assert that after a `rerun_cca` action and after a `dispatch_repair` action, every id in `task.ledger_evidence` resolves to a file present in the task branch's worktree, and that the transitive evidence each of those ledgers cites resolves too. Add a goal-loop case in `scripts/test_shiki_goal_loop.sh` covering a needs_guardian verdict producing a Guardian stop rather than a repair, and an adversarial case in `scripts/test_shiki_adversarial_state.sh` asserting that no repair packet the loop can emit ever names the CCA verdict check as its only failing item.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  DEFECT A symptom: a high-risk PR whose implementation is correct and whose CCA said 'a human must approve' is handed to an implementation runtime with the instruction 'Fix the failing required checks without broadening scope.' The runner has nothing to fix; the shortest action that would satisfy the literal instruction is to manufacture approval evidence.\n  Measured on PR #240 (2026-08-01): three repair packets \u2014 RP-20260801T073709042417Z-13b1dd8d, RP-20260801T074031312915Z-81c3cedd, RP-20260801T075241290749Z-cb805463 \u2014 and three runner sessions, against `git diff --name-only <first head> <last head> -- scripts/ tests/` = ZERO files. The emitted packet contained `failing_checklist_items: ['required check failed: CCA verdict']` and no acceptance criteria.\n  Root cause: `grep -c needs_guardian scripts/shiki_loop.py` = 0. The loop reads check conclusions only. `repairable_failed` strips POLICY_GATE \u2014 with a comment citing ADR 0010 and the phrase 'an autonomous runner is never told to make the Guardian gate pass' \u2014 but the `CCA verdict` check is not stripped, so a `needs_guardian` verdict reaches `dispatch_repair` once the rerun budget is spent.\n  Second harm, measured: the 3-attempt repair budget is consumed by a gate no repair can satisfy, leaving none for a real failure.\n  DEFECT B symptom: `MergeGate metadata check` blocks with `Task ledger evidence L-\u2026 is missing at /home/runner/work/shiki/shiki/.shiki/ledger/L-\u2026.json`. Measured: 3 missing entries on PR #239, 5 on PR #240.\n  Root cause: `_sync_state_to_branch` is called from exactly one place \u2014 line 1410, the `create_pr` action. `rerun_cca` and `dispatch_repair` append to `ledger_evidence` in the COORDINATOR mirror and never sync. `_commit_and_push_implementation` runs `git add -A` in the worktree, which cannot help: the records were written to the coordinator's `.shiki`, not the worktree's.\n  Why they compound: fixing a stranded-evidence block requires a push, a push moves the head, and `guardian_comment.require_head_sha` is true \u2014 so every occurrence costs a fresh operator approval. Four of the five approvals PRs #239 and #240 consumed were caused by these two defects, not by any decision anyone needed to make.\n  Reproducible when: a needs_guardian verdict yields a Guardian stop with the repair counter untouched, and after any post-PR loop action every id in `ledger_evidence` resolves to a file on the task branch.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target .",
+  "title": "Read the CCA verdict value before repairing, and push the evidence the task cites"
+}
