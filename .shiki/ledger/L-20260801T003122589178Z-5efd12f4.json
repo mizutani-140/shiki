@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260729T065622767723Z-f138eccf.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260801T003122589178Z-5efd12f4",
+  "links": [],
+  "summary": "Task T-20260729T065622767723Z-f138eccf status changed to ready",
+  "task_id": "T-20260729T065622767723Z-f138eccf",
+  "timestamp": "2026-08-01T00:31:22+00:00",
+  "type": "check"
+}

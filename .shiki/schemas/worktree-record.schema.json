@@ -16,8 +16,8 @@
     "pr"
   ],
   "properties": {
-    "task_id": { "type": "string", "pattern": "^T-[0-9]{4,}$" },
-    "goal_id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
+    "task_id": { "type": "string", "pattern": "^T-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
+    "goal_id": { "type": "string", "pattern": "^G-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
     "branch": { "type": "string", "minLength": 1 },
     "path": { "type": "string", "minLength": 1 },
     "runtime": { "type": "string" },
