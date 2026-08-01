@@ -15,5 +15,8 @@ __pycache__/
 *.py[cod]
 .shiki/gha/
 
+# Local-only runtime session leases (OS flock liveness files)
+.shiki/leases/
+
 # Local input bundles
 shiki_prompt_bundle*.zip

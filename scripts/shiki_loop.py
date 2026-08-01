@@ -27,7 +27,7 @@ from shiki_config import configured_required_checks
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_github import create_github_pr_for_task, github_env, parse_github_number, target_provider_config
 from shiki_process import ShikiError, print_json, read_json, run, shiki_path, target_path, write_json
-from shiki_runtime import dispatch_runner_task
+from shiki_runtime import dispatch_runner_task, session_lease_state
 from shiki_runtime_adapters import REVIEWER_ADAPTER, get_runner_adapter, parse_code_review_verdict
 from shiki_tasks import (
     append_ledger,
@@ -50,6 +50,13 @@ POLICY_GATE = "MergeGate policy check"
 CCA_VERDICT_CHECK = "CCA verdict"
 MAX_CCA_RERUNS = 2
 
+# Bound on how many times the loop re-dispatches a `running` task whose session
+# lease proves the session is gone (free/absent). Once the recorded
+# `dispatch_attempts` reaches this bound the loop stops for the operator instead
+# of spinning: a session that keeps dying is a real failure, not a strand to
+# silently retry forever.
+MAX_DISPATCH_ATTEMPTS = 2
+
 # Engine action names, in execution priority order for a goal pass.
 ACTION_PRIORITY = (
     "mark_done",
@@ -58,6 +65,7 @@ ACTION_PRIORITY = (
     "rerun_cca",
     "dispatch_repair",
     "create_pr",
+    "redispatch",
     "dispatch",
     "unblock",
 )
@@ -74,8 +82,16 @@ def decide_task_action(
     repair_limit: int,
     required_checks: list[str],
     cca_reruns: int = 0,
+    lease_state: str | None = None,
 ) -> dict[str, Any]:
-    """Pure decision for one task. checks values: pass | fail | pending."""
+    """Pure decision for one task. checks values: pass | fail | pending.
+
+    ``lease_state`` is the session-lease probe result for a ``running`` task
+    (``held`` / ``free`` / ``foreign_host`` / ``absent``; see
+    ``shiki_session_lease.session_lease_state``). It is ``None`` when not probed,
+    in which case a ``running`` task keeps waiting — the status field alone is
+    never treated as proof a session is gone.
+    """
     task_id = str(task.get("id"))
     status = str(task.get("status", ""))
 
@@ -86,7 +102,43 @@ def decide_task_action(
     if status == "ready":
         return {"action": "dispatch", "task_id": task_id, "reason": "task is ready for the implementer runtime"}
     if status == "running":
-        return {"action": "wait_runner", "task_id": task_id, "reason": "implementer session is running"}
+        # The status field alone is not proof of a live session: a dispatched
+        # session that died mid-work (the command-timeout strand) leaves the task
+        # at `running` forever. Consult the OS lease instead. `held` (a live
+        # holder) and `foreign_host` (a lease on another machine, never judged
+        # here) keep waiting; only `free`/`absent` — a lease the kernel released
+        # because the holder is gone — mean the session is dead.
+        if lease_state in {"held", "foreign_host"}:
+            which = (
+                "the session lease is held by a live process"
+                if lease_state == "held"
+                else "the session lease is recorded on a foreign host and is not judged here"
+            )
+            return {"action": "wait_runner", "task_id": task_id, "reason": f"implementer session is running ({which})"}
+        if lease_state is None:
+            # Not probed (e.g. a pure-engine caller without a lease): fall back to
+            # trusting the status field rather than re-dispatching on no evidence.
+            return {"action": "wait_runner", "task_id": task_id, "reason": "implementer session is running"}
+        # lease_state in {"free", "absent"}: no live session holds the lease.
+        attempts = int(task.get("dispatch_attempts") or 0)
+        if attempts >= MAX_DISPATCH_ATTEMPTS:
+            return {
+                "action": "stop_blocked",
+                "task_id": task_id,
+                "reason": (
+                    f"task {task_id} has been re-dispatched {attempts} time(s) but its session lease still "
+                    f"reads {lease_state} (no live session holds it); this exceeds the re-dispatch bound of "
+                    f"{MAX_DISPATCH_ATTEMPTS}. The dispatched session keeps dying — diagnose before re-dispatching."
+                ),
+            }
+        return {
+            "action": "redispatch",
+            "task_id": task_id,
+            "reason": (
+                f"task {task_id} is `running` but its session lease reads {lease_state} — no live "
+                f"session; re-dispatching (attempt {attempts + 1}/{MAX_DISPATCH_ATTEMPTS})"
+            ),
+        }
     if status == "repair-needed":
         if not task.get("expected_pr"):
             return {
@@ -1303,6 +1355,16 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
     task = load_task(target, task_id)
     if action == "dispatch":
         result["returncode"] = _dispatch(target, task)
+    elif action == "redispatch":
+        # A `running` task whose session lease is gone (free/absent): the session
+        # died mid-work and left the task stranded. Reset it to `ready`, record
+        # the attempt on the task (a monotonically increasing `dispatch_attempts`
+        # the decision reads to enforce the bound), and dispatch a fresh session.
+        task["status"] = "ready"
+        task["dispatch_attempts"] = int(task.get("dispatch_attempts") or 0) + 1
+        _save_task(target, task)
+        result["dispatch_attempts"] = task["dispatch_attempts"]
+        result["returncode"] = _dispatch(target, load_task(target, task_id))
     elif action == "create_pr":
         # (a) Pre-PR code-review gate (ADR 0011). An INDEPENDENT read-only
         # reviewer judges the diff in a separate context BEFORE the PR exists.
@@ -1500,8 +1562,13 @@ def goal_loop_step(target: Path, goal_id: str) -> dict[str, Any]:
     decisions = []
     for task in tasks:
         pr_state, checks = (None, {})
+        lease_state = None
         if task.get("status") == "review":
             pr_state, checks = snapshot_pr(target, task)
+        elif task.get("status") == "running":
+            # Probe the OS lease so a stranded `running` task (session died) is
+            # distinguished from a live one instead of waiting on it forever.
+            lease_state = session_lease_state(target, str(task.get("id")))
         decisions.append(
             decide_task_action(
                 task,
@@ -1511,6 +1578,7 @@ def goal_loop_step(target: Path, goal_id: str) -> dict[str, Any]:
                 repair_limit=repair_limit,
                 required_checks=list(required_checks),
                 cca_reruns=int(task.get("cca_rerun_count") or 0),
+                lease_state=lease_state,
             )
         )
     decision = decide_goal_action(decisions, tasks)

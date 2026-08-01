@@ -3,11 +3,16 @@
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
+import json
+import os
+import socket
 from pathlib import Path
 import shutil
 import subprocess
 import time
-from typing import Any
+from typing import Any, Iterator
 
 from shiki_git import branch_exists
 from shiki_github import create_github_issue_for_task, create_github_pr_for_task, github_repo_from_origin
@@ -25,6 +30,136 @@ from shiki_runtime_adapters import (
 )
 from shiki_runtime_registry import RuntimeRegistryError, get_runtime, runtime_registry_as_json
 from shiki_tasks import append_ledger, load_task, orchestrate_plan, require_github_first_target, require_grilled_plan, next_control_id, task_files, worktree_record
+
+
+# --------------------------------------------------------------------------- #
+# OS session lease (see shiki_session_lease for the public import surface).
+#
+# dispatch_runner_task writes `running` to the task file before the synchronous
+# adapter call and the terminal status only after it returns, so a session that
+# dies between those writes (the command-timeout strand) leaves the task at
+# `running` with no live process and the loop waits on it forever. The lease is
+# the liveness signal: an exclusive fcntl.flock the kernel releases on process
+# death, so a successful non-blocking acquire is exact proof no holder is alive —
+# unlike a recorded pid, which an unrelated process can reuse. These primitives
+# live here (a module the installer stages into every Shiki repo) so a dispatched
+# session in the coordinator AND in target repos carries the lease.
+# --------------------------------------------------------------------------- #
+LEASE_HELD = "held"
+LEASE_FREE = "free"
+LEASE_FOREIGN_HOST = "foreign_host"
+LEASE_ABSENT = "absent"
+
+
+class SessionLeaseHeld(Exception):
+    """A non-blocking lease acquire failed: a live session already holds it."""
+
+    def __init__(self, task_id: str) -> None:
+        super().__init__(f"session lease for {task_id} is already held by a live dispatch")
+        self.task_id = task_id
+
+
+def session_lease_path(target: Path, task_id: str) -> Path:
+    """``<target>/.shiki/leases/<task_id>.lock`` — the lease file for a task."""
+    return shiki_path(Path(target), "leases", f"{task_id}.lock")
+
+
+def _lease_host() -> str:
+    return socket.gethostname()
+
+
+@contextlib.contextmanager
+def hold_session_lease(target: Path, task_id: str, *, attempt: int = 0) -> Iterator[Path]:
+    """Hold an exclusive OS lease for a dispatched session's lifetime.
+
+    Opens (creating if needed) the lease file, takes ``fcntl.flock(LOCK_EX |
+    LOCK_NB)``, and writes ``{task_id, host, pid, started_at, attempt}`` as its
+    content. The descriptor is held for the ``with`` body and released on exit —
+    and on process death alike, because the kernel releases the flock. Raises
+    :class:`SessionLeaseHeld` when the lease cannot be taken (a live dispatch owns
+    it).
+    """
+    target = Path(target)
+    path = session_lease_path(target, task_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Open WITHOUT O_TRUNC: a live holder's content must survive our *failed*
+    # acquire. Truncate + rewrite only AFTER we own the exclusive lock.
+    fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+    try:
+        handle = os.fdopen(fd, "r+", encoding="utf-8")
+    except BaseException:
+        os.close(fd)
+        raise
+    # Acquire first; only enter the release-on-exit block once we own the lock, so
+    # the collision path (close + raise) never re-touches a closed descriptor.
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as error:
+        handle.close()
+        raise SessionLeaseHeld(task_id) from error
+    except BaseException:
+        handle.close()
+        raise
+    try:
+        handle.seek(0)
+        handle.truncate()
+        handle.write(
+            json.dumps(
+                {
+                    "task_id": task_id,
+                    "host": _lease_host(),
+                    "pid": os.getpid(),
+                    "started_at": utc_now(),
+                    "attempt": int(attempt),
+                }
+            )
+        )
+        handle.flush()
+        yield path
+    finally:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
+        handle.close()
+
+
+def session_lease_state(target: Path, task_id: str) -> str:
+    """Read-only liveness probe for a task's session lease.
+
+    Returns exactly one of ``held`` / ``free`` / ``foreign_host`` / ``absent``. A
+    ``foreign_host`` lease is never judged with an flock — a flock's outcome is
+    only meaningful on the machine that took it. The probe must never leave the
+    lease acquired: on a successful acquire it releases immediately, so two
+    consecutive probes return the same state.
+    """
+    target = Path(target)
+    path = session_lease_path(target, task_id)
+    if not path.exists():
+        return LEASE_ABSENT
+    try:
+        recorded = json.loads(path.read_text(encoding="utf-8") or "{}")
+    except (ValueError, OSError):
+        recorded = {}
+    host = recorded.get("host") if isinstance(recorded, dict) else None
+    if isinstance(host, str) and host and host != _lease_host():
+        return LEASE_FOREIGN_HOST
+    try:
+        fd = os.open(path, os.O_RDWR)
+    except OSError:
+        return LEASE_ABSENT  # the file vanished between the exists() check and here
+    handle = os.fdopen(fd, "r+", encoding="utf-8")
+    try:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            return LEASE_HELD  # a live holder owns the exclusive lock
+        # Acquired => no live holder. Release immediately so the probe leaves no
+        # lock held; closing the descriptor in `finally` releases it too.
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        return LEASE_FREE
+    finally:
+        handle.close()
 
 
 def validate_task_runtime_for_execution(task: dict[str, Any]) -> None:
@@ -425,16 +560,30 @@ def dispatch_runner_task(args: argparse.Namespace, adapter: RunnerAdapter) -> in
         )
         return 0
 
-    task["status"] = "running"
-    write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
-    # Refresh the worktree's contract mirror from the coordinator before the
-    # session starts, so the implementer judges against the CURRENT task, goal
-    # and lock record — not the stale copy the worktree was cut with. This closes
-    # the repair-after-amendment gap where a session verifies against outdated
-    # locks in its own .shiki.
-    sync_contract_into_worktree(target, task, worktree_path)
-    prompt = handoff_file.read_text()
-    result = adapter.execute(worktree_path, prompt)
+    # Hold an exclusive OS lease for the whole session — from the `running` write
+    # through the adapter call. The kernel releases it on process death, so a
+    # session that dies mid-work (the command-timeout strand this task removes)
+    # frees the lease and the loop can prove the session is gone and re-dispatch.
+    # If the lease cannot be taken, another dispatch for the same task is already
+    # running: fail fast rather than starting a second session against the same
+    # worktree.
+    try:
+        with hold_session_lease(target, args.task_id, attempt=int(task.get("dispatch_attempts") or 0)):
+            task["status"] = "running"
+            write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
+            # Refresh the worktree's contract mirror from the coordinator before the
+            # session starts, so the implementer judges against the CURRENT task, goal
+            # and lock record — not the stale copy the worktree was cut with. This closes
+            # the repair-after-amendment gap where a session verifies against outdated
+            # locks in its own .shiki.
+            sync_contract_into_worktree(target, task, worktree_path)
+            prompt = handoff_file.read_text()
+            result = adapter.execute(worktree_path, prompt)
+    except SessionLeaseHeld as error:
+        raise ShikiError(
+            f"another dispatch for the same task is already running ({args.task_id}); "
+            "refusing to start a second session against the same worktree"
+        ) from error
     record_file, ledger_id = record_runner_result(
         target,
         task,
