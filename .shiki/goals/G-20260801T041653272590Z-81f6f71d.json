@@ -1,0 +1,46 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A verdict with an empty checklist or an empty acceptance list is rejected by the schema, by the transport schema, and by enforce_cca_verdict with a precise reason.",
+    "An unusable generation is retried inside the same run, bounded, and a well-formed one never is.",
+    "The three suites whose fixtures encode an empty checklist are updated so each still proves the property it was written for.",
+    "The full suite, the evidence-integrity, guardian-policy, control-plane and governance-evidence suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-01T04:16:53+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "It happened. On PR #233 the CCA emitted a verdict with ZERO checklist entries and ZERO acceptance entries. It was caught downstream by a MergeGate rule ('CCA verdict acceptance evidence is empty'), not by the schema \u2014 the verdict was schema-VALID. `.shiki/schemas/cca-verdict.schema.json` declares checklist and acceptance as arrays with no minItems, and the transport schema the workflow passes to `--json-schema` has no minItems either, so nothing at any layer required the judge to judge anything.",
+      "The blast radius of adding minItems was MEASURED, not estimated. With `minItems: 1` on both arrays: `python3 -m unittest discover -s tests` \u2192 691 tests, OK. `validate_shiki` \u2192 passed. `scripts/test_shiki_governance_evidence.sh` \u2192 passed (its deliberately-empty fixtures do not go through schema validation). Exactly THREE suites fail, each on a fixture that hardcodes an empty checklist: test_shiki_evidence_integrity.sh (lines 56, 267), test_shiki_guardian_policy.sh (line 434) and test_shiki_control_plane.sh (lines 280, 765, 1325). Line 280's failure is instructive: it asserts the message 'repair_required verdict must include a non-null object', and with minItems the fixture now fails for the schema reason instead, so the grep misses. Those three files are therefore in the locks, and nothing else is.",
+      "The only verdict-shaped record in the mirror with an empty checklist is `.shiki/templates/CCA_VERDICT.template.json`, which is a template rather than a mirror record and is not covered by validate_shiki's schema-conformance loop. No recorded verdict has to be rewritten.",
+      "Schema tightening alone is not enough. It converts a degenerate verdict from 'accepted' into 'the run fails', which is correct but still costs a full `gh run rerun`. And a partial `gh run rerun --failed` does NOT help: it reuses the previous job's artifact, so the stale degenerate verdict comes back. That was measured on #233 \u2014 the partial re-run reproduced the failure and only a full re-run regenerated the verdict.",
+      "The retry belongs inside the run, bounded, and only for verdicts that are UNUSABLE \u2014 absent, unparseable, or degenerate. A verdict that judged the PR and returned repair_required or needs_guardian is a real answer and must never be retried; retrying a real answer until it changes would be judge-shopping, which is exactly what a completion gate must not do."
+    ],
+    "source": "Measured 2026-08-01 against main at c0082fe, plus live operation on PR #233 on 2026-07-31.",
+    "status": "complete"
+  },
+  "id": "G-20260801T041653272590Z-81f6f71d",
+  "ledger_evidence": [
+    "L-20260801T041653273419Z-4a50b294"
+  ],
+  "non_goals": [
+    "Retrying a well-formed verdict of any value, including repair_required, needs_guardian, blocked or insufficient_evidence.",
+    "Changing verdict semantics, the checklist ids, or docs/agents/checklists.md.",
+    "Changing what MergeGate does with a well-formed verdict.",
+    "Rewriting any recorded verdict in the mirror.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A CCA verdict that judged nothing can no longer be emitted, accepted, or recorded, and a single unusable generation no longer costs a full manual re-run. The two are the same defect seen from both ends: the schema permits a verdict with an empty checklist, and when the model produces one there is no recovery inside the run.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260801T041646760027Z-2a4c05db",
+  "status": "planned",
+  "title": "Refuse a degenerate CCA verdict and stop losing a whole run to one bad generation"
+}

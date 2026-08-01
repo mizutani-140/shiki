@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260801T041653272590Z-81f6f71d.json",
+    ".shiki/plans/P-20260801T041646760027Z-2a4c05db.json"
+  ],
+  "goal_id": "G-20260801T041653272590Z-81f6f71d",
+  "id": "L-20260801T041653273419Z-4a50b294",
+  "links": [],
+  "summary": "Goal registered from plan: Refuse a degenerate CCA verdict and stop losing a whole run to one bad generation",
+  "task_id": null,
+  "timestamp": "2026-08-01T04:16:53+00:00",
+  "type": "goal-created"
+}

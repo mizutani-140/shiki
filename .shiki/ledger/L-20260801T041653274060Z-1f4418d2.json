@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T041653274008Z-54d3477c.json"
+  ],
+  "goal_id": "G-20260801T041653272590Z-81f6f71d",
+  "id": "L-20260801T041653274060Z-1f4418d2",
+  "links": [],
+  "summary": "Task registered from plan: Make a verdict that judged nothing invalid at every layer",
+  "task_id": "T-20260801T041653274008Z-54d3477c",
+  "timestamp": "2026-08-01T04:16:53+00:00",
+  "type": "task-registered"
+}

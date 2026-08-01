@@ -1,0 +1,49 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "An implementation PR for a task registered by a merged, Guardian-approved Contract PR satisfies the Guardian requirement with no approval of its own.",
+    "The same PR is NOT covered when its contract is absent at base, when its governance fields differ from base, when the registering PR was not approved, or when the proof is missing.",
+    "The MergeGate policy check and the deterministic CCA Guardian signal agree, so a contract-approved PR does not return needs_guardian.",
+    "ADR 0015 records the implementation and moves to Accepted.",
+    "The full suite, the governance-evidence, guardian-policy and adversarial suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-01T04:08:36+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "ADR 0015 'Evaluation placement' states: 'Contract Approval is evaluated by a new, separately tested function, and MergeGate accepts either live PR approval or Contract Approval. evaluate_guardian_approval is not modified.' Measured: `grep -rn 'contract_approval|Contract Approval' scripts/ .github/` returns ZERO hits. The four approval sources in guardian-policy.json are github_review, guardian_label, guardian_comment and external_ai_guardian_review. Nothing reads a contract.",
+      "Measured live: PRs #226, #229 and #232 are the implementation PRs of high/critical tasks whose contracts were registered by approved Contract PRs, and every one of them carries its own guardian:approved label. The pre-dispatch approval bought nothing at merge time.",
+      "ADR 0015 Status is still 'Proposed'. The registration half (contract mode, forced Guardian risk from the frozen plan, deny-by-default file rules) shipped; the approval half did not.",
+      "Proving the Contract PR was approved must not depend on any artifact the implementation PR can write. The durable proof available at judgment time is live GitHub state: the commit that ADDED .shiki/tasks/<id>.json to the base branch, the PR associated with that commit, and whether that PR was merged carrying a recorded Guardian approval. Deriving it from git history plus gh is forgery-resistant because the implementation PR cannot rewrite the base branch's history.",
+      "The Scope Envelope is already enforced by machinery that landed on 2026-07-31 and 2026-08-01: locks bind the changed paths (files_outside_locks), and normal_task_contract_immutability_reasons (PR #229) freezes the seven governance fields of the PR's own contract against the base snapshot. A separate numeric size ceiling is deliberately NOT introduced: it is new policy with no measured basis, it would block legitimate work, and ADR 0015's decision is to approve the contract rather than the diff. CCA still judges the diff against the acceptance criteria.",
+      "Failure must degrade to today's behaviour, exactly as ADR 0015 requires: any missing, unreadable or unresolvable input means Contract Approval does not apply and the live-approval path decides alone. It never makes a PR that would pass today fail."
+    ],
+    "source": "Measured 2026-08-01 against main at c0082fe.",
+    "status": "complete"
+  },
+  "id": "G-20260801T040836630398Z-f28167e5",
+  "ledger_evidence": [
+    "L-20260801T040836631297Z-2e876fa7"
+  ],
+  "non_goals": [
+    "Modifying evaluate_guardian_approval or any of its four existing sources.",
+    "Introducing a numeric size ceiling for the Scope Envelope.",
+    "Changing how risk_level is resolved, or lowering any task's risk.",
+    "Changing contract, goal_reconcile, post_merge_reconcile or bookkeeping-closeout handling.",
+    "Letting Contract Approval cover a PR whose own contract differs from the base snapshot.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A high/critical task whose contract was registered by a Guardian-approved Contract PR no longer asks for a second Guardian approval on its implementation PR. ADR 0015 decided this and it was never implemented: the Contract PR mode registers contracts, but no approval source reads it, so the approval that ADR 0015 moved to before dispatch is still also demanded after implementation.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_plan": "P-20260801T040831205733Z-f88e60e0",
+  "status": "planned",
+  "title": "Let a Contract Approval carry to the implementation PR it approved"
+}

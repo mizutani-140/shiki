@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T040948352877Z-eea16def.json"
+  ],
+  "goal_id": "G-20260801T040948350468Z-4a542e71",
+  "id": "L-20260801T040948352897Z-b6f97603",
+  "links": [],
+  "summary": "Task registered from plan: Sync a PR branch that fell behind its base instead of stopping",
+  "task_id": "T-20260801T040948352877Z-eea16def",
+  "timestamp": "2026-08-01T04:09:48+00:00",
+  "type": "task-registered"
+}

@@ -1,0 +1,118 @@
+{
+  "completion_conditions": [
+    "A verdict with an empty checklist or an empty acceptance list is rejected by the schema, by the transport schema, and by enforce_cca_verdict with a precise reason.",
+    "An unusable generation is retried inside the same run, bounded, and a well-formed one never is.",
+    "The three suites whose fixtures encode an empty checklist are updated so each still proves the property it was written for.",
+    "The full suite, the evidence-integrity, guardian-policy, control-plane and governance-evidence suites and validate_shiki stay green."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "It happened. On PR #233 the CCA emitted a verdict with ZERO checklist entries and ZERO acceptance entries. It was caught downstream by a MergeGate rule ('CCA verdict acceptance evidence is empty'), not by the schema \u2014 the verdict was schema-VALID. `.shiki/schemas/cca-verdict.schema.json` declares checklist and acceptance as arrays with no minItems, and the transport schema the workflow passes to `--json-schema` has no minItems either, so nothing at any layer required the judge to judge anything.",
+      "The blast radius of adding minItems was MEASURED, not estimated. With `minItems: 1` on both arrays: `python3 -m unittest discover -s tests` \u2192 691 tests, OK. `validate_shiki` \u2192 passed. `scripts/test_shiki_governance_evidence.sh` \u2192 passed (its deliberately-empty fixtures do not go through schema validation). Exactly THREE suites fail, each on a fixture that hardcodes an empty checklist: test_shiki_evidence_integrity.sh (lines 56, 267), test_shiki_guardian_policy.sh (line 434) and test_shiki_control_plane.sh (lines 280, 765, 1325). Line 280's failure is instructive: it asserts the message 'repair_required verdict must include a non-null object', and with minItems the fixture now fails for the schema reason instead, so the grep misses. Those three files are therefore in the locks, and nothing else is.",
+      "The only verdict-shaped record in the mirror with an empty checklist is `.shiki/templates/CCA_VERDICT.template.json`, which is a template rather than a mirror record and is not covered by validate_shiki's schema-conformance loop. No recorded verdict has to be rewritten.",
+      "Schema tightening alone is not enough. It converts a degenerate verdict from 'accepted' into 'the run fails', which is correct but still costs a full `gh run rerun`. And a partial `gh run rerun --failed` does NOT help: it reuses the previous job's artifact, so the stale degenerate verdict comes back. That was measured on #233 \u2014 the partial re-run reproduced the failure and only a full re-run regenerated the verdict.",
+      "The retry belongs inside the run, bounded, and only for verdicts that are UNUSABLE \u2014 absent, unparseable, or degenerate. A verdict that judged the PR and returned repair_required or needs_guardian is a real answer and must never be retried; retrying a real answer until it changes would be judge-shopping, which is exactly what a completion gate must not do."
+    ],
+    "source": "Measured 2026-08-01 against main at c0082fe, plus live operation on PR #233 on 2026-07-31.",
+    "status": "complete"
+  },
+  "id": "P-20260801T041646760027Z-2a4c05db",
+  "ingested_at": "2026-08-01T04:16:46+00:00",
+  "non_goals": [
+    "Retrying a well-formed verdict of any value, including repair_required, needs_guardian, blocked or insufficient_evidence.",
+    "Changing verdict semantics, the checklist ids, or docs/agents/checklists.md.",
+    "Changing what MergeGate does with a well-formed verdict.",
+    "Rewriting any recorded verdict in the mirror.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A CCA verdict that judged nothing can no longer be emitted, accepted, or recorded, and a single unusable generation no longer costs a full manual re-run. The two are the same defect seen from both ends: the schema permits a verdict with an empty checklist, and when the model produces one there is no recovery inside the run.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-CCANONDEGEN-draft.json",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": "docs/agents/completion-check-agent.md",
+    "source": "Operator instruction 2026-08-01 to fix every open finding; findings 2 and 6 were recorded together because a degenerate verdict is the observed form of the instability.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "checklist and acceptance both carry minItems: 1 in .shiki/schemas/cca-verdict.schema.json.",
+        "The same two properties carry minItems: 1 in the workflow's inline transport schema.",
+        "enforce_cca_verdict rejects an empty checklist and an empty acceptance list with distinct messages naming the array, ahead of schema validation.",
+        "The exact degenerate payload observed on PR #233 is rejected.",
+        "A single-entry checklist with a single-entry acceptance list is accepted.",
+        "All six fixture sites across the three named suites are non-degenerate, and every one still proves the property it was written for \u2014 in particular control_plane line 280 still reaches its 'repair_required verdict must include a non-null object' assertion.",
+        "python3 -m unittest discover -s tests, test_shiki_evidence_integrity.sh, test_shiki_guardian_policy.sh, test_shiki_control_plane.sh, test_shiki_governance_evidence.sh and validate_shiki all pass.",
+        "tests/test_cca_verdict_nondegenerate.py covers every case above.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:.shiki/schemas/cca-verdict.schema.json",
+        "path:scripts/enforce_cca_verdict.py",
+        "path:.github/workflows/shiki-cca-completion.yml",
+        "path:scripts/test_shiki_evidence_integrity.sh",
+        "path:scripts/test_shiki_guardian_policy.sh",
+        "path:scripts/test_shiki_control_plane.sh",
+        "path:tests/test_cca_verdict_nondegenerate.py"
+      ],
+      "non_goals": [
+        "Changing verdict semantics or the checklist ids",
+        "Deleting any existing test case rather than making its fixture non-degenerate",
+        "Rewriting any recorded verdict in the mirror",
+        "Adding retry behaviour (that is the next task)",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Add `\"minItems\": 1` to the `checklist` and `acceptance` properties of `.shiki/schemas/cca-verdict.schema.json`, and to the SAME two properties of the inline transport schema in `.github/workflows/shiki-cca-completion.yml` (the object written to `$RUNNER_TEMP/cca-transport.schema.json` and passed to `--json-schema`). Both layers matter and for different reasons: the transport schema constrains what the model is allowed to emit at generation time, and the repository schema is what every reader validates against afterwards.\n\nIn `scripts/enforce_cca_verdict.py`, add an explicit non-degeneracy check that runs BEFORE the schema validation and fails with its own precise message naming which array is empty. Schema validation would already reject it, but its message is a generic 'array is too short' that says nothing about what the judge failed to do; the explicit check is what an operator reads on a red X.\n\nUpdate exactly the three suites whose fixtures hardcode an empty checklist, giving each a minimal non-empty checklist that preserves the property the fixture was written to prove \u2014 never by deleting the case:\n  - `scripts/test_shiki_evidence_integrity.sh` lines 56 and 267\n  - `scripts/test_shiki_guardian_policy.sh` line 434\n  - `scripts/test_shiki_control_plane.sh` lines 280, 765 and 1325. Line 280 needs care: it asserts the message `repair_required verdict must include a non-null object`, so its fixture must become non-degenerate in order to still reach that assertion rather than failing earlier on the schema.\n\nAdd `tests/test_cca_verdict_nondegenerate.py` driving `enforce_cca_verdict` and the schema directly: an empty checklist is rejected and the message names `checklist`; an empty acceptance list is rejected and the message names `acceptance`; both empty is rejected; a single-entry checklist with a single-entry acceptance list is accepted; the exact degenerate payload shape observed on PR #233 is rejected; and every existing enforcement (blocking failures, short-circuited evaluations, head-SHA injection) still behaves as it does today on a non-degenerate verdict.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the CCA returns a verdict with zero checklist entries and zero acceptance entries \u2014 it judged nothing \u2014 and the verdict is schema-VALID. On PR #233 it was caught only by a downstream MergeGate rule ('CCA verdict acceptance evidence is empty'). A verdict that judged nothing should never have been representable.\n  Measured: `.shiki/schemas/cca-verdict.schema.json` declares checklist and acceptance as arrays with no `minItems`; the transport schema in the workflow likewise. Both `[]` values validate.\n  Measured blast radius of the fix, so the locks are exact rather than guessed: with minItems on both arrays, `python3 -m unittest discover -s tests` gives 691 tests OK, `validate_shiki` passes, `test_shiki_governance_evidence.sh` passes, and exactly three suites fail \u2014 evidence_integrity, guardian_policy and control_plane \u2014 each on a hardcoded empty-checklist fixture. Those three files are in the locks for that reason and nothing else is.\n  Exact change that reproduces this result: `minItems: 1` on checklist and acceptance in BOTH schemas, an explicit named check in enforce_cca_verdict, and non-degenerate fixtures in those three suites.\n  Reproducible when: the #233 payload is rejected with a message naming the empty array, and all four suites plus validate_shiki are green.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_evidence_integrity.sh && bash scripts/test_shiki_guardian_policy.sh && bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Make a verdict that judged nothing invalid at every layer"
+    },
+    {
+      "acceptance_checks": [
+        "verdict_usability is pure, performs no I/O, and returns usable/absent/unparseable/degenerate with a reason.",
+        "A well-formed repair_required, needs_guardian, blocked and insufficient_evidence are each classified usable \u2014 one case per verdict value.",
+        "An absent, unparseable, empty-checklist, empty-acceptance and both-empty output are each classified as their respective unusable class.",
+        "The workflow classifies between Run CCA and Enforce CCA verdict.",
+        "An unusable first generation triggers exactly one retry; a second unusable output proceeds to enforcement and fails the job.",
+        "A usable first generation runs the CCA step exactly once.",
+        "The retry decision is visible in the job log.",
+        "The retry path is reachable from both workflow_dispatch and pull_request.",
+        "Artifact names, the evidence manifest and the Guardian blockers comment step are unchanged.",
+        "scripts/test_shiki_control_plane.sh asserts the classification step, the single-retry bound, and that retry is limited to the unusable classes.",
+        "tests/test_cca_verdict_usable.py covers every case above.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [
+        "Make a verdict that judged nothing invalid at every layer"
+      ],
+      "locks": [
+        "path:.github/workflows/shiki-cca-completion.yml",
+        "path:scripts/cca_verdict_usable.py",
+        "path:tests/test_cca_verdict_usable.py",
+        "path:scripts/test_shiki_control_plane.sh"
+      ],
+      "non_goals": [
+        "Retrying any well-formed verdict, of any value",
+        "More than one retry",
+        "Changing artifact names, the evidence manifest, or the Guardian blockers comment step",
+        "Changing verdict semantics",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Add `scripts/cca_verdict_usable.py` with a pure classifier `verdict_usability(structured_output)` returning `usable`, `absent`, `unparseable` or `degenerate`, plus the reason. `degenerate` means schema-valid in shape but judging nothing \u2014 an empty checklist or an empty acceptance list. Every other value, INCLUDING a well-formed `repair_required`, `needs_guardian`, `blocked` or `insufficient_evidence`, is `usable`.\n\nIn `.github/workflows/shiki-cca-completion.yml`, insert a classification step between `Run CCA` and `Enforce CCA verdict`. When the classification is `usable`, nothing changes. When it is `absent`, `unparseable` or `degenerate`, run the CCA step once more \u2014 the same prompt, the same schema, the same allowed tools \u2014 and use the second output. Exactly one retry: a second unusable output proceeds to `Enforce CCA verdict`, which fails the job with the reason from the first task, and the retry decision is echoed into the job log so an operator can see it happened.\n\nThe retry must be reachable from `workflow_dispatch` and from `pull_request` alike, and must not change the artifact names, the evidence manifest, or the Guardian blockers comment step.\n\nAdd `tests/test_cca_verdict_usable.py` covering the classifier: absent/empty string; unparseable JSON; a degenerate verdict (empty checklist, empty acceptance, and both); a well-formed `complete`; and \u2014 this is the case that matters most \u2014 a well-formed `repair_required`, `needs_guardian`, `blocked` and `insufficient_evidence` each classified `usable`, so no real answer is ever retried. Add control-plane assertions that the workflow classifies before enforcing, retries at most once, and retries only on the three unusable classes.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the same PR, judged three times in a row, fails three different ways. Each failure costs a full manual `gh run rerun` and the wall-clock of the whole workflow, and the operator has to know that `gh run rerun --failed` is the WRONG command here.\n  Measured on PR #233: a `--failed` re-run reused the previous job's artifact and reproduced the identical stale degenerate verdict; only a full `gh run rerun` regenerated it, after which all five checks passed. So the recovery that looks cheaper is the one that cannot work, and the loop has no way to express the one that does.\n  Root cause: the CCA step's output is consumed exactly once, with no classification between generation and enforcement, so an unusable generation is indistinguishable from a real negative verdict and the only recovery is outside the run.\n  Why retry only the unusable classes: retrying a well-formed `repair_required` or `needs_guardian` until it changes would be judge-shopping. The classifier exists precisely to make that impossible to do by accident \u2014 a real answer of any value is `usable` and is never regenerated.\n  Exact change that reproduces this result: classify the structured output, and regenerate at most once when it is absent, unparseable or degenerate.\n  Reproducible when: a run whose first generation is degenerate produces a usable verdict without operator action, and a run whose first generation is a well-formed negative verdict runs the CCA step exactly once.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Regenerate an unusable CCA verdict once inside the run"
+    }
+  ],
+  "title": "Refuse a degenerate CCA verdict and stop losing a whole run to one bad generation"
+}

@@ -1,0 +1,116 @@
+{
+  "completion_conditions": [
+    "An implementation PR for a task registered by a merged, Guardian-approved Contract PR satisfies the Guardian requirement with no approval of its own.",
+    "The same PR is NOT covered when its contract is absent at base, when its governance fields differ from base, when the registering PR was not approved, or when the proof is missing.",
+    "The MergeGate policy check and the deterministic CCA Guardian signal agree, so a contract-approved PR does not return needs_guardian.",
+    "ADR 0015 records the implementation and moves to Accepted.",
+    "The full suite, the governance-evidence, guardian-policy and adversarial suites and validate_shiki stay green."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "ADR 0015 'Evaluation placement' states: 'Contract Approval is evaluated by a new, separately tested function, and MergeGate accepts either live PR approval or Contract Approval. evaluate_guardian_approval is not modified.' Measured: `grep -rn 'contract_approval|Contract Approval' scripts/ .github/` returns ZERO hits. The four approval sources in guardian-policy.json are github_review, guardian_label, guardian_comment and external_ai_guardian_review. Nothing reads a contract.",
+      "Measured live: PRs #226, #229 and #232 are the implementation PRs of high/critical tasks whose contracts were registered by approved Contract PRs, and every one of them carries its own guardian:approved label. The pre-dispatch approval bought nothing at merge time.",
+      "ADR 0015 Status is still 'Proposed'. The registration half (contract mode, forced Guardian risk from the frozen plan, deny-by-default file rules) shipped; the approval half did not.",
+      "Proving the Contract PR was approved must not depend on any artifact the implementation PR can write. The durable proof available at judgment time is live GitHub state: the commit that ADDED .shiki/tasks/<id>.json to the base branch, the PR associated with that commit, and whether that PR was merged carrying a recorded Guardian approval. Deriving it from git history plus gh is forgery-resistant because the implementation PR cannot rewrite the base branch's history.",
+      "The Scope Envelope is already enforced by machinery that landed on 2026-07-31 and 2026-08-01: locks bind the changed paths (files_outside_locks), and normal_task_contract_immutability_reasons (PR #229) freezes the seven governance fields of the PR's own contract against the base snapshot. A separate numeric size ceiling is deliberately NOT introduced: it is new policy with no measured basis, it would block legitimate work, and ADR 0015's decision is to approve the contract rather than the diff. CCA still judges the diff against the acceptance criteria.",
+      "Failure must degrade to today's behaviour, exactly as ADR 0015 requires: any missing, unreadable or unresolvable input means Contract Approval does not apply and the live-approval path decides alone. It never makes a PR that would pass today fail."
+    ],
+    "source": "Measured 2026-08-01 against main at c0082fe.",
+    "status": "complete"
+  },
+  "id": "P-20260801T040831205733Z-f88e60e0",
+  "ingested_at": "2026-08-01T04:08:31+00:00",
+  "non_goals": [
+    "Modifying evaluate_guardian_approval or any of its four existing sources.",
+    "Introducing a numeric size ceiling for the Scope Envelope.",
+    "Changing how risk_level is resolved, or lowering any task's risk.",
+    "Changing contract, goal_reconcile, post_merge_reconcile or bookkeeping-closeout handling.",
+    "Letting Contract Approval cover a PR whose own contract differs from the base snapshot.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A high/critical task whose contract was registered by a Guardian-approved Contract PR no longer asks for a second Guardian approval on its implementation PR. ADR 0015 decided this and it was never implemented: the Contract PR mode registers contracts, but no approval source reads it, so the approval that ADR 0015 moved to before dispatch is still also demanded after implementation.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-CARRY-draft.json",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": "docs/adr/0015-contract-approval-before-dispatch.md",
+    "source": "Operator instruction 2026-08-01 to fix every open finding and to auto-fix newly discovered ones; this defect was measured during that sweep and folded in under that standing authorization.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "evaluate_contract_approval performs no I/O and no network calls; the registration proof is passed in as data.",
+        "A PR with a base contract, unchanged governance fields, and a proof of a merged Guardian-approved registering PR satisfies the Guardian requirement with no approval of its own.",
+        "Each of the seven governance fields differing from base independently defeats the carry, and the Guardian requirement still resolves True \u2014 one case per field.",
+        "A task file absent from the base snapshot defeats the carry.",
+        "registration missing, merged=false, guardian_approved=false, a PR/commit mismatch, or a task_id mismatch each independently defeat the carry.",
+        "Omitting --contract-approval, or pointing it at a missing or unreadable file, leaves MergeGate and the Guardian signal behaving exactly as they do today.",
+        "The same OR is present in BOTH mergegate_check.py and guardian_approval_signal.py, and a contract-approved PR reports the contract source in the signal's sources array.",
+        "evaluate_guardian_approval and its four sources are unchanged.",
+        "tests/test_contract_approval.py drives the gate for every case above.",
+        "scripts/test_shiki_guardian_policy.sh asserts the end-to-end carry and its removal.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/shiki_contract_approval.py",
+        "path:scripts/mergegate_check.py",
+        "path:scripts/guardian_approval_signal.py",
+        "path:tests/test_contract_approval.py",
+        "path:scripts/test_shiki_guardian_policy.sh"
+      ],
+      "non_goals": [
+        "Modifying evaluate_guardian_approval or its four sources",
+        "Introducing a size ceiling",
+        "Changing risk resolution",
+        "Gathering the registration proof (that is the next task)",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "critical",
+      "runtime": "claude-code",
+      "scope": "Add `scripts/shiki_contract_approval.py` with a single pure function `evaluate_contract_approval(*, task_id, base_task, head_task, changed_files_status, registration)` returning a small result object carrying `applies: bool`, `sources: tuple[str, ...]` and `reasons: list[str]`. `registration` is the deterministic proof of the registering PR, supplied as data (a dict parsed from a `--contract-approval <file>` JSON input) so the function itself performs no I/O and no network calls and is testable in isolation.\n\nContract Approval applies when and only when ALL of these hold, evaluated in this order, each failure recorded as a distinct reason string:\n  1. The task file EXISTS in the base snapshot (`base_task` is a dict). A first-registration PR is never covered.\n  2. The head task's seven governance fields (`scope`, `non_goals`, `required_skills`, `risk_level`, `locks`, `acceptance_checks`, `test_command`) equal the base snapshot's. Reuse the existing constant that `normal_task_contract_immutability_reasons` uses rather than declaring a second list, so the two can never drift.\n  3. `registration` proves the registering PR: it names a PR number, reports `merged: true`, reports that the commit which ADDED `.shiki/tasks/<task_id>.json` to the base branch belongs to that PR, and reports `guardian_approved: true` with the approving source recorded.\n  4. `registration.task_id` equals `task_id` \u2014 a proof for a different task never carries.\nAnything missing, malformed, or false yields `applies=False` with the reason named. There is no default-true branch anywhere in the function.\n\nWire it into `scripts/mergegate_check.py` as an OR alongside the existing live-approval path: where the Guardian requirement is currently satisfied only by `evaluate_guardian_approval`, it is now satisfied by that OR a `applies=True` Contract Approval. Do NOT modify `evaluate_guardian_approval` or any of its four sources. Wire the same OR into `scripts/guardian_approval_signal.py` so the deterministic signal the CCA prompt reads reports the contract source in its existing `sources` array \u2014 ADR 0015 is explicit that without the OR at the signal, the CCA job fails with needs_guardian and the MergeGate policy check never runs, so the gate this change exists to move would never be reached. Add a `--contract-approval <file>` argument to both entry points; when the flag is absent or the file is missing/unreadable, Contract Approval does not apply and behaviour is byte-for-byte what it is today.\n\nAdd `tests/test_contract_approval.py` driving the real gate, not reading source: covered when all four conditions hold; NOT covered for each of (task absent at base; each of the seven governance fields differing, one case per field; registration missing; registration.merged false; registration.guardian_approved false; registration naming a different PR than the adding commit; registration.task_id mismatched; --contract-approval flag absent; the file unreadable). Assert in every negative case that the Guardian requirement still resolves True, so a regression cannot hide behind an unrelated block. Add cases to `scripts/test_shiki_guardian_policy.sh` asserting that a contract-approved PR with NO guardian:approved label and NO approval comment resolves guardian_required satisfied in both the MergeGate result and the CCA Guardian signal, and that removing any single proof element puts it back to unsatisfied.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a Goal is decomposed, its Contract PR is opened, the operator applies `mergegate:contract` and grants Guardian approval before any code is written \u2014 and then every implementation PR of that Goal stops at `needs_guardian` and asks for the same approval again. Approving the contract before dispatch saves nothing at merge time.\n  Measured: `grep -rn 'contract_approval|Contract Approval' scripts/ .github/` returns zero hits on main at c0082fe. guardian-policy.json declares exactly four approval sources \u2014 github_review, guardian_label, guardian_comment, external_ai_guardian_review \u2014 and none of them consults a registered contract. PRs #226, #229 and #232 each carry their own `guardian:approved` label despite their contracts having been approved beforehand.\n  Root cause: ADR 0015 shipped in halves. The registration half (contract mode, `enforce_contract`, `contract_guardian_risk`, the forced Guardian evaluation from the frozen plan) landed. The 'Evaluation placement' half \u2014 a new, separately tested function that MergeGate accepts as an alternative to live PR approval \u2014 was never written. ADR 0015 is still Status: Proposed.\n  Exact change that reproduces this result: add the evaluator, and OR it into BOTH the MergeGate Guardian decision and the deterministic CCA Guardian signal. ORing it into only one of the two reproduces nothing: the CCA job fails first and the policy check never runs.\n  Reproducible when: a PR whose contract is registered at base, unchanged at head, and whose registering PR is proven merged-and-approved satisfies the Guardian requirement with no approval of its own, and every one of the negative cases above still requires one.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_guardian_policy.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Evaluate Contract Approval as a distinct approval source"
+    },
+    {
+      "acceptance_checks": [
+        "Both workflows build .shiki/gha/contract-approval.json and pass --contract-approval to their consumer.",
+        "The task id is resolved with the shared regex already used elsewhere in the same workflow.",
+        "The adding commit is found on the base branch with git log --diff-filter=A, reusing the existing base fetch.",
+        "Neither workflow's base fetch carries --depth, and no second base fetch is added.",
+        "Every failure path writes a well-formed JSON object whose values defeat the carry, with a reason; no path leaves the file absent or partial.",
+        "scripts/test_shiki_control_plane.sh asserts all of the above for both workflows.",
+        "docs/adr/0015 Status is Accepted and Consequences record what shipped when, including the double-approval period.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [
+        "Evaluate Contract Approval as a distinct approval source"
+      ],
+      "locks": [
+        "path:.github/workflows/shiki-cca-completion.yml",
+        "path:.github/workflows/shiki-mergegate.yml",
+        "path:docs/adr/0015-contract-approval-before-dispatch.md",
+        "path:scripts/test_shiki_control_plane.sh"
+      ],
+      "non_goals": [
+        "Changing the evaluator's semantics",
+        "Adding or restoring any --depth on a base fetch",
+        "Changing any other workflow step",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "critical",
+      "runtime": "claude-code",
+      "scope": "In BOTH `.github/workflows/shiki-cca-completion.yml` and `.github/workflows/shiki-mergegate.yml`, build `.shiki/gha/contract-approval.json` and pass it as `--contract-approval` to the evaluator's two consumers. Build it the same way in both workflows, from evidence neither the PR head nor the PR body can forge:\n  - Resolve the task id with the SAME regex the rest of the workflow already uses (`T-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})`, first match in the PR body).\n  - Find the commit that ADDED `.shiki/tasks/<task_id>.json` on the base branch: `git log --diff-filter=A --format=%H origin/<base_ref> -- .shiki/tasks/<task_id>.json | tail -1`. The base fetch already performed earlier in the job must be reused \u2014 do NOT add a second `git fetch`, and do NOT introduce `--depth`; a shallow base is exactly the defect PR #206 removed and it would silently make the adding commit unfindable.\n  - Resolve the PR associated with that commit via `gh api repos/{repo}/commits/<sha>/pulls`, take the PR that is MERGED, and read its labels and its Guardian approval the same way the Guardian evidence is already read in the same job.\n  - Emit `{task_id, pr, merged, guardian_approved, approval_source, adding_commit}`. Every failure path writes a JSON object with `applies`-defeating values and a `reason`, never a partial or absent file that a downstream reader might treat as permissive.\nAdd assertions to `scripts/test_shiki_control_plane.sh` that both workflows build the file, pass `--contract-approval`, use the shared task-id regex, and contain no `--depth` on the base fetch.\n\nUpdate `docs/adr/0015-contract-approval-before-dispatch.md`: move Status from Proposed to Accepted, and record in Consequences what actually shipped and when \u2014 the registration half on 2026-07-27..29, the contract-immutability binding on 2026-08-01 (PR #229), and this approval carry \u2014 plus the measured fact that between those dates the approval was demanded twice.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the evaluator from the previous task is present and correct, and nothing changes, because no caller ever supplies the registration proof. `--contract-approval` is absent, the evaluator degrades to 'does not apply' by design, and every high/critical implementation PR still returns needs_guardian.\n  Why it is a separate task: the evaluator is pure and provable in isolation; the proof-gathering is shell inside two workflows whose failure modes are shallow fetches, unresolvable task ids and API shape drift. Landing them together would hide a defect in either behind the other.\n  Exact change that reproduces this result: build .shiki/gha/contract-approval.json from the base branch's adding-commit and the merged PR behind it, in both workflows, and pass it through.\n  Known landmine: the base fetch in shiki-cca-completion.yml had `--depth=1` until PR #206 and re-adding it \u2014 or adding a second fetch that goes shallow \u2014 makes `git log --diff-filter=A` return nothing, which silently defeats the carry rather than failing loudly. The control-plane assertion exists to catch that.\n  Reproducible when: a live high-risk implementation PR whose contract was approved before dispatch merges with zero approvals on the implementation PR itself.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Gather the Contract PR registration proof in CI and accept ADR 0015"
+    }
+  ],
+  "title": "Let a Contract Approval carry to the implementation PR it approved"
+}
