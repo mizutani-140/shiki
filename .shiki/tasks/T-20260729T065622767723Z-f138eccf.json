@@ -11,8 +11,8 @@
     "T-20260729T065622764296Z-48021407",
     "T-20260729T065622765413Z-a0055a9d"
   ],
-  "expected_branch": "shiki/t-20260729t065622767723z-f138eccf-make-the-shipped-contracts-true-and-validate-the",
-  "expected_pr": 228,
+  "expected_branch": "shiki/t-20260729t065622767723z-f138eccf-closeout",
+  "expected_pr": 230,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622767723Z-f138eccf",
@@ -25,7 +25,8 @@
     "L-20260801T010505287404Z-9685c368",
     "L-20260801T020959027750Z-2a58f3f9",
     "L-20260801T021023235617Z-d4ac6591",
-    "L-20260801T021026786656Z-d075142e"
+    "L-20260801T021026786656Z-d075142e",
+    "L-20260801T022749362885Z-1169d0cb"
   ],
   "locks": [
     "path:.shiki/schemas/**",
@@ -65,7 +66,7 @@
   ],
   "risk_level": "medium",
   "scope": "Replace the legacy-only id pattern with the dual pattern already used by repair-packet and memory-entry schemas across the thirteen stale schemas and the two templates, and replace the legacy-only literal in the plan dependency parser with the shared id alternation. Add a loop to the contract-consistency validator that runs every mirror directory's records through the schema it declares, so schema/validator drift becomes a CI failure. Add the ledger task_id/goal_id pairing check using the task-to-goal map the validator already builds.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_manifest.sh && bash scripts/test_shiki_evidence_integrity.sh && bash scripts/test_shiki_p2_schema_drift.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Make the shipped contracts true, and validate the mirror against them"
 }
