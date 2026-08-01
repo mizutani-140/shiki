@@ -1,0 +1,20 @@
+{
+  "branch": "shiki/t-20260801t040948352279z-07301e34-prove-a-runner-session-is-alive-with-an-os-lease",
+  "created_at": "2026-08-01T06:42:44+00:00",
+  "created_by": "shiki-run",
+  "goal_id": "G-20260801T040948350468Z-4a542e71",
+  "locks": [
+    "path:scripts/shiki_session_lease.py",
+    "path:scripts/shiki_runtime.py",
+    "path:scripts/shiki_loop.py",
+    "path:.shiki/manifest.json",
+    "path:.gitignore",
+    "path:tests/test_session_lease.py",
+    "path:scripts/test_shiki_runner_claude.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260801t040948352279z-07301e34-prove-a-",
+  "pr": 240,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260801T040948352279Z-07301e34"
+}
