@@ -1,0 +1,50 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "An Amendment PR carrying the marker and the maintainer-applied label can correct a registered task contract on main.",
+    "Every relaxation is deny-by-default: without the label, without the marker, on a foreign plan, on a non-append spec_freeze change, or on a task that does not match the amended plan, the PR is blocked.",
+    "Guardian risk for an Amendment PR is forced from the frozen plan and never resolves weaker than base.",
+    "`shiki contract amend` prepares an Amendment PR and does not apply the label.",
+    "The full suite, the governance-evidence, adversarial and control-plane suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-01T04:16:53+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "There is no delivery mode. Measured three ways: (1) `enforce_untrusted_shiki_mutations` blocks any PR from creating or modifying a spec_freeze block, with the comment stating the reason explicitly \u2014 'an implementation PR could grant itself a freeze or append amendments to the plan that governs it'; (2) contract and goal_reconcile mode reject a task file whose diff status is not `A` ('may only ADD planned task files, not modify'); (3) as of PR #229 the normal task-PR path freezes its own contract's seven governance fields to the base snapshot. All three are correct. Together they leave zero routes.",
+      "Amendment is a DISTINCT act from registration and gets its own marker and label. Reusing `mergegate:contract` and auto-detecting the mode from the presence of a MODIFY would make the operator's single act mean either 'approve this new contract' or 'approve this change to a contract you already approved' with no way to tell which they intended. A `<!-- shiki:amendment -->` marker plus a maintainer-applied `mergegate:amendment` label keeps the second factor specific.",
+      "The plan stays the authority; the task file never is. An Amendment PR modifies the goal's spec-frozen source plan and the task files together, and each modified task must match the HEAD plan's definition for its title. So the operator approves the amended PLAN, and the task files are checked against it \u2014 the same frozen-definition binding `_frozen_task_match_errors` already implements, evaluated against the amended plan.",
+      "The spec_freeze relaxation is append-only and nothing else. Head's `spec_freeze` must equal base's on every key except `amendments`, and base's `amendments` must be a strict PREFIX of head's with at least one new entry. An existing entry cannot be edited or removed, `status`, `approved_by`, `prd` and `source` cannot change, and no plan other than the goal's own `source_plan` may be touched. This is the same shape as the existing carried-source-plan relaxation: the PR carries the operator's decision, and the label plus the forced Guardian evaluation is what makes it operative.",
+      "`amendments` stays an array of strings \u2014 no plan-schema change. The enumeration of what an amendment changes is the amended plan's own `tasks` array, which is what the operator approves; a parallel list of affected titles inside the amendment string would be a second source of truth that could disagree with the first.",
+      "Risk may never resolve weaker than base, at either level. The goal's Guardian risk is forced from the frozen plan exactly as contract mode already does via `contract_guardian_risk`, resolved as the stronger of base and head, so an amendment can never be the instrument that lowers the gate approving it.",
+      "Lifecycle fields are constrained, not frozen. An amendment pauses its affected tasks (ADR 0009: 'affected tasks pause'), so `status` may move only to `planned` or `ready`. `expected_pr`, `closeout_pr`, `expected_branch` and `ledger_evidence` are frozen to base: an amendment is a contract change, not a lifecycle event, and letting it rewrite PR pointers would let it reattach a task to a different PR."
+    ],
+    "source": "Measured 2026-08-01 against main at c0082fe.",
+    "status": "complete"
+  },
+  "id": "G-20260801T041653346645Z-7d402f1b",
+  "ledger_evidence": [
+    "L-20260801T041653347517Z-450cbf2a"
+  ],
+  "non_goals": [
+    "Letting an Amendment PR touch implementation code, or any Shiki record other than the goal's source plan, its own goal's task files, its DAG and a goal-scoped ledger entry.",
+    "Letting any mode edit or remove an existing amendment entry, or change status/approved_by/prd/source of a spec_freeze block.",
+    "Changing contract, goal_reconcile, post_merge_reconcile, bookkeeping-closeout or normal-path handling.",
+    "Changing the plan schema's amendments item type.",
+    "Self-applying the mergegate:amendment label from any CLI.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A frozen contract that implementation proves wrong can be corrected on the default branch through a labelled, deny-by-default Amendment PR. ADR 0009 and ADR 0015 both name Spec Amendment as the only legitimate way to change a frozen spec, and as of PR #229 there is no path that can deliver one: the last unguarded route was closed on 2026-08-01 and no guarded route was ever built.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_plan": "P-20260801T041646831458Z-61e53ba0",
+  "status": "planned",
+  "title": "Give a Contract Amendment a delivery mode"
+}

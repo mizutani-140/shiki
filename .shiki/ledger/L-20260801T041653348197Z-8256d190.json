@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T041653348134Z-bf8a3c4b.json"
+  ],
+  "goal_id": "G-20260801T041653346645Z-7d402f1b",
+  "id": "L-20260801T041653348197Z-8256d190",
+  "links": [],
+  "summary": "Task registered from plan: Enforce an amendment mode that may correct a registered contract",
+  "task_id": "T-20260801T041653348134Z-bf8a3c4b",
+  "timestamp": "2026-08-01T04:16:53+00:00",
+  "type": "task-registered"
+}

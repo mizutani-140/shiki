@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T041653348713Z-6283adcd.json"
+  ],
+  "goal_id": "G-20260801T041653346645Z-7d402f1b",
+  "id": "L-20260801T041653348736Z-8bf2c61f",
+  "links": [],
+  "summary": "Task registered from plan: Prepare an Amendment PR from the CLI and document the mode",
+  "task_id": "T-20260801T041653348713Z-6283adcd",
+  "timestamp": "2026-08-01T04:16:53+00:00",
+  "type": "task-registered"
+}

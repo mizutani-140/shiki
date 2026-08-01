@@ -1,0 +1,48 @@
+{
+  "acceptance_checks": [
+    "shiki contract amend renders the amended task files, sets affected tasks to ready, restores the DAG, and appends a contract-amended ledger entry.",
+    "It prints the <!-- shiki:amendment --> marker, the goal id, and the required PR body sections.",
+    "It prints a maintainer_action_required refusal and never applies the mergegate:amendment label.",
+    "It refuses, writing nothing, when: the goal is not registered on the default branch; the plan is not the goal's source_plan; the plan is not spec-frozen; amendments does not gain at least one entry; a task title does not resolve to a registered task \u2014 one case each, each asserting no file was written.",
+    "docs/agents/triage-labels.md documents mergegate:amendment as maintainer-applied and states what it authorizes.",
+    "docs/adr/0018-contract-amendment-delivery.md records Context, Decision, Alternatives and Consequences as scoped.",
+    "scripts/test_shiki_control_plane.sh asserts the CLI does not apply the label and that the label is documented.",
+    "tests/test_contract_amend_cli.py covers the happy path and every refusal.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260801T041653348134Z-bf8a3c4b"
+  ],
+  "expected_branch": "shiki/t-20260801t041653348713z-6283adcd-prepare-an-amendment-pr-from-the-cli-and-documen",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260801T041653346645Z-7d402f1b",
+  "id": "T-20260801T041653348713Z-6283adcd",
+  "ledger_evidence": [
+    "L-20260801T041653348736Z-8bf2c61f"
+  ],
+  "locks": [
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/shiki_cli.py",
+    "path:docs/agents/triage-labels.md",
+    "path:docs/adr/0018-contract-amendment-delivery.md",
+    "path:tests/test_contract_amend_cli.py",
+    "path:scripts/test_shiki_control_plane.sh"
+  ],
+  "non_goals": [
+    "Applying the mergegate:amendment label from the CLI",
+    "Changing the amendment mode's enforcement",
+    "Creating the PR, pushing, or touching the network",
+    "Touching any file outside the declared locks"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Add `shiki contract amend --target <path> --plan <amended plan>` to `scripts/shiki_cli.py` and `scripts/shiki_tasks.py`, modelled on the existing `cmd_contract_open`. Given an amended spec-frozen plan for a goal already registered on the default branch, it rewrites the goal's registered task files to the amended plan's definitions, sets the affected tasks' `status` to `ready`, restores the DAG, and appends a `contract-amended` ledger entry. It prints the marker, the goal id and the required PR body sections, and it prints the SAME `maintainer_action_required` refusal `cmd_contract_open` prints \u2014 it must NOT apply the `mergegate:amendment` label, because the label is the independent second factor and self-applying it would collapse two factors to one.\n\nThe command must refuse, with a precise message, when: the goal is not registered on the default branch; the plan is not the goal's `source_plan`; the plan is not spec-frozen; the plan's `spec_freeze.amendments` does not extend the registered plan's by at least one entry; or a task title in the amended plan does not resolve to a registered task. It must not write anything on any refusal path.\n\nDocument `mergegate:amendment` in `docs/agents/triage-labels.md` alongside the existing `mergegate:` labels, stating that it is maintainer-applied and what it authorizes. Write `docs/adr/0018-contract-amendment-delivery.md` recording the decision: Context (the three measured blocks and why each is correct, and that PR #229 closed the last unguarded route on 2026-08-01), Decision (two-factor mode, append-only spec_freeze relaxation, plan-as-authority, risk never weaker than base, lifecycle fields constrained), Alternatives (reusing `mergegate:contract` and auto-detecting from a MODIFY, rejected because one operator act would mean two different things; keeping amendments out of PRs entirely, rejected because it loses branch protection and the audit trail), and Consequences.\n\nAdd `tests/test_contract_amend_cli.py` covering the happy path and every refusal above, asserting in each refusal case that no file was written. Add control-plane assertions that the CLI does not apply the label and that `triage-labels.md` documents `mergegate:amendment`.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the amendment mode from the previous task is enforced and unusable, because assembling a conforming Amendment PR by hand means rewriting several task files to match an amended plan, restoring the DAG, and appending the right ledger type \u2014 every one of which the gate checks and none of which is scripted. The first hand-assembled attempt fails the gate on a detail, and each retry costs a full CI round.\n  Precedent: `shiki contract open` exists for exactly this reason on the registration path, and prints a refusal rather than applying `mergegate:contract` itself. `shiki contract amend` is its counterpart and must refuse in the same way for the same reason.\n  Exact change that reproduces this result: a CLI that renders the amendment from the amended plan, and a documented label so the operator knows what they are being asked to approve.\n  Reproducible when: an operator amends a plan, runs one command, opens a PR, applies one label, and the gate passes on the first attempt.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
+  "title": "Prepare an Amendment PR from the CLI and document the mode"
+}
