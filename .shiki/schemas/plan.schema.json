@@ -5,7 +5,7 @@
   "type": "object",
   "required": ["id", "title", "outcome", "grill_with_docs", "tasks"],
   "properties": {
-    "id": { "type": "string", "pattern": "^P-[0-9]{4,}$" },
+    "id": { "type": "string", "pattern": "^P-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
     "title": { "type": "string", "minLength": 1 },
     "outcome": { "type": "string", "minLength": 1 },
     "completion_conditions": {

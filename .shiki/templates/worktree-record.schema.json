@@ -4,8 +4,8 @@
   "type": "object",
   "required": ["task_id", "goal_id", "branch", "path", "runtime", "state", "locks", "created_by", "created_at"],
   "properties": {
-    "task_id": { "type": "string" },
-    "goal_id": { "type": "string" },
+    "task_id": { "type": "string", "pattern": "^T-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
+    "goal_id": { "type": "string", "pattern": "^G-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
     "branch": { "type": "string" },
     "path": { "type": "string" },
     "runtime": { "type": "string", "enum": ["codex", "claude", "github-actions", "human", "other"] },

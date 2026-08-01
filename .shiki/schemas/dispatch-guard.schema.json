@@ -17,7 +17,7 @@
   ],
   "properties": {
     "dispatchable": { "type": "boolean" },
-    "task_id": { "type": "string", "pattern": "^T-[0-9]{4,}$" },
+    "task_id": { "type": "string", "pattern": "^T-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
     "runtime": { "type": "string" },
     "dependencies_complete": { "type": "boolean" },
     "locks_granted": { "type": "boolean" },

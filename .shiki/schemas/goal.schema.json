@@ -15,7 +15,7 @@
     "status"
   ],
   "properties": {
-    "id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
+    "id": { "type": "string", "pattern": "^G-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
     "github_issue": { "type": ["integer", "null"] },
     "title": { "type": "string", "minLength": 1 },
     "outcome": { "type": "string", "minLength": 1 },

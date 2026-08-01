@@ -1285,7 +1285,13 @@ def detect_cycles(path: Path, adjacency: dict[str, list[str]]) -> None:
         visit(node, [])
 
 
-def validate_ledger(path: Path, data: dict[str, Any], known_tasks: set[str], known_goals: set[str]) -> None:
+def validate_ledger(
+    path: Path,
+    data: dict[str, Any],
+    known_tasks: set[str],
+    known_goals: set[str],
+    task_goal_by_id: dict[str, str] | None = None,
+) -> None:
     require_keys(path, data, LEDGER_REQUIRED)
 
     ledger_id = require_string(path, data, "id")
@@ -1302,6 +1308,17 @@ def validate_ledger(path: Path, data: dict[str, Any], known_tasks: set[str], kno
             raise ValidationError(f"{path}: task_id must match {id_format_description('T')} or null")
         if known_tasks and task_id not in known_tasks:
             raise ValidationError(f"{path}: task_id {task_id} has no matching task file")
+        # A ledger entry names both a goal and (optionally) a task; a task belongs
+        # to exactly one goal, so an entry whose task_id belongs to a different
+        # goal than its goal_id is internally inconsistent — a misfiled or
+        # forged reference. Checked against the task-to-goal map the validator
+        # already builds from the task files.
+        if task_goal_by_id:
+            owner_goal = task_goal_by_id.get(task_id)
+            if owner_goal is not None and owner_goal != goal_id:
+                raise ValidationError(
+                    f"{path}: task_id {task_id} belongs to goal {owner_goal}, not goal_id {goal_id}"
+                )
 
     ledger_type = require_string(path, data, "type")
     if ledger_type not in LEDGER_TYPES:
@@ -1978,6 +1995,56 @@ def validate_json_schema_contracts() -> None:
         raise ValidationError(f"{CANONICAL_REPAIR_PACKET_SCHEMA_PATH}: fixture validation failed: {error}") from error
 
 
+# Every mirror directory whose records must satisfy a shipped JSON Schema, mapped
+# to the schema file it declares. This is the contract that makes the shipped
+# schemas TRUE of the mirror: validate_shiki accepts control ids in either form
+# (the dual ID_SUFFIX above), but until these schemas were validated against real
+# records nothing forced them to agree — a schema could keep a legacy-only id
+# pattern while the mirror filled with timestamp ids, and the drift was invisible
+# because only synthetic fixtures were ever schema-checked.
+MIRROR_RECORD_SCHEMAS: dict[str, str] = {
+    "goals": "goal.schema.json",
+    "tasks": "task.schema.json",
+    "ledger": "ledger.schema.json",
+    "dag": "dag.schema.json",
+    "plans": "plan.schema.json",
+    "runs": "run.schema.json",
+    "reports": "report.schema.json",
+    "worktrees": "worktree-record.schema.json",
+    "runner": "runner-record.schema.json",
+}
+
+
+def validate_mirror_schema_conformance(root: Path = ROOT) -> None:
+    """Run every mirror record through the schema its directory declares.
+
+    Extends the contract-consistency validation from "fixtures satisfy the
+    schema" to "the real mirror satisfies the schema". It is the surface that
+    fails a legacy-only id pattern reintroduced into any shipped schema (that
+    schema's timestamp-id records stop matching, with a pattern-mismatch
+    message), and it is what a freshly installed target runs its own
+    goal-creation records against the schemas installed beside them. Schemas are
+    read from ``root`` so a target validates against the schemas installed there,
+    not the ones in this repository.
+    """
+    schemas_dir = root / ".shiki" / "schemas"
+    for subdir, schema_name in MIRROR_RECORD_SCHEMAS.items():
+        schema_path = schemas_dir / schema_name
+        if not schema_path.is_file():
+            raise ValidationError(f"{schema_path}: declared mirror schema is missing")
+        schema = load_json(schema_path)
+        if not isinstance(schema, dict):
+            raise ValidationError(f"{schema_path}: schema must be a JSON object")
+        for record_path in json_files(root / ".shiki" / subdir):
+            data = load_json(record_path)
+            try:
+                validate_json_schema(data, schema)
+            except (UnsupportedJsonSchemaError, ValueError) as error:
+                raise ValidationError(
+                    f"{record_path}: does not satisfy {schema_name}: {error}"
+                ) from error
+
+
 def loop_lock_warnings(
     goal_payloads: dict[str, dict[str, Any]],
     task_payloads_by_goal: dict[str, list[dict[str, Any]]],
@@ -2190,7 +2257,7 @@ def main() -> int:
             data = load_json(ledger_path)
             if not isinstance(data, dict):
                 raise ValidationError(f"{ledger_path}: ledger entry must be a JSON object")
-            validate_ledger(ledger_path, data, known_tasks, known_goals)
+            validate_ledger(ledger_path, data, known_tasks, known_goals, task_goal_by_id)
 
         for worktree_path in json_files(SHIKI / "worktrees"):
             data = load_json(worktree_path)
@@ -2221,6 +2288,14 @@ def main() -> int:
             if not isinstance(data, dict):
                 raise ValidationError(f"{start_path}: start record must be a JSON object")
             validate_start(start_path, data, known_tasks)
+
+        # Backstop: run every mirror record through the schema its directory
+        # declares. Placed after the manual validators so their specific messages
+        # (e.g. "id must match ...") surface first for a malformed record; this
+        # catches what they cannot — a shipped schema that drifts stricter than
+        # the validator, such as a schema reverted to a legacy-only id pattern
+        # while the mirror is full of timestamp ids.
+        validate_mirror_schema_conformance()
 
     except ValidationError as error:
         errors.append(str(error))

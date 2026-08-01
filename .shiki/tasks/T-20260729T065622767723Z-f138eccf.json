@@ -12,12 +12,20 @@
     "T-20260729T065622765413Z-a0055a9d"
   ],
   "expected_branch": "shiki/t-20260729t065622767723z-f138eccf-make-the-shipped-contracts-true-and-validate-the",
-  "expected_pr": null,
+  "expected_pr": 228,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622767723Z-f138eccf",
   "ledger_evidence": [
-    "L-20260729T065622767743Z-9e45e306"
+    "L-20260729T065622767743Z-9e45e306",
+    "L-20260801T002100519645Z-09b1e93e",
+    "L-20260801T002100521664Z-d771ac71",
+    "L-20260801T003122589178Z-5efd12f4",
+    "L-20260801T003247568665Z-03bafad3",
+    "L-20260801T010505287404Z-9685c368",
+    "L-20260801T020959027750Z-2a58f3f9",
+    "L-20260801T021023235617Z-d4ac6591",
+    "L-20260801T021026786656Z-d075142e"
   ],
   "locks": [
     "path:.shiki/schemas/**",
@@ -35,13 +43,29 @@
     "Adding a new schema",
     "Changing scorecard aggregation"
   ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "git diff main...HEAD carries the entire already-merged goal (contract mode, mergegate_check, dozens of .shiki records) because the branch was cut from a stale local main. MergeGate derives its base from origin/main where those commits already exist, so they resolve empty. The actual task change is the schema dual-pattern updates, shiki_tasks._TASK_ID_RE, validate_shiki's conformance loop + ledger pairing, and tests/test_mirror_schema_validation.py. Consistent with prior clean reviews in this goal; not a defect.",
+        "severity": "info",
+        "title": "Reviewable surface is small; rest of the diff is stale-local-base noise (informational)"
+      },
+      {
+        "detail": "validate_mirror_schema_conformance now runs every record in 9 mirror dirs through its schema. Whether all ~1000 real records conform field-by-field (esp. plans/runs/reports/runner) can't be proven from the diff alone. It is asserted by test_real_mirror_conforms_to_declared_schemas and by validate_shiki --target . in the task's test_command, and the loop runs only after the manual validators pass (short-circuit try) with additionalProperties:true schemas, so the main new enforcement is the id pattern \u2014 now dual and matching all real ids (verified 106/106 task files carry expected_branch and no legacy-only pattern remains). A gap would stop the loop with a red gate, not merge silently.",
+        "severity": "info",
+        "title": "Whole-mirror conformance is test-gated, not diff-verifiable (informational)"
+      }
+    ],
+    "ledger_id": "L-20260801T020959027750Z-2a58f3f9",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "medium",
   "scope": "Replace the legacy-only id pattern with the dual pattern already used by repair-packet and memory-entry schemas across the thirteen stale schemas and the two templates, and replace the legacy-only literal in the plan dependency parser with the shared id alternation. Add a loop to the contract-consistency validator that runs every mirror directory's records through the schema it declares, so schema/validator drift becomes a CI failure. Add the ledger task_id/goal_id pairing check using the task-to-goal map the validator already builds.",
-  "status": "planned",
+  "status": "review",
   "test_command": "bash scripts/test_shiki_manifest.sh && bash scripts/test_shiki_evidence_integrity.sh && bash scripts/test_shiki_p2_schema_drift.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Make the shipped contracts true, and validate the mirror against them"
 }
