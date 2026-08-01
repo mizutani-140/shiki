@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260801T040836630398Z-f28167e5.json",
+    ".shiki/plans/P-20260801T040831205733Z-f88e60e0.json"
+  ],
+  "goal_id": "G-20260801T040836630398Z-f28167e5",
+  "id": "L-20260801T040836631297Z-2e876fa7",
+  "links": [],
+  "summary": "Goal registered from plan: Let a Contract Approval carry to the implementation PR it approved",
+  "task_id": null,
+  "timestamp": "2026-08-01T04:08:36+00:00",
+  "type": "goal-created"
+}
