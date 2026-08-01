@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T041653274543Z-6df3af7e.json"
+  ],
+  "goal_id": "G-20260801T041653272590Z-81f6f71d",
+  "id": "L-20260801T041653274563Z-5e7690d5",
+  "links": [],
+  "summary": "Task registered from plan: Regenerate an unusable CCA verdict once inside the run",
+  "task_id": "T-20260801T041653274543Z-6df3af7e",
+  "timestamp": "2026-08-01T04:16:53+00:00",
+  "type": "task-registered"
+}
