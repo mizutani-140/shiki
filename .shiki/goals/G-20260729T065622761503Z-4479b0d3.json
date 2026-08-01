@@ -30,7 +30,8 @@
   },
   "id": "G-20260729T065622761503Z-4479b0d3",
   "ledger_evidence": [
-    "L-20260729T065622762349Z-238d271d"
+    "L-20260729T065622762349Z-238d271d",
+    "L-20260801T033545687960Z-3bdede42"
   ],
   "non_goals": [
     "The six defects owned by ADR 0015 goal G-20260725T112636727659Z-23ba3b56 (contract mutability, head-resolved risk/locks, the dispatch gate, the needs: cca dependency, the multi-task contract path, test_command freezing).",
@@ -49,6 +50,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260726T053204320783Z-2265e5c3",
-  "status": "planned",
+  "status": "complete",
   "title": "Close the surviving adversarial-audit findings"
 }
