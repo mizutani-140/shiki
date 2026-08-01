@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T041653423742Z-d5dc4a28.json"
+  ],
+  "goal_id": "G-20260801T041653421243Z-2d98487f",
+  "id": "L-20260801T041653423759Z-9becce8a",
+  "links": [],
+  "summary": "Task registered from plan: Apply the backfill through migration mode",
+  "task_id": "T-20260801T041653423742Z-d5dc4a28",
+  "timestamp": "2026-08-01T04:16:53+00:00",
+  "type": "task-registered"
+}

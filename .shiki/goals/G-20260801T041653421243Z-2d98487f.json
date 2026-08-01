@@ -1,0 +1,50 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A PR declaring a migration registered on the base branch, whose .shiki diff equals that migration's re-run output exactly, passes; any deviation blocks.",
+    "Every task file carries a cca_checklist_profile, no value is prefix-shaped, and a fully passing verdict yields zero profile-coverage blocking reasons for every task.",
+    "cca_checklist_profile is required in both task.schema.json and validate_shiki.TASK_REQUIRED, and the set-equality consistency test passes.",
+    "The full suite, the control-plane, governance-evidence and adversarial suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-01T04:16:53+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "There is no delivery mode for a repository-wide mirror change. `enforce_untrusted_shiki_mutations` blocks a PR from touching a task file other than its own \u2014 `elif path != task_file: blocking.append('PR changes unrelated Shiki task file ...')` \u2014 and that rule is independent of locks, so declaring `path:.shiki/tasks/**` does not unlock it. Contract, goal_reconcile and amendment mode are each bound to a single goal's records. Nothing can change 104 files.",
+      "The migration is registered on the BASE branch, never defined by the PR that applies it. If the PR could carry its own migration function, the gate would re-run head-supplied code against base data and the proof would be circular: a PR could define a migration that emits exactly the diff it wants. Requiring the function to already be on the base branch means the gate runs code the base branch already reviewed and merged, and the applying PR carries only data.",
+      "That is why this is two PRs, not one. PR 1 registers the migration function through the ordinary locked task path (`scripts/shiki_migrations.py` plus its tests \u2014 a scope locks already handle). PR 2 carries only `.shiki/` data and declares the migration id. This ordering is the security property, not a workflow preference.",
+      "What the mode buys: the reviewer's obligation collapses from 104 files to one function, because the diff is proved to be that function's output. What it does not buy: it does not make the function correct. The maintainer-applied `mergegate:migration` label and the Guardian gate are what authorize the function's effect, exactly as the label authorizes contract mode.",
+      "Formatting must be preserved, and this is a measured hazard, not a stylistic preference. 14 of the 112 task files are not canonically serialized \u2014 re-emitting them with `json.dumps(..., indent=2, sort_keys=True)` rewrites files the migration never intended to touch, and the resulting diff is both unreviewable and unequal to any minimal expectation. The migration must edit in place and leave every untouched byte alone.",
+      "The backfill default is the empty list, and the 8 prefix-shaped values are CORRECTED to it rather than left alone. Measured against a verdict in which every checklist item passes, `checklist_profile_coverage_failures` returns four blocking reasons for `['PR','TDD','V','CCA']` \u2014 'CCA checklist profile id PR is missing from the verdict checklist', and likewise for TDD, V and CCA \u2014 and zero for `[]` or for an id-shaped value such as `['CCA-08']`. The prefix form is not a weaker-but-valid declaration; it blocks a fully passing verdict, so it expresses nothing anyone intended. One of the 8 is LIVE at status=review (T-20260613T095433721787Z-8d6b04d5), so it is already unmergeable today.",
+      "A non-empty default is not chosen for anyone. Picking one would decide, on behalf of 104 tasks that never declared a profile, what every future CCA verdict must judge. `[]` makes the field present \u2014 which is what promoting it to required needs \u2014 without inventing an obligation.",
+      "Promotion is a separate, last task because of a measured landmine: `task.schema.json`'s `required` array and `validate_shiki`'s `TASK_REQUIRED` must AGREE, and a set-equality consistency test added by PR #226 enforces it. Promoting in either file alone fails that test."
+    ],
+    "source": "Measured 2026-08-01 against main at c0082fe.",
+    "status": "complete"
+  },
+  "id": "G-20260801T041653421243Z-2d98487f",
+  "ledger_evidence": [
+    "L-20260801T041653422070Z-3f170ce8"
+  ],
+  "non_goals": [
+    "Letting an applying PR define, modify or register the migration it applies.",
+    "Letting a migration-mode PR change any non-.shiki file.",
+    "Choosing a non-empty default profile for any task.",
+    "Reserializing or reformatting any task file the migration does not otherwise change.",
+    "Changing checklist_profile_coverage_failures, the checklist ids, or docs/agents/checklists.md.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A change that must touch every record in the mirror can be delivered as a PR whose entire diff is proved to be the output of a migration already registered on the default branch \u2014 so reviewing it means reviewing one function instead of a hundred files. The first use finishes cca_checklist_profile: 104 task files gain the field, 8 carrying a value the gate cannot match are corrected, and the field is promoted to required.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260801T041646902921Z-4d58e06c",
+  "status": "planned",
+  "title": "Give a repository-wide mirror change a delivery mode, and use it to finish cca_checklist_profile"
+}

@@ -1,0 +1,46 @@
+{
+  "acceptance_checks": [
+    "Every file in .shiki/tasks/ has a cca_checklist_profile key.",
+    "No task file's profile contains a bare family name; the 8 previously prefix-shaped files are [], including the LIVE one.",
+    "Driving checklist_profile_coverage_failures with each task's real profile against an all-pass verdict yields zero blocking reasons for every task.",
+    "No frozen governance field (scope, non_goals, required_skills, risk_level, locks, acceptance_checks, test_command) differs from its pre-change value in any task file.",
+    "No status, expected_pr, closeout_pr, expected_branch or ledger_evidence value differs from its pre-change value in any task file.",
+    "The diff equals the migration's re-run output exactly; no file was hand-edited.",
+    "The PR body carries the marker and exactly one Migration: line.",
+    "python3 scripts/validate_shiki.py --target . passes.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260801T041653422672Z-c4815d7a",
+    "T-20260801T041653423255Z-2798773b"
+  ],
+  "expected_branch": "shiki/t-20260801t041653423742z-d5dc4a28-apply-the-backfill-through-migration-mode",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260801T041653421243Z-2d98487f",
+  "id": "T-20260801T041653423742Z-d5dc4a28",
+  "ledger_evidence": [
+    "L-20260801T041653423759Z-9becce8a"
+  ],
+  "locks": [
+    "path:.shiki/tasks/**",
+    "path:.shiki/migrations/state.json"
+  ],
+  "non_goals": [
+    "Hand-editing any file in the diff",
+    "Changing the migration function",
+    "Changing any file outside .shiki/",
+    "Applying the mergegate:migration label",
+    "Touching any file outside the declared locks"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Run the registered backfill migration against this repository's mirror and deliver the result as a migration-mode PR: the body carries the `<!-- shiki:migration -->` marker and a single `Migration: <id>` line, and the diff is exactly the migration's output \u2014 every task file that gains `cca_checklist_profile`, the 8 whose prefix-shaped value becomes `[]`, and the `.shiki/migrations/state.json` record. No file outside `.shiki/` and no hand edit of any kind: if the diff needs adjusting, the migration is what changes, in its own PR, and this one is re-run.\n\nThe maintainer applies `mergegate:migration`; nothing in this task applies it.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the field is still absent from most of the mirror, one live task remains unmergeable, and the promotion cannot proceed.\n  Measured 2026-08-01: 112 task files; 104 lack `cca_checklist_profile`; 8 carry `['PR','TDD','V','CCA']`, of which T-20260613T095433721787Z-8d6b04d5 is LIVE at status=review.\n  Exact change that reproduces this result: run the migration, commit only its output, declare it in the body.\n  Why no hand edits: the gate proves the diff equals the migration's re-run output. A single hand-touched byte blocks with the path named \u2014 by design, and it is the property that makes reviewing one function sufficient.\n  Reproducible when: a fully passing verdict yields zero profile-coverage blocking reasons for every task in the repository.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target .",
+  "title": "Apply the backfill through migration mode"
+}
