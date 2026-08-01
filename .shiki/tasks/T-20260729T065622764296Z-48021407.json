@@ -9,7 +9,7 @@
   "dependencies": [
     "T-20260729T065622763684Z-ee01f3c4"
   ],
-  "expected_branch": "shiki/t-20260729t065622764296z-48021407-refuse-a-self-contradictory-cca-verdict",
+  "expected_branch": "shiki/t-20260729t065622764296z-48021407-closeout",
   "expected_pr": 226,
   "github_issue": null,
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
@@ -63,7 +63,7 @@
   ],
   "risk_level": "high",
   "scope": "In scripts/enforce_cca_verdict.validate_verdict and mergegate_check.main's CCA branch, reject verdict=complete when any acceptance entry is fail or insufficient_evidence, and promote can_merge is not True from a warning to a blocking reason. Block unless every id in the task's cca_checklist_profile appears in the verdict checklist with a terminal status. Adding minItems 1 to the schema's checklist is DEFERRED by a second operator-approved Spec Amendment recorded at L-20260801T000308795657Z-986c2816: it breaks empty-checklist ready-path fixtures in scripts/test_shiki_evidence_integrity.sh and scripts/test_shiki_guardian_policy.sh, both outside this task's declared locks, and widening a frozen task's locks mid-flight is what ADR 0015 contract immutability prevents. Tracked as a dedicated follow-up task. Promoting cca_checklist_profile to a required field in task.schema.json and validate_shiki's required task fields is DEFERRED by an operator-approved Spec Amendment recorded at L-20260731T103805656085Z-f5448285: it needs ~98 pre-existing task files backfilled, and MergeGate blocks a task PR from touching any task file but its own.",
-  "status": "review",
+  "status": "done",
   "test_command": "bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target . && python3 -m unittest discover -s tests",
   "title": "Refuse a self-contradictory CCA verdict"
 }

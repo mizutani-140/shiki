@@ -12,6 +12,6 @@
     "path:tests/test_cca_verdict_consistency.py"
   ],
   "owner": "shiki-run",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260729T065622764296Z-48021407"
 }
