@@ -13,14 +13,24 @@
     "No file outside the declared locks is changed."
   ],
   "assigned_runtime": "claude-code",
+  "cca_rerun_count": 2,
   "dependencies": [],
   "expected_branch": "shiki/t-20260801t040836631930z-97030be9-evaluate-contract-approval-as-a-distinct-approva",
-  "expected_pr": null,
+  "expected_pr": 239,
   "github_issue": null,
   "goal_id": "G-20260801T040836630398Z-f28167e5",
   "id": "T-20260801T040836631930Z-97030be9",
   "ledger_evidence": [
-    "L-20260801T040836631997Z-07db85bc"
+    "L-20260801T040836631997Z-07db85bc",
+    "L-20260801T064221486740Z-1508eba8",
+    "L-20260801T064221488064Z-a99e261a",
+    "L-20260801T070800717161Z-e452d41c",
+    "L-20260801T071118232253Z-c14b1875",
+    "L-20260801T071148150865Z-8c17fc90",
+    "L-20260801T071151679613Z-d6a0d0f2",
+    "L-20260801T071503603770Z-3513f546",
+    "L-20260801T071859989952Z-bff49f41",
+    "L-20260801T072206675974Z-3aa880e0"
   ],
   "locks": [
     "path:scripts/shiki_contract_approval.py",
@@ -36,13 +46,29 @@
     "Gathering the registration proof (that is the next task)",
     "Touching any file outside the declared locks"
   ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "MergeGate gates Contract Approval to the normal task path (not reconcile/post_merge/contract mode), but guardian_approval_signal._contract_approval_result applies it whenever a task id resolves from the PR body and all evaluator conditions hold. So on the signal path a post_merge_reconcile PR (task on base, governance unchanged) could be exempted while MergeGate would not apply the carry there \u2014 an asymmetry where the signal is more permissive than MergeGate for non-normal PRs. This is not a merge bypass: MergeGate remains authoritative and would still enforce live approval on the policy check. It is also entirely inert in this task because no workflow builds or passes --contract-approval (that is the next task, T-...2cde7018). Worth confirming during the workflow-wiring task that the proof is only built/passed for normal PRs, or that the signal tolerates the mode difference.",
+        "severity": "info",
+        "title": "CCA signal has no PR-mode awareness (informational, not blocking, inert in this task)"
+      },
+      {
+        "detail": "The module is imported lazily in both mergegate_check and guardian_approval_signal, so a target lacking it hits the ImportError path and Contract Approval simply does not apply (safe degradation) \u2014 and no import-time CLI module-boundary failure occurs. Not blocking and out of this task's stated scope, but if Contract Approval is ever expected to function in installed targets, a follow-up should stage the module (mirroring how shiki_guardian_status was added to TEMPLATE_PATHS).",
+        "severity": "info",
+        "title": "New shiki_contract_approval.py is not registered in installer TEMPLATE_PATHS (informational)"
+      }
+    ],
+    "ledger_id": "L-20260801T071118232253Z-c14b1875",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "critical",
   "scope": "Add `scripts/shiki_contract_approval.py` with a single pure function `evaluate_contract_approval(*, task_id, base_task, head_task, changed_files_status, registration)` returning a small result object carrying `applies: bool`, `sources: tuple[str, ...]` and `reasons: list[str]`. `registration` is the deterministic proof of the registering PR, supplied as data (a dict parsed from a `--contract-approval <file>` JSON input) so the function itself performs no I/O and no network calls and is testable in isolation.\n\nContract Approval applies when and only when ALL of these hold, evaluated in this order, each failure recorded as a distinct reason string:\n  1. The task file EXISTS in the base snapshot (`base_task` is a dict). A first-registration PR is never covered.\n  2. The head task's seven governance fields (`scope`, `non_goals`, `required_skills`, `risk_level`, `locks`, `acceptance_checks`, `test_command`) equal the base snapshot's. Reuse the existing constant that `normal_task_contract_immutability_reasons` uses rather than declaring a second list, so the two can never drift.\n  3. `registration` proves the registering PR: it names a PR number, reports `merged: true`, reports that the commit which ADDED `.shiki/tasks/<task_id>.json` to the base branch belongs to that PR, and reports `guardian_approved: true` with the approving source recorded.\n  4. `registration.task_id` equals `task_id` \u2014 a proof for a different task never carries.\nAnything missing, malformed, or false yields `applies=False` with the reason named. There is no default-true branch anywhere in the function.\n\nWire it into `scripts/mergegate_check.py` as an OR alongside the existing live-approval path: where the Guardian requirement is currently satisfied only by `evaluate_guardian_approval`, it is now satisfied by that OR a `applies=True` Contract Approval. Do NOT modify `evaluate_guardian_approval` or any of its four sources. Wire the same OR into `scripts/guardian_approval_signal.py` so the deterministic signal the CCA prompt reads reports the contract source in its existing `sources` array \u2014 ADR 0015 is explicit that without the OR at the signal, the CCA job fails with needs_guardian and the MergeGate policy check never runs, so the gate this change exists to move would never be reached. Add a `--contract-approval <file>` argument to both entry points; when the flag is absent or the file is missing/unreadable, Contract Approval does not apply and behaviour is byte-for-byte what it is today.\n\nAdd `tests/test_contract_approval.py` driving the real gate, not reading source: covered when all four conditions hold; NOT covered for each of (task absent at base; each of the seven governance fields differing, one case per field; registration missing; registration.merged false; registration.guardian_approved false; registration naming a different PR than the adding commit; registration.task_id mismatched; --contract-approval flag absent; the file unreadable). Assert in every negative case that the Guardian requirement still resolves True, so a regression cannot hide behind an unrelated block. Add cases to `scripts/test_shiki_guardian_policy.sh` asserting that a contract-approved PR with NO guardian:approved label and NO approval comment resolves guardian_required satisfied in both the MergeGate result and the CCA Guardian signal, and that removing any single proof element puts it back to unsatisfied.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a Goal is decomposed, its Contract PR is opened, the operator applies `mergegate:contract` and grants Guardian approval before any code is written \u2014 and then every implementation PR of that Goal stops at `needs_guardian` and asks for the same approval again. Approving the contract before dispatch saves nothing at merge time.\n  Measured: `grep -rn 'contract_approval|Contract Approval' scripts/ .github/` returns zero hits on main at c0082fe. guardian-policy.json declares exactly four approval sources \u2014 github_review, guardian_label, guardian_comment, external_ai_guardian_review \u2014 and none of them consults a registered contract. PRs #226, #229 and #232 each carry their own `guardian:approved` label despite their contracts having been approved beforehand.\n  Root cause: ADR 0015 shipped in halves. The registration half (contract mode, `enforce_contract`, `contract_guardian_risk`, the forced Guardian evaluation from the frozen plan) landed. The 'Evaluation placement' half \u2014 a new, separately tested function that MergeGate accepts as an alternative to live PR approval \u2014 was never written. ADR 0015 is still Status: Proposed.\n  Exact change that reproduces this result: add the evaluator, and OR it into BOTH the MergeGate Guardian decision and the deterministic CCA Guardian signal. ORing it into only one of the two reproduces nothing: the CCA job fails first and the policy check never runs.\n  Reproducible when: a PR whose contract is registered at base, unchanged at head, and whose registering PR is proven merged-and-approved satisfies the Guardian requirement with no approval of its own, and every one of the negative cases above still requires one.",
-  "status": "planned",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_guardian_policy.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Evaluate Contract Approval as a distinct approval source"
 }
