@@ -1,0 +1,48 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A task left `running` by a killed dispatch is detected as dead and re-dispatched automatically, up to the bound, then stops with a distinct reason.",
+    "A task whose lease is held by a live process is still wait_runner, and one whose lease names another host is never declared dead.",
+    "A closeout or implementation PR that is BEHIND is synced with its base and merged without operator action; a conflicting sync stops with a distinct reason.",
+    "The full suite, the goal-loop and runner suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-01T04:09:48+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "`running` is a claim, never an observation. `dispatch_runner_task` (scripts/shiki_runtime.py) writes status=running, runs the adapter SYNCHRONOUSLY, and only then writes review or repair-needed. If that process dies \u2014 measured three times when a foreground `shiki loop step` hit the 10-minute command timeout \u2014 the task stays `running` with zero live processes, and `decide_task_action` (scripts/shiki_loop.py:88) returns wait_runner forever. Nothing in the repository records a pid, a heartbeat, or any other liveness signal: `grep -n 'heartbeat|pid' scripts/shiki_loop.py` returns nothing.",
+      "Liveness is proved with an OS advisory lock (fcntl.flock), not a pid. A pid can be reused by an unrelated process, which would make a dead session look alive indefinitely; an flock is released by the kernel the instant the holder dies, so a successful non-blocking acquire by anyone else is exact proof that no holder remains. The lease also records host and started_at so a coordinator on a DIFFERENT host never declares a session dead it cannot observe.",
+      "The lease directory is local-only, never mirrored. `.shiki/manifest.json` already declares a `local-only` state class that `shiki_state_classes.is_untracked_path` treats as untracked, so `.shiki/leases` needs a manifest entry and a .gitignore line and nothing else. A tracked lease would be a mirror record whose content is a machine-local file descriptor \u2014 meaningless on any other checkout and a permanent source of drift.",
+      "`mergeStateStatus` is never read: `grep -rn 'mergeStateStatus|BEHIND' scripts/*.py` returns zero hits. The loop's PR state fetch asks only for `state,mergedAt,headRefOid`. When branch protection requires branches to be up to date, the merge effector's `gh pr merge` fails and the loop reports 'resolve manually (branch protection, conflicts, or auth)' \u2014 the same message for a mechanical staleness that a base merge fixes and for a real conflict that needs a human.",
+      "Auto-sync covers implementation PRs as well as closeout PRs. Both stop identically, the implementation PR goes BEHIND far more often because it lives longer, and the sync is the same operation. It is bounded and safe because it only ever merges the base branch into the PR branch: a conflicting merge is aborted and reported, never force-pushed and never resolved automatically.",
+      "Re-dispatch after a dead session is bounded and recorded on the task. The worktree is preserved, so a session that died mid-work leaves its commits and the next session continues from them; without a bound, a dispatch that crashes on startup would spin forever. Two attempts was chosen because every observed death was an external kill, not a reproducible crash."
+    ],
+    "source": "Measured 2026-08-01 against main at c0082fe, plus live operation on 2026-07-29..08-01.",
+    "status": "complete"
+  },
+  "id": "G-20260801T040948350468Z-4a542e71",
+  "ledger_evidence": [
+    "L-20260801T040948351623Z-236d177f"
+  ],
+  "non_goals": [
+    "Changing what a live, healthy session does.",
+    "Force-pushing, rebasing, or resolving merge conflicts automatically.",
+    "Declaring a session dead when its lease was taken on a different host.",
+    "Mirroring the lease into .shiki as tracked state.",
+    "Changing dispatch, repair, CCA, or MergeGate semantics.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "The goal loop no longer waits forever on a session that is gone, and no longer stops for a branch that merely needs its base merged in. Both are the two failure modes that ended every unattended run measured so far: a killed dispatch strands its task in wait_runner with nothing alive to finish it, and a PR that goes BEHIND under branch protection stops the loop with an unrecoverable merge failure.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260801T040831274049Z-8c4d29d1",
+  "status": "planned",
+  "title": "Make the loop survive a dead runner session and a branch that fell behind"
+}

@@ -1,0 +1,49 @@
+{
+  "acceptance_checks": [
+    "The loop's PR state fetch includes mergeStateStatus and the value reaches the decision function.",
+    "A BEHIND implementation PR with green checks and Guardian resolved yields sync_branch, not merge.",
+    "A BEHIND closeout PR yields sync_branch.",
+    "A CLEAN PR still yields merge, unchanged.",
+    "A PR that is not otherwise ready to merge is never synced.",
+    "A conflicting sync runs git merge --abort, leaves the branch head unchanged, and stops with a reason naming the conflict and the branch.",
+    "A failing push stops with a distinct push reason.",
+    "After a successful sync the branch head advances and the next decision waits for checks instead of merging the previous head.",
+    "No rebase and no force-push appears anywhere in the effector.",
+    "tests/test_branch_behind_sync.py drives the real decision and effector against a real temporary git repository.",
+    "scripts/test_shiki_goal_loop.sh covers the BEHIND-then-merge sequence.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260801T040948352279Z-07301e34"
+  ],
+  "expected_branch": "shiki/t-20260801t040948352877z-eea16def-sync-a-pr-branch-that-fell-behind-its-base-inste",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260801T040948350468Z-4a542e71",
+  "id": "T-20260801T040948352877Z-eea16def",
+  "ledger_evidence": [
+    "L-20260801T040948352897Z-b6f97603"
+  ],
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_branch_behind_sync.py",
+    "path:scripts/test_shiki_goal_loop.sh"
+  ],
+  "non_goals": [
+    "Rebasing or force-pushing",
+    "Resolving merge conflicts automatically",
+    "Syncing a PR that is not otherwise ready to merge",
+    "Changing the merge effector's behaviour for non-BEHIND failures",
+    "Touching any file outside the declared locks"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Add `mergeStateStatus` to the loop's PR state fetch (currently `--json state,mergedAt,headRefOid` in `scripts/shiki_loop.py`) and surface it in the state dict. When a PR is otherwise ready to merge \u2014 every required check green, Guardian resolved, the merge decision already reached \u2014 and `mergeStateStatus` is `BEHIND`, take a new `sync_branch` action before merging instead of attempting a merge that will fail.\n\nThe sync effector merges the BASE branch into the PR branch and pushes: fetch the base, `git merge origin/<base>` in the task's branch, push. It never rebases and never force-pushes. A merge that conflicts is aborted (`git merge --abort`) and the action becomes `stop_blocked` with a reason that says the sync conflicted and names the branch \u2014 distinct from the generic merge failure, so an operator can tell a real conflict from mechanical staleness. A push failure is likewise a distinct stop reason. After a successful sync the loop returns to waiting for checks, because the new head must be re-verified.\n\nThis applies to BOTH the closeout PR path and the implementation PR path. The merge effector's existing failure message must stay for the cases it still covers (conflicts, auth, protection rules other than up-to-date-ness).\n\nAdd `tests/test_branch_behind_sync.py` driving the real decision function and the real effector against a temporary git repository: a BEHIND implementation PR with green checks yields sync_branch, not merge; a BEHIND closeout PR yields sync_branch; a CLEAN PR yields merge unchanged; a BLOCKED or DIRTY PR is not synced; a sync whose merge conflicts aborts the merge, leaves the branch exactly as it was, and stops with the conflict reason; a sync whose push fails stops with the push reason; a successful sync advances the branch head and the next decision waits for checks rather than merging the old head. Add a goal-loop case to `scripts/test_shiki_goal_loop.sh` covering the BEHIND-then-merge sequence end to end.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: an unattended run ends with `gh pr merge <N> failed; resolve manually (branch protection, conflicts, or auth)`. The PR has every check green and no conflict \u2014 main simply moved while the PR was open, and branch protection requires branches to be up to date. The operator merges the base by hand and the loop resumes with no other change.\n  Measured: `grep -rn 'mergeStateStatus|BEHIND' scripts/*.py` returns zero hits on main at c0082fe. The loop fetches only `state,mergedAt,headRefOid`, so it cannot distinguish 'needs a base merge' from 'has a real conflict' and reports one message for both.\n  Exact change that reproduces this result: fetch mergeStateStatus, and insert a bounded sync_branch action ahead of merge when it is BEHIND.\n  Why conflicts must abort rather than resolve: an automatic conflict resolution would silently choose one side of a governance file or a lock declaration. Aborting leaves the branch byte-identical and hands the operator a reason that names the branch.\n  Reproducible when: a PR that goes BEHIND while the loop is running is synced and merged with no operator action, and a PR with a genuine conflict stops with a reason that says so.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && python3 scripts/validate_shiki.py --target .",
+  "title": "Sync a PR branch that fell behind its base instead of stopping"
+}
