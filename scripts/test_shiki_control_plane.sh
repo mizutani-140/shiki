@@ -575,6 +575,87 @@ python3 "$ROOT/scripts/shiki.py" dispatch check --target "$TARGET" "$TASK_ID" >/
 python3 "$ROOT/scripts/shiki.py" worktree allocate --target "$TARGET" "$TASK_ID" >/tmp/shiki-worktree.json
 test -f "$TARGET/.shiki/worktrees/$TASK_ID.json"
 
+# --- Lock lifecycle regression (T-20260729T065622768738Z-fa978e4a) ----------
+# Two PR #179 defects on the lock-acquisition seam. Self-contained: every task /
+# grant mutation below is reverted before the downstream MergeGate assertions run.
+cp "$TARGET/.shiki/locks/$TASK_ID.json" /tmp/shiki-lll-lock.json
+
+# Defect (a): a re-acquisition must never rewind a task's lifecycle. Put the task
+# in review (as if a PR is under review) and re-acquire; it must stay in review,
+# not rewind to ready (which MergeGate's post-CCA rule would then block).
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json, pathlib, sys
+target, task_id = pathlib.Path(sys.argv[1]), sys.argv[2]
+path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(path.read_text())
+task["status"] = "review"
+path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+PY
+python3 "$ROOT/scripts/shiki.py" lock acquire --target "$TARGET" "$TASK_ID" >/tmp/shiki-lll-reacquire.json
+python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["status"] == "review", "re-acquire rewound the lifecycle"' \
+  "$TARGET/.shiki/tasks/$TASK_ID.json"
+
+# Defect (b) / no manual re-acquisition: widen (amend) the task's locks with a
+# path that collides with nothing. dispatch check must refresh the grant itself —
+# no separate `lock acquire` — and report the locks as granted.
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json, pathlib, sys
+target, task_id = pathlib.Path(sys.argv[1]), sys.argv[2]
+path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(path.read_text())
+task["locks"] = ["path:src/audit/*", "path:src/extra/*"]
+path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+PY
+python3 "$ROOT/scripts/shiki.py" dispatch check --target "$TARGET" "$TASK_ID" >/tmp/shiki-lll-refresh.json
+grep '"locks_granted": true' /tmp/shiki-lll-refresh.json >/dev/null
+python3 -c 'import json,sys; locks=set(json.load(open(sys.argv[1]))["locks"]); assert {"path:src/audit/*","path:src/extra/*"} <= locks, locks' \
+  "$TARGET/.shiki/locks/$TASK_ID.json"
+
+# Defect (b) / collision: a widened contract that overlaps another task's active
+# lock is reported as a grant/contract divergence naming BOTH lock sets and the
+# owning task, never a bare 'locks are not granted'.
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json, pathlib, sys
+target, task_id = pathlib.Path(sys.argv[1]), sys.argv[2]
+path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(path.read_text())
+task["locks"] = ["path:src/audit/*", "path:src/collide/*"]
+path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+lock = {
+    "task_id": "T-8888",
+    "goal_id": "G-8888",
+    "locks": ["path:src/collide/*"],
+    "state": "active",
+    "owner": "other",
+    "created_at": "2026-01-01T00:00:00+00:00",
+}
+(target / ".shiki" / "locks" / "T-8888.json").write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n")
+PY
+expect_fail python3 "$ROOT/scripts/shiki.py" dispatch check --target "$TARGET" "$TASK_ID"
+grep "grant/contract divergence" /tmp/shiki-expected-fail.out >/dev/null
+grep "T-8888" /tmp/shiki-expected-fail.out >/dev/null
+grep -F "path:src/collide/*" /tmp/shiki-expected-fail.out >/dev/null
+grep -F "path:src/audit/*" /tmp/shiki-expected-fail.out >/dev/null
+if grep -F '"locks are not granted"' /tmp/shiki-expected-fail.out >/dev/null; then
+  echo "grant/contract divergence surfaced as the bare 'locks are not granted'" >&2
+  exit 1
+fi
+
+# Restore the pre-block contract + grant so the downstream MergeGate assertions
+# run against the original state; drop the foreign lock fixture.
+rm -f "$TARGET/.shiki/locks/T-8888.json"
+python3 - "$TARGET" "$TASK_ID" <<'PY'
+import json, pathlib, sys
+target, task_id = pathlib.Path(sys.argv[1]), sys.argv[2]
+path = target / ".shiki" / "tasks" / f"{task_id}.json"
+task = json.loads(path.read_text())
+task["locks"] = ["path:src/audit/*"]
+task["status"] = "ready"
+path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+PY
+cp /tmp/shiki-lll-lock.json "$TARGET/.shiki/locks/$TASK_ID.json"
+# --- end lock lifecycle regression ------------------------------------------
+
 python3 "$ROOT/scripts/shiki.py" repair packet \
   --target "$TARGET" \
   --task-id "$TASK_ID" \
