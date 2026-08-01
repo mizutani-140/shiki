@@ -1,0 +1,46 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A task PR that lowers its own risk_level is blocked and still requires a Guardian.",
+    "A task PR that widens its own locks, or edits any other governance field of its own contract, is blocked.",
+    "A first-registration PR whose task file is absent at base still passes.",
+    "The full suite, the governance-evidence and adversarial suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-01T00:32:38+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "The Guardian requirement is derived from the HEAD task's risk_level (`_guardian_risk_labels` feeding `_builtin_guardian_risk_required`). Measured directly: head risk_level critical -> guardian_required True; head risk_level low -> guardian_required False.",
+      "Nothing compares a normal task PR's own task file to the base snapshot. `enforce_untrusted_shiki_mutations` blocks deleting a task file and blocks touching a FOREIGN task file, but leaves the PR's own task file unconstrained; `tasks` is not in `_GENERIC_MIRROR_DIRS`; and `_frozen_task_match_errors` is reached only from `_enforce_frozen_registration` (contract and goal_reconcile modes). Driving the gate directly with base risk_level=critical and head risk_level=low produced ZERO blocking reasons and guardian_required=False.",
+      "ADR 0015 already decided this and stated the resolution rule: 'the base snapshot is authority when the contract exists in it; otherwise head is authority; and risk may never resolve weaker than base.' The base-when-present half matters \u2014 the goal loop registers a task's contract on the task branch, so at the merge base the contract does not exist for a first-registration PR, and a base-only rule would block every implementation PR while simultaneously disengaging the gate.",
+      "Every gate this repository added on 2026-07-29/31 \u2014 contract approval, the bookkeeping-closeout exemption, the reduced approval count \u2014 sits on top of this hole. A PR that can lower its own risk can opt out of all of it.",
+      "Scope was checked against locks before freezing: every file any scope item touches (scripts/mergegate_check.py, tests/test_contract_immutability.py, scripts/test_shiki_adversarial_state.sh, scripts/test_shiki_governance_evidence.sh) is inside the declared locks, and all four are currently unheld. This check was skipped when writing T-\u202648021407 and cost that task two Spec Amendments."
+    ],
+    "source": "Measured 2026-07-31 while verifying the ADR 0017 rollout.",
+    "status": "complete"
+  },
+  "id": "G-20260801T003238840135Z-14193adf",
+  "ledger_evidence": [
+    "L-20260801T003238840960Z-562dd38a"
+  ],
+  "non_goals": [
+    "Blocking the lifecycle fields a task PR legitimately writes: status, expected_pr, closeout_pr, expected_branch, ledger_evidence.",
+    "Changing contract, goal_reconcile, post_merge_reconcile or bookkeeping-closeout handling \u2014 each already has its own immutability rule and must keep it.",
+    "Requiring a base snapshot: a first-registration PR adds its own task file and must still pass.",
+    "Changing how risk_level is resolved for the Guardian gate beyond refusing a weaker-than-base value.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "An implementation PR can no longer lower its own risk_level to disengage its own Guardian gate, widen its own locks to escape lock scope, or edit any other governance field of its own task contract. ADR 0015 decided this; it was implemented for contract, goal_reconcile and post_merge_reconcile PRs and never for the normal task-PR path, which is the path almost every PR takes.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_plan": "P-20260801T003238742497Z-cd2c1b4e",
+  "status": "planned",
+  "title": "Stop a task PR from rewriting the contract that governs it"
+}

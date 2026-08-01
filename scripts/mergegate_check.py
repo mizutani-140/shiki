@@ -1821,6 +1821,133 @@ def _mirror_record_scoped(data: Any, path: str, *, task_id: str, goal_id: str) -
     return False
 
 
+# The governance contract a NORMAL task PR must not rewrite in its OWN task file
+# (ADR 0015 Contract immutability, normal path). When the task file is present in
+# the base snapshot the base is authority over these fields, so a head that
+# differs on any of them is blocked. Every OTHER task field may legitimately move
+# between the base registration and the implementation-PR head — the
+# ``_CLOSEOUT_MUTABLE_TASK_FIELDS`` (status/expected_pr/closeout_pr/
+# expected_branch/ledger_evidence) AND loop-written bookkeeping such as
+# ``pre_pr_code_review`` / ``cca_rerun_count`` that ``shiki_loop`` writes onto the
+# task file and syncs to the branch. Freezing the COMPLEMENT of the mutable set
+# would therefore wrongly block real PRs; this is the explicit frozen set instead.
+# It is DISJOINT from ``_CLOSEOUT_MUTABLE_TASK_FIELDS`` (bound by a consistency
+# test) so the frozen contract and the may-move set cannot drift into overlap, and
+# the mutable set stays the single ADR 0017 constant, never re-copied here.
+_NORMAL_PATH_GOVERNANCE_FIELDS: tuple[str, ...] = (
+    "scope",
+    "non_goals",
+    "required_skills",
+    "risk_level",
+    "locks",
+    "acceptance_checks",
+    "test_command",
+)
+
+
+def resolved_guardian_risk_never_weaker(
+    base_task: dict[str, Any] | None, head_task: dict[str, Any]
+) -> str:
+    """The risk level the Guardian gate must use for a normal task PR: NEVER weaker
+    than the base snapshot (ADR 0015). Returns ``max(base_risk, head_risk)`` by the
+    canonical risk ordering, so a PR that lowered its own ``risk_level`` cannot
+    dissolve its Guardian requirement — the gate still resolves at the base risk.
+    With no base task (first registration, or no snapshot) the head risk stands."""
+    head_risk = str(head_task.get("risk_level") or "")
+    if not isinstance(base_task, dict):
+        return head_risk
+    return _max_risk(str(base_task.get("risk_level") or ""), head_risk)
+
+
+def normal_task_contract_immutability_reasons(
+    *,
+    base_shiki: Path | None,
+    task_id: str,
+    head_task: dict[str, Any],
+    changed_files_status: list[ChangedFile],
+) -> list[str]:
+    """Blocking reasons when a NORMAL task PR rewrites its OWN task file's frozen
+    governance contract (ADR 0015 Contract immutability, normal path).
+
+    Fires ONLY when the PR's own task file ``.shiki/tasks/<task_id>.json`` is added
+    or modified in the diff — a delete is already blocked by
+    ``enforce_untrusted_shiki_mutations`` and carries no contract to compare, and a
+    PR that does not touch its own task file is unaffected. Resolution is
+    base-when-present, exactly as ADR 0015 states:
+
+      * base snapshot HAS the task file  -> the base is authority: every field in
+        ``_NORMAL_PATH_GOVERNANCE_FIELDS`` must equal the base, and ``risk_level``
+        may never resolve WEAKER than base (a standalone floor that holds even if
+        the field-equality rule for ``risk_level`` is later relaxed);
+      * base snapshot present WITHOUT the task file -> first registration (head is
+        authority, which is how the goal loop registers tasks today) -> no reason;
+      * no base snapshot available at all -> fail closed: a changed own task file
+        with no base to check it against does not get a pass.
+
+    Only ``main``'s normal single-task path (``elif resolved_task_id``) calls this.
+    contract / goal_reconcile / post_merge_reconcile run their own validators in
+    earlier branches and never reach here, so they are not double-reported; a
+    bookkeeping closeout does reach here but keeps every governance field
+    byte-identical to base, so it yields no reason and behaves exactly as before.
+    """
+    task_file = f".shiki/tasks/{task_id}.json"
+    own_task_changed = any(
+        normalize_repo_path(entry.path) == task_file and entry.status != "D"
+        for entry in changed_files_status
+    )
+    if not own_task_changed:
+        return []
+    if base_shiki is None or not base_shiki.exists():
+        # The comparison is required (the own task file changed) but there is no
+        # base to check it against: fail closed rather than pass an unverifiable
+        # contract change.
+        return [
+            f"PR changes its own task file {task_file} but no base .shiki snapshot is available to verify "
+            "its frozen governance contract (ADR 0015 Contract immutability); failing closed"
+        ]
+    base_task_path = base_shiki / "tasks" / f"{task_id}.json"
+    try:
+        base_task = load_json(base_task_path)
+    except (OSError, ValueError):
+        # An unreadable/malformed base task cannot be compared against: fail closed,
+        # never pass an unverifiable contract change (the base is committed main
+        # state, so this is a defensive backstop, not an expected path).
+        return [
+            f"PR changes its own task file {task_file} but its base snapshot {base_task_path.name} could not be "
+            "read to verify the frozen governance contract (ADR 0015 Contract immutability); failing closed"
+        ]
+    if not isinstance(base_task, dict):
+        # First registration: the task is not on the base branch (base file absent
+        # or not an object), so head is authority and the PR passes — this is how
+        # the goal loop registers tasks today.
+        return []
+    reasons: list[str] = []
+    for field in _NORMAL_PATH_GOVERNANCE_FIELDS:
+        # Exclude the mutable set defensively: a field the closeout legitimately
+        # moves must never be frozen here. Today the two sets are disjoint (a
+        # consistency test binds them), so this only future-proofs against drift.
+        if field in _CLOSEOUT_MUTABLE_TASK_FIELDS:
+            continue
+        if base_task.get(field) != head_task.get(field):
+            reasons.append(
+                f"PR must not change frozen governance field {field!r} of its own task {task_id}: it differs "
+                "from the base snapshot (ADR 0015 Contract immutability)"
+            )
+    # risk_level may never resolve WEAKER than the base snapshot, independent of
+    # the field-equality rule above: a self-lowered risk would silently weaken the
+    # Guardian gate this contract is enforced downstream of. A standalone floor
+    # that survives even if the equality rule for risk_level is later relaxed; on a
+    # straight downgrade it fires alongside the equality reason (both are true).
+    base_risk = str(base_task.get("risk_level") or "")
+    head_risk = str(head_task.get("risk_level") or "")
+    if _RISK_ORDER.get(head_risk, -1) < _RISK_ORDER.get(base_risk, -1):
+        reasons.append(
+            f"PR must not lower its own task {task_id} risk_level below the base snapshot "
+            f"({base_risk!r} -> {head_risk!r}); a self-lowered risk would weaken the Guardian gate"
+        )
+    return reasons
+
+
 def enforce_untrusted_shiki_mutations(
     *,
     target: Path,
@@ -2265,6 +2392,20 @@ def main() -> int:
                     blocking=blocking,
                     warnings=warnings,
                 )
+                # ADR 0015 Contract immutability on the NORMAL task-PR path: a PR
+                # that changes its own task file may move only bookkeeping — its
+                # frozen governance contract is bound to the base snapshot, and its
+                # risk_level may never resolve weaker than base. Only this branch
+                # calls it (contract / goal_reconcile / post_merge_reconcile use
+                # their own validators), so nothing is double-reported.
+                blocking.extend(
+                    normal_task_contract_immutability_reasons(
+                        base_shiki=Path(args.base_shiki) if args.base_shiki else None,
+                        task_id=resolved_task_id,
+                        head_task=task,
+                        changed_files_status=files_status,
+                    )
+                )
             ledger_text = "\n".join(ledger_entry_text(entry) for entry in ledger_entries)
             for skill in task.get("required_skills") or []:
                 skill_name = str(skill).strip().lower()
@@ -2345,6 +2486,26 @@ def main() -> int:
                 goal = load_goal(target, resolved_goal_id)
                 if isinstance(goal, dict) and goal.get("risk_level"):
                     guardian_task = {"risk_level": goal.get("risk_level")}
+            elif task is not None and args.base_shiki and resolved_task_id:
+                # Normal path (ADR 0015): resolve the Guardian risk NEVER WEAKER
+                # than the base snapshot, so a PR that lowered its own task
+                # risk_level cannot dissolve its Guardian requirement — the gate
+                # still fires at the base risk. This is the independent floor the
+                # acceptance requires: the guardian outcome survives even if the
+                # immutability block above were bypassed. A no-op when the task
+                # file is unchanged (base risk == head risk) or on an upgrade.
+                base_shiki_dir = Path(args.base_shiki)
+                base_task_for_risk: dict[str, Any] | None = None
+                if base_shiki_dir.exists():
+                    try:
+                        base_task_for_risk = load_json(base_shiki_dir / "tasks" / f"{resolved_task_id}.json")
+                    except (OSError, ValueError):
+                        # An unreadable base leaves the head risk in force here; the
+                        # immutability gate above has already blocked the change.
+                        base_task_for_risk = None
+                resolved_risk = resolved_guardian_risk_never_weaker(base_task_for_risk, task)
+                if resolved_risk and resolved_risk != str(task.get("risk_level") or ""):
+                    guardian_task = {**task, "risk_level": resolved_risk}
             enforce_guardian_policy(
                 pr=pr,
                 task=guardian_task,

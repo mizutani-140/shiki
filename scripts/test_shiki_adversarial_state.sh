@@ -503,7 +503,28 @@ for evidence_path in [
 
 
 # Guards T-0036: protected task, goal, ledger, lock, and repair evidence cannot be forged.
-expect_ready(make_fixture("current-task-change", locks=["shiki:state"], changed=[f".shiki/tasks/{TASK_ID}.json"]))
+# ADR 0015 Contract immutability on the NORMAL task-PR path (T-20260801…9f3f6f63):
+# a PR may move only its own task file's bookkeeping (the mutable set); its frozen
+# governance contract is bound to the base snapshot, and its risk_level may never
+# resolve weaker than base. The base snapshot registers the task with the same
+# governance contract, so a mutable-only change passes.
+_immut_base = {"tasks": {TASK_ID: task_payload(locks=["shiki:state"], status="planned")}}
+# A mutable-only change (planned -> review) with an identical governance base: ready.
+expect_ready(make_fixture("current-task-change", locks=["shiki:state"],
+                          changed=[f".shiki/tasks/{TASK_ID}.json"], base=_immut_base))
+# A governance field (scope) diverging from the base contract is blocked.
+expect_block(
+    make_fixture("current-task-governance-frozen", locks=["shiki:state"],
+                 changed=[f".shiki/tasks/{TASK_ID}.json"],
+                 task={**task_payload(locks=["shiki:state"]), "scope": "a smuggled scope rewrite"},
+                 base=_immut_base),
+    "frozen governance field 'scope'",
+)
+# A changed own task file with NO base snapshot to check it against fails closed.
+expect_block(
+    make_fixture("current-task-no-base", locks=["shiki:state"], changed=[f".shiki/tasks/{TASK_ID}.json"]),
+    "no base .shiki snapshot is available to verify",
+)
 expect_block(
     make_fixture("unrelated-task-change", locks=["shiki:state"], changed=[".shiki/tasks/T-9999.json"]),
     "PR changes unrelated Shiki task file .shiki/tasks/T-9999.json",
@@ -1175,6 +1196,43 @@ write_json(
     {"id": SOURCE_PLAN, "title": "p", "spec_freeze": _FROZEN, "notes": "new"},
 )
 expect_ready(mg_plan_touch)
+
+
+# ============================================================================
+# T-20260801T003238841526Z-9f3f6f63: the Guardian requirement SURVIVES a
+# self-lowered risk_level on the NORMAL task-PR path. The gate resolves the task's
+# risk never-weaker-than-base, so a PR that drops its OWN risk_level critical ->
+# low still forces the Guardian gate. Assert the guardian OUTCOME (the
+# missing-policy fallback — this suite writes no guardian policy), not merely that
+# the PR blocks, so a future change that blocks for an unrelated reason cannot mask
+# a regression.
+# ============================================================================
+_risk_base = {"tasks": {TASK_ID: task_payload(locks=["shiki:state"], status="planned")}}  # risk_level critical
+_downgraded_head = {**task_payload(locks=["shiki:state"]), "risk_level": "low"}
+_downgrade_fx = make_fixture(
+    "current-task-risk-downgrade-guardian-survives",
+    locks=["shiki:state"], changed=[f".shiki/tasks/{TASK_ID}.json"],
+    task=_downgraded_head, base=_risk_base, cca=cca_payload(),
+)
+_downgrade_res = run_mergegate(_downgrade_fx, allow_missing_cca=False)
+assert _downgrade_res.returncode != 0, _downgrade_res.stdout
+# The Guardian requirement resolved at the base (critical) risk, not the head's low.
+assert_contains(_downgrade_res.stdout, GUARDIAN_POLICY_FALLBACK)
+# And the immutability gate independently blocked the self-lowered risk_level.
+assert_contains(_downgrade_res.stdout, "risk_level")
+# Control: the head's OWN low risk does not force the gate. A low-risk head that
+# MATCHES a low-risk base neither blocks on immutability nor forces a Guardian, so
+# the fallback is ABSENT — proving the never-weaker resolution (not the head risk)
+# is what keeps the Guardian requirement alive above.
+_low_base = {"tasks": {TASK_ID: {**task_payload(locks=["shiki:state"], status="planned"), "risk_level": "low"}}}
+_matched_fx = make_fixture(
+    "current-task-low-matched-no-guardian",
+    locks=["shiki:state"], changed=[f".shiki/tasks/{TASK_ID}.json"],
+    task=_downgraded_head, base=_low_base, cca=cca_payload(),
+)
+_matched_res = run_mergegate(_matched_fx, allow_missing_cca=False)
+if GUARDIAN_POLICY_FALLBACK in _matched_res.stdout:
+    raise AssertionError("control: a low-risk head matching a low-risk base must not force a Guardian:\n" + _matched_res.stdout)
 
 
 print("adversarial state/evidence/lock regression suite passed")
