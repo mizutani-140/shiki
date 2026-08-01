@@ -1,0 +1,34 @@
+{
+  "attempt": 2,
+  "created_at": "2026-07-31T11:09:08+00:00",
+  "evidence_required": [
+    "A measurement showing a verdict with checklist [] is rejected by cca-verdict.schema.json after the change, and was accepted before it.",
+    "The new test fails when minItems is removed from the schema."
+  ],
+  "failing_acceptance_criteria": [
+    "Scope: Add minItems 1 to the schema's checklist."
+  ],
+  "failing_checklist_items": [
+    "The task's scope declares 'Add minItems 1 to the schema's checklist' for .shiki/schemas/cca-verdict.schema.json. Verified against the branch: properties.checklist has type array and an items schema but no minItems, so a verdict carrying an EMPTY checklist still validates. That is the hole the scope item exists to close \u2014 a verdict can claim completion while judging nothing.",
+    "Unlike the cca_checklist_profile-required item, this was never deferred: no Spec Amendment covers it, the file IS inside the task's declared locks (.shiki/schemas/cca-verdict.schema.json), and the PR body does not disclose the skip. It is a plain implementation gap, bounded and fixable in place."
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "minimal_required_changes": [
+    "In .shiki/schemas/cca-verdict.schema.json add \"minItems\": 1 to properties.checklist. Change nothing else in the schema.",
+    "In tests/test_cca_verdict_consistency.py add a case asserting that a verdict whose checklist is an empty array FAILS schema validation, and that a verdict with at least one checklist entry still validates. The empty-checklist case must fail if minItems is removed, so the guard is mutation-sensitive rather than a restatement of the schema text."
+  ],
+  "pr": 226,
+  "prohibited_changes": [
+    "Do not change any other property of cca-verdict.schema.json, and do not relax any existing required field or enum.",
+    "Do not modify .shiki/schemas/task.schema.json, validate_shiki's TASK_REQUIRED, or any pre-existing task file \u2014 the cca_checklist_profile promotion is deferred by the operator's Spec Amendment recorded at L-20260731T103805656085Z-f5448285.",
+    "Do not edit the task's scope, acceptance_checks, or any other governance field.",
+    "Do not modify any file outside the task's declared locks."
+  ],
+  "repair_id": "RP-20260731T110908060487Z-bd1bf7ee",
+  "required_skill": "tdd",
+  "stop_condition": "If adding minItems breaks any existing fixture that legitimately carries an empty checklist, stop and report that fixture rather than weakening the guard.",
+  "task_id": "T-20260729T065622764296Z-48021407",
+  "verification_commands": [
+    "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target ."
+  ]
+}

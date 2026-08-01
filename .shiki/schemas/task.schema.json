@@ -43,6 +43,11 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "cca_checklist_profile": {
+      "description": "CCA checklist ids the PR's structured verdict must judge to a terminal status (see scripts/mergegate_check.checklist_profile_coverage_failures). MergeGate blocks a verdict that omits or leaves unresolved any id declared here. Optional (absent from `required`) until every pre-existing task file carries it: promoting it to a required field would force backfilling all such files, which are outside this task's declared locks. This mirrors scripts/validate_shiki.py keeping it out of TASK_REQUIRED; the two surfaces must be promoted together (see tests/test_cca_verdict_consistency.TaskSchemaRequiredConsistency).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "acceptance_checks": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },

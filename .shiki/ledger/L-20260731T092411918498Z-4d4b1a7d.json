@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/repairs/RP-20260731T092411917682Z-aa9a4636.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "L-20260731T092411918498Z-4d4b1a7d",
+  "links": [],
+  "summary": "Repair packet RP-20260731T092411917682Z-aa9a4636 created for PR #226",
+  "task_id": "T-20260729T065622764296Z-48021407",
+  "timestamp": "2026-07-31T09:24:11+00:00",
+  "type": "repair"
+}
