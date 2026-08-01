@@ -247,6 +247,13 @@
       "tracked": true,
       "required": true
     },
+    ".shiki/leases": {
+      "kind": "session-lease",
+      "state_class": "local-only",
+      "tracked": false,
+      "required": false,
+      "description": "Local runtime session leases: per-task OS flock files (<task_id>.lock) proving a dispatched session is alive. Never committed (see .gitignore); the kernel releases the flock on process death."
+    },
     ".shiki/guardian-policy.json": {
       "kind": "governance-policy",
       "state_class": "governance-policy",

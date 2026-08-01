@@ -131,6 +131,19 @@ grep "$TASK_ID" "$WORKTREE/claude-prompt.txt" >/dev/null
 grep '"status": "review"' "$TARGET/.shiki/tasks/$TASK_ID.json" >/dev/null
 grep "claude -p" "$TARGET"/.shiki/runner/EXEC-*.json >/dev/null
 
+# The dispatch held an OS session lease for the session's lifetime and released
+# it afterwards (T-...07301e34). A normal dispatch must TAKE the lease (so the
+# lease file exists) and RELEASE it on return (so a probe reads `free`, never a
+# stuck `held` that would make the loop wait on a dead session forever).
+test -f "$TARGET/.shiki/leases/$TASK_ID.lock"
+python3 - "$ROOT" "$TARGET" "$TASK_ID" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1] + "/scripts")
+from shiki_session_lease import session_lease_state
+state = session_lease_state(sys.argv[2], sys.argv[3])
+assert state == "free", f"dispatch left the session lease {state!r}, expected it released (free)"
+PY
+
 # The dispatch carried THIS task's current contract into the worktree before the
 # session (the amended-contract gap): the worktree's task file, goal file and
 # lock record are synced from the coordinator, so a repair judges against current
