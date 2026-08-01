@@ -1,0 +1,121 @@
+{
+  "completion_conditions": [
+    "A task left `running` by a killed dispatch is detected as dead and re-dispatched automatically, up to the bound, then stops with a distinct reason.",
+    "A task whose lease is held by a live process is still wait_runner, and one whose lease names another host is never declared dead.",
+    "A closeout or implementation PR that is BEHIND is synced with its base and merged without operator action; a conflicting sync stops with a distinct reason.",
+    "The full suite, the goal-loop and runner suites and validate_shiki stay green."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "`running` is a claim, never an observation. `dispatch_runner_task` (scripts/shiki_runtime.py) writes status=running, runs the adapter SYNCHRONOUSLY, and only then writes review or repair-needed. If that process dies \u2014 measured three times when a foreground `shiki loop step` hit the 10-minute command timeout \u2014 the task stays `running` with zero live processes, and `decide_task_action` (scripts/shiki_loop.py:88) returns wait_runner forever. Nothing in the repository records a pid, a heartbeat, or any other liveness signal: `grep -n 'heartbeat|pid' scripts/shiki_loop.py` returns nothing.",
+      "Liveness is proved with an OS advisory lock (fcntl.flock), not a pid. A pid can be reused by an unrelated process, which would make a dead session look alive indefinitely; an flock is released by the kernel the instant the holder dies, so a successful non-blocking acquire by anyone else is exact proof that no holder remains. The lease also records host and started_at so a coordinator on a DIFFERENT host never declares a session dead it cannot observe.",
+      "The lease directory is local-only, never mirrored. `.shiki/manifest.json` already declares a `local-only` state class that `shiki_state_classes.is_untracked_path` treats as untracked, so `.shiki/leases` needs a manifest entry and a .gitignore line and nothing else. A tracked lease would be a mirror record whose content is a machine-local file descriptor \u2014 meaningless on any other checkout and a permanent source of drift.",
+      "`mergeStateStatus` is never read: `grep -rn 'mergeStateStatus|BEHIND' scripts/*.py` returns zero hits. The loop's PR state fetch asks only for `state,mergedAt,headRefOid`. When branch protection requires branches to be up to date, the merge effector's `gh pr merge` fails and the loop reports 'resolve manually (branch protection, conflicts, or auth)' \u2014 the same message for a mechanical staleness that a base merge fixes and for a real conflict that needs a human.",
+      "Auto-sync covers implementation PRs as well as closeout PRs. Both stop identically, the implementation PR goes BEHIND far more often because it lives longer, and the sync is the same operation. It is bounded and safe because it only ever merges the base branch into the PR branch: a conflicting merge is aborted and reported, never force-pushed and never resolved automatically.",
+      "Re-dispatch after a dead session is bounded and recorded on the task. The worktree is preserved, so a session that died mid-work leaves its commits and the next session continues from them; without a bound, a dispatch that crashes on startup would spin forever. Two attempts was chosen because every observed death was an external kill, not a reproducible crash."
+    ],
+    "source": "Measured 2026-08-01 against main at c0082fe, plus live operation on 2026-07-29..08-01.",
+    "status": "complete"
+  },
+  "id": "P-20260801T040831274049Z-8c4d29d1",
+  "ingested_at": "2026-08-01T04:08:31+00:00",
+  "non_goals": [
+    "Changing what a live, healthy session does.",
+    "Force-pushing, rebasing, or resolving merge conflicts automatically.",
+    "Declaring a session dead when its lease was taken on a different host.",
+    "Mirroring the lease into .shiki as tracked state.",
+    "Changing dispatch, repair, CCA, or MergeGate semantics.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "The goal loop no longer waits forever on a session that is gone, and no longer stops for a branch that merely needs its base merged in. Both are the two failure modes that ended every unattended run measured so far: a killed dispatch strands its task in wait_runner with nothing alive to finish it, and a PR that goes BEHIND under branch protection stops the loop with an unrecoverable merge failure.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-LOOPRESILIENCE-draft.json",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": "docs/adr/0012-loop-pushes-goal-completion-via-closeout-pr.md",
+    "source": "Operator instruction 2026-08-01 to fix every open finding, with the recovery policy chosen explicitly: automatic reset to ready and bounded re-dispatch for a dead session, and automatic base sync for BOTH closeout and implementation PRs.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "A lease held by a live process reads `held`, and the loop returns wait_runner naming it.",
+        "After that process is killed, the same lease reads `free` and the loop re-dispatches the task.",
+        "A lease file recording a different host reads `foreign_host`; the loop stays wait_runner and never re-dispatches.",
+        "A `running` task with no lease file at all is re-dispatched.",
+        "Re-dispatch is bounded by a module constant defaulting to 2, and exceeding it returns stop_blocked with a reason naming the attempt count and the free lease.",
+        "session_lease_state never leaves the lock held: two consecutive probes return the same state.",
+        "A second dispatch for a task whose lease is held fails with the collision message instead of starting a second session.",
+        "dispatch_runner_task holds the lease across the status=running write and the adapter call, and releases it on both success and failure.",
+        ".shiki/leases is declared local-only in .shiki/manifest.json and ignored by .gitignore.",
+        "tests/test_session_lease.py drives real processes and the real loop decision for every case above.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/shiki_session_lease.py",
+        "path:scripts/shiki_runtime.py",
+        "path:scripts/shiki_loop.py",
+        "path:.shiki/manifest.json",
+        "path:.gitignore",
+        "path:tests/test_session_lease.py",
+        "path:scripts/test_shiki_runner_claude.sh"
+      ],
+      "non_goals": [
+        "Changing what a healthy session does",
+        "Judging a lease taken on another host",
+        "Tracking the lease directory in git or the mirror",
+        "Changing repair, CCA or MergeGate semantics",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Add `scripts/shiki_session_lease.py` with two operations over `<target>/.shiki/leases/<task_id>.lock`:\n  - `hold_session_lease(target, task_id)` \u2014 a context manager used by the dispatching process. It opens the lease file, takes `fcntl.flock(LOCK_EX | LOCK_NB)`, writes `{task_id, host, pid, started_at, attempt}` as the file's content, and holds the descriptor for the lifetime of the session. It releases on exit and on process death alike, because the kernel releases it.\n  - `session_lease_state(target, task_id)` \u2014 a read-only probe returning one of `held` (a non-blocking acquire FAILED, so a holder is alive), `free` (the acquire SUCCEEDED and was immediately released, so no holder remains), `foreign_host` (the file records a host other than this one \u2014 never judged), or `absent` (no lease file). It must never leave the lease acquired.\n\nIn `scripts/shiki_runtime.py`, wrap the body of `dispatch_runner_task` from the `task[\"status\"] = \"running\"` write through the adapter call in `hold_session_lease`. If the lease cannot be taken, another dispatch for the same task is already running: fail with that exact message rather than starting a second session against the same worktree.\n\nIn `scripts/shiki_loop.py`, `decide_task_action` currently returns `wait_runner` for every `running` task (line 88). It must now consult the lease: `held` or `foreign_host` keeps `wait_runner` with the reason naming which; `free` or `absent` means the session is gone. On a gone session, return a new action that resets the task to `ready` and re-dispatches, recording the attempt on the task (a `dispatch_attempts` integer). Past the bound \u2014 default 2, declared as a module constant \u2014 return `stop_blocked` with a reason that names the task, the attempt count and the fact that the lease was free, so the operator sees why it stopped rather than a generic block.\n\nRegister `.shiki/leases` in `.shiki/manifest.json` with `state_class: local-only` (already declared in the manifest's state_classes and already treated as untracked by `shiki_state_classes.is_untracked_path`) and add it to `.gitignore`.\n\nAdd `tests/test_session_lease.py` driving real processes and the real loop decision, not mocks of the lease: a lease held by a live child process reads `held` and the loop stays wait_runner; the same lease after that child is killed reads `free` and the loop re-dispatches; a lease file naming a foreign host reads `foreign_host` and the loop stays wait_runner and never re-dispatches; an absent lease on a `running` task re-dispatches; the bound is respected and the stop reason names the attempt count; `session_lease_state` leaves no lock held (probing twice in a row gives the same answer); a second dispatch for a task whose lease is held fails with the collision message. Add a case to `scripts/test_shiki_runner_claude.sh` asserting that a normal dispatch takes and releases the lease.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a task sits at status `running` and the loop reports `wait_runner: implementer session is running` on every step, forever. `ps` shows no session. The only recovery is an operator running `shiki task status --status ready <id>` by hand, and the only way to know it is needed is to notice the loop has not advanced.\n  Measured: reproduced three times on 2026-07-29..31 by running `shiki loop step` in the foreground, where the 10-minute command timeout killed the dispatched session mid-work. Each time the task remained `running` with zero live processes. `scripts/shiki_runtime.py` writes `running` before a synchronous adapter call and writes the terminal status only after it returns, so any death between those two writes strands the task. `grep -n 'heartbeat|pid' scripts/shiki_loop.py` returns nothing \u2014 there is no liveness signal of any kind.\n  Why flock and not a pid: a recorded pid can be reused by an unrelated process after the session dies, which turns a stranded task into a permanently 'alive' one \u2014 strictly worse than today, because the operator would have positive evidence for a false conclusion. An flock is released by the kernel on process death, so a successful non-blocking acquire is exact.\n  Exact change that reproduces this result: hold an exclusive flock for the session's lifetime, and make the loop's `running` branch consult it instead of trusting the status field.\n  Reproducible when: killing a dispatched session and stepping the loop re-dispatches it automatically, and a live session is never disturbed.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_runner_claude.sh && bash scripts/test_shiki_goal_loop.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Prove a runner session is alive with an OS lease and recover a dead one"
+    },
+    {
+      "acceptance_checks": [
+        "The loop's PR state fetch includes mergeStateStatus and the value reaches the decision function.",
+        "A BEHIND implementation PR with green checks and Guardian resolved yields sync_branch, not merge.",
+        "A BEHIND closeout PR yields sync_branch.",
+        "A CLEAN PR still yields merge, unchanged.",
+        "A PR that is not otherwise ready to merge is never synced.",
+        "A conflicting sync runs git merge --abort, leaves the branch head unchanged, and stops with a reason naming the conflict and the branch.",
+        "A failing push stops with a distinct push reason.",
+        "After a successful sync the branch head advances and the next decision waits for checks instead of merging the previous head.",
+        "No rebase and no force-push appears anywhere in the effector.",
+        "tests/test_branch_behind_sync.py drives the real decision and effector against a real temporary git repository.",
+        "scripts/test_shiki_goal_loop.sh covers the BEHIND-then-merge sequence.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [
+        "Prove a runner session is alive with an OS lease and recover a dead one"
+      ],
+      "locks": [
+        "path:scripts/shiki_loop.py",
+        "path:tests/test_branch_behind_sync.py",
+        "path:scripts/test_shiki_goal_loop.sh"
+      ],
+      "non_goals": [
+        "Rebasing or force-pushing",
+        "Resolving merge conflicts automatically",
+        "Syncing a PR that is not otherwise ready to merge",
+        "Changing the merge effector's behaviour for non-BEHIND failures",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Add `mergeStateStatus` to the loop's PR state fetch (currently `--json state,mergedAt,headRefOid` in `scripts/shiki_loop.py`) and surface it in the state dict. When a PR is otherwise ready to merge \u2014 every required check green, Guardian resolved, the merge decision already reached \u2014 and `mergeStateStatus` is `BEHIND`, take a new `sync_branch` action before merging instead of attempting a merge that will fail.\n\nThe sync effector merges the BASE branch into the PR branch and pushes: fetch the base, `git merge origin/<base>` in the task's branch, push. It never rebases and never force-pushes. A merge that conflicts is aborted (`git merge --abort`) and the action becomes `stop_blocked` with a reason that says the sync conflicted and names the branch \u2014 distinct from the generic merge failure, so an operator can tell a real conflict from mechanical staleness. A push failure is likewise a distinct stop reason. After a successful sync the loop returns to waiting for checks, because the new head must be re-verified.\n\nThis applies to BOTH the closeout PR path and the implementation PR path. The merge effector's existing failure message must stay for the cases it still covers (conflicts, auth, protection rules other than up-to-date-ness).\n\nAdd `tests/test_branch_behind_sync.py` driving the real decision function and the real effector against a temporary git repository: a BEHIND implementation PR with green checks yields sync_branch, not merge; a BEHIND closeout PR yields sync_branch; a CLEAN PR yields merge unchanged; a BLOCKED or DIRTY PR is not synced; a sync whose merge conflicts aborts the merge, leaves the branch exactly as it was, and stops with the conflict reason; a sync whose push fails stops with the push reason; a successful sync advances the branch head and the next decision waits for checks rather than merging the old head. Add a goal-loop case to `scripts/test_shiki_goal_loop.sh` covering the BEHIND-then-merge sequence end to end.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: an unattended run ends with `gh pr merge <N> failed; resolve manually (branch protection, conflicts, or auth)`. The PR has every check green and no conflict \u2014 main simply moved while the PR was open, and branch protection requires branches to be up to date. The operator merges the base by hand and the loop resumes with no other change.\n  Measured: `grep -rn 'mergeStateStatus|BEHIND' scripts/*.py` returns zero hits on main at c0082fe. The loop fetches only `state,mergedAt,headRefOid`, so it cannot distinguish 'needs a base merge' from 'has a real conflict' and reports one message for both.\n  Exact change that reproduces this result: fetch mergeStateStatus, and insert a bounded sync_branch action ahead of merge when it is BEHIND.\n  Why conflicts must abort rather than resolve: an automatic conflict resolution would silently choose one side of a governance file or a lock declaration. Aborting leaves the branch byte-identical and hands the operator a reason that names the branch.\n  Reproducible when: a PR that goes BEHIND while the loop is running is synced and merged with no operator action, and a PR with a genuine conflict stops with a reason that says so.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Sync a PR branch that fell behind its base instead of stopping"
+    }
+  ],
+  "title": "Make the loop survive a dead runner session and a branch that fell behind"
+}

@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260801T040948350468Z-4a542e71.json",
+    ".shiki/plans/P-20260801T040831274049Z-8c4d29d1.json"
+  ],
+  "goal_id": "G-20260801T040948350468Z-4a542e71",
+  "id": "L-20260801T040948351623Z-236d177f",
+  "links": [],
+  "summary": "Goal registered from plan: Make the loop survive a dead runner session and a branch that fell behind",
+  "task_id": null,
+  "timestamp": "2026-08-01T04:09:48+00:00",
+  "type": "goal-created"
+}
