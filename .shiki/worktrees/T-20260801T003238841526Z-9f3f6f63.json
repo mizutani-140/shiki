@@ -1,0 +1,17 @@
+{
+  "branch": "shiki/t-20260801t003238841526z-9f3f6f63-bind-a-task-pr-s-own-contract-to-the-base-snapsh",
+  "created_at": "2026-08-01T00:32:38+00:00",
+  "created_by": "shiki-run",
+  "goal_id": "G-20260801T003238840135Z-14193adf",
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:tests/test_contract_immutability.py",
+    "path:scripts/test_shiki_adversarial_state.sh",
+    "path:scripts/test_shiki_governance_evidence.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260801t003238841526z-9f3f6f63-bind-a-t",
+  "pr": 229,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260801T003238841526Z-9f3f6f63"
+}

@@ -16,7 +16,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260801t003238841526z-9f3f6f63-bind-a-task-pr-s-own-contract-to-the-base-snapsh",
-  "expected_pr": null,
+  "expected_pr": 229,
   "github_issue": null,
   "goal_id": "G-20260801T003238840135Z-14193adf",
   "id": "T-20260801T003238841526Z-9f3f6f63",
@@ -28,7 +28,11 @@
     "L-20260801T011406341676Z-b0d61a8b",
     "L-20260801T014511493762Z-e48f26c3",
     "L-20260801T015159167567Z-8bac87f1",
-    "L-20260801T015335402468Z-4bf9da4e"
+    "L-20260801T015335402468Z-4bf9da4e",
+    "L-20260801T020336718144Z-4810beaa",
+    "L-20260801T021115151976Z-d069ba3a",
+    "L-20260801T021143943106Z-5b341f8d",
+    "L-20260801T021147514796Z-a56f11a1"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
@@ -47,18 +51,18 @@
   "pre_pr_code_review": {
     "findings": [
       {
-        "detail": "test_shiki_control_plane.sh's `assert_ready(\"current-task\", current_task_changed, [.shiki/tasks/<id>.json], [M\\t.shiki/tasks/<id>.json])` (line 1317) runs mergegate via run_mergegate(), which passes --base-shiki pointing at a snapshot copied by make_case() BEFORE the mutation, so the base contains the task with its original scope. current_task_changed() (line 1310-1314) appends ' fixture' to the head task's `scope` \u2014 a field in _NORMAL_PATH_GOVERNANCE_FIELDS. normal_task_contract_immutability_reasons() therefore sees own_task_changed=True, base present, scope differing \u2192 emits a blocking reason \u2192 mergegate exits non-zero, while the test asserts returncode==0. This fixture is a required 'Validate Shiki mirror' test (CI runs `for script in scripts/test_shiki_*.sh`) and is NOT in the task's declared locks (only mergegate_check.py, tests/test_contract_immutability.py, test_shiki_adversarial_state.sh, test_shiki_governance_evidence.sh), so the diff does not update the now-stale assertion. As submitted the PR fails CI and cannot merge. Resolution requires either a lock expansion/Spec Amendment to update that assertion (mutate a non-governance field, or assert blocked) or a follow-up task \u2014 the diff as-is is not mergeable. The guardian tests at lines 1050-1153 are unaffected (they run without --base-shiki and their changed-files list does not include the task file), and the expect_fail at 745 still passes (its greps for 'Lock conflict'/'T-9997' survive the added fail-closed reason).",
-        "severity": "blocking",
-        "title": "New immutability rule breaks scripts/test_shiki_control_plane.sh:1317 (out-of-lock, required CI check)"
+        "detail": "The task file records a pre_pr_code_review verdict of blocking: the new immutability rule broke scripts/test_shiki_control_plane.sh:1317 (assert_ready on a scope change), an out-of-lock required CI check. The current diff addresses it by adding path:scripts/test_shiki_control_plane.sh to the task locks and changing current_task_changed() to mutate closeout_pr (a mutable field, still ready) while adding a new assert_blocked('current-task-governance-frozen', ...) case. The recorded blocking verdict reflects an earlier state, not the reviewed diff.",
+        "severity": "info",
+        "title": "Prior blocking finding (control_plane.sh:1317) is resolved in this diff"
       },
       {
-        "detail": "normal_task_contract_immutability_reasons is correctly reached only on the normal single-task path (guardian_task branches are gated on `guardian_task is None`, so resolved_goal_id does not bypass the never-weaker resolution); _NORMAL_PATH_GOVERNANCE_FIELDS is the explicit frozen set (not the complement of the mutable set), so loop-written pre_pr_code_review/cca_rerun_count ride the head correctly; _max_risk handles unknown/empty risk values safely; and the never-weaker guardian floor is a real defense-in-depth independent of the immutability block. No correctness bug found in the new functions themselves.",
+        "detail": "Verified all scripts that reach mergegate: state_classes.sh and p2_malicious_pr.sh call enforce_untrusted_shiki_mutations directly (new function is only in main(), unaffected); guardian_policy.sh and evidence_integrity.sh invoke main() but touch empty live-changed-files-status.txt so own_task_changed is False and the rule does not fire; control_plane.sh, governance_evidence.sh, adversarial_state.sh are locked and updated with matching base tasks. make_fixture omits the base-shiki dir when base= is not passed, so the current-task-no-base fixture correctly hits the fail-closed branch even though run_mergegate always passes --base-shiki.",
         "severity": "info",
-        "title": "Core logic and in-lock tests are sound (informational)"
+        "title": "No out-of-lock CI breakage across mergegate-invoking test scripts"
       }
     ],
-    "ledger_id": "L-20260801T014511493762Z-e48f26c3",
-    "verdict": "blocking"
+    "ledger_id": "L-20260801T021115151976Z-d069ba3a",
+    "verdict": "clean"
   },
   "required_skills": [
     "tdd",
@@ -66,7 +70,7 @@
   ],
   "risk_level": "critical",
   "scope": "In `scripts/mergegate_check.py`, enforce ADR 0015's Contract immutability on the NORMAL task-PR path: when a PR changes its own `.shiki/tasks/<task_id>.json`, compare the head task against the base snapshot and block when any governance field differs. The governance set is `scope`, `non_goals`, `required_skills`, `risk_level`, `locks`, `acceptance_checks`, `test_command`. Only `status`, `expected_pr`, `closeout_pr`, `expected_branch` and `ledger_evidence` may differ (the same mutable set the bookkeeping-closeout classifier already uses; reuse that constant rather than declaring a second list, so the two cannot drift).\n\nResolution is base-when-present, exactly as ADR 0015 states. When the task file exists in the base snapshot, the base is authority. When it does not \u2014 a first-registration PR, which is how the goal loop works today \u2014 head is authority and the PR passes. Additionally, `risk_level` may never resolve WEAKER than base: even where a field-equality rule might be relaxed later, a head value whose risk ordering is below the base value is always blocked. Fail closed when the base snapshot is missing but the comparison is required: a PR that changes its own task file with no base to check it against does not get a pass. A PR that does not touch its own task file is unaffected.\n\nDo not disturb the modes that already have immutability rules: contract and goal_reconcile go through `_enforce_frozen_registration`, and post_merge_reconcile and the ADR 0017 closeout classifier have their own base comparisons. This rule applies to the normal path only, and must not double-report on those modes.\n\nAdd `tests/test_contract_immutability.py` covering, driven through the gate rather than by reading the source: risk_level lowered critical\u2192low is blocked AND still yields guardian_required=True; locks widened is blocked; each of the other five governance fields changed is blocked, one case per field; every mutable field changed alone passes; a task file absent at base passes; a task file unchanged passes; a missing base snapshot with a changed task file is blocked. Add adversarial cases to `scripts/test_shiki_adversarial_state.sh` and `scripts/test_shiki_governance_evidence.sh` asserting specifically that the Guardian requirement survives a self-lowered risk_level \u2014 assert the guardian outcome, not merely that the PR blocks, so a future change that blocks for an unrelated reason cannot mask a regression.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: an implementation PR edits one field in its own task file and its Guardian gate disappears. Measured by driving the gate directly with a task whose base risk_level is `critical` and whose head risk_level is `low`: `enforce_untrusted_shiki_mutations` returned ZERO blocking reasons and `_builtin_guardian_risk_required` returned False. With head and base both `critical` the same call returns True. Nothing in the normal path objects to the change itself.\n  Root cause: ADR 0015's Contract immutability was implemented only for the modes that register or reconcile contracts. `_frozen_task_match_errors` is reached from `_enforce_frozen_registration` (contract, goal_reconcile) only; `post_merge_reconcile` and the ADR 0017 closeout classifier have their own base comparisons; the normal task-PR path has none. `enforce_untrusted_shiki_mutations` blocks deleting a task file and blocks FOREIGN task files (`elif path != task_file`), but the PR's own task file is exempt, and `tasks` is absent from `_GENERIC_MIRROR_DIRS`.\n  Exact change that reproduces this result: in the normal-path branch, load the base snapshot's task file and block when any of the seven governance fields differs, with base-when-present resolution and a never-weaker rule on risk_level.\n  Why it matters more than it looks: every governance gain made on 2026-07-29/31 \u2014 contract approval before dispatch, the bookkeeping-closeout exemption, the drop from ~3.5 to ~0.3 operator approvals per task \u2014 is enforced downstream of a risk level the PR itself can rewrite.\n  Reproducible when: a PR that lowers its own risk_level is blocked and still requires a Guardian, and a first-registration PR still passes.",
-  "status": "running",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Bind a task PR's own contract to the base snapshot on the normal path"
 }
