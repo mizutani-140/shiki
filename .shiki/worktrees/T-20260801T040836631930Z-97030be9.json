@@ -1,0 +1,18 @@
+{
+  "branch": "shiki/t-20260801t040836631930z-97030be9-evaluate-contract-approval-as-a-distinct-approva",
+  "created_at": "2026-08-01T06:42:21+00:00",
+  "created_by": "shiki-run",
+  "goal_id": "G-20260801T040836630398Z-f28167e5",
+  "locks": [
+    "path:scripts/shiki_contract_approval.py",
+    "path:scripts/mergegate_check.py",
+    "path:scripts/guardian_approval_signal.py",
+    "path:tests/test_contract_approval.py",
+    "path:scripts/test_shiki_guardian_policy.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260801t040836631930z-97030be9-evaluate",
+  "pr": 239,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260801T040836631930Z-97030be9"
+}

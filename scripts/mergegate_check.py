@@ -1587,6 +1587,7 @@ def enforce_guardian_policy(
     warnings: list[str],
     expected_repository: str = "",
     bookkeeping_closeout: bool = False,
+    contract_approval: Any = None,
 ) -> None:
     risk_labels = _guardian_risk_labels(pr, task, bookkeeping_closeout=bookkeeping_closeout)
     requires_guardian = _builtin_guardian_risk_required(risk_labels)
@@ -1607,6 +1608,23 @@ def enforce_guardian_policy(
         return
     requires_guardian = requires_guardian or risk_requires_guardian(risk_labels, policy)
     if not requires_guardian:
+        return
+
+    # ADR 0015 Contract Approval OR-branch ("Evaluation placement"). The Guardian
+    # requirement is satisfied by EITHER a live PR approval (the
+    # ``evaluate_guardian_approval`` path below) OR a proven Contract Approval: a
+    # normal implementation PR whose task contract was registered to the default
+    # branch and Guardian-approved BEFORE dispatch. ``evaluate_guardian_approval``
+    # is never consulted or modified here, so a defect in the contract path
+    # degrades to "does not apply" and the live-approval path below runs
+    # byte-for-byte as today. When the carry applies, live-approval evidence is
+    # not required at all — the approval was recorded on the merged Contract PR.
+    if contract_approval is not None and getattr(contract_approval, "applies", False):
+        warnings.append(
+            "Guardian approval satisfied by "
+            + ", ".join(contract_approval.sources)
+            + " (ADR 0015 Contract Approval: the task contract was registered and Guardian-approved before dispatch)"
+        )
         return
 
     blocker_count_before_evidence = len(blocking)
@@ -1948,6 +1966,68 @@ def normal_task_contract_immutability_reasons(
     return reasons
 
 
+def load_contract_approval_registration(path: str | None) -> dict[str, Any] | None:
+    """Load the ADR 0015 Contract Approval registration proof from the file named
+    by ``--contract-approval``.
+
+    Returns None when the flag is absent, or the file is missing or unreadable, so
+    Contract Approval simply does not apply and the Guardian gate behaves exactly
+    as it does today. A JSON value that is not an object is likewise treated as
+    "no proof" (None), never as a partial proof that might pass by accident.
+    """
+    if not path:
+        return None
+    proof_path = Path(path)
+    if not proof_path.exists():
+        return None
+    try:
+        data = json.loads(proof_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def contract_approval_for_pr(
+    *,
+    task_id: str | None,
+    head_task: dict[str, Any] | None,
+    base_shiki: Path | None,
+    changed_files_status: list[ChangedFile],
+    registration: dict[str, Any] | None,
+) -> Any:
+    """Evaluate ADR 0015 Contract Approval for a NORMAL task PR (the OR alternative
+    to a live Guardian approval).
+
+    Returns a ``ContractApprovalResult`` from ``shiki_contract_approval``, or None
+    when no registration proof was supplied (the ``--contract-approval`` flag
+    absent, the file missing/unreadable, or no task id) so the Guardian gate is
+    byte-for-byte what it is today. The evaluator is imported LAZILY — never at
+    module load — so ``import mergegate_check`` never hard-requires the
+    (optionally-staged) ``shiki_contract_approval`` module; an ImportError
+    degrades to None ("does not apply"), exactly the ADR 0015 failure mode.
+    """
+    if registration is None or not task_id:
+        return None
+    try:
+        from shiki_contract_approval import evaluate_contract_approval
+    except ImportError:
+        return None
+    base_task: dict[str, Any] | None = None
+    if base_shiki is not None and base_shiki.exists():
+        try:
+            loaded = load_json(base_shiki / "tasks" / f"{task_id}.json")
+        except (OSError, ValueError):
+            loaded = None
+        base_task = loaded if isinstance(loaded, dict) else None
+    return evaluate_contract_approval(
+        task_id=task_id,
+        base_task=base_task,
+        head_task=head_task,
+        changed_files_status=changed_files_status,
+        registration=registration,
+    )
+
+
 def enforce_untrusted_shiki_mutations(
     *,
     target: Path,
@@ -2146,6 +2226,15 @@ def main() -> int:
         "--merged-prs",
         default="",
         help="Comma-separated PR numbers proven merged (used by post_merge_reconcile to verify the referenced PR actually merged).",
+    )
+    parser.add_argument(
+        "--contract-approval",
+        default="",
+        help=(
+            "Path to the ADR 0015 Contract Approval registration proof (JSON). When present and valid, a "
+            "normal task PR whose contract was registered and Guardian-approved before dispatch satisfies the "
+            "Guardian requirement without a live approval of its own. Absent/missing/unreadable => no effect."
+        ),
     )
     parser.add_argument("--guardian-policy", default=".shiki/guardian-policy.json")
     parser.add_argument("--guardian-comments", default=".shiki/gha/live-guardian-comments.json")
@@ -2506,6 +2595,19 @@ def main() -> int:
                 resolved_risk = resolved_guardian_risk_never_weaker(base_task_for_risk, task)
                 if resolved_risk and resolved_risk != str(task.get("risk_level") or ""):
                     guardian_task = {**task, "risk_level": resolved_risk}
+            # ADR 0015 Contract Approval applies ONLY on the normal task path: a
+            # Contract PR (contract mode) is the registration itself and must be
+            # approved live, and reconcile PRs carry no implementation task. When
+            # the flag is absent, this is None and the Guardian gate is unchanged.
+            contract_approval = None
+            if task is not None and not reconcile_mode and not post_merge_mode and not contract_mode:
+                contract_approval = contract_approval_for_pr(
+                    task_id=resolved_task_id,
+                    head_task=task,
+                    base_shiki=Path(args.base_shiki) if args.base_shiki else None,
+                    changed_files_status=files_status,
+                    registration=load_contract_approval_registration(args.contract_approval),
+                )
             enforce_guardian_policy(
                 pr=pr,
                 task=guardian_task,
@@ -2518,6 +2620,7 @@ def main() -> int:
                 warnings=warnings,
                 expected_repository=args.expected_repository,
                 bookkeeping_closeout=bookkeeping_closeout,
+                contract_approval=contract_approval,
             )
     elif not args.allow_missing_cca:
         blocking.append(f"CCA verdict file not found at {args.cca_verdict}")

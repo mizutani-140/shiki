@@ -160,6 +160,56 @@ def _bookkeeping_closeout_exemption(
     )
 
 
+def _contract_approval_result(
+    *,
+    shiki_root: str,
+    pr_body: str,
+    base_shiki: str,
+    changed_files_status: str,
+    contract_approval: str,
+) -> Any:
+    """Evaluate ADR 0015 Contract Approval for the CCA Guardian signal.
+
+    The SAME OR that MergeGate applies must reach this deterministic signal: ADR
+    0015 is explicit that without it, a contract-approved PR still returns
+    ``needs_guardian``, the CCA job fails, and the MergeGate policy check never
+    runs — the gate this change moves would never be reached. This resolves the
+    task the SAME way MergeGate does (the first Shiki task id in the PR body),
+    loads the head/base task snapshots and the registration proof, and calls the
+    SAME ``evaluate_contract_approval`` MergeGate calls.
+
+    Returns a ``ContractApprovalResult`` or None. None (does not apply) on every
+    axis: no ``--contract-approval`` proof, an unreadable proof, no task id in the
+    body, a missing/unreadable head task, or the evaluator module being absent
+    (ImportError) — so a signal invocation without the flag behaves byte-for-byte
+    as before. The evaluator is imported LAZILY so running/importing this script
+    never hard-requires the ``shiki_contract_approval`` module.
+    """
+    registration = _load_json(contract_approval) if contract_approval else None
+    if not isinstance(registration, dict):
+        return None
+    match = _TASK_ID_RE.search(pr_body or "")
+    if not match:
+        return None
+    task_id = match.group(0)
+    head_task = _load_json(str(Path(shiki_root) / ".shiki" / "tasks" / f"{task_id}.json"))
+    if not isinstance(head_task, dict):
+        return None
+    files_status = _load_changed_files_status(changed_files_status) or []
+    base_task = _load_json(str(Path(base_shiki) / "tasks" / f"{task_id}.json")) if base_shiki else None
+    try:
+        from shiki_contract_approval import evaluate_contract_approval
+    except ImportError:
+        return None
+    return evaluate_contract_approval(
+        task_id=task_id,
+        base_task=base_task if isinstance(base_task, dict) else None,
+        head_task=head_task,
+        changed_files_status=files_status,
+        registration=registration,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pr-json", required=True)
@@ -186,6 +236,18 @@ def main(argv: list[str] | None = None) -> int:
         "--merged-prs",
         default="",
         help="Comma-separated PR numbers proven merged; the implementation PR must be here for the exemption.",
+    )
+    # ADR 0015 Contract Approval input. Defaults to "" (no proof), so an
+    # invocation that omits it reports exactly as before (require a live Guardian
+    # approval from the task's real risk).
+    parser.add_argument(
+        "--contract-approval",
+        default="",
+        help=(
+            "Path to the ADR 0015 Contract Approval registration proof (JSON). When present and valid, a "
+            "normal task PR whose contract was registered and Guardian-approved before dispatch reports the "
+            "Guardian requirement satisfied with a contract_approval source. Absent/missing/unreadable => no effect."
+        ),
     )
     parser.add_argument("--output", required=True)
     args = parser.parse_args(argv)
@@ -281,6 +343,41 @@ def main(argv: list[str] | None = None) -> int:
             "note": note,
         }
         Path(args.output).write_text(json.dumps(signal, indent=2) + "\n", encoding="utf-8")
+        return 0
+
+    # ADR 0015 Contract Approval OR-branch. The Guardian requirement is satisfied
+    # by EITHER a live PR approval (below) OR a proven Contract Approval — the SAME
+    # OR the MergeGate policy check applies, so the two Guardian decision points
+    # never diverge. When it applies, report the requirement satisfied with the
+    # ``contract_approval`` source the CCA prompt reads, and DO NOT consult the
+    # live-approval evidence (the approval was recorded on the merged Contract PR).
+    # Absent/invalid proof => None => the live-approval path below runs unchanged.
+    contract = _contract_approval_result(
+        shiki_root=args.shiki_root,
+        pr_body=pr_body,
+        base_shiki=args.base_shiki,
+        changed_files_status=args.changed_files_status,
+        contract_approval=args.contract_approval,
+    )
+    if contract is not None and contract.applies:
+        signal = {
+            "required": True,
+            "approved": True,
+            "sources": list(contract.sources),
+            "ai_reviewers": [],
+            "approvers": [],
+            "head_sha": head_sha,
+            "expected_repository": args.expected_repository,
+            "risk_level": task_risk,
+            "risk_determined": not risk_unknown,
+            "bookkeeping_closeout_exemption": exemption,
+            "contract_approval": True,
+            "note": (
+                "Guardian approval satisfied by Contract Approval (ADR 0015): the task contract was "
+                "registered and Guardian-approved before dispatch"
+            ),
+        }
+        Path(args.output).write_text(json.dumps(signal, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         return 0
 
     comments = _as_list(_load_json(args.guardian_comments))
