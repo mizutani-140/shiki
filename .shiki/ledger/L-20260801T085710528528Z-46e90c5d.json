@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260801T085710527889Z-5ec41eba.json",
+    ".shiki/plans/P-20260801T085701914332Z-f614d83d.json"
+  ],
+  "goal_id": "G-20260801T085710527889Z-5ec41eba",
+  "id": "L-20260801T085710528528Z-46e90c5d",
+  "links": [],
+  "summary": "Goal registered from plan: Stop the loop from ordering a runner to satisfy a Guardian gate, and from stranding the evidence it cites",
+  "task_id": null,
+  "timestamp": "2026-08-01T08:57:10+00:00",
+  "type": "goal-created"
+}
