@@ -15,16 +15,16 @@
     "created_at"
   ],
   "properties": {
-    "id": { "type": "string", "pattern": "^RUN-[0-9]{4,}$" },
-    "plan_id": { "type": "string", "pattern": "^P-[0-9]{4,}$" },
-    "goal_id": { "type": "string", "pattern": "^G-[0-9]{4,}$" },
+    "id": { "type": "string", "pattern": "^RUN-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
+    "plan_id": { "type": "string", "pattern": "^P-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
+    "goal_id": { "type": "string", "pattern": "^G-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" },
     "task_ids": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^T-[0-9]{4,}$" }
+      "items": { "type": "string", "pattern": "^T-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" }
     },
     "dispatchable_task_ids": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^T-[0-9]{4,}$" }
+      "items": { "type": "string", "pattern": "^T-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})$" }
     },
     "blocked_task_ids": { "type": "object" },
     "dag": { "type": "string", "minLength": 1 },

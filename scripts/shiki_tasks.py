@@ -13,6 +13,16 @@ from shiki_locks import active_lock_conflicts, path_matches_lock
 from shiki_process import ShikiError, print_json, read_json, run, shiki_path, slugify, target_path, utc_now, write_json, ensure_control_dirs
 from shiki_state import append_ledger_entry, new_control_id
 
+# Shared control-id alternation. A task id is either the legacy sequential form
+# (``T-0001``) or the collision-resistant timestamp form minted by
+# ``shiki_state.new_control_id`` (``T-YYYYMMDDTHHMMSSffffffZ-<8 hex>``). This is
+# the same alternation validate_shiki / shiki_memory / mergegate_check carry;
+# a raw plan dependency that is not a task title must match it to be accepted as
+# a pre-registered task id, so a collision-resistant id no longer reads as
+# "unknown dependency".
+_ID_SUFFIX = r"(?:[0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})"
+_TASK_ID_RE = re.compile(rf"^T-{_ID_SUFFIX}$")
+
 # Contract PR mode (ADR 0015). The body marker DECLARES intent; the
 # maintainer-applied label is the independent second factor that AUTHORIZES the
 # mode. `shiki contract open` must never apply the label to its own PR — doing so
@@ -447,7 +457,7 @@ def orchestrate_plan(target: Path, plan: dict[str, Any]) -> dict[str, Any]:
         for dependency in dependency_refs:
             if dependency in task_ids_by_title:
                 dependencies.append(task_ids_by_title[dependency])
-            elif isinstance(dependency, str) and re.match(r"^T-[0-9]{4,}$", dependency):
+            elif isinstance(dependency, str) and _TASK_ID_RE.match(dependency):
                 dependencies.append(dependency)
             else:
                 raise ShikiError(f"task {task_plan['title']} references unknown dependency: {dependency}")
@@ -547,7 +557,7 @@ def register_contract_from_plan(target: Path, plan: dict[str, Any]) -> dict[str,
         for dependency in dependency_refs:
             if dependency in task_ids_by_title:
                 dependencies.append(task_ids_by_title[dependency])
-            elif isinstance(dependency, str) and re.match(r"^T-[0-9]{4,}$", dependency):
+            elif isinstance(dependency, str) and _TASK_ID_RE.match(dependency):
                 dependencies.append(dependency)
             else:
                 raise ShikiError(f"task {task_plan['title']} references unknown dependency: {dependency}")

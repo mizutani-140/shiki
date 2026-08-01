@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-08-01T00:32:47+00:00",
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "locks": [
+    "path:.shiki/schemas/**",
+    "path:.shiki/templates/**",
+    "path:scripts/validate_shiki.py",
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/test_shiki_evidence_integrity.sh",
+    "path:scripts/test_shiki_manifest.sh",
+    "path:scripts/test_shiki_p2_schema_drift.sh",
+    "path:tests/test_mirror_schema_validation.py"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260729T065622767723Z-f138eccf"
+}
