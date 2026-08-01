@@ -1308,6 +1308,21 @@ def noop(case, base):
 
 
 def current_task_changed(case, base):
+    # ADR 0015 Contract immutability (normal task-PR path): a PR may move its own
+    # task file's MUTABLE bookkeeping (here closeout_pr, in
+    # _CLOSEOUT_MUTABLE_TASK_FIELDS) while its frozen governance contract stays
+    # byte-identical to the base snapshot. status is left at 'review' so the change
+    # is not classified as a bookkeeping closeout.
+    task_path = case / ".shiki" / "tasks" / f"{task_id}.json"
+    task = load_json(task_path)
+    task["closeout_pr"] = 456
+    write_json(task_path, task)
+
+
+def current_task_governance_changed(case, base):
+    # ADR 0015 Contract immutability (normal task-PR path): a GOVERNANCE field
+    # diverging from the base snapshot is blocked. The base is copied from the case
+    # in make_case, so appending to scope in the head alone diverges from base.
     task_path = case / ".shiki" / "tasks" / f"{task_id}.json"
     task = load_json(task_path)
     task["scope"] = str(task.get("scope", "")) + " fixture"
@@ -1315,6 +1330,13 @@ def current_task_changed(case, base):
 
 
 assert_ready("current-task", current_task_changed, [f".shiki/tasks/{task_id}.json"], [f"M\t.shiki/tasks/{task_id}.json"])
+assert_blocked(
+    "current-task-governance-frozen",
+    current_task_governance_changed,
+    "frozen governance field 'scope'",
+    [f".shiki/tasks/{task_id}.json"],
+    [f"M\t.shiki/tasks/{task_id}.json"],
+)
 assert_blocked("gha-pr", noop, "Runtime CCA/MergeGate evidence path .shiki/gha/pr.json", [".shiki/gha/pr.json"], ["A\t.shiki/gha/pr.json"])
 assert_blocked("gha-cca", noop, "Runtime CCA/MergeGate evidence path .shiki/gha/cca-verdict.json", [".shiki/gha/cca-verdict.json"], ["A\t.shiki/gha/cca-verdict.json"])
 assert_blocked("gha-result", noop, "Runtime CCA/MergeGate evidence path .shiki/gha/mergegate-result.json", [".shiki/gha/mergegate-result.json"], ["A\t.shiki/gha/mergegate-result.json"])

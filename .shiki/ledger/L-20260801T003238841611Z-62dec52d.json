@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T003238841526Z-9f3f6f63.json"
+  ],
+  "goal_id": "G-20260801T003238840135Z-14193adf",
+  "id": "L-20260801T003238841611Z-62dec52d",
+  "links": [],
+  "summary": "Task registered from plan: Bind a task PR's own contract to the base snapshot on the normal path",
+  "task_id": "T-20260801T003238841526Z-9f3f6f63",
+  "timestamp": "2026-08-01T00:32:38+00:00",
+  "type": "task-registered"
+}

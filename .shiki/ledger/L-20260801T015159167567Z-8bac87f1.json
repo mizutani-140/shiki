@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T003238841526Z-9f3f6f63.json"
+  ],
+  "goal_id": "G-20260801T003238840135Z-14193adf",
+  "id": "L-20260801T015159167567Z-8bac87f1",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/226#issuecomment-5148938581"
+  ],
+  "summary": "Records the operator's LOCK amendment for T-20260801T003238841526Z-9f3f6f63, authored by the operator at https://github.com/mizutani-140/shiki/pull/226#issuecomment-5148938581 (mizutani-140, 2026-08-01T01:51:03Z). This entry REFERENCES that decision; it does not assert it. The amendment adds scripts/test_shiki_control_plane.sh to the task's declared locks. Reason, as stated by the operator: that file's assert_ready(\"current-task\") fixture mutates a task's scope and asserts MergeGate returns ready - it encodes the exact hole this task closes, so correcting it is part of the change, not extra scope. The file was unheld by any active lock at the time of the amendment (verified). This is a LOCK amendment, not a scope amendment: no new behaviour is authorized; the seven governance fields, the mutable set and the base-when-present rule are unchanged. Found by the independent pre-PR code review (ADR 0011), which refused to open the PR.",
+  "task_id": "T-20260801T003238841526Z-9f3f6f63",
+  "timestamp": "2026-08-01T01:51:59+00:00",
+  "type": "review"
+}

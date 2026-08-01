@@ -396,6 +396,59 @@ expect_block(
 )
 
 
+# Group A2 (T-20260801T003238841526Z-9f3f6f63): the Guardian requirement SURVIVES a
+# self-lowered risk_level on the NORMAL task-PR path. The gate resolves the task's
+# risk never-weaker-than-base, so a PR that drops its OWN risk_level critical -> low
+# still forces Guardian evaluation and blocks for missing approval. Assert the
+# guardian OUTCOME (a required-but-unapproved block), not merely that the PR blocks,
+# so a future change that blocks for an unrelated reason cannot mask a regression.
+# The suite's guardian-policy applies_to_risk = [high, critical].
+_NO_GUARDIAN_APPROVAL = [{"author": {"login": "mizutani-140"}, "body": "no Guardian approval evidence is present"}]
+_GUARDIAN_REQUIRED_NEEDLE = "Guardian approval requires a configured Guardian review or current-head Guardian comment"
+
+
+def _with_base_task(target: pathlib.Path, *, base_risk: str) -> str:
+    base_root = target / ".shiki" / "gha" / "base-shiki" / ".shiki"
+    write_json(
+        base_root / "tasks" / f"{TASK_ID}.json",
+        {**task_payload(locks=["path:scripts/test_shiki_governance_evidence.sh"]), "risk_level": base_risk, "status": "planned"},
+    )
+    return str(base_root)
+
+
+# Head lowers its own risk critical -> low, own task file changed, non-approving
+# guardian evidence: the gate resolves at the base (critical) risk and blocks for
+# missing approval, and the immutability gate independently blocks the change.
+_dg = make_fixture(
+    "mg-risk-downgrade-guardian-survives",
+    task={**task_payload(locks=["path:scripts/test_shiki_governance_evidence.sh"]), "risk_level": "low"},
+    changed=[f".shiki/tasks/{TASK_ID}.json"],
+    status_entries=[f"M\t.shiki/tasks/{TASK_ID}.json"],
+    guardian_comments=_NO_GUARDIAN_APPROVAL,
+    guardian_events=[],
+)
+_dg_res = run_mergegate(_dg, base_shiki=_with_base_task(_dg, base_risk="critical"))
+if _dg_res.returncode == 0:
+    raise AssertionError(f"expected the self-lowered-risk PR to block:\n{_dg_res.stdout}")
+assert_contains(_dg_res.stdout, _GUARDIAN_REQUIRED_NEEDLE)  # guardian resolved at base (critical) risk
+assert_contains(_dg_res.stdout, "risk_level")              # immutability gate blocked the change
+# Control: a low-risk head that MATCHES a low-risk base does NOT force a Guardian
+# (policy applies_to_risk = [high, critical]) — the guardian-required block is
+# ABSENT — proving the never-weaker resolution (not the head risk) keeps the
+# requirement alive above.
+_ctrl = make_fixture(
+    "mg-risk-low-matched-no-guardian",
+    task={**task_payload(locks=["path:scripts/test_shiki_governance_evidence.sh"]), "risk_level": "low"},
+    changed=[f".shiki/tasks/{TASK_ID}.json"],
+    status_entries=[f"M\t.shiki/tasks/{TASK_ID}.json"],
+    guardian_comments=_NO_GUARDIAN_APPROVAL,
+    guardian_events=[],
+)
+_ctrl_res = run_mergegate(_ctrl, base_shiki=_with_base_task(_ctrl, base_risk="low"))
+if _GUARDIAN_REQUIRED_NEEDLE in _ctrl_res.stdout:
+    raise AssertionError(f"control: a low-risk head matching a low-risk base must not force a Guardian:\n{_ctrl_res.stdout}")
+
+
 # Group B: forged CCA verdict or manifest evidence must not satisfy MergeGate.
 base = make_fixture("cca-valid-manifest")
 add_cca_manifest(base)
