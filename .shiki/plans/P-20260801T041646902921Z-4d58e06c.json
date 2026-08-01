@@ -1,0 +1,174 @@
+{
+  "completion_conditions": [
+    "A PR declaring a migration registered on the base branch, whose .shiki diff equals that migration's re-run output exactly, passes; any deviation blocks.",
+    "Every task file carries a cca_checklist_profile, no value is prefix-shaped, and a fully passing verdict yields zero profile-coverage blocking reasons for every task.",
+    "cca_checklist_profile is required in both task.schema.json and validate_shiki.TASK_REQUIRED, and the set-equality consistency test passes.",
+    "The full suite, the control-plane, governance-evidence and adversarial suites and validate_shiki stay green."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "There is no delivery mode for a repository-wide mirror change. `enforce_untrusted_shiki_mutations` blocks a PR from touching a task file other than its own \u2014 `elif path != task_file: blocking.append('PR changes unrelated Shiki task file ...')` \u2014 and that rule is independent of locks, so declaring `path:.shiki/tasks/**` does not unlock it. Contract, goal_reconcile and amendment mode are each bound to a single goal's records. Nothing can change 104 files.",
+      "The migration is registered on the BASE branch, never defined by the PR that applies it. If the PR could carry its own migration function, the gate would re-run head-supplied code against base data and the proof would be circular: a PR could define a migration that emits exactly the diff it wants. Requiring the function to already be on the base branch means the gate runs code the base branch already reviewed and merged, and the applying PR carries only data.",
+      "That is why this is two PRs, not one. PR 1 registers the migration function through the ordinary locked task path (`scripts/shiki_migrations.py` plus its tests \u2014 a scope locks already handle). PR 2 carries only `.shiki/` data and declares the migration id. This ordering is the security property, not a workflow preference.",
+      "What the mode buys: the reviewer's obligation collapses from 104 files to one function, because the diff is proved to be that function's output. What it does not buy: it does not make the function correct. The maintainer-applied `mergegate:migration` label and the Guardian gate are what authorize the function's effect, exactly as the label authorizes contract mode.",
+      "Formatting must be preserved, and this is a measured hazard, not a stylistic preference. 14 of the 112 task files are not canonically serialized \u2014 re-emitting them with `json.dumps(..., indent=2, sort_keys=True)` rewrites files the migration never intended to touch, and the resulting diff is both unreviewable and unequal to any minimal expectation. The migration must edit in place and leave every untouched byte alone.",
+      "The backfill default is the empty list, and the 8 prefix-shaped values are CORRECTED to it rather than left alone. Measured against a verdict in which every checklist item passes, `checklist_profile_coverage_failures` returns four blocking reasons for `['PR','TDD','V','CCA']` \u2014 'CCA checklist profile id PR is missing from the verdict checklist', and likewise for TDD, V and CCA \u2014 and zero for `[]` or for an id-shaped value such as `['CCA-08']`. The prefix form is not a weaker-but-valid declaration; it blocks a fully passing verdict, so it expresses nothing anyone intended. One of the 8 is LIVE at status=review (T-20260613T095433721787Z-8d6b04d5), so it is already unmergeable today.",
+      "A non-empty default is not chosen for anyone. Picking one would decide, on behalf of 104 tasks that never declared a profile, what every future CCA verdict must judge. `[]` makes the field present \u2014 which is what promoting it to required needs \u2014 without inventing an obligation.",
+      "Promotion is a separate, last task because of a measured landmine: `task.schema.json`'s `required` array and `validate_shiki`'s `TASK_REQUIRED` must AGREE, and a set-equality consistency test added by PR #226 enforces it. Promoting in either file alone fails that test."
+    ],
+    "source": "Measured 2026-08-01 against main at c0082fe.",
+    "status": "complete"
+  },
+  "id": "P-20260801T041646902921Z-4d58e06c",
+  "ingested_at": "2026-08-01T04:16:46+00:00",
+  "non_goals": [
+    "Letting an applying PR define, modify or register the migration it applies.",
+    "Letting a migration-mode PR change any non-.shiki file.",
+    "Choosing a non-empty default profile for any task.",
+    "Reserializing or reformatting any task file the migration does not otherwise change.",
+    "Changing checklist_profile_coverage_failures, the checklist ids, or docs/agents/checklists.md.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A change that must touch every record in the mirror can be delivered as a PR whose entire diff is proved to be the output of a migration already registered on the default branch \u2014 so reviewing it means reviewing one function instead of a hundred files. The first use finishes cca_checklist_profile: 104 task files gain the field, 8 carrying a value the gate cannot match are corrected, and the field is promoted to required.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-MIGRATIONMODE-draft.json",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": "docs/agents/checklists.md",
+    "source": "Operator instruction 2026-08-01 to fix every open finding, with the delivery shape chosen explicitly: a PR whose diff must equal the re-run output of a migration registered on the base branch, rather than a field whitelist.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "Migration mode is entered only with BOTH the <!-- shiki:migration --> marker and the mergegate:migration label; the marker alone blocks with the label message.",
+        "The migration is resolved and executed from the BASE branch's registry, and a PR that carries its own new migration definition blocks because the id is absent from base.",
+        "A conforming PR whose .shiki diff equals the re-run output exactly passes.",
+        "An extra changed file, a missing produced file, and a single changed byte each block with a reason naming the path \u2014 one case per shape.",
+        "A missing Migration: line, more than one such line, an id absent from the base registry, an already-applied migration, and a destructive migration each block with a distinct reason.",
+        "Any changed file outside .shiki/ blocks.",
+        "tests/test_migration_mode.py drives the gate for every case above.",
+        "scripts/test_shiki_adversarial_state.sh covers the self-defining-migration attempt and a one-byte deviation.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/mergegate_check.py",
+        "path:tests/test_migration_mode.py",
+        "path:scripts/test_shiki_adversarial_state.sh"
+      ],
+      "non_goals": [
+        "Resolving the migration from the PR head's registry",
+        "Allowing any non-.shiki file in a migration-mode PR",
+        "Allowing a destructive or already-applied migration",
+        "Changing contract, goal_reconcile, amendment, post_merge_reconcile, closeout or normal-path handling",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "In `scripts/mergegate_check.py`, add a `migration` mode entered only when BOTH the `<!-- shiki:migration -->` marker is in the PR body AND the maintainer-applied `mergegate:migration` label is present \u2014 the same two-factor shape `contract_decision` implements, with the same message when the label is missing. The PR body must also declare the migration id on its own line as `Migration: <id>`.\n\nThe rule is a re-run proof. Given the base `.shiki` snapshot the gate already reconstructs for other modes, apply the declared migration \u2014 resolved from the BASE branch's registry, never the PR head's \u2014 to a copy of that snapshot, and require the result to equal the PR head's `.shiki` exactly, file for file and byte for byte. Any file present in one and not the other, and any byte difference, is a blocking reason naming the path. Block, with a distinct reason each, when: the declared id is absent from the base registry; the id line is missing or names more than one migration; the migration is already recorded as applied in the base `.shiki/migrations/state.json`; the migration is `destructive`; or any changed file is outside `.shiki/`.\n\nThe base-registry requirement is the security property and must be implemented as such: the migration function is resolved and executed from the base branch's `scripts/shiki_migrations.py`, so a PR cannot define the migration whose output it is measured against. Note this explicitly in the code comment, because a future reader will otherwise be tempted to simplify it to the head registry.\n\nAdd `tests/test_migration_mode.py` driving the real gate: a conforming PR passes; a PR with one extra changed file blocks naming that path; a PR with one byte changed in one file blocks naming that path; a PR missing a file the migration produces blocks; a declared id absent from the base registry blocks; a missing or duplicated `Migration:` line blocks; an already-applied migration blocks; a destructive migration blocks; a non-.shiki file blocks; the marker without the label blocks with the label message; and \u2014 the case that matters most \u2014 a PR that carries its own new migration definition and declares it does NOT pass, because the id is absent from the base registry. Add adversarial cases to `scripts/test_shiki_adversarial_state.sh` for the self-defining-migration attempt and for a one-byte deviation.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a change that must touch every record in the mirror cannot be delivered at all. Declaring `path:.shiki/tasks/**` in the task's locks does not help, because `enforce_untrusted_shiki_mutations` rejects a foreign task file independently of locks: `elif path != task_file: blocking.append('PR changes unrelated Shiki task file ...')`.\n  Measured: 104 of 112 task files lack `cca_checklist_profile`; the promotion task that wanted to require it (T-20260729T065622764296Z-48021407) could not backfill them and needed two Spec Amendments to drop the criterion.\n  Root cause: every existing deny-by-default mode is scoped to ONE goal's records \u2014 contract, goal_reconcile, amendment \u2014 because every existing mode models a goal-shaped change. A repository-wide change has no goal.\n  Exact change that reproduces this result: a two-factor mode whose entire proof obligation is that the diff equals the re-run output of a migration registered on the BASE branch.\n  Why the base registry and not the head: running a head-supplied migration function against base data proves nothing \u2014 a PR could define a migration that emits exactly the diff it wants, and the check would pass. Resolving from base means the gate executes code the base branch already merged. This is the whole security argument for the mode and the single thing a future simplification must not break.\n  Reproducible when: a conforming PR passes, a one-byte deviation blocks naming the file, and a PR carrying its own migration definition blocks because the id is not on base.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Enforce a migration mode whose diff must equal a registered migration's output"
+    },
+    {
+      "acceptance_checks": [
+        "One new Migration is registered with destructive=False and an apply honouring dry_run.",
+        "A task lacking the key gains []; a prefix-shaped value becomes []; an id-shaped value and an already-empty value are untouched.",
+        "A non-canonically serialized fixture keeps its byte layout except for the inserted key.",
+        "No key other than cca_checklist_profile changes value in any file.",
+        "The migration is idempotent: a second run produces no diff.",
+        "dry_run=True writes nothing.",
+        "No file under .shiki/ is changed by this task.",
+        "tests/test_checklist_profile_migration.py runs over a temporary fixture tree, never the real mirror.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/shiki_migrations.py",
+        "path:tests/test_checklist_profile_migration.py"
+      ],
+      "non_goals": [
+        "Applying the migration to this repository's mirror",
+        "Changing any file under .shiki/",
+        "Choosing a non-empty default for any task",
+        "Reserializing or reordering keys in any task file",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "medium",
+      "runtime": "claude-code",
+      "scope": "Register one new `Migration` in `scripts/shiki_migrations.py`'s registry, following the shape of the existing entries (`id`, `title`, `description`, `introduced_in`, `requires`, `affected_paths`, `destructive=False`, `apply`). Its `apply` walks every file in `.shiki/tasks/`, and:\n  - adds `\"cca_checklist_profile\": []` to any task lacking the key;\n  - replaces any value whose entries are bare family names \u2014 no `-` and no digits, e.g. `['PR','TDD','V','CCA']` \u2014 with `[]`;\n  - leaves an id-shaped value (a family prefix, `-`, digits: `CCA-08`, `PR-01`, `V-04`) untouched;\n  - changes nothing else in any file.\n\nIt must edit in place and preserve each file's existing byte layout everywhere it does not write. This is a measured hazard: 14 of the 112 task files are not canonically serialized, so a `json.dumps(..., indent=2, sort_keys=True)` round-trip rewrites files the migration never intended to touch. Insert the key positionally in the existing text \u2014 the established safe point is directly after `assigned_runtime`, with no key reordering between it and `cca_checklist_profile` \u2014 rather than reserializing. Honour the `dry_run` flag the `apply` signature already carries.\n\nThis task does NOT apply the migration to this repository's mirror and does not change any file under `.shiki/`. It only registers the function.\n\nAdd `tests/test_checklist_profile_migration.py` running the migration over a temporary fixture tree, not over the real mirror: a task lacking the key gains `[]`; a prefix-shaped value becomes `[]`; an id-shaped value is untouched; an already-`[]` value is untouched; a non-canonically serialized file (unsorted keys, no trailing newline) keeps its layout except for the inserted key; no other key's value changes anywhere; running it twice produces no second diff; `dry_run=True` writes nothing.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: `cca_checklist_profile` cannot be promoted to a required field because 104 of 112 task files do not carry it, and 8 carry a value the gate cannot match.\n  Measured 2026-08-01 by driving the real reader: `checklist_profile_coverage_failures(task, verdict)` against a verdict in which every checklist item passes returns four blocking reasons for `['PR','TDD','V','CCA']` \u2014 'CCA checklist profile id PR is missing from the verdict checklist', and likewise for TDD, V and CCA \u2014 and returns `[]` for `[]` and for `['CCA-08']`. So the prefix form blocks a fully passing verdict and expresses nothing anyone intended. One of the 8 is LIVE at status=review (T-20260613T095433721787Z-8d6b04d5) and is unmergeable today for this reason.\n  Formatting landmine, measured: 14 of 112 task files differ from `json.dumps(data, indent=2, sort_keys=True) + '\\n'`. Reserializing churns them, and the diff then no longer equals a minimal expectation \u2014 which, once the migration mode judges by exact equality, is not merely ugly but a blocking mismatch.\n  Exact change that reproduces this result: an in-place migration that inserts the key after `assigned_runtime` and rewrites only bare-family values.\n  Reproducible when: the migration is idempotent over a fixture tree and leaves non-canonical files byte-identical apart from the inserted key.",
+      "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target .",
+      "title": "Register the cca_checklist_profile backfill as a migration"
+    },
+    {
+      "acceptance_checks": [
+        "Every file in .shiki/tasks/ has a cca_checklist_profile key.",
+        "No task file's profile contains a bare family name; the 8 previously prefix-shaped files are [], including the LIVE one.",
+        "Driving checklist_profile_coverage_failures with each task's real profile against an all-pass verdict yields zero blocking reasons for every task.",
+        "No frozen governance field (scope, non_goals, required_skills, risk_level, locks, acceptance_checks, test_command) differs from its pre-change value in any task file.",
+        "No status, expected_pr, closeout_pr, expected_branch or ledger_evidence value differs from its pre-change value in any task file.",
+        "The diff equals the migration's re-run output exactly; no file was hand-edited.",
+        "The PR body carries the marker and exactly one Migration: line.",
+        "python3 scripts/validate_shiki.py --target . passes.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [
+        "Enforce a migration mode whose diff must equal a registered migration's output",
+        "Register the cca_checklist_profile backfill as a migration"
+      ],
+      "locks": [
+        "path:.shiki/tasks/**",
+        "path:.shiki/migrations/state.json"
+      ],
+      "non_goals": [
+        "Hand-editing any file in the diff",
+        "Changing the migration function",
+        "Changing any file outside .shiki/",
+        "Applying the mergegate:migration label",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Run the registered backfill migration against this repository's mirror and deliver the result as a migration-mode PR: the body carries the `<!-- shiki:migration -->` marker and a single `Migration: <id>` line, and the diff is exactly the migration's output \u2014 every task file that gains `cca_checklist_profile`, the 8 whose prefix-shaped value becomes `[]`, and the `.shiki/migrations/state.json` record. No file outside `.shiki/` and no hand edit of any kind: if the diff needs adjusting, the migration is what changes, in its own PR, and this one is re-run.\n\nThe maintainer applies `mergegate:migration`; nothing in this task applies it.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the field is still absent from most of the mirror, one live task remains unmergeable, and the promotion cannot proceed.\n  Measured 2026-08-01: 112 task files; 104 lack `cca_checklist_profile`; 8 carry `['PR','TDD','V','CCA']`, of which T-20260613T095433721787Z-8d6b04d5 is LIVE at status=review.\n  Exact change that reproduces this result: run the migration, commit only its output, declare it in the body.\n  Why no hand edits: the gate proves the diff equals the migration's re-run output. A single hand-touched byte blocks with the path named \u2014 by design, and it is the property that makes reviewing one function sufficient.\n  Reproducible when: a fully passing verdict yields zero profile-coverage blocking reasons for every task in the repository.",
+      "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target .",
+      "title": "Apply the backfill through migration mode"
+    },
+    {
+      "acceptance_checks": [
+        "cca_checklist_profile is in task.schema.json's required array.",
+        "cca_checklist_profile is in validate_shiki.TASK_REQUIRED.",
+        "The set-equality consistency test between the two passes.",
+        "A test asserts every file in the real .shiki/tasks/ satisfies the promoted requirement.",
+        "A task file missing the field is rejected by validate_shiki with the field named.",
+        "python3 scripts/validate_shiki.py --target . passes.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [
+        "Apply the backfill through migration mode"
+      ],
+      "locks": [
+        "path:.shiki/schemas/task.schema.json",
+        "path:scripts/validate_shiki.py",
+        "path:tests/test_task_required_consistency.py"
+      ],
+      "non_goals": [
+        "Changing any task file",
+        "Changing checklist ids or docs/agents/checklists.md",
+        "Adding any other field to either required list",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "medium",
+      "runtime": "claude-code",
+      "scope": "Add `cca_checklist_profile` to the `required` array of `.shiki/schemas/task.schema.json` AND to `TASK_REQUIRED` in `scripts/validate_shiki.py`, in the same change. Both are necessary: a set-equality consistency test added by PR #226 asserts the two agree, so promoting in either alone fails.\n\nExtend `tests/test_task_required_consistency.py` (or add it if the existing assertion lives elsewhere, keeping a single home for the property) to assert set equality between the two, and to assert that every file in the real `.shiki/tasks/` satisfies the promoted requirement \u2014 which the previous task's backfill is what makes true.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: `cca_checklist_profile` is a field every task carries and nothing requires, so the next task registered without it silently reintroduces the gap the backfill just closed.\n  History: this is acceptance criterion 5 of T-20260729T065622764296Z-48021407, dropped by Spec Amendment because backfilling was outside that task's locks and no delivery mode existed. The migration mode and the backfill are what make it deliverable.\n  Landmine, measured: `task.schema.json`'s `required` and `validate_shiki.TASK_REQUIRED` must agree, enforced by a set-equality test from PR #226. Changing one alone fails it.\n  Exact change that reproduces this result: add the field to both lists in one change.\n  Reproducible when: validate_shiki passes over the real mirror with the field required, and the consistency test is green.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Promote cca_checklist_profile to a required task field"
+    }
+  ],
+  "title": "Give a repository-wide mirror change a delivery mode, and use it to finish cca_checklist_profile"
+}

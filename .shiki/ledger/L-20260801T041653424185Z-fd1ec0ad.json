@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T041653424169Z-07860c35.json"
+  ],
+  "goal_id": "G-20260801T041653421243Z-2d98487f",
+  "id": "L-20260801T041653424185Z-fd1ec0ad",
+  "links": [],
+  "summary": "Task registered from plan: Promote cca_checklist_profile to a required task field",
+  "task_id": "T-20260801T041653424169Z-07860c35",
+  "timestamp": "2026-08-01T04:16:53+00:00",
+  "type": "task-registered"
+}

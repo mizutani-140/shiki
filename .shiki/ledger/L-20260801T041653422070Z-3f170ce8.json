@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260801T041653421243Z-2d98487f.json",
+    ".shiki/plans/P-20260801T041646902921Z-4d58e06c.json"
+  ],
+  "goal_id": "G-20260801T041653421243Z-2d98487f",
+  "id": "L-20260801T041653422070Z-3f170ce8",
+  "links": [],
+  "summary": "Goal registered from plan: Give a repository-wide mirror change a delivery mode, and use it to finish cca_checklist_profile",
+  "task_id": null,
+  "timestamp": "2026-08-01T04:16:53+00:00",
+  "type": "goal-created"
+}

@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T041653422672Z-c4815d7a.json"
+  ],
+  "goal_id": "G-20260801T041653421243Z-2d98487f",
+  "id": "L-20260801T041653422729Z-708ef294",
+  "links": [],
+  "summary": "Task registered from plan: Enforce a migration mode whose diff must equal a registered migration's output",
+  "task_id": "T-20260801T041653422672Z-c4815d7a",
+  "timestamp": "2026-08-01T04:16:53+00:00",
+  "type": "task-registered"
+}

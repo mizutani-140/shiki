@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260801T041653423255Z-2798773b.json"
+  ],
+  "goal_id": "G-20260801T041653421243Z-2d98487f",
+  "id": "L-20260801T041653423278Z-94b97e17",
+  "links": [],
+  "summary": "Task registered from plan: Register the cca_checklist_profile backfill as a migration",
+  "task_id": "T-20260801T041653423255Z-2798773b",
+  "timestamp": "2026-08-01T04:16:53+00:00",
+  "type": "task-registered"
+}
