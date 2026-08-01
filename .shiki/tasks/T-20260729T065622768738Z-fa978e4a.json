@@ -14,7 +14,9 @@
   "goal_id": "G-20260729T065622761503Z-4479b0d3",
   "id": "T-20260729T065622768738Z-fa978e4a",
   "ledger_evidence": [
-    "L-20260729T065622768756Z-a01b5818"
+    "L-20260729T065622768756Z-a01b5818",
+    "L-20260801T024410267929Z-a240e9b2",
+    "L-20260801T024436419067Z-dc896824"
   ],
   "locks": [
     "path:scripts/shiki_tasks.py",
@@ -32,7 +34,7 @@
   ],
   "risk_level": "high",
   "scope": "Two defects on the same seam in scripts/shiki_tasks.py, both observed live on PR #179. (a) cmd_lock_acquire and try_acquire_locks set task['status'] = 'ready' unconditionally (lines 373 and 691), so re-acquiring a grant rewinds a task that already has an open PR from review back to ready \u2014 MergeGate's post-CCA rule then blocks it. Preserve any status at or beyond 'running'; only planned may become ready. (b) A Spec Amendment that widens a task's locks silently invalidates its own grant, because the grant is checked as a superset of the contract; nothing in the amendment path refreshes it. Detect the divergence and either refresh the grant or fail with a reason naming it, rather than surfacing as an unexplained 'locks are not granted'.\n\nREPRODUCIBILITY \u2014 what this task removes. On 2026-07-27/29 a single task was driven from Goal to PR twice (#179, merged; #181, open at the time of writing). The loop's judgments were autonomous; the plumbing between them was not. Seven manual interventions were required, and this task removes one of them.\n  Manual step removed: re-acquiring a lock by hand after every contract amendment.\n  Observed: three amendments (A3, A3b and the earlier A-LOCKS widening) each invalidated their own grant, surfacing only as 'locks are not granted' with no indication that an amendment caused it; one re-acquisition also rewound a task with an open PR from review to ready and blocked MergeGate.\n  Reproducible when: amending a contract's locks leaves a valid grant, or fails with a reason naming the divergence, and no re-acquisition ever moves a task backwards through its lifecycle.",
-  "status": "planned",
+  "status": "running",
   "test_command": "bash scripts/test_shiki_control_plane.sh && python3 -m unittest discover -s tests",
   "title": "Make lock acquisition preserve task lifecycle and follow contract amendments"
 }

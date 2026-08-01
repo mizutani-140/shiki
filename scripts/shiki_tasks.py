@@ -371,6 +371,139 @@ def update_goal_dag(target: Path, goal_id: str, task_ids: list[str], dependency_
     return dag_file
 
 
+def status_after_lock_acquire(current_status: str | None) -> str:
+    """Status a task should hold after (re)acquiring or refreshing its lock grant.
+
+    Only a freshly registered task — status ``planned`` (or an unset status) —
+    becomes ``ready``. Every other status is preserved: ``ready``, ``blocked``,
+    and anything at or beyond ``running`` (``running``, ``review``,
+    ``repair-needed``, ``done``). Acquiring a grant is idempotent bookkeeping, so
+    it must never move a task backwards through its lifecycle. PR #179: a
+    re-acquisition rewound a task that already had an open PR from ``review`` to
+    ``ready``, and MergeGate's post-CCA rule then blocked it.
+    """
+    if current_status in (None, "", "planned"):
+        return "ready"
+    return current_status
+
+
+def _lock_conflict_owners(conflicts: list[str]) -> list[str]:
+    """Owner task ids named in ``active_lock_conflicts`` messages, first-seen order.
+
+    Conflict strings have the shape ``"Lock conflict: <lock> held by <owner>"``
+    (optionally ``" overlaps <file>"``); this pulls out the ``<owner>`` tokens so
+    a divergence report can name who holds the colliding lock.
+    """
+    owners: list[str] = []
+    for conflict in conflicts or []:
+        _, separator, tail = str(conflict).partition(" held by ")
+        if not separator:
+            continue
+        owner = tail.split(" overlaps ", 1)[0].strip()
+        if owner and owner not in owners:
+            owners.append(owner)
+    return owners
+
+
+def refresh_lock_grant(target: Path, task_id: str) -> tuple[bool, list[str], dict[str, Any] | None]:
+    """Refresh a task's lock grant to its CURRENT contract locks.
+
+    A Spec Amendment that widens a task's locks leaves the prior grant behind: the
+    grant no longer covers the contract, so dispatch reads ``locks are not
+    granted`` with no cause (PR #179 amendments A3, A3b, A-LOCKS). This rewrites
+    the grant to the task's current contract locks so the amendment carries its
+    own grant forward without a manual re-acquisition.
+
+    Refreshing never widens a grant into another task's held locks (a declared
+    non-goal): when the current contract overlaps another active lock the grant is
+    left untouched and the conflict messages (which name the owning task) are
+    returned.
+
+    A refresh is PASSIVE bookkeeping — triggered by a readiness check, not an
+    explicit acquisition — so it preserves the task's status verbatim. It must
+    never advance the lifecycle (only ``try_acquire_locks`` / ``cmd_lock_acquire``
+    promote ``planned``→``ready``; otherwise a mere ``dispatch check`` would flip a
+    ``planned`` task to ``ready`` and the loop's planned-only unblock would then
+    skip it) nor rewind a task that already advanced.
+
+    Returns ``(refreshed, conflicts, record)``: ``(True, [], record)`` with the
+    rewritten grant on success, or ``(False, conflicts, None)`` on collision.
+    """
+    ensure_control_dirs(target)
+    task = load_task(target, task_id)
+    locks = list(dict.fromkeys(task.get("locks", [])))
+    conflicts = has_active_lock_conflict(target, task_id, locks)
+    if conflicts:
+        return False, conflicts, None
+    existing = lock_record(target, task_id) or {}
+    record = {
+        "task_id": task_id,
+        "goal_id": task["goal_id"],
+        "locks": locks,
+        "state": "active",
+        "owner": existing.get("owner", "shiki-run"),
+        "created_at": existing.get("created_at", utc_now()),
+        "refreshed_at": utc_now(),
+    }
+    lock_file = shiki_path(target, "locks", f"{task_id}.json")
+    write_json(lock_file, record)
+    ledger_id = append_ledger(
+        target,
+        goal_id=task["goal_id"],
+        task_id=task_id,
+        ledger_type="lock",
+        summary=f"Lock grant refreshed to current contract for {task_id}",
+        evidence=[str(lock_file.relative_to(target))],
+    )
+    # Append the evidence but leave status untouched: a passive refresh records
+    # the grant change without advancing (or rewinding) the task's lifecycle.
+    task.setdefault("ledger_evidence", []).append(ledger_id)
+    write_json(shiki_path(target, "tasks", f"{task_id}.json"), task)
+    return True, [], record
+
+
+def evaluate_lock_grant(target: Path, task_id: str) -> tuple[bool, str | None]:
+    """Whether ``task_id``'s declared locks are granted, refreshing on divergence.
+
+    Returns ``(locks_granted, blocker)``. Cases:
+
+    * no declared locks ................. granted (nothing to hold).
+    * active grant covers the contract .. granted, with no rewrite.
+    * active grant but contract widened . a Spec Amendment diverged the grant.
+      Refresh it to the current contract so no manual re-acquisition is needed;
+      granted when the refresh lands. If the widened contract collides with
+      another task's active lock the refresh is refused and the blocker names
+      BOTH lock sets and the owning task, never a bare 'locks are not granted'.
+    * no active grant at all ............ not granted ('locks are not granted').
+    """
+    task = load_task(target, task_id)
+    contract_locks = list(dict.fromkeys(task.get("locks", [])))
+    if not contract_locks:
+        return True, None
+    record = lock_record(target, task_id)
+    active = record if (record and record.get("state") == "active") else None
+    granted_locks = list(active.get("locks", [])) if active else []
+    if active and set(contract_locks).issubset(set(granted_locks)):
+        return True, None
+    if not active:
+        return False, "locks are not granted"
+    # Divergence: an active grant exists but the contract now requires locks it
+    # does not hold (a Spec Amendment widened them). Refresh it, or name the clash.
+    refreshed, conflicts, _ = refresh_lock_grant(target, task_id)
+    if refreshed:
+        return True, None
+    owners = _lock_conflict_owners(conflicts)
+    missing = sorted(set(contract_locks) - set(granted_locks))
+    reason = (
+        "grant/contract divergence: task contract locks "
+        f"{sorted(contract_locks)} are not covered by the active grant "
+        f"{sorted(granted_locks)}; refreshing to add {missing} is blocked"
+    )
+    if owners:
+        reason += f" because the widened locks overlap active lock(s) held by {', '.join(owners)}"
+    return False, reason
+
+
 def try_acquire_locks(target: Path, task_id: str) -> tuple[bool, list[str], str | None]:
     task = load_task(target, task_id)
     # Dispatch-time .shiki/** guarantee: the lock record a loop task holds must
@@ -401,7 +534,7 @@ def try_acquire_locks(target: Path, task_id: str) -> tuple[bool, list[str], str 
         summary=f"Locks acquired for {task_id}",
         evidence=[str(lock_file.relative_to(target))],
     )
-    task["status"] = "ready"
+    task["status"] = status_after_lock_acquire(task.get("status"))
     task.setdefault("ledger_evidence", []).append(ledger_id)
     write_json(shiki_path(target, "tasks", f"{task_id}.json"), task)
     return True, [], ledger_id
@@ -846,7 +979,7 @@ def cmd_lock_acquire(args: argparse.Namespace) -> int:
         summary=f"Locks acquired for {args.task_id}",
         evidence=[str(lock_file.relative_to(target))],
     )
-    task["status"] = "ready"
+    task["status"] = status_after_lock_acquire(task.get("status"))
     task.setdefault("ledger_evidence", []).append(ledger_id)
     write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
     result.update({"lock_file": str(lock_file), "ledger_id": ledger_id})
@@ -861,9 +994,11 @@ def cmd_dispatch_check(args: argparse.Namespace) -> int:
 
     dependency_tasks = [load_task(target, dep) for dep in task.get("dependencies", [])]
     dependencies_complete = all(dep.get("status") == "done" for dep in dependency_tasks)
-    lock = lock_record(target, args.task_id)
-    task_locks = set(task.get("locks", []))
-    locks_granted = not task_locks or bool(lock and lock.get("state") == "active" and task_locks.issubset(set(lock.get("locks", []))))
+    # A Spec Amendment that widened the task's locks leaves the old grant behind;
+    # evaluate_lock_grant refreshes the grant to the current contract (so no manual
+    # re-acquisition is needed before dispatch) or reports a named divergence when
+    # the widened contract collides with another task's active lock.
+    locks_granted, lock_blocker = evaluate_lock_grant(target, args.task_id)
     worktree_allocated = worktree_record(target, args.task_id) is not None
     guardian_required = task.get("risk_level") in {"high", "critical"}
     verification_present = bool(task.get("acceptance_checks"))
@@ -873,7 +1008,7 @@ def cmd_dispatch_check(args: argparse.Namespace) -> int:
     if not dependencies_complete:
         blocking.append("dependencies are not complete")
     if not locks_granted:
-        blocking.append("locks are not granted")
+        blocking.append(lock_blocker or "locks are not granted")
     if guardian_required:
         blocking.append("guardian approval required for high/critical risk")
     if not verification_present:
