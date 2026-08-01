@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260801T041653346645Z-7d402f1b.json",
+    ".shiki/plans/P-20260801T041646831458Z-61e53ba0.json"
+  ],
+  "goal_id": "G-20260801T041653346645Z-7d402f1b",
+  "id": "L-20260801T041653347517Z-450cbf2a",
+  "links": [],
+  "summary": "Goal registered from plan: Give a Contract Amendment a delivery mode",
+  "task_id": null,
+  "timestamp": "2026-08-01T04:16:53+00:00",
+  "type": "goal-created"
+}
