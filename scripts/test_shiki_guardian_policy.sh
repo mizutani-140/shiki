@@ -558,4 +558,205 @@ python3 scripts/shiki.py doctor --json --target . >/tmp/shiki-guardian-doctor.js
 grep '"id": "doctor.guardian.policy"' /tmp/shiki-guardian-doctor.json >/dev/null
 grep '"id": "doctor.guardian.approvers"' /tmp/shiki-guardian-doctor.json >/dev/null
 
+# --------------------------------------------------------------------------- #
+# ADR 0015 Contract Approval (end-to-end): a contract-approved implementation PR
+# with NO guardian:approved label and NO approval comment must resolve the
+# Guardian requirement satisfied in BOTH the MergeGate result AND the CCA Guardian
+# signal — and removing any single proof element must put it back to unsatisfied.
+# Drives the REAL entry points (mergegate_check.py and guardian_approval_signal),
+# never reads source.
+# --------------------------------------------------------------------------- #
+python3 - <<'PY'
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+root = Path.cwd()
+sys.path.insert(0, str(root / "scripts"))
+import guardian_approval_signal as sig
+
+TASK = "T-7777"
+GOAL = "G-0012"
+HEAD = "a" * 40
+IMPL_PR = 99   # implementation PR (carries no approval of its own)
+REG_PR = 88    # the SEPARATE merged, Guardian-approved Contract PR
+
+
+def valid_registration(**overrides):
+    reg = {
+        "task_id": TASK,
+        "pr": REG_PR,
+        "merged": True,
+        "adding_commit": "c" * 40,
+        "adding_commit_pr": REG_PR,
+        "guardian_approved": True,
+        "guardian_source": "guardian_label",
+    }
+    reg.update(overrides)
+    return reg
+
+
+TASK_DATA = {
+    "id": TASK,
+    "goal_id": GOAL,
+    "status": "review",
+    "risk_level": "critical",
+    "scope": "add the contract-approval evaluator",
+    "non_goals": ["no change to evaluate_guardian_approval"],
+    "required_skills": [],
+    "locks": ["scripts/**"],
+    "acceptance_checks": ["a contract-approved PR needs no live approval"],
+    "test_command": "python3 -m unittest discover -s tests",
+    "dependencies": [],
+    "expected_pr": IMPL_PR,
+    "expected_branch": "shiki/t-7777",
+    "ledger_evidence": ["L-7777"],
+}
+
+with tempfile.TemporaryDirectory() as tmp:
+    ca = Path(tmp) / "ca"
+    (ca / ".shiki" / "tasks").mkdir(parents=True)
+    (ca / ".shiki" / "goals").mkdir()
+    (ca / ".shiki" / "ledger").mkdir()
+    (ca / ".shiki" / "gha").mkdir()
+    for name in ("config.yaml", "manifest.json", "guardian-policy.json"):
+        (ca / ".shiki" / name).write_text((root / ".shiki" / name).read_text(encoding="utf-8"), encoding="utf-8")
+    (ca / ".shiki" / "goals" / f"{GOAL}.json").write_text(json.dumps({"id": GOAL, "status": "planned"}), encoding="utf-8")
+    (ca / ".shiki" / "tasks" / f"{TASK}.json").write_text(json.dumps(TASK_DATA), encoding="utf-8")
+    (ca / ".shiki" / "ledger" / "L-7777.json").write_text(
+        json.dumps({
+            "id": "L-7777", "goal_id": GOAL, "task_id": TASK, "type": "check",
+            "summary": "PR #99 evidence", "evidence": ["PR #99", "/pull/99"],
+            "links": ["https://github.com/example/shiki/pull/99"],
+        }),
+        encoding="utf-8",
+    )
+    # Base snapshot (.shiki dir) carrying the identical, already-registered contract.
+    base_shiki = Path(tmp) / "base" / ".shiki"
+    (base_shiki / "tasks").mkdir(parents=True)
+    (base_shiki / "tasks" / f"{TASK}.json").write_text(json.dumps(TASK_DATA), encoding="utf-8")
+
+    pr_json = ca / ".shiki" / "gha" / "pr.json"
+    # NO guardian:approved label, NO approval comment: the only thing that can
+    # satisfy the Guardian gate is Contract Approval.
+    pr_json.write_text(
+        json.dumps({
+            "number": IMPL_PR,
+            "body": f"{TASK}\n{GOAL}\n\n## Scope\nx\n\n## Acceptance\nx\n\n## Evidence\nx\n\n## MergeGate\nx",
+            "author": {"login": "implementer"},
+            "headRefName": "shiki/t-7777",
+            "headRefOid": HEAD,
+            "labels": [{"name": "risk:critical"}],
+            "reviews": [],
+        }),
+        encoding="utf-8",
+    )
+    cca = ca / ".shiki" / "gha" / "cca-verdict.json"
+    cca.write_text(
+        json.dumps({
+            "verdict": "complete", "summary": "fixture", "goal_id": GOAL, "task_id": TASK,
+            "pr": IMPL_PR, "head_sha": HEAD, "can_merge": True, "checklist": [],
+            "acceptance": [{"criterion": "fixture", "status": "pass", "evidence": ["fixture"]}],
+            "mergegate": {}, "confidence": 1,
+        }),
+        encoding="utf-8",
+    )
+    cf = ca / ".shiki" / "gha" / "changed-files.txt"
+    cfs = ca / ".shiki" / "gha" / "changed-files-status.txt"
+    cf.write_text("", encoding="utf-8")
+    cfs.write_text("", encoding="utf-8")
+    comments = ca / ".shiki" / "gha" / "comments.json"
+    events = ca / ".shiki" / "gha" / "events.json"
+    comments.write_text("[]", encoding="utf-8")
+    events.write_text("[]", encoding="utf-8")
+
+    def write_registration(name, data):
+        path = ca / ".shiki" / "gha" / name
+        path.write_text(data if isinstance(data, str) else json.dumps(data), encoding="utf-8")
+        return path
+
+    valid_path = write_registration("contract-approval.json", valid_registration())
+
+    def run_mergegate(contract_path):
+        result_file = ca / ".shiki" / "gha" / "mergegate-result.json"
+        cmd = [
+            "python3", "scripts/mergegate_check.py", "--target", str(ca),
+            "--pr-json", str(pr_json), "--cca-verdict", str(cca),
+            "--changed-files", str(cf), "--changed-files-status", str(cfs),
+            "--base-shiki", str(base_shiki), "--result-file", str(result_file),
+            "--guardian-policy", ".shiki/guardian-policy.json",
+            "--guardian-comments", str(comments), "--guardian-events", str(events),
+            "--guardian-timeline", "",
+        ]
+        if contract_path is not None:
+            cmd += ["--contract-approval", str(contract_path)]
+        subprocess.run(cmd, check=False, capture_output=True)
+        return json.loads(result_file.read_text(encoding="utf-8"))
+
+    def run_signal(contract_path):
+        out = ca / ".shiki" / "gha" / "signal.json"
+        argv = [
+            "--pr-json", str(pr_json), "--guardian-policy", str(ca / ".shiki" / "guardian-policy.json"),
+            "--guardian-comments", str(comments), "--expected-repository", "example/shiki",
+            "--shiki-root", str(ca), "--base-shiki", str(base_shiki), "--changed-files-status", str(cfs),
+            "--output", str(out),
+        ]
+        if contract_path is not None:
+            argv += ["--contract-approval", str(contract_path)]
+        rc = sig.main_with_argv(argv)
+        if rc != 0:
+            raise SystemExit(f"guardian signal exited {rc}")
+        return json.loads(out.read_text(encoding="utf-8"))
+
+    def guardian_blocked(result):
+        return any("guardian" in reason.lower() for reason in result.get("blocking_reasons") or [])
+
+    # --- positive: the carry satisfies BOTH gates with no live approval --------
+    mg = run_mergegate(valid_path)
+    if guardian_blocked(mg):
+        raise SystemExit(f"contract-approved PR must satisfy the MergeGate Guardian requirement: {mg['blocking_reasons']}")
+    if not any("Contract Approval" in w for w in mg.get("warnings") or []):
+        raise SystemExit(f"MergeGate must record the Contract Approval source: {mg.get('warnings')}")
+
+    sg = run_signal(valid_path)
+    if not (sg.get("required") and sg.get("approved") and "contract_approval" in (sg.get("sources") or [])):
+        raise SystemExit(f"CCA Guardian signal must report contract_approval satisfied: {sg}")
+
+    # --- removing ANY single proof element puts BOTH gates back to unsatisfied -
+    negatives = {
+        "merged=false": valid_registration(merged=False),
+        "guardian_approved=false": valid_registration(guardian_approved=False),
+        "pr/adding-commit mismatch": valid_registration(adding_commit_pr=REG_PR + 1),
+        "task_id mismatch": valid_registration(task_id="T-9999"),
+        "no guardian source": valid_registration(guardian_source=""),
+        "not merged, not approved": valid_registration(merged=False, guardian_approved=False),
+    }
+    for label, reg in negatives.items():
+        path = write_registration("contract-approval-neg.json", reg)
+        mg_neg = run_mergegate(path)
+        if not guardian_blocked(mg_neg):
+            raise SystemExit(f"removing proof ({label}) must re-require Guardian in MergeGate: {mg_neg['blocking_reasons']}")
+        sg_neg = run_signal(path)
+        if sg_neg.get("approved"):
+            raise SystemExit(f"removing proof ({label}) must re-require Guardian in the CCA signal: {sg_neg}")
+
+    # --- flag absent / unreadable proof: byte-for-byte prior behaviour ---------
+    for label, contract_path in (
+        ("flag absent", None),
+        ("unreadable proof", write_registration("contract-approval-bad.json", "{ this is not valid json")),
+    ):
+        mg_none = run_mergegate(contract_path)
+        if not guardian_blocked(mg_none):
+            raise SystemExit(f"{label}: Guardian must still be required in MergeGate: {mg_none['blocking_reasons']}")
+        sg_none = run_signal(contract_path)
+        if sg_none.get("approved"):
+            raise SystemExit(f"{label}: Guardian must still be required in the CCA signal: {sg_none}")
+
+print("contract approval end-to-end carry fixtures passed")
+PY
+
 echo "shiki guardian policy tests passed"
