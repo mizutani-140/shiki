@@ -1,0 +1,67 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-08-01T03:35:45+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260729T065622763023Z-9b974770.json",
+    ".shiki/tasks/T-20260729T065622763684Z-ee01f3c4.json",
+    ".shiki/tasks/T-20260729T065622764296Z-48021407.json",
+    ".shiki/tasks/T-20260729T065622764822Z-bac7ef27.json",
+    ".shiki/tasks/T-20260729T065622765413Z-a0055a9d.json",
+    ".shiki/tasks/T-20260729T065622765968Z-234bf98b.json",
+    ".shiki/tasks/T-20260729T065622766508Z-d36555d8.json",
+    ".shiki/tasks/T-20260729T065622767228Z-3b4c41c2.json",
+    ".shiki/tasks/T-20260729T065622767723Z-f138eccf.json",
+    ".shiki/tasks/T-20260729T065622768255Z-da448d45.json",
+    ".shiki/tasks/T-20260729T065622768738Z-fa978e4a.json",
+    ".shiki/tasks/T-20260729T065622769184Z-628504fe.json",
+    ".shiki/tasks/T-20260729T065622769632Z-9ee6b8e0.json",
+    ".shiki/tasks/T-20260729T065622770078Z-3662bff2.json",
+    ".shiki/tasks/T-20260729T065622770500Z-513839f0.json",
+    ".shiki/tasks/T-20260729T065622770911Z-a8db8b69.json"
+  ],
+  "goal_id": "G-20260729T065622761503Z-4479b0d3",
+  "id": "R-20260801T033545675330Z-ed7f9fb1",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "high"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 246479000,
+    "generated_at": "2026-08-01T03:35:45+00:00",
+    "goal_id": "G-20260729T065622761503Z-4479b0d3",
+    "lock_amendments": {
+      "total": 35
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 5
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 16,
+      "failed": 0,
+      "total": 16
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard",
+      "repairs.by_area is not derivable from ledger events; reported empty"
+    ],
+    "window": {
+      "from": "2026-07-29T06:56:22+00:00",
+      "to": "2026-08-01T03:24:21+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "Autonomous loop closeout: push goal completion to main (ADR 0012)."
+}
