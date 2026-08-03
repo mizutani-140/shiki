@@ -15,11 +15,12 @@
   ],
   "assigned_runtime": "claude-code",
   "cca_rerun_count": 1,
+  "closeout_pr": 249,
   "dependencies": [
     "T-20260803T013839640380Z-ca171b22"
   ],
-  "expected_branch": "shiki/t-20260803t013839640984z-2411811e-make-an-upgrade-upgrade-the-governance-contract-",
-  "expected_pr": 248,
+  "expected_branch": "shiki/t-20260803t013839640984z-2411811e-closeout",
+  "expected_pr": 249,
   "github_issue": null,
   "goal_id": "G-20260803T013839638288Z-eebb39bf",
   "id": "T-20260803T013839640984Z-2411811e",
@@ -34,7 +35,8 @@
     "L-20260803T060516389405Z-908b5075",
     "L-20260803T060819162498Z-fba7c405",
     "L-20260803T060822847255Z-68702121",
-    "L-20260803T061225450171Z-8f219c5c"
+    "L-20260803T061225450171Z-8f219c5c",
+    "L-20260803T073811191661Z-e42f8c5a"
   ],
   "locks": [
     "path:scripts/shiki_installer.py",
