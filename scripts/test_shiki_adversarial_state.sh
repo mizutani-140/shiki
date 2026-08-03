@@ -1235,5 +1235,105 @@ if GUARDIAN_POLICY_FALLBACK in _matched_res.stdout:
     raise AssertionError("control: a low-risk head matching a low-risk base must not force a Guardian:\n" + _matched_res.stdout)
 
 
+# ============================================================================
+# T-20260801T085710529159Z-575d4080 (DEFECT A): no repair packet the loop can
+# emit ever names the CCA verdict CHECK as its only failing item. Adversarially
+# enumerate EVERY verdict value the loop's resolver can feed the engine for a
+# sole-CCA-red PR whose rerun budget is spent, and prove the engine never routes
+# such a verdict to a repair that names the CCA verdict check: needs_guardian /
+# blocked / complete / unresolvable STOP (no packet at all), and repair_required /
+# insufficient_evidence strip the CCA check from the repair items. Then drive the
+# REAL _dispatch_repair effector to confirm the emitted packet never carries
+# "required check failed: CCA verdict".
+# ============================================================================
+import contextlib
+import io
+
+import shiki_loop
+
+_CCA_CHECK = shiki_loop.CCA_VERDICT_CHECK
+_VERDICT_REQUIRED = ["Validate Shiki mirror", _CCA_CHECK, "MergeGate metadata check", "MergeGate policy check"]
+_SOLE_CCA_RED = {name: "pass" for name in _VERDICT_REQUIRED}
+_SOLE_CCA_RED[_CCA_CHECK] = "fail"
+_VERDICT_TASK = {
+    "id": "T-0099", "goal_id": "G-0099", "status": "review", "risk_level": "high",
+    "expected_pr": 99, "assigned_runtime": "claude-code",
+}
+
+
+def _verdict_decision(cca_verdict):
+    # Sole CCA red, rerun budget spent (cca_reruns == MAX_CCA_RERUNS) so the
+    # decision reaches the verdict gate instead of another same-head rerun.
+    return shiki_loop.decide_task_action(
+        _VERDICT_TASK,
+        checks=_SOLE_CCA_RED,
+        pr_state={"merged": False, "head_sha": "deadbeef"},
+        repair_attempts=0,
+        repair_limit=3,
+        required_checks=_VERDICT_REQUIRED,
+        cca_reruns=shiki_loop.MAX_CCA_RERUNS,
+        cca_verdict=cca_verdict,
+    )
+
+
+# Every value the resolver can return (the five verdicts + the unresolvable
+# sentinel): the loop must never route ANY of them to a repair naming the CCA check.
+for _verdict in sorted(shiki_loop.CCA_VERDICT_VALUES) + [shiki_loop.CCA_VERDICT_UNRESOLVED]:
+    _decision = _verdict_decision(_verdict)
+    if _decision["action"] == "dispatch_repair":
+        assert _CCA_CHECK not in _decision.get("failed_checks", []), (_verdict, _decision)
+    else:
+        # A non-repair terminal decision emits no repair packet at all.
+        assert _decision["action"] in {"stop_guardian", "stop_blocked"}, (_verdict, _decision)
+
+# The two repairable verdicts must still dispatch a bounded repair (never silently
+# swallow a real failure), with the CCA verdict check stripped from the items.
+for _verdict in ("repair_required", "insufficient_evidence"):
+    _decision = _verdict_decision(_verdict)
+    assert _decision["action"] == "dispatch_repair", (_verdict, _decision)
+    assert _decision["failed_checks"] == [], (_verdict, _decision)
+
+
+def _mk_verdict_target(name):
+    tgt = tmp_root / name
+    tgt.mkdir(parents=True, exist_ok=True)
+    for cmd in (
+        ["git", "init", "-b", "main", str(tgt)],
+        ["git", "-C", str(tgt), "config", "user.email", "t@t"],
+        ["git", "-C", str(tgt), "config", "user.name", "t"],
+        ["git", "-C", str(tgt), "remote", "add", "origin", "https://github.com/o/r.git"],
+    ):
+        subprocess.run(cmd, check=True, capture_output=True)
+    write_json(tgt / ".shiki" / "goals" / "G-0099.json",
+               {"id": "G-0099", "status": "planned", "risk_level": "high", "ledger_evidence": []})
+    write_json(tgt / ".shiki" / "tasks" / "T-0099.json",
+               {"id": "T-0099", "goal_id": "G-0099", "status": "review", "title": "t", "scope": "s",
+                "risk_level": "high", "assigned_runtime": "claude-code", "expected_branch": "b",
+                "expected_pr": 99, "locks": ["path:.shiki/**"], "required_skills": ["tdd"],
+                "acceptance_checks": ["a"], "ledger_evidence": []})
+    return tgt
+
+
+# Drive the REAL _dispatch_repair effector for the stripped decisions the engine
+# produces (failed_checks == [], cca_verdict repairable) and confirm the EMITTED
+# packet never names the CCA verdict check — it names the verdict's findings instead.
+_orig_dispatch = shiki_loop._dispatch
+shiki_loop._dispatch = lambda target, task, repair_id=None: 0
+try:
+    for _index, _verdict in enumerate(("repair_required", "insufficient_evidence")):
+        _tgt = _mk_verdict_target(f"verdict-packet-{_index}")
+        with contextlib.redirect_stdout(io.StringIO()):
+            _info = shiki_loop._dispatch_repair(
+                _tgt, shiki_loop.load_task(_tgt, "T-0099"), [], 1, cca_verdict=_verdict
+            )
+        _packet = read_json(_tgt / ".shiki" / "repairs" / f"{_info['repair_id']}.json")
+        _items = _packet["failing_checklist_items"]
+        assert _items != [f"required check failed: {_CCA_CHECK}"], (_verdict, _items)
+        assert all(item != f"required check failed: {_CCA_CHECK}" for item in _items), (_verdict, _items)
+        assert any(_verdict in item for item in _items), (_verdict, _items)
+finally:
+    shiki_loop._dispatch = _orig_dispatch
+
+
 print("adversarial state/evidence/lock regression suite passed")
 PY

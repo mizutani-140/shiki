@@ -50,6 +50,24 @@ POLICY_GATE = "MergeGate policy check"
 CCA_VERDICT_CHECK = "CCA verdict"
 MAX_CCA_RERUNS = 2
 
+# The five CCA verdict values (mirrors ``enforce_cca_verdict.VALID_VERDICTS`` and
+# the ``cca-verdict.schema.json`` enum). When the ``CCA verdict`` required check is
+# red, the loop resolves the verdict's VALUE from durable CI evidence and branches
+# on it (DEFECT A): a red check proves the CCA did not say ``complete`` but not
+# WHICH non-complete verdict it reached, and ``needs_guardian`` / ``blocked`` are
+# HITL / dependency stops that must never be laundered into an auto-repair.
+CCA_VERDICT_VALUES = frozenset(
+    {"complete", "repair_required", "blocked", "needs_guardian", "insufficient_evidence"}
+)
+# Sentinel for a verdict the loop could not read (no artifact, unreadable,
+# malformed, or a CCA that crashed before writing one). It is NOT a real verdict,
+# so the gate fails closed on it — an unresolvable verdict may be a Guardian stop,
+# and a CCA that crashed before judging is not repairable by an implementer either.
+CCA_VERDICT_UNRESOLVED = "unresolved"
+# The CCA workflow uploads `.shiki/gha` as the `shiki-cca-evidence` artifact; the
+# verdict lands at this basename inside it.
+CCA_VERDICT_BASENAME = "cca-verdict.json"
+
 # Bound on how many times the loop re-dispatches a `running` task whose session
 # lease proves the session is gone (free/absent). Once the recorded
 # `dispatch_attempts` reaches this bound the loop stops for the operator instead
@@ -83,6 +101,7 @@ def decide_task_action(
     required_checks: list[str],
     cca_reruns: int = 0,
     lease_state: str | None = None,
+    cca_verdict: str | None = None,
 ) -> dict[str, Any]:
     """Pure decision for one task. checks values: pass | fail | pending.
 
@@ -91,6 +110,12 @@ def decide_task_action(
     ``shiki_session_lease.session_lease_state``). It is ``None`` when not probed,
     in which case a ``running`` task keeps waiting — the status field alone is
     never treated as proof a session is gone.
+
+    ``cca_verdict`` is the CCA verdict VALUE the caller resolved read-only from
+    durable CI evidence (one of ``CCA_VERDICT_VALUES`` or ``CCA_VERDICT_UNRESOLVED``)
+    when the ``CCA verdict`` required check is red — otherwise ``None``. It is
+    consulted ONLY in the impl-PR repair path, so a pure-engine caller that leaves
+    it ``None`` keeps the prior check-conclusion behaviour (DEFECT A).
     """
     task_id = str(task.get("id"))
     status = str(task.get("status", ""))
@@ -229,17 +254,34 @@ def decide_task_action(
             return {"action": "wait_checks", "task_id": task_id, "reason": f"CCA judged early; waiting for pending checks: {', '.join(pending)}"}
         if cca_completion_race and cca_reruns < MAX_CCA_RERUNS:
             return {"action": "rerun_cca", "task_id": task_id, "reason": "only the CCA verdict failed against green siblings; rerun after green"}
+        # DEFECT A — verdict-aware repair gating. The `CCA verdict` check is red and
+        # the same-head rerun race (above) is settled/exhausted. A red check does
+        # NOT say which non-complete verdict the CCA reached, so gate on the VALUE
+        # the caller resolved from durable CI evidence before ever dispatching a
+        # repair. needs_guardian / blocked / complete / unresolvable are terminal
+        # stops that never become an auto-repair and never consume a repair attempt
+        # (the same principle that strips POLICY_GATE above); only repair_required /
+        # insufficient_evidence proceed — and the CCA verdict check itself is then
+        # dropped from the repair items, so an autonomous runner is never told to
+        # "make the CCA verdict pass" with nothing concrete to fix.
+        if CCA_VERDICT_CHECK in repairable_failed and cca_verdict is not None:
+            verdict_stop = _cca_verdict_stop(task_id, cca_verdict)
+            if verdict_stop is not None:
+                return verdict_stop
+            repairable_failed = [name for name in repairable_failed if name != CCA_VERDICT_CHECK]
+        failure_desc = ", ".join(repairable_failed) if repairable_failed else f"CCA verdict {cca_verdict}"
         if repair_attempts >= repair_limit:
             return {
                 "action": "stop_guardian",
                 "task_id": task_id,
-                "reason": f"required checks failed ({', '.join(repairable_failed)}) and repair attempt limit reached",
+                "reason": f"required checks failed ({failure_desc}) and repair attempt limit reached",
             }
         return {
             "action": "dispatch_repair",
             "task_id": task_id,
-            "reason": f"required checks failed: {', '.join(repairable_failed)}",
+            "reason": f"required checks failed: {failure_desc}",
             "failed_checks": repairable_failed,
+            "cca_verdict": cca_verdict,
         }
 
     if policy_failed:
@@ -280,6 +322,58 @@ def decide_task_action(
         "action": "stop_guardian",
         "task_id": task_id,
         "reason": f"all required checks green but risk {risk} requires Guardian approval and no MergeGate policy gate is configured",
+    }
+
+
+def _cca_verdict_stop(task_id: str, cca_verdict: str) -> dict[str, Any] | None:
+    """Map a resolved CCA verdict VALUE to a terminal stop, or ``None`` to repair.
+
+    Pure — the caller has already resolved the value read-only from durable CI
+    evidence (DEFECT A). Reached only when the ``CCA verdict`` required check is
+    red. ``needs_guardian`` and ``blocked`` are never auto-repaired and never
+    consume a repair attempt; a ``complete`` verdict against a red check is a
+    contradiction to reconcile; an unresolvable value fails closed. Only
+    ``repair_required`` / ``insufficient_evidence`` return ``None`` so the caller
+    dispatches a bounded repair. Each stop names the verdict with a DISTINCT reason.
+    """
+    if cca_verdict == "needs_guardian":
+        return {
+            "action": "stop_guardian",
+            "task_id": task_id,
+            "reason": (
+                "CCA verdict is needs_guardian: a Guardian decision is required before progress; "
+                "this is never auto-repaired and never consumes a repair attempt"
+            ),
+        }
+    if cca_verdict == "blocked":
+        return {
+            "action": "stop_blocked",
+            "task_id": task_id,
+            "reason": (
+                "CCA verdict is blocked: a dependency, lock, auth, or external blocker must clear "
+                "before judgment; this is never auto-repaired and never consumes a repair attempt"
+            ),
+        }
+    if cca_verdict == "complete":
+        return {
+            "action": "stop_blocked",
+            "task_id": task_id,
+            "reason": (
+                "the CCA verdict check is red but the resolved verdict is `complete`: the check and "
+                "the verdict disagree — reconcile the evidence before any repair, never repair on a contradiction"
+            ),
+        }
+    if cca_verdict in {"repair_required", "insufficient_evidence"}:
+        return None
+    # CCA_VERDICT_UNRESOLVED or any value not in CCA_VERDICT_VALUES: fail closed.
+    return {
+        "action": "stop_blocked",
+        "task_id": task_id,
+        "reason": (
+            "the CCA verdict could not be read from durable CI evidence "
+            f"({cca_verdict!r}): failing closed and never auto-repairing — an unresolvable verdict "
+            "may be a Guardian stop, and a CCA that crashed before judging is not implementer-repairable"
+        ),
     }
 
 
@@ -348,6 +442,76 @@ def snapshot_pr(target: Path, task: dict[str, Any]) -> tuple[dict[str, Any] | No
                 checks[name] = bucket
                 started[name] = started_at
     return pr_state, checks
+
+
+def _resolve_cca_verdict(target: Path, task: dict[str, Any], pr_state: dict[str, Any] | None) -> str:
+    """Read the CCA verdict VALUE from durable CI evidence (read-only, never raises).
+
+    DEFECT A: when the ``CCA verdict`` required check is red, the loop must not
+    decide from the check conclusion alone. The CCA workflow uploads ``.shiki/gha``
+    as the ``shiki-cca-evidence`` artifact, which contains ``cca-verdict.json``.
+    Find the CCA workflow run for the PR head, download that artifact read-only, and
+    return its ``verdict``. ANY failure — no run, no artifact, network/``gh`` down,
+    unreadable or malformed JSON, missing or unknown verdict — returns
+    ``CCA_VERDICT_UNRESOLVED`` so the caller fails closed. This is a read of durable
+    evidence only; it never mutates GitHub and never crashes the loop.
+    """
+    import shutil
+    import tempfile
+
+    try:
+        from shiki_evidence import CCA_EVIDENCE_ARTIFACT_NAME
+
+        head_sha = (pr_state or {}).get("head_sha")
+        runs = _gh(
+            target,
+            ["run", "list", "--workflow", "shiki-cca-completion.yml", "--limit", "20",
+             "--json", "databaseId,conclusion,headSha,status"],
+            check=False,
+        )
+        if runs.returncode != 0 or not (runs.stdout or "").strip():
+            return CCA_VERDICT_UNRESOLVED
+        entries = json.loads(runs.stdout)
+        if not isinstance(entries, list):
+            return CCA_VERDICT_UNRESOLVED
+        run_id = None
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            # Bind the verdict to the PR head when the head is known: a stale run
+            # for a superseded head must never masquerade as the current verdict.
+            if head_sha and entry.get("headSha") != head_sha:
+                continue
+            run_id = entry.get("databaseId")
+            if run_id is not None:
+                break
+        if run_id is None:
+            return CCA_VERDICT_UNRESOLVED
+        tmp = Path(tempfile.mkdtemp(prefix="shiki-cca-verdict-"))
+        try:
+            download = _gh(
+                target,
+                ["run", "download", str(run_id), "--name", CCA_EVIDENCE_ARTIFACT_NAME, "--dir", str(tmp)],
+                check=False,
+            )
+            if download.returncode != 0:
+                return CCA_VERDICT_UNRESOLVED
+            verdict_path = tmp / CCA_VERDICT_BASENAME
+            if not verdict_path.is_file():
+                return CCA_VERDICT_UNRESOLVED
+            data = json.loads(verdict_path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                return CCA_VERDICT_UNRESOLVED
+            verdict = data.get("verdict")
+            if isinstance(verdict, str) and verdict in CCA_VERDICT_VALUES:
+                return verdict
+            return CCA_VERDICT_UNRESOLVED
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    except Exception:
+        # Read-only resolution never crashes the loop: any error IS the
+        # unresolvable case (fail closed), never a raised exception.
+        return CCA_VERDICT_UNRESOLVED
 
 
 def repair_attempts_for(target: Path, task_id: str) -> int:
@@ -511,18 +675,39 @@ def _dispatch(target: Path, task: dict[str, Any], *, repair_id: str | None = Non
     return dispatch_runner_task(args, adapter)
 
 
-def _dispatch_repair(target: Path, task: dict[str, Any], failed_checks: list[str], attempt: int) -> dict[str, Any]:
+def _dispatch_repair(
+    target: Path,
+    task: dict[str, Any],
+    failed_checks: list[str],
+    attempt: int,
+    *,
+    cca_verdict: str | None = None,
+) -> dict[str, Any]:
     from shiki_tasks import LOOP_OWNS_DELIVERY_PROHIBITION, cmd_handoff_repair, create_repair_packet
 
     pr = task.get("expected_pr")
     if not pr:
         raise ShikiError(f"task {task['id']} has no PR; repair packets require an existing PR")
+    # The `CCA verdict` check itself is never a repair item (DEFECT A): decide_task_
+    # action strips it from failed_checks before dispatching, so a repair packet
+    # never says "make the CCA verdict pass" with nothing concrete to fix. When the
+    # verdict was repair_required / insufficient_evidence and CCA was the sole red
+    # check, name the verdict's blocking findings instead of the meta check.
+    if failed_checks:
+        failing_items = [f"required check failed: {name}" for name in failed_checks]
+    elif cca_verdict in {"repair_required", "insufficient_evidence"}:
+        failing_items = [
+            f"CCA verdict is {cca_verdict}; address the CCA's blocking checklist and "
+            "acceptance findings recorded on the PR"
+        ]
+    else:
+        failing_items = ["task is repair-needed"]
     repair_id, _, _ = create_repair_packet(
         target,
         task_id=task["id"],
         pr=int(pr),
         attempt=attempt,
-        failing_items=[f"required check failed: {name}" for name in failed_checks] or ["task is repair-needed"],
+        failing_items=failing_items,
         failing_acceptance_criteria=[],
         minimal_changes=["Fix the failing required checks without broadening scope."],
         # The commit/push prohibition is the SAME line the task handoff carries, so
@@ -1442,6 +1627,12 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
         task.setdefault("ledger_evidence", []).append(ledger_id)
         task["cca_rerun_count"] = int(task.get("cca_rerun_count") or 0) + 1
         _save_task(target, task)
+        # DEFECT B — carry the rerun ledger (and the transitive evidence it and the
+        # rest of ledger_evidence cite) onto the task branch. The PR already exists,
+        # so the append above lands only in the COORDINATOR mirror; without this the
+        # branch cites a ledger it does not carry and MergeGate's metadata check
+        # fails closed with "Task ledger evidence L-… is missing".
+        result["state_sync"] = _sync_state_to_branch(target, task_id, ledger_id)
         # Auto-capture (proposal 3.3, source=cca_fail). The structured check
         # state — not free-text gh output — drove this rerun; the memory stores a
         # short claim and the rerun ledger reference only.
@@ -1458,7 +1649,15 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
         )
     elif action == "dispatch_repair":
         attempt = repair_attempts_for(target, task_id) + 1
-        result.update(_dispatch_repair(target, task, decision.get("failed_checks", []), attempt))
+        result.update(
+            _dispatch_repair(
+                target,
+                task,
+                decision.get("failed_checks", []),
+                attempt,
+                cca_verdict=decision.get("cca_verdict"),
+            )
+        )
         # Deliver the repair to the PR head, exactly as the create_pr branch
         # delivers the initial implementation. The repair runner writes its fix
         # into the worktree but — like the impl runner — does not commit/push;
@@ -1492,6 +1691,12 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
                 "or re-dispatch"
             )
             return result
+        # DEFECT B — the repair effector appended a repair ledger (and the runner may
+        # append more) to the COORDINATOR mirror; carry those, plus the transitive
+        # evidence ledger_evidence cites, onto the task branch so MergeGate does not
+        # block the re-run with "Task ledger evidence L-… is missing". Sync AFTER the
+        # head-movement guard so this evidence commit never masks a no-op repair.
+        result["state_sync"] = _sync_state_to_branch(target, task_id, None)
     elif action == "create_closeout_pr":
         # ADR 0012: the impl PR merged; open a closeout PR that pushes the terminal
         # state (task=done + lock=released + goal=complete) to main. The effector
@@ -1563,8 +1768,17 @@ def goal_loop_step(target: Path, goal_id: str) -> dict[str, Any]:
     for task in tasks:
         pr_state, checks = (None, {})
         lease_state = None
+        cca_verdict = None
         if task.get("status") == "review":
             pr_state, checks = snapshot_pr(target, task)
+            # DEFECT A: when the `CCA verdict` required check is red on an impl PR,
+            # resolve the verdict VALUE read-only from durable CI evidence so the
+            # pure engine can gate on it (a needs_guardian / blocked / complete /
+            # unresolvable verdict is never handed to a repair). The bookkeeping
+            # closeout path has its own CCA handling and never dispatches a repair,
+            # so it does not need the value.
+            if checks.get(CCA_VERDICT_CHECK) == "fail" and not task.get("closeout_pr"):
+                cca_verdict = _resolve_cca_verdict(target, task, pr_state)
         elif task.get("status") == "running":
             # Probe the OS lease so a stranded `running` task (session died) is
             # distinguished from a live one instead of waiting on it forever.
@@ -1579,6 +1793,7 @@ def goal_loop_step(target: Path, goal_id: str) -> dict[str, Any]:
                 required_checks=list(required_checks),
                 cca_reruns=int(task.get("cca_rerun_count") or 0),
                 lease_state=lease_state,
+                cca_verdict=cca_verdict,
             )
         )
     decision = decide_goal_action(decisions, tasks)
