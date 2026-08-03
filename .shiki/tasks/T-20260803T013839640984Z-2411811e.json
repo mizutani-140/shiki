@@ -14,6 +14,7 @@
     "No file outside the declared locks is changed."
   ],
   "assigned_runtime": "claude-code",
+  "cca_rerun_count": 1,
   "dependencies": [
     "T-20260803T013839640380Z-ca171b22"
   ],
@@ -32,7 +33,8 @@
     "L-20260803T055931280548Z-cbe79584",
     "L-20260803T060516389405Z-908b5075",
     "L-20260803T060819162498Z-fba7c405",
-    "L-20260803T060822847255Z-68702121"
+    "L-20260803T060822847255Z-68702121",
+    "L-20260803T061225450171Z-8f219c5c"
   ],
   "locks": [
     "path:scripts/shiki_installer.py",
