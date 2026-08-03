@@ -16,7 +16,7 @@
   "cca_rerun_count": 2,
   "dependencies": [],
   "expected_branch": "shiki/t-20260801t040836631930z-97030be9-closeout",
-  "expected_pr": 239,
+  "expected_pr": 244,
   "github_issue": null,
   "goal_id": "G-20260801T040836630398Z-f28167e5",
   "id": "T-20260801T040836631930Z-97030be9",
@@ -30,7 +30,8 @@
     "L-20260801T071151679613Z-d6a0d0f2",
     "L-20260801T071503603770Z-3513f546",
     "L-20260801T071859989952Z-bff49f41",
-    "L-20260801T072206675974Z-3aa880e0"
+    "L-20260801T072206675974Z-3aa880e0",
+    "L-20260803T012850842131Z-798ab2b4"
   ],
   "locks": [
     "path:scripts/shiki_contract_approval.py",
