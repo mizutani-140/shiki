@@ -329,4 +329,67 @@ if reviews["required_approving_review_count"] != 0:
     raise SystemExit("expected required_approving_review_count to remain 0")
 PY
 
+# --- Install-and-verify: a freshly installed target must pass its OWN required
+# checks. This is the acceptance for shipping completeness: if a fresh install
+# cannot pass validate + unittest discovery + its shipped contract tests, the
+# shipping surface is incomplete. The nested contract-test loop below re-runs
+# this very script from inside the target, so the block is guarded to run once.
+if [ "${SHIKI_INIT_SKIP_INSTALL_VERIFY:-0}" != "1" ]; then
+  # should_skip must keep the local-only session-lease directory out of a target
+  # (and a lease lock must never be committable there), for the same reason it
+  # already filters .shiki/ledger and .shiki/gha.
+  python3 - <<'PY'
+import sys
+from pathlib import Path
+
+sys.path.insert(0, "scripts")
+from shiki_installer import should_skip, ROOT
+
+assert should_skip(ROOT / ".shiki/leases/example.lock", target_install=True), \
+    "should_skip must filter .shiki/leases lock files on target install"
+assert should_skip(ROOT / ".shiki/leases", target_install=True), \
+    "should_skip must filter the .shiki/leases directory on target install"
+assert should_skip(ROOT / ".shiki/ledger/L-1.json", target_install=True)
+assert should_skip(ROOT / ".shiki/gha/pr.json", target_install=True)
+assert not should_skip(ROOT / "scripts/shiki.py", target_install=True), \
+    "shipped source must not be skipped on target install"
+print("should_skip leases-filter assertions passed")
+PY
+
+  VERIFY_TARGET="$TMP_ROOT/install-verify"
+  mkdir -p "$VERIFY_TARGET"
+  python3 scripts/shiki.py install-target "$VERIFY_TARGET" --local-only >/tmp/shiki-install-verify.out
+
+  # No session-lease lock may reach a target; the installed .gitignore must ignore
+  # the leases directory so one can never become committable there.
+  test -z "$(find "$VERIFY_TARGET/.shiki/leases" -mindepth 1 -print -quit 2>/dev/null)"
+  test -f "$VERIFY_TARGET/.gitignore"
+  GITIGNORE_CHECK="$TMP_ROOT/gitignore-check"
+  mkdir -p "$GITIGNORE_CHECK/.shiki/leases"
+  git -C "$GITIGNORE_CHECK" init -q >/dev/null
+  cp "$VERIFY_TARGET/.gitignore" "$GITIGNORE_CHECK/.gitignore"
+  : >"$GITIGNORE_CHECK/.shiki/leases/example.lock"
+  git -C "$GITIGNORE_CHECK" check-ignore -q ".shiki/leases/example.lock"
+
+  # From inside the freshly installed target, every required check the shipped
+  # Validate Shiki workflow runs must pass with zero failures. Setting the guard
+  # keeps the nested test_shiki_init.sh from recursing into this block.
+  (
+    cd "$VERIFY_TARGET"
+    export SHIKI_INIT_SKIP_INSTALL_VERIFY=1
+    python3 scripts/validate_shiki.py >/tmp/shiki-install-verify-validate.out 2>&1 \
+      || { echo "install-verify: target validate_shiki failed" >&2; \
+           cat /tmp/shiki-install-verify-validate.out >&2; exit 1; }
+    python3 -m unittest discover -s tests >/tmp/shiki-install-verify-unittest.out 2>&1 \
+      || { echo "install-verify: target unittest discovery failed" >&2; \
+           cat /tmp/shiki-install-verify-unittest.out >&2; exit 1; }
+    for script in scripts/test_shiki_*.sh; do
+      bash "$script" >/tmp/shiki-install-verify-contract.out 2>&1 \
+        || { echo "install-verify: target contract test failed: $script" >&2; \
+             cat /tmp/shiki-install-verify-contract.out >&2; exit 1; }
+    done
+  )
+  echo "install-and-verify passed: fresh target passes its own required checks"
+fi
+
 echo "shiki init tests passed"

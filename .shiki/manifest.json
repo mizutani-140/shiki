@@ -325,7 +325,8 @@
       ".shiki/memories"
     ],
     "exclude_from_commit": [
-      ".shiki/gha/**"
+      ".shiki/gha/**",
+      ".shiki/leases/**"
     ]
   }
 }
