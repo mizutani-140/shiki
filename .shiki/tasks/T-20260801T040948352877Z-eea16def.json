@@ -14,7 +14,7 @@
     "No file outside the declared locks is changed."
   ],
   "assigned_runtime": "claude-code",
-  "cca_rerun_count": 1,
+  "cca_rerun_count": 2,
   "dependencies": [
     "T-20260801T040948352279Z-07301e34"
   ],
@@ -32,7 +32,8 @@
     "L-20260803T095019401492Z-14af68bd",
     "L-20260803T095133719442Z-81160f3a",
     "L-20260803T095137446108Z-905290f4",
-    "L-20260803T095543105991Z-9af64645"
+    "L-20260803T095543105991Z-9af64645",
+    "L-20260803T100036279645Z-eeb4a9be"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
