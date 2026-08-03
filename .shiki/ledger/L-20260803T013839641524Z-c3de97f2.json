@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260803T013839641506Z-d11bb45f.json"
+  ],
+  "goal_id": "G-20260803T013839638288Z-eebb39bf",
+  "id": "L-20260803T013839641524Z-c3de97f2",
+  "links": [],
+  "summary": "Task registered from plan: Give a target a version stamp and detect drift against it",
+  "task_id": "T-20260803T013839641506Z-d11bb45f",
+  "timestamp": "2026-08-03T01:38:39+00:00",
+  "type": "task-registered"
+}
