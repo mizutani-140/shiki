@@ -14,16 +14,27 @@
     "No file outside the declared locks is changed."
   ],
   "assigned_runtime": "claude-code",
+  "cca_rerun_count": 1,
   "dependencies": [
     "T-20260803T013839640380Z-ca171b22"
   ],
   "expected_branch": "shiki/t-20260803t013839640984z-2411811e-make-an-upgrade-upgrade-the-governance-contract-",
-  "expected_pr": null,
+  "expected_pr": 248,
   "github_issue": null,
   "goal_id": "G-20260803T013839638288Z-eebb39bf",
   "id": "T-20260803T013839640984Z-2411811e",
   "ledger_evidence": [
-    "L-20260803T013839641005Z-92507836"
+    "L-20260803T013839641005Z-92507836",
+    "L-20260803T045532425143Z-8e67491d",
+    "L-20260803T045545203882Z-d8789b6a",
+    "L-20260803T051754395303Z-ad69eb95",
+    "L-20260803T054813373866Z-2d36a3d7",
+    "L-20260803T055349417906Z-fd5a47c7",
+    "L-20260803T055931280548Z-cbe79584",
+    "L-20260803T060516389405Z-908b5075",
+    "L-20260803T060819162498Z-fba7c405",
+    "L-20260803T060822847255Z-68702121",
+    "L-20260803T061225450171Z-8f219c5c"
   ],
   "locks": [
     "path:scripts/shiki_installer.py",
@@ -42,13 +53,34 @@
     "Changing any gate or schema",
     "Touching any file outside the declared locks"
   ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "The new codeowners_required_owner() resolver is added to scripts/shiki_contracts.py and unit-tested in isolation, but the actual enforcement points \u2014 validate_shiki.py:1574/:1576 and shiki_doctor.py:447/:456-457 \u2014 still consume the module-level constant CODEOWNERS_REQUIRED_OWNER unchanged. So a target owned by anyone other than @mizutani-140 will still FAIL its CODEOWNERS check in validate_shiki and doctor, which is exactly the outcome the scope says to eliminate ('so a repository owned by anyone else can satisfy its own CODEOWNERS check'). The resolver is effectively dead code with respect to production behavior. validate_shiki.py and shiki_doctor.py are outside this task's locks, so wiring cannot be done in this PR without tripping files_outside_locks; the literal test-based acceptance ('owner is target-resolved, proved with a fixture') is satisfied. Recommend a follow-up task with expanded locks to actually pass the resolved owner into the two validators, plus a test asserting a differently-owned target PASSES the wired gate (not just that the function returns the right string).",
+        "severity": "medium",
+        "title": "CODEOWNERS resolver is not wired into enforcement \u2014 stated goal only partially met"
+      },
+      {
+        "detail": "docs/operations.md numbers 'Refresh with --force' as step 2 and 'Apply mirror migrations' (shiki migrate) as step 3, but refuse_pending_migrations makes --force abort when migrations are pending, requiring migrate to run first. The prose patches this ('apply migrations first (step 3), then re-run'), yet an operator following the numbered sequence literally will hit the refusal on step 2. Consider reordering the steps or making the numbering match the required order so the happy path is unambiguous.",
+        "severity": "low",
+        "title": "Docs step ordering contradicts the pending-migration refusal"
+      },
+      {
+        "detail": "refuse_pending_migrations is called at the top of install_template regardless of the force flag, so a plain re-run (no --force) against a valid-but-behind target now raises ShikiError instead of the prior warn-and-exit-0. This is a reasonable safety improvement, but the docs frame the refusal specifically as a --force behavior ('If the target has pending migrations, --force refuses'), so the code refuses more broadly than documented. Worth a one-line doc note or a deliberate decision to gate the refusal on force=True to match the documented contract.",
+        "severity": "low",
+        "title": "refuse_pending_migrations runs unconditionally, changing non-force behavior"
+      }
+    ],
+    "ledger_id": "L-20260803T060516389405Z-908b5075",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "critical",
   "scope": "Replace the two-way preserve/overwrite split with a three-way one, so nothing is lost and nothing is silently stale.\n  - PROJECT CONTENT \u2014 `CONTEXT.md`, `AGENTS.md`, `CLAUDE.md`, `.github/CODEOWNERS` \u2014 is never overwritten, even under `--force`. The incoming template is written alongside as `<file>.new` and reported, so the operator can merge deliberately.\n  - GOVERNANCE CONTRACT \u2014 `.shiki/config.yaml`, `.shiki/guardian-policy.json` \u2014 is likewise never silently kept: write `<file>.new` alongside and report a per-key summary of what differs, naming `mergegate.required_checks` and `approval_sources` explicitly because those two decide what branch protection requires and what can approve. `.shiki/migrations/state.json` stays preserved outright \u2014 it is target history, not a contract.\n  - EVERYTHING ELSE is overwritten under `--force`, as today.\nThe run must print, at the end, a single explicit summary of every `.new` written, so a half-upgrade is visible rather than inferred.\n\nMove the precondition checks AHEAD of any file write. Measured order today: `install_template` \u2014 which validates INSIDE itself \u2014 runs at `scripts/shiki_bootstrap.py:235`, before `write_target_repo_config`, `commit_manifest`, `push_branch`, `configure_claude_code_secret` and `protect_branch`. A target with pending migrations therefore has its tree rewritten and then the run aborts before commit, push, secret and branch protection. Validate first; write nothing until the preconditions pass.\n\nDocument `--force` in `docs/operations.md` and `docs/releasing.md` as the required flag for an upgrade, replacing the current claim that re-running the bootstrap is idempotent, and document the `.new` convention.\n\nReplace the hardcoded `CODEOWNERS_REQUIRED_OWNER = \"@mizutani-140\"` in `scripts/shiki_contracts.py` with a value resolved per target, so a repository owned by anyone else can satisfy its own CODEOWNERS check. Keep the current value as the default for this repository.\n\nAdd `tests/test_install_force_semantics.py`: without `--force` nothing existing changes (the current behaviour, pinned); with `--force`, each of the four project-content files keeps its content and gains a `.new`; each of the two governance files keeps its content, gains a `.new`, and is named in the summary; `migrations/state.json` gains no `.new` and is untouched; every other file is overwritten; a target with pending migrations is refused with NO file written \u2014 asserted by content hashing the tree before and after; and the CODEOWNERS owner is target-resolved, proved with a fixture naming a different owner.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom 1: the operator follows `docs/operations.md:72-74`, re-runs the bootstrap, sees exit 0 and hundreds of `kept existing file:` warnings, and believes the target is upgraded. Nothing changed. The stale gate keeps running and keeps reporting green.\n  Measured: `--force` is `store_true` with default False (`scripts/shiki_cli.py:42`, `:100`); `copy_path` returns after warning `kept existing file:` when the destination exists and `force` is false. `--force` appears nowhere in `docs/operations.md` or `docs/releasing.md`.\n  Symptom 2: the operator discovers `--force`, and it overwrites `CONTEXT.md` \u2014 the glossary AGENTS.md names as the source of truth for domain language \u2014 plus `AGENTS.md`, `CLAUDE.md` and `.github/CODEOWNERS`, with no prompt and no backup, while keeping `.shiki/config.yaml` and `.shiki/guardian-policy.json`.\n  Measured: `PRESERVE_UNDER_FORCE == ('.shiki/guardian-policy.json', '.shiki/config.yaml', '.shiki/migrations/state.json')`; everything else is copied over.\n  Why that split is exactly backwards: `config.yaml` carries `mergegate.required_checks`, which `shiki init --protect` pushes to GitHub as the branch-protection contexts. A gate job added upstream therefore runs in the upgraded target, posts its check, can go red \u2014 and blocks nothing, because the preserved config never listed it. `guardian-policy.json` carries `approval_sources`; a source added upstream is absent from an old target's policy, and a missing block defaults to disabled, so the approval path is silently off. Both states pass `validate_shiki` and `doctor`.\n  Why neither direction can simply be flipped: overwriting either file would destroy target-specific values. Writing `<file>.new` plus an explicit summary is what makes the difference visible without losing anything.\n  Reproducible when: an upgrade of a target with an older config reports exactly which governance keys differ, leaves every project-content file intact, and refuses without writing anything when the target has pending migrations.",
-  "status": "planned",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_init.sh && bash scripts/test_shiki_doctor.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Make an upgrade upgrade the governance contract and never destroy project content"
 }

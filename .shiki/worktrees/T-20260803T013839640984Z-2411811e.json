@@ -1,0 +1,21 @@
+{
+  "branch": "shiki/t-20260803t013839640984z-2411811e-make-an-upgrade-upgrade-the-governance-contract-",
+  "created_at": "2026-08-03T04:55:32+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260803T013839638288Z-eebb39bf",
+  "locks": [
+    "path:scripts/shiki_installer.py",
+    "path:scripts/shiki_bootstrap.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/shiki_contracts.py",
+    "path:docs/operations.md",
+    "path:docs/releasing.md",
+    "path:tests/test_install_force_semantics.py",
+    "path:scripts/test_shiki_init.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260803t013839640984z-2411811e-make-an-",
+  "pr": 248,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260803T013839640984Z-2411811e"
+}

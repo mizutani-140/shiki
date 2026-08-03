@@ -6,6 +6,9 @@ import it before target repositories have project dependencies installed.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from shiki_runtime_registry import runtime_names
 
 
@@ -23,7 +26,32 @@ DEFAULT_REQUIRED_CHECKS = (
 )
 
 CODEOWNERS_PATH = ".github/CODEOWNERS"
+# Default required CODEOWNERS owner for this repository. Kept as the fallback so
+# this platform repo's behaviour is unchanged; a target resolves its own owner
+# from ``.shiki/repo.json`` via ``codeowners_required_owner`` so a repository
+# owned by anyone else can satisfy its own CODEOWNERS check.
 CODEOWNERS_REQUIRED_OWNER = "@mizutani-140"
+
+
+def codeowners_required_owner(target: Path | str = ".") -> str:
+    """Resolve the required CODEOWNERS owner for ``target``.
+
+    A target records its GitHub repository as ``OWNER/NAME`` in
+    ``.shiki/repo.json``; the required owner is ``@OWNER``. When no repo config is
+    present (as in this platform repository), fall back to the documented default
+    so existing behaviour is unchanged.
+    """
+    repo_json = Path(target) / ".shiki" / "repo.json"
+    try:
+        data = json.loads(repo_json.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return CODEOWNERS_REQUIRED_OWNER
+    repo = data.get("repo") if isinstance(data, dict) else None
+    if isinstance(repo, str) and "/" in repo:
+        owner = repo.split("/", 1)[0].strip()
+        if owner:
+            return owner if owner.startswith("@") else f"@{owner}"
+    return CODEOWNERS_REQUIRED_OWNER
 CODEOWNERS_CRITICAL_PATHS = (
     "/.shiki/config.yaml",
     "/.shiki/guardian-policy.json",

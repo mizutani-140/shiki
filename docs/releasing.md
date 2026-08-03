@@ -139,7 +139,22 @@ Target repositories upgrade by re-installing the newer template surface and then
 applying any repository-local state migrations:
 
 1. Re-run the install/bootstrap path for the target against the new Shiki version
-   (see Install paths above).
+   (see Install paths above) **with `--force`**. `--force` is the flag that makes
+   a re-run an upgrade: without it an existing file is kept (a `kept existing
+   file:` warning) and the run still exits 0, so re-running the bootstrap alone
+   is not idempotent proof that the target changed. Under `--force` the shipped
+   surface splits three ways — project content (`CONTEXT.md`, `AGENTS.md`,
+   `CLAUDE.md`, `.github/CODEOWNERS`) and the governance contract
+   (`.shiki/config.yaml`, `.shiki/guardian-policy.json`) are never overwritten
+   but written alongside as `<file>.new` for deliberate merge (the governance
+   report names `mergegate.required_checks` and `approval_sources` when they
+   differ); `.shiki/migrations/state.json` is preserved outright; everything else
+   is overwritten. The `.new` convention (write the incoming template beside the
+   kept file, review, then delete the `.new`) and the end-of-run summary of every
+   `.new` written are detailed in
+   [docs/operations.md](operations.md#the-new-convention). If the target has
+   pending migrations, `--force` refuses and writes nothing; apply migrations
+   (step 2) first, then re-run.
 2. Apply repository-local `.shiki/` state migrations with the migrate command:
 
    ```bash
