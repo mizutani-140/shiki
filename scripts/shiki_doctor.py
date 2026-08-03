@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -15,6 +16,12 @@ from typing import Any, Literal
 
 from shiki_git import current_branch, existing_origin_url, is_git_repo
 from shiki_evidence import CCA_EVIDENCE_MANIFEST_PATH
+from shiki_installer import (
+    INSTALL_STAMP_PATH,
+    commit_is_ancestor,
+    platform_commit,
+    read_install_stamp,
+)
 from shiki_guardian import GUARDIAN_POLICY_PATH, GuardianPolicyError, load_guardian_policy, validate_guardian_policy
 from shiki_manifest import ManifestError, load_manifest, manifest_required_directories, manifest_required_files, manifest_runtime_directories
 from shiki_migrations import MIGRATION_STATE_PATH, migration_status
@@ -968,6 +975,153 @@ def _online_findings(config: ProviderConfig | None, local_config: dict[str, Any]
     return findings
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def _install_stamp_content_finding(target: Path, stamp: dict[str, Any]) -> DoctorFinding:
+    digests = stamp.get("digests")
+    if not isinstance(digests, dict):
+        return _finding(
+            "doctor.install_stamp.content",
+            "fail",
+            "Shipped content drift",
+            "Install stamp is missing its per-path content digests, so drift cannot be checked.",
+            "Regenerate the install stamp by reinstalling with `--force`.",
+            {"path": INSTALL_STAMP_PATH},
+        )
+    drifted: list[str] = []
+    missing: list[str] = []
+    for relative, expected in sorted(digests.items()):
+        if not isinstance(relative, str) or not isinstance(expected, str):
+            continue
+        path = target / relative
+        if not path.is_file():
+            missing.append(relative)
+        elif _sha256_file(path) != expected:
+            drifted.append(relative)
+    problems = sorted(drifted + missing)
+    ok = not problems
+    return _finding(
+        "doctor.install_stamp.content",
+        "pass" if ok else "warn",
+        "Shipped content drift",
+        "All stamped shipped paths match their recorded content digests."
+        if ok
+        else f"Shipped paths differ from their stamped content digests: {', '.join(problems)}.",
+        "Re-run the install/upgrade to restore shipped content, or reconcile the local edits." if not ok else "",
+        {"drifted": drifted, "missing": missing},
+    )
+
+
+def _install_stamp_commit_finding(target: Path, stamp: dict[str, Any]) -> DoctorFinding:
+    commit = stamp.get("platform_commit")
+    if not isinstance(commit, str) or not commit:
+        return _finding(
+            "doctor.install_stamp.platform_commit",
+            "skip",
+            "Platform commit lineage",
+            "Install stamp records no platform commit, so lineage cannot be checked.",
+            details={"path": INSTALL_STAMP_PATH},
+        )
+    head = platform_commit(ROOT)
+    if head is None:
+        return _finding(
+            "doctor.install_stamp.platform_commit",
+            "skip",
+            "Platform commit lineage",
+            "The running platform HEAD could not be resolved (not a git repository), so lineage cannot be checked.",
+            details={"platform_commit": commit},
+        )
+    if commit == head:
+        return _finding(
+            "doctor.install_stamp.platform_commit",
+            "pass",
+            "Platform commit lineage",
+            "Stamped platform commit matches the running platform HEAD.",
+            details={"platform_commit": commit, "platform_head": head},
+        )
+    if commit_is_ancestor(ROOT, commit, head) is True:
+        return _finding(
+            "doctor.install_stamp.platform_commit",
+            "pass",
+            "Platform commit lineage",
+            "Stamped platform commit is an ancestor of the running platform HEAD (an upgrade is available).",
+            details={"platform_commit": commit, "platform_head": head},
+        )
+    return _finding(
+        "doctor.install_stamp.platform_commit",
+        "warn",
+        "Platform commit lineage",
+        f"Stamped platform commit {commit} is not an ancestor of the running platform HEAD {head}; "
+        "the target is ahead of, or from a different lineage than, the running platform.",
+        "Confirm you are running the platform version that produced this target, or reconcile the lineage.",
+        {"platform_commit": commit, "platform_head": head},
+    )
+
+
+def _install_stamp_findings(target: Path) -> list[DoctorFinding]:
+    """Report drift from the target's install stamp (absent stamp is never a pass)."""
+    stamp_path = target / INSTALL_STAMP_PATH
+    if not stamp_path.exists():
+        return [
+            _finding(
+                "doctor.install_stamp.present",
+                "warn",
+                "Install version stamp",
+                "No install version stamp is present; this target predates install stamping, "
+                "so its provenance and shipped-content drift cannot be verified.",
+                f"Refresh the install with `shiki install-target {target} --local-only --force` to write a stamp.",
+                {"path": INSTALL_STAMP_PATH},
+            ),
+            _finding(
+                "doctor.install_stamp.content",
+                "skip",
+                "Shipped content drift",
+                "No install stamp, so shipped-content digests cannot be checked.",
+                details={"path": INSTALL_STAMP_PATH},
+            ),
+            _finding(
+                "doctor.install_stamp.platform_commit",
+                "skip",
+                "Platform commit lineage",
+                "No install stamp, so the platform commit lineage cannot be checked.",
+                details={"path": INSTALL_STAMP_PATH},
+            ),
+        ]
+    stamp = read_install_stamp(target)
+    if stamp is None:
+        return [
+            _finding(
+                "doctor.install_stamp.present",
+                "fail",
+                "Install version stamp",
+                "Install stamp is present but unreadable or not a JSON object.",
+                "Regenerate the install stamp by reinstalling with `--force`.",
+                {"path": INSTALL_STAMP_PATH},
+            )
+        ]
+    findings = [
+        _finding(
+            "doctor.install_stamp.present",
+            "pass",
+            "Install version stamp",
+            f"Install stamp records platform commit {stamp.get('platform_commit') or 'unknown'} "
+            f"installed at {stamp.get('installed_at') or 'unknown'}.",
+            details={
+                "path": INSTALL_STAMP_PATH,
+                "platform_commit": stamp.get("platform_commit"),
+                "installed_at": stamp.get("installed_at"),
+            },
+        ),
+        _install_stamp_content_finding(target, stamp),
+        _install_stamp_commit_finding(target, stamp),
+    ]
+    return findings
+
+
 def doctor_findings(target: Path, *, online: bool = False) -> list[DoctorFinding]:
     target = target.expanduser().resolve()
     findings: list[DoctorFinding] = []
@@ -997,6 +1151,7 @@ def doctor_findings(target: Path, *, online: bool = False) -> list[DoctorFinding
     findings.extend(_manifest_findings(target))
     findings.extend(_state_class_findings(target))
     findings.extend(_migration_findings(target))
+    findings.extend(_install_stamp_findings(target))
     findings.extend(_guardian_findings(target))
     findings.extend(_evidence_integrity_findings(target))
     findings.extend(_runtime_findings(target, config))

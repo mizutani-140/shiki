@@ -371,4 +371,35 @@ git -C "$ORPHAN_WT" worktree add "$TMP_ROOT/.worktrees/shiki-orphan-task" -b shi
 expect_fail python3 scripts/shiki.py doctor --json --target "$ORPHAN_WT"
 test "$(finding_status /tmp/shiki-doctor-expected-fail.out doctor.worktrees.unregistered)" = "fail"
 
+# --- Install version stamp drift -------------------------------------------
+# A uniformly-old target is internally consistent, so validate + doctor look
+# identical to a current one. The install stamp is the instrument that removes
+# that blind spot; doctor reports drift from it as real findings.
+
+# A fresh install writes a stamp; doctor reports no shipped-content drift.
+STAMP_OK="$TMP_ROOT/stamp-ok"
+make_target "$STAMP_OK"
+test -f "$STAMP_OK/.shiki/install-stamp.json"
+python3 scripts/shiki.py doctor --json --target "$STAMP_OK" >/tmp/shiki-doctor-stamp-ok.json || true
+test "$(finding_status /tmp/shiki-doctor-stamp-ok.json doctor.install_stamp.present)" = "pass"
+test "$(finding_status /tmp/shiki-doctor-stamp-ok.json doctor.install_stamp.content)" = "pass"
+
+# Editing one shipped file makes doctor report drift naming that exact path;
+# --strict then fails on it.
+STAMP_DRIFT="$TMP_ROOT/stamp-drift"
+make_target "$STAMP_DRIFT"
+printf '\n# local edit\n' >>"$STAMP_DRIFT/scripts/shiki_git.py"
+python3 scripts/shiki.py doctor --json --target "$STAMP_DRIFT" >/tmp/shiki-doctor-stamp-drift.json || true
+test "$(finding_status /tmp/shiki-doctor-stamp-drift.json doctor.install_stamp.content)" = "warn"
+grep "scripts/shiki_git.py" /tmp/shiki-doctor-stamp-drift.json >/dev/null
+expect_fail python3 scripts/shiki.py doctor --json --strict --target "$STAMP_DRIFT"
+
+# An absent stamp is a distinct finding (warn), never a pass; --strict fails.
+STAMP_ABSENT="$TMP_ROOT/stamp-absent"
+make_target "$STAMP_ABSENT"
+rm "$STAMP_ABSENT/.shiki/install-stamp.json"
+python3 scripts/shiki.py doctor --json --target "$STAMP_ABSENT" >/tmp/shiki-doctor-stamp-absent.json || true
+test "$(finding_status /tmp/shiki-doctor-stamp-absent.json doctor.install_stamp.present)" = "warn"
+expect_fail python3 scripts/shiki.py doctor --json --strict --target "$STAMP_ABSENT"
+
 echo "shiki doctor tests passed"
