@@ -9,6 +9,6 @@
     "path:scripts/test_shiki_guardian_policy.sh"
   ],
   "owner": "shiki-run",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260801T040836631930Z-97030be9"
 }
