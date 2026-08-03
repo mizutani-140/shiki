@@ -401,7 +401,7 @@ JSON
 cat >"$GH_STATE/cca-verdict.json" <<'JSON'
 {"verdict":"needs_guardian","pr":88,"head_sha":"","task_id":"placeholder","goal_id":"placeholder","summary":"a human must approve"}
 JSON
-VERDICT_PACKETS_BEFORE="$(ls "$TARGET/.shiki/repairs"/RP-*.json 2>/dev/null | wc -l | tr -d ' ')"
+VERDICT_PACKETS_BEFORE="$(find "$TARGET/.shiki/repairs" -maxdepth 1 -name 'RP-*.json' -type f 2>/dev/null | wc -l | tr -d ' ')"
 if python3 "$ROOT/scripts/shiki.py" loop step --target "$TARGET" --goal-id "$VGOAL" >/tmp/shiki-goal-loop-verdict.json; then
   echo "expected needs_guardian verdict stop to exit non-zero" >&2
   exit 1
@@ -409,7 +409,7 @@ fi
 test "$(json_get_last /tmp/shiki-goal-loop-verdict.json action)" = "stop_guardian"
 grep "needs_guardian" /tmp/shiki-goal-loop-verdict.json >/dev/null
 # No repair packet was created — the Guardian gate never consumes a repair attempt.
-VERDICT_PACKETS_AFTER="$(ls "$TARGET/.shiki/repairs"/RP-*.json 2>/dev/null | wc -l | tr -d ' ')"
+VERDICT_PACKETS_AFTER="$(find "$TARGET/.shiki/repairs" -maxdepth 1 -name 'RP-*.json' -type f 2>/dev/null | wc -l | tr -d ' ')"
 test "$VERDICT_PACKETS_BEFORE" = "$VERDICT_PACKETS_AFTER"
 # Clean up the CCA fixtures so they cannot leak into any later case.
 rm -f "$GH_STATE/cca-run.json" "$GH_STATE/cca-verdict.json"
