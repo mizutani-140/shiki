@@ -42,6 +42,12 @@ from shiki_tasks import (
 )
 
 AUTO_MERGE_RISKS = {"low", "medium"}
+# GitHub's `mergeStateStatus` value meaning "the base moved while the PR was open
+# and up-to-date branch protection requires a base merge before merging". It is the
+# ONLY mergeStateStatus the loop remediates: every other non-mergeable state
+# (DIRTY = real conflict, BLOCKED = missing review/checks, ...) falls through to the
+# merge effector, whose existing failure message still covers those cases.
+MERGE_STATE_BEHIND = "BEHIND"
 # The Guardian/policy gate. It enforces guardian-policy.json (human
 # review/label/comment OR an external AI guardian review, ADR 0010) and is the
 # ONLY required check that must never become an auto-repair target: an
@@ -80,6 +86,7 @@ ACTION_PRIORITY = (
     "mark_done",
     "create_closeout_pr",
     "merge",
+    "sync_branch",
     "rerun_cca",
     "dispatch_repair",
     "create_pr",
@@ -89,6 +96,30 @@ ACTION_PRIORITY = (
 )
 STOP_ACTIONS = {"stop_guardian", "stop_blocked", "stop_lock_blocked"}
 WAIT_ACTIONS = {"wait_checks", "wait_runner", "wait_dependencies", "none"}
+
+
+def _merge_or_sync(task_id: str, pr_state: dict[str, Any] | None, merge_reason: str) -> dict[str, Any]:
+    """The final merge-gate choice: ``merge``, or ``sync_branch`` when BEHIND.
+
+    Reached only once a PR is otherwise ready to merge — every required check
+    green, the Guardian gate resolved, the merge decision already made. When the
+    branch has simply fallen behind its base (``mergeStateStatus == BEHIND``), a
+    merge would fail under up-to-date branch protection with nothing actually
+    wrong, so the loop takes a bounded ``sync_branch`` action first and re-verifies
+    the new head. Every other state (CLEAN, DIRTY, BLOCKED, a missing status)
+    proceeds to ``merge`` unchanged: a real conflict or protection failure is left
+    for the merge effector's existing failure message.
+    """
+    if (pr_state or {}).get("merge_state_status") == MERGE_STATE_BEHIND:
+        return {
+            "action": "sync_branch",
+            "task_id": task_id,
+            "reason": (
+                "PR is ready to merge but its branch is BEHIND the base; sync the base "
+                "into the branch and re-verify the checks before merging"
+            ),
+        }
+    return {"action": "merge", "task_id": task_id, "reason": merge_reason}
 
 
 def decide_task_action(
@@ -226,7 +257,7 @@ def decide_task_action(
             return {"action": "wait_checks", "task_id": task_id, "reason": f"closeout PR checks pending: {', '.join(pending)}"}
         risk = str(task.get("risk_level") or "low")
         if risk in AUTO_MERGE_RISKS or POLICY_GATE in required_checks:
-            return {"action": "merge", "task_id": task_id, "reason": "closeout PR checks green; merge to push completion to main"}
+            return _merge_or_sync(task_id, pr_state, "closeout PR checks green; merge to push completion to main")
         return {"action": "stop_guardian", "task_id": task_id, "reason": f"closeout PR green but risk {risk} needs Guardian and no policy gate is configured"}
 
     checks = checks or {}
@@ -306,18 +337,18 @@ def decide_task_action(
         }
     risk = str(risk)
     if risk in AUTO_MERGE_RISKS:
-        return {"action": "merge", "task_id": task_id, "reason": f"all required checks green and risk {risk} permits auto-merge"}
+        return _merge_or_sync(task_id, pr_state, f"all required checks green and risk {risk} permits auto-merge")
     # High/critical risk requires Guardian approval, but the "MergeGate policy
     # check" required check IS the Guardian gate: it enforces guardian-policy.json
     # (human review/label/comment OR an external AI guardian review, ADR 0010).
     # When it is green, Guardian approval — by whatever authority — was recorded,
     # so the loop may merge autonomously.
     if "MergeGate policy check" in required_checks:
-        return {
-            "action": "merge",
-            "task_id": task_id,
-            "reason": f"all required checks green incl. the MergeGate policy Guardian gate; risk {risk} approved by recorded authority",
-        }
+        return _merge_or_sync(
+            task_id,
+            pr_state,
+            f"all required checks green incl. the MergeGate policy Guardian gate; risk {risk} approved by recorded authority",
+        )
     return {
         "action": "stop_guardian",
         "task_id": task_id,
@@ -416,7 +447,7 @@ def snapshot_pr(target: Path, task: dict[str, Any]) -> tuple[dict[str, Any] | No
     pr = task.get("expected_pr")
     if not pr:
         return None, {}
-    view = _gh(target, ["pr", "view", str(pr), "--json", "state,mergedAt,headRefOid"], check=False)
+    view = _gh(target, ["pr", "view", str(pr), "--json", "state,mergedAt,headRefOid,mergeStateStatus"], check=False)
     if view.returncode != 0:
         # Transient gh/network/auth failure must not be read as "no PR".
         return {"number": pr, "error": True}, {}
@@ -426,6 +457,10 @@ def snapshot_pr(target: Path, task: dict[str, Any]) -> tuple[dict[str, Any] | No
         "state": state.get("state"),
         "merged": bool(state.get("mergedAt")),
         "head_sha": state.get("headRefOid"),
+        # GitHub's computed mergeability: BEHIND means the base moved and up-to-date
+        # branch protection would reject `gh pr merge` even with every check green.
+        # The decision engine syncs the base in first instead of failing the merge.
+        "merge_state_status": state.get("mergeStateStatus"),
     }
     checks: dict[str, str] = {}
     started: dict[str, str] = {}
@@ -1360,6 +1395,105 @@ def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, A
             run(["git", "worktree", "remove", "--force", str(worktree)], cwd=target, check=False)
 
 
+def _sync_branch(target: Path, task: dict[str, Any], *, base: str = "main") -> dict[str, Any]:
+    """Merge the base branch into a PR branch that fell BEHIND, then push it.
+
+    Reached only when the PR is otherwise ready to merge (all required checks
+    green, Guardian resolved) but GitHub reports the branch is BEHIND its base:
+    the base moved while the PR was open and up-to-date branch protection would
+    reject ``gh pr merge`` with nothing actually wrong. This does a plain
+    ``git merge origin/<base>`` in a THROWAWAY detached checkout of the PR branch
+    and a plain ``git push`` — it never rewrites history. Working in a detached
+    checkout of ``origin/<branch>`` (rather than the registered worktree) makes one
+    code path serve both the impl PR and the closeout PR, whose branch has no
+    persistent worktree.
+
+    A base merge that CONFLICTS is aborted so the branch is left byte-identical,
+    and the loop stops with a reason that names the branch — distinct from the
+    generic merge failure, so an operator can tell a real conflict from mechanical
+    staleness (an automatic conflict resolution would silently pick one side of a
+    governance file or lock declaration, so it must never be attempted). A push
+    failure is a separate stop reason. On success the loop returns ``sync_branch``
+    and the next pass waits for the required checks to re-run against the new head
+    before merging. Fails closed to ``stop_blocked`` and never raises into the loop.
+    """
+    import shutil
+    import tempfile
+
+    task_id = str(task.get("id"))
+    branch = str(task.get("expected_branch") or "")
+    if not branch:
+        return {
+            "action": "stop_blocked",
+            "task_id": task_id,
+            "reason": f"task {task_id} has no expected_branch; cannot sync it with origin/{base}",
+        }
+    tmp_parent = None
+    try:
+        # Refresh the tracking refs the checkout/merge below read. In production this
+        # reaches GitHub; if the fetch fails the operation still proceeds against the
+        # already-known origin/* refs (the merge/push report the real error).
+        run(["git", "fetch", "origin", base, branch], cwd=target, check=False)
+        tmp_parent = Path(tempfile.mkdtemp(prefix="shiki-sync-"))
+        worktree = tmp_parent / "wt"
+        add = run(
+            ["git", "worktree", "add", "--detach", str(worktree), f"origin/{branch}"],
+            cwd=target,
+            check=False,
+        )
+        if add.returncode != 0:
+            return {
+                "action": "stop_blocked",
+                "task_id": task_id,
+                "reason": (
+                    f"could not check out {branch} to sync it with origin/{base}: "
+                    f"{(add.stderr or '').strip()[-160:]}"
+                ),
+            }
+        merge = run(["git", "merge", f"origin/{base}"], cwd=worktree, check=False)
+        if merge.returncode != 0:
+            # Abort so the branch is left exactly as it was — never resolve
+            # automatically (see the docstring). This is a genuine conflict.
+            run(["git", "merge", "--abort"], cwd=worktree, check=False)
+            return {
+                "action": "stop_blocked",
+                "task_id": task_id,
+                "reason": (
+                    f"sync of {branch} with origin/{base} CONFLICTED and was aborted; the "
+                    "branch is unchanged — this is a real conflict, not mechanical "
+                    "staleness, so resolve it manually"
+                ),
+            }
+        push = run(["git", "push", "origin", f"HEAD:{branch}"], cwd=worktree, check=False)
+        if push.returncode != 0:
+            return {
+                "action": "stop_blocked",
+                "task_id": task_id,
+                "reason": (
+                    f"sync of {branch} merged origin/{base} cleanly but the push failed: "
+                    f"{(push.stderr or '').strip()[-160:]} — push the synced branch manually"
+                ),
+            }
+        return {
+            "action": "sync_branch",
+            "task_id": task_id,
+            "reason": (
+                f"synced {branch} with origin/{base}; waiting for the required checks to "
+                "re-run against the new head before merging"
+            ),
+        }
+    except Exception as error:  # noqa: BLE001 — the effector must NEVER raise into the loop
+        return {
+            "action": "stop_blocked",
+            "task_id": task_id,
+            "reason": f"sync effector error for {branch}: {str(error)[:160]}",
+        }
+    finally:
+        if tmp_parent is not None:
+            run(["git", "worktree", "remove", "--force", str(tmp_parent / "wt")], cwd=target, check=False)
+            shutil.rmtree(tmp_parent, ignore_errors=True)
+
+
 def _loop_own_ledger_ids(target: Path, task: dict[str, Any]) -> list[str]:
     """This task's loop-authored merge + mark_done ledger ids.
 
@@ -1703,6 +1837,11 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
         # repoints expected_pr to the closeout PR, so the snapshot/merge path drives
         # it next. Fails closed to stop_blocked inside the effector.
         result.update(_create_closeout_pr(target, goal_id, task_id))
+    elif action == "sync_branch":
+        # The PR is otherwise ready to merge but BEHIND its base: merge the base in
+        # and push (never rebase/force-push). On success the loop returns to waiting
+        # for the re-run checks; a conflict or push failure stops with a NAMED reason.
+        result.update(_sync_branch(target, task))
     elif action == "merge":
         pr = task.get("expected_pr")
         merge = _gh(target, ["pr", "merge", str(pr), "--merge"], check=False)
@@ -1842,7 +1981,12 @@ def cmd_loop_run(args: argparse.Namespace) -> int:
         if result["action"] in STOP_ACTIONS:
             print_json({"goal_id": args.goal_id, "outcome": result["action"], "reason": result.get("reason"), "cycles": cycle, "history": history})
             return 1
-        if result["action"] in WAIT_ACTIONS:
+        # A successful `sync_branch` is a forward action, but the loop must then
+        # WAIT: the base merge produced a new head whose required checks GitHub has
+        # not re-queued yet. Pause like a wait so the next pass re-verifies the new
+        # head (and lets `mergeStateStatus` settle) instead of re-snapshotting the
+        # just-pushed head at zero delay and racing GitHub's eventual consistency.
+        if result["action"] in WAIT_ACTIONS or result["action"] == "sync_branch":
             time.sleep(args.interval)
     print_json({"goal_id": args.goal_id, "outcome": "max-cycles", "cycles": args.max_cycles, "history": history})
     return 1

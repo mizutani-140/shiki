@@ -115,10 +115,14 @@ case "${1:-} ${2:-}" in
     exit 0 ;;
   "pr view")
     NUMBER="$3"
+    # mergeStateStatus defaults to CLEAN; a fixture writes merge-state-<N> to drive
+    # the BEHIND (base-moved) path the loop now syncs before merging.
+    MSTATE="CLEAN"
+    [[ -f "$STATE/merge-state-$NUMBER" ]] && MSTATE="$(cat "$STATE/merge-state-$NUMBER")"
     if [[ -f "$STATE/merged-$NUMBER" ]]; then
-      echo '{"state":"MERGED","mergedAt":"2026-06-12T00:00:00Z"}'
+      echo "{\"state\":\"MERGED\",\"mergedAt\":\"2026-06-12T00:00:00Z\",\"mergeStateStatus\":\"$MSTATE\"}"
     else
-      echo '{"state":"OPEN","mergedAt":null}'
+      echo "{\"state\":\"OPEN\",\"mergedAt\":null,\"mergeStateStatus\":\"$MSTATE\"}"
     fi
     exit 0 ;;
   "pr checks")
@@ -413,5 +417,67 @@ VERDICT_PACKETS_AFTER="$(find "$TARGET/.shiki/repairs" -maxdepth 1 -name 'RP-*.j
 test "$VERDICT_PACKETS_BEFORE" = "$VERDICT_PACKETS_AFTER"
 # Clean up the CCA fixtures so they cannot leak into any later case.
 rm -f "$GH_STATE/cca-run.json" "$GH_STATE/cca-verdict.json"
+
+# A PR that fell BEHIND its base is SYNCED, then merged — no operator action. Every
+# required check is green and there is no real conflict; main simply moved while the
+# PR was open. The loop merges the base into the branch (a plain merge + push, never
+# a rebase/force-push) and re-verifies, then merges once GitHub reports CLEAN.
+SYNC_BRANCH="shiki/behind-then-merge-slice"
+SYNC_PR=77
+# Build the task branch + an advanced base without moving the target's HEAD: use a
+# scratch worktree that pushes the branch to the bare origin and stamps the shared
+# origin/* tracking refs the sync effector reads (its `git fetch` hits the stub
+# GitHub fetch URL and fails, exactly like the closeout effector's fetch above).
+SYNC_SCRATCH="$TMP_ROOT/sync-scratch"
+git worktree add -b "$SYNC_BRANCH" "$SYNC_SCRATCH" main >/dev/null 2>&1
+git -C "$SYNC_SCRATCH" config user.name "Shiki Test"
+git -C "$SYNC_SCRATCH" config user.email "shiki@example.test"
+printf 'branch work\n' > "$SYNC_SCRATCH/sync-branch-file.txt"
+git -C "$SYNC_SCRATCH" add sync-branch-file.txt
+git -C "$SYNC_SCRATCH" commit -m "sync task branch work" >/dev/null
+git -C "$SYNC_SCRATCH" push -u origin "$SYNC_BRANCH" >/dev/null 2>&1
+# Advance the base on a non-conflicting file and record it as origin/main locally
+# only (the branch is now BEHIND it); leave the bare origin's main untouched.
+git -C "$SYNC_SCRATCH" checkout --detach main >/dev/null 2>&1
+printf 'base advanced\n' > "$SYNC_SCRATCH/sync-base-advance.txt"
+git -C "$SYNC_SCRATCH" add sync-base-advance.txt
+git -C "$SYNC_SCRATCH" commit -m "base advances beyond the task branch" >/dev/null
+git update-ref "refs/remotes/origin/main" "$(git -C "$SYNC_SCRATCH" rev-parse HEAD)"
+git worktree remove --force "$SYNC_SCRATCH"
+SYNC_TIP_BEFORE="$(git -C "$ORIGIN_GIT" rev-parse "$SYNC_BRANCH")"
+
+python3 "$ROOT/scripts/shiki.py" goal create --target "$TARGET" --title "Behind gate" --outcome "A behind PR syncs then merges" >/tmp/shiki-goal-loop-behind-goal.json
+BGOAL="$(json_get /tmp/shiki-goal-loop-behind-goal.json goal_id)"
+python3 "$ROOT/scripts/shiki.py" issue plan --target "$TARGET" --goal-id "$BGOAL" \
+  --title "Behind slice" --scope "Base moved while the PR was open" \
+  --acceptance-check "Synced then merged" >/tmp/shiki-goal-loop-behind-task.json
+BTASK="$(json_get /tmp/shiki-goal-loop-behind-task.json task_id)"
+python3 - "$TARGET/.shiki/tasks/$BTASK.json" "$SYNC_BRANCH" "$SYNC_PR" <<'PY'
+import json
+import sys
+
+path, branch, pr = sys.argv[1], sys.argv[2], int(sys.argv[3])
+task = json.load(open(path))
+task["status"] = "review"
+task["expected_pr"] = pr
+task["expected_branch"] = branch
+json.dump(task, open(path, "w"), indent=2)
+PY
+cat >"$GH_STATE/checks-$SYNC_PR.json" <<'JSON'
+[{"name":"Validate Shiki mirror","bucket":"pass"},{"name":"CCA verdict","bucket":"pass"},{"name":"MergeGate metadata check","bucket":"pass"},{"name":"MergeGate policy check","bucket":"pass"}]
+JSON
+# Step 1: every check green but the branch is BEHIND -> sync_branch, not merge.
+echo "BEHIND" >"$GH_STATE/merge-state-$SYNC_PR"
+python3 "$ROOT/scripts/shiki.py" loop step --target "$TARGET" --goal-id "$BGOAL" >/tmp/shiki-goal-loop-behind-sync.json
+test "$(json_get_last /tmp/shiki-goal-loop-behind-sync.json action)" = "sync_branch"
+# The sync pushed a real base merge: the branch head advanced and no merge happened.
+SYNC_TIP_AFTER="$(git -C "$ORIGIN_GIT" rev-parse "$SYNC_BRANCH")"
+test "$SYNC_TIP_AFTER" != "$SYNC_TIP_BEFORE"
+test ! -f "$GH_STATE/merged-$SYNC_PR"
+# Step 2: GitHub now reports the branch up to date -> the merge proceeds.
+echo "CLEAN" >"$GH_STATE/merge-state-$SYNC_PR"
+python3 "$ROOT/scripts/shiki.py" loop step --target "$TARGET" --goal-id "$BGOAL" >/tmp/shiki-goal-loop-behind-merge.json
+test "$(json_get_last /tmp/shiki-goal-loop-behind-merge.json action)" = "merge"
+test -f "$GH_STATE/merged-$SYNC_PR"
 
 echo "shiki goal loop tests passed"
