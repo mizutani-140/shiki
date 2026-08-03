@@ -30,7 +30,8 @@
   },
   "id": "G-20260803T013839638288Z-eebb39bf",
   "ledger_evidence": [
-    "L-20260803T013839639770Z-0ba0e05e"
+    "L-20260803T013839639770Z-0ba0e05e",
+    "L-20260803T083619901376Z-2964dfc8"
   ],
   "non_goals": [
     "Pruning files that upstream removed \u2014 destructive, needs its own decision.",
@@ -47,6 +48,6 @@
   ],
   "risk_level": "critical",
   "source_plan": "P-20260803T013829425758Z-805c8ace",
-  "status": "planned",
+  "status": "complete",
   "title": "Make an installed target work, upgradeable, and identifiable"
 }
