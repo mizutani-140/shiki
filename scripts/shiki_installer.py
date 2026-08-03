@@ -3,11 +3,15 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 import json
 from pathlib import Path
 import shutil
+from typing import Any
 
+from shiki_config import load_shiki_config
 from shiki_manifest import load_manifest, manifest_create_directories, manifest_directories, manifest_exclude_from_commit, manifest_install_include
+from shiki_migrations import migration_status
 from shiki_process import ROOT, ShikiError, info, warn, validate_target_shiki, load_default_config
 
 TEMPLATE_PATHS = [
@@ -98,17 +102,40 @@ DEFAULT_GLOBAL_COMMAND_PATH = "~/.local/bin/shiki"
 DEFAULT_CLAUDE_COMMAND_PATH = "~/.claude/commands/shiki.md"
 DEFAULT_CODEX_SKILL_PATH = "~/.codex/skills/shiki/SKILL.md"
 
-# Target-owned stateful files: an operator's Guardian policy, MergeGate config,
-# and applied-migration state. These are seeded from the template on first
-# install, but afterwards they carry per-target governance decisions. A reinstall
-# with --force refreshes template code, yet must never silently overwrite these;
-# they are create-if-absent even under --force so a re-run cannot destroy an
-# existing target's policy/config/migration state.
-PRESERVE_UNDER_FORCE = (
-    ".shiki/guardian-policy.json",
-    ".shiki/config.yaml",
-    ".shiki/migrations/state.json",
+# Under --force the shipped surface splits three ways, so nothing is lost and
+# nothing is silently stale.
+#
+# PROJECT CONTENT is authored per target and must never be overwritten. The
+# incoming template is written alongside as ``<file>.new`` and reported, so the
+# operator can merge deliberately (CONTEXT.md is the glossary AGENTS.md names as
+# the source of truth for domain language).
+PROJECT_CONTENT_FILES = (
+    "CONTEXT.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".github/CODEOWNERS",
 )
+
+# GOVERNANCE CONTRACT is target-specific but decides what branch protection
+# requires (config.yaml -> mergegate.required_checks) and what may approve
+# (guardian-policy.json -> approval_sources). It must never be silently kept
+# either: write ``<file>.new`` alongside and report which keys differ, so a stale
+# contract is visible rather than inferred.
+GOVERNANCE_CONTRACT_FILES = (
+    ".shiki/config.yaml",
+    ".shiki/guardian-policy.json",
+)
+
+# Governance keys named explicitly in the end-of-run summary when they differ,
+# because they are the ones that change what protection requires / what approves.
+GOVERNANCE_CRITICAL_KEYS: dict[str, tuple[str, ...]] = {
+    ".shiki/config.yaml": ("mergegate.required_checks",),
+    ".shiki/guardian-policy.json": ("approval_sources",),
+}
+
+# Applied-migration state is target history, not a contract: it is preserved
+# outright under --force and never written as a ``.new``.
+PRESERVE_OUTRIGHT_FILES = (".shiki/migrations/state.json",)
 
 # Shipped `tests/` files that must NOT be copied into a target install. Each is a
 # platform-only test: it asserts something that exists only in the Shiki platform
@@ -159,13 +186,47 @@ def excluded_from_commit(relative: str, patterns: list[str]) -> bool:
     return False
 
 
-def install_template(target: Path, *, force: bool, validate: bool) -> None:
+@dataclass
+class NewFileNote:
+    """A ``<file>.new`` written alongside a preserved original under --force."""
+
+    relative: str
+    new_relative: str
+    category: str  # "project-content" | "governance-contract"
+    differing_keys: tuple[str, ...] = field(default_factory=tuple)
+
+
+def refuse_pending_migrations(target: Path) -> None:
+    """Precondition run BEFORE any file write.
+
+    Refuse to upgrade a target whose valid ``.shiki`` migration state is behind
+    the current registry, so a target with pending migrations keeps an untouched
+    tree instead of being half-rewritten and then aborting. Only the "valid but
+    behind" upgrade case is gated: a fresh target has no state file yet (it is
+    seeded by this install), and a target whose state file is absent or malformed
+    is left to post-write validation, which surfaces malformed state.
+    """
+    status = migration_status(target)
+    if status["state_exists"] and not status["errors"] and status["pending"]:
+        pending = ", ".join(status["pending"])
+        raise ShikiError(
+            f"target has pending .shiki migrations ({pending}); run "
+            "`shiki migrate apply --execute` before upgrading. No files were written."
+        )
+
+
+def install_template(target: Path, *, force: bool, validate: bool) -> list[NewFileNote]:
+    # Preconditions first: never rewrite the tree of a target that cannot be
+    # upgraded cleanly (see refuse_pending_migrations).
+    refuse_pending_migrations(target)
+
+    notes: list[NewFileNote] = []
     for relative in TEMPLATE_PATHS:
         source = ROOT / relative
         if not source.exists():
             warn(f"template path missing, skipped: {relative}")
             continue
-        copy_path(source, target / relative, force=force, target_install=True)
+        copy_path(source, target / relative, force=force, target_install=True, notes=notes)
 
     manifest = load_manifest(ROOT)
     directories = manifest_directories(manifest)
@@ -177,8 +238,31 @@ def install_template(target: Path, *, force: bool, validate: bool) -> None:
             (state_dir / ".gitkeep").write_text("", encoding="utf-8")
         info(f"ensured empty state directory: {state_dir}")
 
+    # A single explicit summary at the end, so a half-upgrade is visible rather
+    # than inferred. Printed before validation so the .new files are always
+    # reported even if a later gate fails.
+    print_new_file_summary(notes)
+
     if validate:
         validate_target_shiki(target)
+
+    return notes
+
+
+def print_new_file_summary(notes: list[NewFileNote]) -> None:
+    if not notes:
+        info(
+            "template summary: no .new files written (no existing project-content "
+            "or governance file was kept alongside a refreshed copy)"
+        )
+        return
+    info(f"template summary: wrote {len(notes)} .new file(s) alongside preserved originals:")
+    for note in sorted(notes, key=lambda item: item.relative):
+        if note.category == "governance-contract":
+            keys = ", ".join(note.differing_keys) if note.differing_keys else "no parseable key differences"
+            info(f"  governance-contract: kept {note.relative}, wrote {note.new_relative} (differing keys: {keys})")
+        else:
+            info(f"  project-content: kept {note.relative}, wrote {note.new_relative}")
 
 
 def should_skip(path: Path, *, target_install: bool = False) -> bool:
@@ -205,34 +289,148 @@ def should_skip(path: Path, *, target_install: bool = False) -> bool:
     return False
 
 
-def preserved_under_force(source: Path) -> bool:
-    """Whether ``source`` is a target-owned stateful file kept even under --force."""
+def template_relative(source: Path) -> str | None:
+    """The shipped-surface relative path for ``source`` (POSIX), or None."""
     try:
-        return source.relative_to(ROOT).as_posix() in PRESERVE_UNDER_FORCE
+        return source.relative_to(ROOT).as_posix()
     except ValueError:
-        return False
+        return None
 
 
-def copy_path(source: Path, target: Path, *, force: bool, target_install: bool = False) -> None:
+def force_category(source: Path) -> str:
+    """Classify a shipped file for --force handling.
+
+    Returns one of ``project-content``, ``governance-contract``,
+    ``preserve-outright``, or ``overwrite``.
+    """
+    relative = template_relative(source)
+    if relative in PROJECT_CONTENT_FILES:
+        return "project-content"
+    if relative in GOVERNANCE_CONTRACT_FILES:
+        return "governance-contract"
+    if relative in PRESERVE_OUTRIGHT_FILES:
+        return "preserve-outright"
+    return "overwrite"
+
+
+def copy_path(
+    source: Path,
+    target: Path,
+    *,
+    force: bool,
+    target_install: bool = False,
+    notes: list[NewFileNote] | None = None,
+) -> None:
     if should_skip(source, target_install=target_install):
         return
     if source.is_dir():
         for child in source.iterdir():
-            copy_path(child, target / child.name, force=force, target_install=target_install)
+            copy_path(child, target / child.name, force=force, target_install=target_install, notes=notes)
         return
 
     if target.exists():
-        preserve = preserved_under_force(source)
         if not force:
             warn(f"kept existing file: {target}")
             return
-        if preserve:
+        category = force_category(source)
+        if category == "preserve-outright":
             warn(f"preserved existing stateful file (not overwritten by --force): {target}")
+            return
+        if category in ("project-content", "governance-contract"):
+            differing = (
+                governance_differing_keys(source, target)
+                if category == "governance-contract"
+                else ()
+            )
+            note = write_new_alongside(source, target, category=category, differing_keys=differing)
+            if notes is not None:
+                notes.append(note)
             return
 
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, target)
     info(f"installed {target}")
+
+
+def write_new_alongside(
+    source: Path,
+    target: Path,
+    *,
+    category: str,
+    differing_keys: tuple[str, ...] = (),
+) -> NewFileNote:
+    """Keep ``target`` untouched and write the incoming template as ``<target>.new``."""
+    new_path = target.parent / (target.name + ".new")
+    new_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, new_path)
+    warn(
+        f"preserved existing {category} file (not overwritten by --force); "
+        f"wrote {new_path.name} for review: {target}"
+    )
+    relative = template_relative(source) or target.name
+    return NewFileNote(
+        relative=relative,
+        new_relative=f"{relative}.new",
+        category=category,
+        differing_keys=tuple(differing_keys),
+    )
+
+
+_MISSING = object()
+
+
+def _flatten_leaf_keys(value: Any, prefix: str = "") -> dict[str, Any]:
+    """Flatten a nested mapping to dotted leaf keys; lists are leaves."""
+    out: dict[str, Any] = {}
+    if isinstance(value, dict):
+        for key in value:
+            child = f"{prefix}.{key}" if prefix else str(key)
+            out.update(_flatten_leaf_keys(value[key], child))
+        return out
+    out[prefix] = value
+    return out
+
+
+def _load_governance_data(relative: str | None, path: Path) -> dict[str, Any]:
+    if relative == ".shiki/config.yaml":
+        # Reuse the subset YAML parser bootstrap already owns; it reads
+        # ``<dir>/.shiki/config.yaml`` and captures mergegate.required_checks.
+        return load_shiki_config(path.parent.parent)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def governance_differing_keys(source: Path, target: Path) -> tuple[str, ...]:
+    """Dotted keys that differ between the incoming template and the kept target.
+
+    Differences under a critical key (``mergegate.required_checks`` for config,
+    ``approval_sources`` for guardian policy) collapse to that key so it is named
+    explicitly, while other differences keep their leaf path.
+    """
+    relative = template_relative(source)
+    template_data = _load_governance_data(relative, source)
+    target_data = _load_governance_data(relative, target)
+    template_leaves = _flatten_leaf_keys(template_data)
+    target_leaves = _flatten_leaf_keys(target_data)
+    keys = set(template_leaves) | set(target_leaves)
+    differing = [
+        key
+        for key in keys
+        if template_leaves.get(key, _MISSING) != target_leaves.get(key, _MISSING)
+    ]
+    critical = GOVERNANCE_CRITICAL_KEYS.get(relative or "", ())
+    collapsed: set[str] = set()
+    for leaf in differing:
+        mapped = leaf
+        for crit in critical:
+            if leaf == crit or leaf.startswith(f"{crit}."):
+                mapped = crit
+                break
+        collapsed.add(mapped)
+    return tuple(sorted(collapsed))
 
 
 def cmd_install_target(args: argparse.Namespace) -> int:

@@ -69,9 +69,29 @@ template, CLI, and mirror schema.
    `bin/shiki install-global` so `~/.local/bin/shiki`, the Claude command, and
    the Codex skill point at the new version. Restart Codex or Claude Code if the
    client does not reload commands dynamically.
-2. **Refresh target template files.** Re-run the appropriate bootstrap command
-   in dry-run first to preview changes, then `--execute` to apply. The bootstrap
-   commands are idempotent.
+2. **Refresh target template files with `--force`.** Re-running the bootstrap
+   without `--force` is **not** an upgrade: an existing file is kept with a
+   `kept existing file:` warning and the run still exits 0, so a stale target
+   looks refreshed when nothing changed. Pass `--force` to actually refresh the
+   template. Re-run in dry-run first to preview, then `--force --execute` to
+   apply. Under `--force` the shipped surface splits three ways so nothing is
+   lost and nothing is silently stale:
+   - **Project content** — `CONTEXT.md`, `AGENTS.md`, `CLAUDE.md`,
+     `.github/CODEOWNERS` — is never overwritten. The incoming template is
+     written alongside as `<file>.new` (see [The `.new`
+     convention](#the-new-convention) below) so you can merge deliberately.
+   - **Governance contract** — `.shiki/config.yaml`,
+     `.shiki/guardian-policy.json` — is also never silently kept: `<file>.new`
+     is written alongside and the run reports which keys differ, naming
+     `mergegate.required_checks` (what branch protection requires) and
+     `approval_sources` (what may approve) explicitly.
+   - **`.shiki/migrations/state.json`** is preserved outright (no `.new`); it is
+     target history, brought forward by `shiki migrate`, not a template.
+   - **Everything else** (CLI scripts, workflows, schemas, docs) is overwritten.
+
+   If the target has pending migrations, `--force` refuses and writes nothing —
+   apply migrations first (step 3), then re-run. The run ends with a single
+   summary of every `.new` written, so a half-upgrade is visible.
 3. **Apply mirror migrations.** Run `shiki migrate` (see
    [Migration](#migration) below) to bring the `.shiki/` mirror schema up to
    date.
@@ -80,6 +100,15 @@ template, CLI, and mirror schema.
 
 Because Shiki defaults to dry-run, always review the previewed mutations before
 applying an upgrade.
+
+### The `.new` convention
+
+Under `--force`, a file that must not be overwritten (project content and the
+governance contract) is kept exactly as the target has it, and the incoming
+template is written next to it with a `.new` suffix — for example
+`.shiki/config.yaml.new` beside `.shiki/config.yaml`. Nothing merges the two for
+you: review each `.new`, fold in the changes you want, then delete the `.new`
+file. The end-of-run summary lists every `.new` written so none is missed.
 
 ## Rollback
 
