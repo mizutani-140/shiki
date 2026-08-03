@@ -146,8 +146,28 @@ case "${1:-} ${2:-}" in
     fi
     exit 0 ;;
   "run list")
-    echo '[]'
+    # The CCA-verdict resolver and rerun_cca both list this workflow. Serve a
+    # canned failed run only when a fixture asks for it (DEFECT A); default empty.
+    if [[ -f "$STATE/cca-run.json" ]]; then
+      cat "$STATE/cca-run.json"
+    else
+      echo '[]'
+    fi
     exit 0 ;;
+  "run download")
+    # Resolve the CCA verdict artifact read-only: copy the fixture verdict into
+    # the resolver's --dir. Absent fixture -> a failed download (unresolvable).
+    DIR=""; prev=""
+    for a in "$@"; do
+      [[ "$prev" == "--dir" ]] && DIR="$a"
+      prev="$a"
+    done
+    if [[ -n "$DIR" && -f "$STATE/cca-verdict.json" ]]; then
+      mkdir -p "$DIR"
+      cp "$STATE/cca-verdict.json" "$DIR/cca-verdict.json"
+      exit 0
+    fi
+    exit 1 ;;
   "run rerun")
     echo "rerun ${3:-}" >> "$STATE/gh-log"
     exit 0 ;;
@@ -345,5 +365,53 @@ test "$(json_get_last /tmp/shiki-goal-loop-lock.json action)" = "stop_lock_block
 # fact rather than appearing idle.
 grep "$LOCK_OWNER" /tmp/shiki-goal-loop-lock.json >/dev/null
 grep "lock-conflict-slice.txt" /tmp/shiki-goal-loop-lock.json >/dev/null
+
+# DEFECT A — a needs_guardian CCA verdict produces a Guardian stop, NEVER a repair.
+# The `CCA verdict` check is red and the rerun budget is spent (cca_rerun_count=2),
+# so the loop resolves the verdict VALUE from the CCA evidence artifact and, seeing
+# needs_guardian, stops for the Guardian without dispatching a repair or consuming a
+# repair attempt (the PR #240 harm this task removes).
+python3 "$ROOT/scripts/shiki.py" goal create --target "$TARGET" --title "Verdict gate" --outcome "needs_guardian verdict stops, never repairs" >/tmp/shiki-goal-loop-verdict-goal.json
+VGOAL="$(json_get /tmp/shiki-goal-loop-verdict-goal.json goal_id)"
+python3 "$ROOT/scripts/shiki.py" issue plan --target "$TARGET" --goal-id "$VGOAL" \
+  --title "Guardian-verdict slice" --scope "CCA says a human must approve" --risk-level high \
+  --acceptance-check "Guardian resolves the verdict" >/tmp/shiki-goal-loop-verdict-task.json
+VTASK="$(json_get /tmp/shiki-goal-loop-verdict-task.json task_id)"
+python3 - "$TARGET/.shiki/tasks/$VTASK.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+task = json.load(open(path))
+task["status"] = "review"
+task["expected_pr"] = 88
+# The same-head CCA race is already exhausted, so the decision reaches the
+# verdict gate instead of another rerun.
+task["cca_rerun_count"] = 2
+json.dump(task, open(path, "w"), indent=2)
+PY
+# The CCA verdict check is red against green siblings...
+cat >"$GH_STATE/checks-88.json" <<'JSON'
+[{"name":"Validate Shiki mirror","bucket":"pass"},{"name":"CCA verdict","bucket":"fail"},{"name":"MergeGate metadata check","bucket":"pass"},{"name":"MergeGate policy check","bucket":"pass"}]
+JSON
+# ...and the durable CI evidence (the shiki-cca-evidence artifact) says needs_guardian.
+cat >"$GH_STATE/cca-run.json" <<'JSON'
+[{"databaseId":700,"conclusion":"failure","headSha":"","status":"completed"}]
+JSON
+cat >"$GH_STATE/cca-verdict.json" <<'JSON'
+{"verdict":"needs_guardian","pr":88,"head_sha":"","task_id":"placeholder","goal_id":"placeholder","summary":"a human must approve"}
+JSON
+VERDICT_PACKETS_BEFORE="$(ls "$TARGET/.shiki/repairs"/RP-*.json 2>/dev/null | wc -l | tr -d ' ')"
+if python3 "$ROOT/scripts/shiki.py" loop step --target "$TARGET" --goal-id "$VGOAL" >/tmp/shiki-goal-loop-verdict.json; then
+  echo "expected needs_guardian verdict stop to exit non-zero" >&2
+  exit 1
+fi
+test "$(json_get_last /tmp/shiki-goal-loop-verdict.json action)" = "stop_guardian"
+grep "needs_guardian" /tmp/shiki-goal-loop-verdict.json >/dev/null
+# No repair packet was created — the Guardian gate never consumes a repair attempt.
+VERDICT_PACKETS_AFTER="$(ls "$TARGET/.shiki/repairs"/RP-*.json 2>/dev/null | wc -l | tr -d ' ')"
+test "$VERDICT_PACKETS_BEFORE" = "$VERDICT_PACKETS_AFTER"
+# Clean up the CCA fixtures so they cannot leak into any later case.
+rm -f "$GH_STATE/cca-run.json" "$GH_STATE/cca-verdict.json"
 
 echo "shiki goal loop tests passed"
