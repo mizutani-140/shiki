@@ -13,8 +13,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260803t013839640380z-ca171b22-ship-everything-a-shipped-artifact-depends-on-an",
-  "expected_pr": 246,
+  "expected_branch": "shiki/t-20260803t013839640380z-ca171b22-closeout",
+  "expected_pr": 247,
   "github_issue": null,
   "goal_id": "G-20260803T013839638288Z-eebb39bf",
   "id": "T-20260803T013839640380Z-ca171b22",
@@ -29,7 +29,8 @@
     "L-20260803T035121913500Z-bbb4b95d",
     "L-20260803T035807670960Z-008452c3",
     "L-20260803T040401779305Z-e753085d",
-    "L-20260803T040450764557Z-1621c0ba"
+    "L-20260803T040450764557Z-1621c0ba",
+    "L-20260803T052719440315Z-47e4b1eb"
   ],
   "locks": [
     "path:scripts/shiki_installer.py",
@@ -66,7 +67,7 @@
   ],
   "risk_level": "critical",
   "scope": "Close the four measured gaps AND the class that produced them.\n\nThe four gaps: add `tests` and `.gitignore` to `TEMPLATE_PATHS`; add `scripts/shiki_session_lease.py` and `scripts/shiki_contract_approval.py` to `TEMPLATE_PATHS`; and stop copying `.shiki/leases` into a target \u2014 the natural fix is to register `.shiki/leases` in the manifest the same way the other runtime-local state directories are registered, so `should_skip` filters it for the same reason it already filters `.shiki/ledger` and `.shiki/gha`. Whatever mechanism is chosen, a lock file must never reach a target and must never be committable there.\n\nThe class: add `tests/test_install_completeness.py` with a STATIC check over the shipping surface. For every shipped Python module under `scripts/`, every shipped `scripts/test_shiki_*.sh`, and every shipped `.github/workflows/*.yml`, resolve the repository-relative artifacts it depends on \u2014 Python imports of sibling `shiki_*` modules, `scripts/...` and `tests/...` paths referenced in shell and YAML, and the directory a `unittest discover -s <dir>` names \u2014 and assert each is either in `TEMPLATE_PATHS` or on an EXPLICIT, commented exception list. The exception list must be a named constant with a reason per entry, so an omission is a deliberate recorded decision rather than an oversight. This is the check that would have caught all four gaps at once.\n\nAdd an install-and-verify case to `scripts/test_shiki_init.sh`: install into a fresh temporary directory, then, from inside that directory, run the target's own `python3 scripts/validate_shiki.py`, `python3 -m unittest discover -s tests`, and every shipped `scripts/test_shiki_*.sh`, asserting zero failures. Assert also that `.shiki/leases` is absent or empty in the installed target and that the installed `.gitignore` ignores it. This test is the acceptance for the whole task: if a fresh install cannot pass its own required checks, it fails.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: `shiki init` prints `target Shiki validation passed` and exits 0. The operator now has a repository whose every PR is permanently red on `Validate Shiki mirror` \u2014 and because `init` also applied branch protection requiring that check, nothing in that repository can ever merge.\n  Measured 2026-08-03 against main at 93cf467: `TEMPLATE_PATHS` has 77 entries. `'tests' in TEMPLATE_PATHS` -> False, while the shipped `.github/workflows/shiki-validate.yml:31` runs `python3 -m unittest discover -s tests`. `'scripts/shiki_session_lease.py' in TEMPLATE_PATHS` -> False, while the shipped `scripts/test_shiki_runner_claude.sh` imports that module. `'scripts/shiki_contract_approval.py' in TEMPLATE_PATHS` -> False, while the shipped `scripts/test_shiki_guardian_policy.sh` asserts its behaviour. `'.gitignore' in TEMPLATE_PATHS` -> False.\n  Fourth cause, measured by calling the installer's own filter: `should_skip(ROOT/'.shiki/leases/x.lock', target_install=True)` -> False, versus True for `.shiki/ledger/L-1.json` and `.shiki/gha/pr.json`. The mirror directories are filtered because they appear in the manifest's `create_directories` list; `.shiki/leases` does not appear there. The platform's live lock \u2014 naming a task id from another repository \u2014 is therefore copied in, and with no `.gitignore` shipped it is committed.\n  Why a static completeness check and not four additions: all four are the same defect \u2014 a shipped artifact depending on something unshipped, with nothing checking the relationship. Adding four paths fixes today and not tomorrow.\n  Reproducible when: a fresh install passes its own validate, its own unittest discovery, and every shipped contract test, and the completeness check fails if any shipped artifact gains an unshipped dependency.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_init.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Ship everything a shipped artifact depends on, and prove a fresh install works"
 }
