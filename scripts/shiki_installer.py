@@ -4,15 +4,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import hashlib
 import json
 from pathlib import Path
 import shutil
+import subprocess
 from typing import Any
 
 from shiki_config import load_shiki_config
 from shiki_manifest import load_manifest, manifest_create_directories, manifest_directories, manifest_exclude_from_commit, manifest_install_include
 from shiki_migrations import migration_status
-from shiki_process import ROOT, ShikiError, info, warn, validate_target_shiki, load_default_config
+from shiki_process import ROOT, ShikiError, info, warn, validate_target_shiki, load_default_config, utc_now
 
 TEMPLATE_PATHS = [
     "bin/shiki",
@@ -102,6 +104,18 @@ DEFAULT_GLOBAL_COMMAND_PATH = "~/.local/bin/shiki"
 DEFAULT_CLAUDE_COMMAND_PATH = "~/.claude/commands/shiki.md"
 DEFAULT_CODEX_SKILL_PATH = "~/.codex/skills/shiki/SKILL.md"
 
+# The install stamp records, per target, which platform commit an install came
+# from, when it was installed, and a content digest for every platform-owned
+# shipped path. It is target state (like migration state and repo.json), not a
+# contract, so it lives beside the other target-owned records under `.shiki/`.
+#
+# It is deliberately NOT tracked: it is never added to `manifest_stage_paths`,
+# and validate_shiki only classifies *tracked* `.shiki/` paths, so an untracked
+# stamp is invisible to the mirror validator. Keeping it out of the manifest is
+# what lets a target carry it without a governance-schema change.
+INSTALL_STAMP_PATH = ".shiki/install-stamp.json"
+INSTALL_STAMP_VERSION = 1
+
 # Under --force the shipped surface splits three ways, so nothing is lost and
 # nothing is silently stale.
 #
@@ -154,6 +168,11 @@ TARGET_INSTALL_EXCLUDES = {
         "FrozenPlanCorpusTests asserts the platform's own frozen-plan corpus "
         "(>=1 frozen plan, >=19 tasks); a freshly installed target starts with "
         "an empty .shiki mirror, so the assertion cannot hold there."
+    ),
+    "tests/test_install_version_drift.py": (
+        "Install-stamp drift and platform-commit lineage are judged against the "
+        "running platform's git HEAD; a freshly installed target has different "
+        "or absent git lineage, so these assertions are platform-context only."
     ),
 }
 
@@ -237,6 +256,12 @@ def install_template(target: Path, *, force: bool, validate: bool) -> list[NewFi
         if metadata.get("tracked") is True and metadata.get("required") is True and not any(state_dir.iterdir()):
             (state_dir / ".gitkeep").write_text("", encoding="utf-8")
         info(f"ensured empty state directory: {state_dir}")
+
+    # Stamp the install after the shipped surface is on disk, so the digests
+    # describe exactly what was written. Refreshed on every install and upgrade.
+    # The stamp stays untracked local state, so keep it out of git first.
+    _ensure_stamp_gitignored(target)
+    write_install_stamp(target)
 
     # A single explicit summary at the end, so a half-upgrade is visible rather
     # than inferred. Printed before validation so the .new files are always
@@ -431,6 +456,177 @@ def governance_differing_keys(source: Path, target: Path) -> tuple[str, ...]:
                 break
         collapsed.add(mapped)
     return tuple(sorted(collapsed))
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def _is_stamped_shipped(relative: str) -> bool:
+    """Whether a shipped path belongs in the install stamp's digest set.
+
+    Only *platform-owned* content is stamped: files that an upgrade overwrites
+    verbatim, so a difference proves a hand-edit or a half-upgrade. Project
+    content, governance contracts, and preserve-outright state are customized
+    per target, so a difference there is expected and is never drift.
+    """
+    if relative == INSTALL_STAMP_PATH:
+        return False
+    return (
+        relative not in PROJECT_CONTENT_FILES
+        and relative not in GOVERNANCE_CONTRACT_FILES
+        and relative not in PRESERVE_OUTRIGHT_FILES
+    )
+
+
+def shipped_stamp_paths() -> list[str]:
+    """Relative POSIX paths of every platform-owned file an install writes.
+
+    Enumerated from the platform (``ROOT``) with the same skip rules install
+    uses, so the set names exactly the shipped surface that a target must match.
+    """
+    shipped: list[str] = []
+
+    def collect(source: Path) -> None:
+        if should_skip(source, target_install=True):
+            return
+        if source.is_dir():
+            for child in sorted(source.iterdir()):
+                collect(child)
+            return
+        relative = template_relative(source)
+        if relative is None or not _is_stamped_shipped(relative):
+            return
+        shipped.append(relative)
+
+    for relative in TEMPLATE_PATHS:
+        source = ROOT / relative
+        if source.exists():
+            collect(source)
+    return sorted(set(shipped))
+
+
+def target_stamp_digests(target: Path) -> dict[str, str]:
+    """Content digest for every stamped shipped path present in ``target``."""
+    return {
+        relative: _sha256_file(target / relative)
+        for relative in shipped_stamp_paths()
+        if (target / relative).is_file()
+    }
+
+
+def platform_commit(root: Path = ROOT) -> str | None:
+    """The git HEAD of the running platform checkout, or None when unavailable."""
+    result = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    commit = result.stdout.strip()
+    return commit if result.returncode == 0 and commit else None
+
+
+def commit_is_ancestor(root: Path, ancestor: str, descendant: str) -> bool | None:
+    """True if ``ancestor`` is an ancestor of ``descendant`` in ``root``'s git.
+
+    None when the answer cannot be determined (git missing, or a commit unknown
+    to this checkout — which is itself the "different lineage" signal).
+    """
+    if not ancestor or not descendant:
+        return None
+    result = subprocess.run(
+        ["git", "-C", str(root), "merge-base", "--is-ancestor", ancestor, descendant],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    return None
+
+
+def _incoming_is_older(incoming_commit: str | None, existing_commit: str | None) -> bool:
+    """Whether a fresh install is provably older than the recorded stamp.
+
+    Only a *proven* older lineage — the incoming platform commit is a strict
+    ancestor of the recorded one — blocks the overwrite. Same commit, unrelated
+    lineages, or an undeterminable relationship all refresh, so the guard never
+    silently keeps stale content it cannot prove is newer.
+    """
+    if not incoming_commit or not existing_commit or incoming_commit == existing_commit:
+        return False
+    return commit_is_ancestor(ROOT, incoming_commit, existing_commit) is True
+
+
+def _ensure_stamp_gitignored(target: Path) -> None:
+    """Keep the untracked install stamp out of ``git add`` / ``git add -A``.
+
+    The stamp is target-local state that is never committed: validate_shiki
+    rejects an unknown *tracked* ``.shiki/`` path, and the goal loop stages
+    worktrees with ``git add -A``, so an un-ignored stamp would be committed and
+    make the target's own Validate check permanently red. The shipped
+    ``.gitignore`` is platform-owned and cannot name it, so the installer
+    ensures the target's own ``.gitignore`` ignores it. Idempotent: a re-install
+    never appends the entry twice.
+    """
+    gitignore = target / ".gitignore"
+    existing = gitignore.read_text(encoding="utf-8") if gitignore.is_file() else ""
+    if INSTALL_STAMP_PATH in {line.strip() for line in existing.splitlines()}:
+        return
+    prefix = "" if not existing or existing.endswith("\n") else "\n"
+    addition = (
+        f"{prefix}\n# Local-only install version stamp (see `shiki doctor` drift checks)\n"
+        f"{INSTALL_STAMP_PATH}\n"
+    )
+    with gitignore.open("a", encoding="utf-8") as handle:
+        handle.write(addition)
+
+
+def read_install_stamp(target: Path) -> dict[str, Any] | None:
+    """Parse a target's install stamp, or None when absent/unreadable."""
+    path = target / INSTALL_STAMP_PATH
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def write_install_stamp(target: Path) -> None:
+    """Write (or refresh) the target's install stamp.
+
+    Never overwrites a stamp from a newer platform commit with older content,
+    and leaves an already-current stamp byte-for-byte untouched so a no-op
+    re-install churns nothing.
+    """
+    commit = platform_commit(ROOT)
+    digests = target_stamp_digests(target)
+    existing = read_install_stamp(target)
+    if existing is not None:
+        if _incoming_is_older(commit, existing.get("platform_commit")):
+            warn(
+                "kept existing install stamp: incoming install "
+                f"({commit}) is older than the recorded platform commit "
+                f"({existing.get('platform_commit')}); not overwriting {INSTALL_STAMP_PATH}"
+            )
+            return
+        if existing.get("platform_commit") == commit and existing.get("digests") == digests:
+            return
+    stamp = {
+        "version": INSTALL_STAMP_VERSION,
+        "platform_commit": commit,
+        "installed_at": utc_now(),
+        "digests": digests,
+    }
+    path = target / INSTALL_STAMP_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(stamp, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    info(f"wrote install stamp: {path}")
 
 
 def cmd_install_target(args: argparse.Namespace) -> int:

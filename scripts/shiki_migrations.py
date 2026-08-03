@@ -531,9 +531,43 @@ def _print_status(status: dict[str, Any]) -> None:
         print(f"error: {error}")
 
 
+def _refuse_foreign_target_registry(target: Path, command: str) -> None:
+    """Refuse to run the platform's migration registry against a different repo.
+
+    The global ``shiki`` symlink execs the PLATFORM's ``scripts/``, so
+    ``migrate --target <other repo>`` would build the registry from the platform
+    and apply it to the target's state file — potentially writing migration ids
+    the target's own (older) validator rejects, producing a permanently-red
+    required check. When the target ships its own, *differing*
+    ``scripts/shiki_migrations.py``, refuse and point the operator at the
+    target's own CLI. A freshly installed target carries a byte-identical
+    registry, so it is never refused; the running platform against itself
+    (``--target`` equal to the platform root) is likewise allowed.
+    """
+    running_module = Path(__file__).resolve()
+    running_root = running_module.parents[1]
+    if target == running_root:
+        return
+    target_module = target / "scripts" / "shiki_migrations.py"
+    if not target_module.is_file():
+        return
+    try:
+        if target_module.read_bytes() == running_module.read_bytes():
+            return
+    except OSError:
+        return
+    raise MigrationError(
+        f"refusing to run the platform migration registry against a different repository at "
+        f"{target}: its scripts/shiki_migrations.py differs from the running platform's, so the "
+        f"platform registry could write migration ids the target's own validator rejects. Run the "
+        f"target's own CLI instead: `cd {target} && python3 scripts/shiki.py migrate {command} ...`."
+    )
+
+
 def cmd_migrate(args: argparse.Namespace) -> int:
     target = Path(getattr(args, "target", ".")).expanduser().resolve()
     command = getattr(args, "migrate_command", None)
+    _refuse_foreign_target_registry(target, command or "status")
     if command == "status":
         status = migration_status(target)
         if args.json:
