@@ -11,6 +11,6 @@
     "path:scripts/test_shiki_runner_claude.sh"
   ],
   "owner": "shiki-run",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260801T040948352279Z-07301e34"
 }
