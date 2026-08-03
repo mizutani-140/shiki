@@ -1,0 +1,163 @@
+{
+  "completion_conditions": [
+    "A target installed into an empty directory passes its own validate, its own unittest discovery, and every shipped contract test.",
+    "A static check fails when a shipped artifact depends on something unshipped.",
+    "No file from .shiki/leases or any other runtime-local directory reaches a target.",
+    "An upgrade updates the governance contracts or reports exactly what it could not update; per-project content is never destroyed unprompted.",
+    "A target records which Shiki it was installed from, and doctor reports drift against it.",
+    "The full suite, the init/doctor/control-plane suites and validate_shiki stay green."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "A fresh install cannot pass its own `Validate Shiki mirror` check, and four independent causes were measured. `TEMPLATE_PATHS` has 77 entries; `tests` is not among them, yet the SHIPPED `.github/workflows/shiki-validate.yml:31` runs `python3 -m unittest discover -s tests` with no guard. `scripts/shiki_session_lease.py` is not shipped, yet the SHIPPED `scripts/test_shiki_runner_claude.sh` imports it. `scripts/shiki_contract_approval.py` is not shipped, yet the SHIPPED `scripts/test_shiki_guardian_policy.sh` asserts its behaviour. `.gitignore` is not shipped at all.",
+      "The installer copies the platform's LIVE session lease into every new target. Measured by calling `should_skip` directly: `.shiki/leases/x.lock` -> skip=False, while `.shiki/ledger/L-1.json` -> skip=True and `.shiki/gha/pr.json` -> skip=True. The mirror history is correctly filtered because those directories are in the manifest's `create_directories`; `.shiki/leases` was added to the manifest when the session lease landed but never added there. The copied lock then names a task id from a DIFFERENT repository and, with no `.gitignore` shipped, gets committed.",
+      "The class matters more than the four instances: nothing checks that a file a SHIPPED artifact depends on is itself shipped. The durable fix is a static completeness check over the shipping surface, plus an install-and-verify test \u2014 not four one-off additions.",
+      "The documented upgrade is a no-op. `docs/operations.md:72-74` says re-running the bootstrap is idempotent and never mentions `--force`; `--force` is `store_true` (default False) at `scripts/shiki_cli.py:42` and `:100`, and `copy_path` warns `kept existing file:` and returns for every path that already exists. An operator following the docs sees exit 0 and hundreds of `kept existing file` warnings, and nothing is updated.",
+      "`--force`, the only upgrade that works, preserves and destroys exactly the wrong sets. `PRESERVE_UNDER_FORCE` is `('.shiki/guardian-policy.json', '.shiki/config.yaml', '.shiki/migrations/state.json')`. So the two files that carry the governance contract \u2014 the required-check list that becomes branch protection, and the approval-source list \u2014 are the ones an upgrade never updates, while `CONTEXT.md`, `AGENTS.md`, `CLAUDE.md` and `.github/CODEOWNERS`, which carry per-project content, are overwritten with template text, unprompted and unbacked-up.",
+      "Neither direction may simply be flipped. Overwriting `config.yaml` would destroy target-specific values; preserving it silently is what produces the undetectable half-upgrade. The resolution is to write the incoming version alongside as `<file>.new` and report the difference, so nothing is lost and nothing is silently stale.",
+      "Nothing records a version. `'VERSION' in TEMPLATE_PATHS` is False, no Python file reads `VERSION`, and `shiki status` emits only `claude_command, codex_skill, command, config, root`. An old target is internally consistent, so `validate_shiki` passes and `doctor` reports zero failures \u2014 the absence of a version is why a stale target is indistinguishable from a current one.",
+      "Deleting files that upstream removed (an obsolete workflow that keeps posting a check context) is deliberately OUT of scope. A prune pass is a destructive operation on a target repository and needs its own decision and its own approval; adding it here would put an unreviewed delete in the same change as the fixes that make install work at all."
+    ],
+    "source": "Measured 2026-08-03 against main at 93cf467 by driving shiki_installer directly and by inspecting the shipped artifacts.",
+    "status": "complete"
+  },
+  "id": "P-20260803T013829425758Z-805c8ace",
+  "ingested_at": "2026-08-03T01:38:29+00:00",
+  "non_goals": [
+    "Pruning files that upstream removed \u2014 destructive, needs its own decision.",
+    "Changing what any gate enforces, or any schema.",
+    "Changing the loop, the CCA, or MergeGate.",
+    "Silently overwriting a target's own .shiki/config.yaml or .shiki/guardian-policy.json.",
+    "Changing the migration registry's contents.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A repository installed from this Shiki can pass its own required checks, can be upgraded without silently keeping stale governance or destroying per-project content, and can be asked what version it has. Today none of these hold: a fresh install is permanently red under the branch protection the installer itself applies, the documented upgrade is a no-op, and nothing anywhere records a version.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-INSTALLER-draft.json",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": "docs/agents/bootstrap-command.md",
+    "source": "Operator instruction 2026-08-03 (\"\u30a4\u30f3\u30b9\u30c8\u30fc\u30e9\u30fc\u3092\u4fee\u6b63\u3057\u3001\u305d\u306e\u5f8c\u30d0\u30c3\u30af\u30ed\u30b0\u3082\u76f4\u3061\u306b\u4fee\u6b63\u3092\u884c\u3046\") after the install surface was measured and found to produce a non-working target.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "tests, .gitignore, scripts/shiki_session_lease.py and scripts/shiki_contract_approval.py are all in TEMPLATE_PATHS.",
+        "should_skip returns True for a path under .shiki/leases with target_install=True.",
+        "A target installed into an empty temporary directory contains no .shiki/leases lock file, and its .gitignore ignores that directory.",
+        "From inside a freshly installed target: python3 scripts/validate_shiki.py exits 0.",
+        "From inside a freshly installed target: python3 -m unittest discover -s tests runs without ImportError and reports OK.",
+        "From inside a freshly installed target: every shipped scripts/test_shiki_*.sh exits 0 \u2014 zero failures.",
+        "tests/test_install_completeness.py statically resolves the dependencies of every shipped Python module, shipped contract test and shipped workflow, and asserts each is shipped or on a named exception list with a reason per entry.",
+        "The completeness check FAILS when a shipped artifact is given an unshipped dependency \u2014 proved with a fixture, not only by passing today.",
+        "scripts/test_shiki_init.sh contains the install-and-verify case.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/shiki_installer.py",
+        "path:.shiki/manifest.json",
+        "path:tests/test_install_completeness.py",
+        "path:scripts/test_shiki_init.sh"
+      ],
+      "non_goals": [
+        "Pruning files upstream removed",
+        "Changing --force semantics (that is the next task)",
+        "Changing any schema or gate",
+        "Shipping the platform's mirror history into a target",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "critical",
+      "runtime": "claude-code",
+      "scope": "Close the four measured gaps AND the class that produced them.\n\nThe four gaps: add `tests` and `.gitignore` to `TEMPLATE_PATHS`; add `scripts/shiki_session_lease.py` and `scripts/shiki_contract_approval.py` to `TEMPLATE_PATHS`; and stop copying `.shiki/leases` into a target \u2014 the natural fix is to register `.shiki/leases` in the manifest the same way the other runtime-local state directories are registered, so `should_skip` filters it for the same reason it already filters `.shiki/ledger` and `.shiki/gha`. Whatever mechanism is chosen, a lock file must never reach a target and must never be committable there.\n\nThe class: add `tests/test_install_completeness.py` with a STATIC check over the shipping surface. For every shipped Python module under `scripts/`, every shipped `scripts/test_shiki_*.sh`, and every shipped `.github/workflows/*.yml`, resolve the repository-relative artifacts it depends on \u2014 Python imports of sibling `shiki_*` modules, `scripts/...` and `tests/...` paths referenced in shell and YAML, and the directory a `unittest discover -s <dir>` names \u2014 and assert each is either in `TEMPLATE_PATHS` or on an EXPLICIT, commented exception list. The exception list must be a named constant with a reason per entry, so an omission is a deliberate recorded decision rather than an oversight. This is the check that would have caught all four gaps at once.\n\nAdd an install-and-verify case to `scripts/test_shiki_init.sh`: install into a fresh temporary directory, then, from inside that directory, run the target's own `python3 scripts/validate_shiki.py`, `python3 -m unittest discover -s tests`, and every shipped `scripts/test_shiki_*.sh`, asserting zero failures. Assert also that `.shiki/leases` is absent or empty in the installed target and that the installed `.gitignore` ignores it. This test is the acceptance for the whole task: if a fresh install cannot pass its own required checks, it fails.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: `shiki init` prints `target Shiki validation passed` and exits 0. The operator now has a repository whose every PR is permanently red on `Validate Shiki mirror` \u2014 and because `init` also applied branch protection requiring that check, nothing in that repository can ever merge.\n  Measured 2026-08-03 against main at 93cf467: `TEMPLATE_PATHS` has 77 entries. `'tests' in TEMPLATE_PATHS` -> False, while the shipped `.github/workflows/shiki-validate.yml:31` runs `python3 -m unittest discover -s tests`. `'scripts/shiki_session_lease.py' in TEMPLATE_PATHS` -> False, while the shipped `scripts/test_shiki_runner_claude.sh` imports that module. `'scripts/shiki_contract_approval.py' in TEMPLATE_PATHS` -> False, while the shipped `scripts/test_shiki_guardian_policy.sh` asserts its behaviour. `'.gitignore' in TEMPLATE_PATHS` -> False.\n  Fourth cause, measured by calling the installer's own filter: `should_skip(ROOT/'.shiki/leases/x.lock', target_install=True)` -> False, versus True for `.shiki/ledger/L-1.json` and `.shiki/gha/pr.json`. The mirror directories are filtered because they appear in the manifest's `create_directories` list; `.shiki/leases` does not appear there. The platform's live lock \u2014 naming a task id from another repository \u2014 is therefore copied in, and with no `.gitignore` shipped it is committed.\n  Why a static completeness check and not four additions: all four are the same defect \u2014 a shipped artifact depending on something unshipped, with nothing checking the relationship. Adding four paths fixes today and not tomorrow.\n  Reproducible when: a fresh install passes its own validate, its own unittest discovery, and every shipped contract test, and the completeness check fails if any shipped artifact gains an unshipped dependency.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_init.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Ship everything a shipped artifact depends on, and prove a fresh install works"
+    },
+    {
+      "acceptance_checks": [
+        "Without --force, no existing file changes \u2014 the current behaviour, pinned by a test.",
+        "With --force, CONTEXT.md, AGENTS.md, CLAUDE.md and .github/CODEOWNERS each keep their content and gain a <file>.new \u2014 one case per file.",
+        "With --force, .shiki/config.yaml and .shiki/guardian-policy.json each keep their content, gain a <file>.new, and appear in the end-of-run summary with the differing keys named.",
+        "mergegate.required_checks and approval_sources are named explicitly in that summary when they differ.",
+        ".shiki/migrations/state.json is preserved and gains no .new.",
+        "Every other shipped file is overwritten under --force.",
+        "A target with pending migrations is refused with NO file written \u2014 proved by hashing the tree before and after.",
+        "The end-of-run summary lists every .new written.",
+        "docs/operations.md and docs/releasing.md document --force as required for an upgrade and document the .new convention; the idempotent-re-run claim is gone.",
+        "CODEOWNERS_REQUIRED_OWNER is resolved per target, proved with a fixture naming a different owner, and this repository's behaviour is unchanged.",
+        "tests/test_install_force_semantics.py covers every case above.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [
+        "Ship everything a shipped artifact depends on, and prove a fresh install works"
+      ],
+      "locks": [
+        "path:scripts/shiki_installer.py",
+        "path:scripts/shiki_bootstrap.py",
+        "path:scripts/shiki_cli.py",
+        "path:scripts/shiki_contracts.py",
+        "path:docs/operations.md",
+        "path:docs/releasing.md",
+        "path:tests/test_install_force_semantics.py",
+        "path:scripts/test_shiki_init.sh"
+      ],
+      "non_goals": [
+        "Silently overwriting config.yaml or guardian-policy.json",
+        "Pruning files upstream removed",
+        "Changing the migration registry contents",
+        "Changing any gate or schema",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "critical",
+      "runtime": "claude-code",
+      "scope": "Replace the two-way preserve/overwrite split with a three-way one, so nothing is lost and nothing is silently stale.\n  - PROJECT CONTENT \u2014 `CONTEXT.md`, `AGENTS.md`, `CLAUDE.md`, `.github/CODEOWNERS` \u2014 is never overwritten, even under `--force`. The incoming template is written alongside as `<file>.new` and reported, so the operator can merge deliberately.\n  - GOVERNANCE CONTRACT \u2014 `.shiki/config.yaml`, `.shiki/guardian-policy.json` \u2014 is likewise never silently kept: write `<file>.new` alongside and report a per-key summary of what differs, naming `mergegate.required_checks` and `approval_sources` explicitly because those two decide what branch protection requires and what can approve. `.shiki/migrations/state.json` stays preserved outright \u2014 it is target history, not a contract.\n  - EVERYTHING ELSE is overwritten under `--force`, as today.\nThe run must print, at the end, a single explicit summary of every `.new` written, so a half-upgrade is visible rather than inferred.\n\nMove the precondition checks AHEAD of any file write. Measured order today: `install_template` \u2014 which validates INSIDE itself \u2014 runs at `scripts/shiki_bootstrap.py:235`, before `write_target_repo_config`, `commit_manifest`, `push_branch`, `configure_claude_code_secret` and `protect_branch`. A target with pending migrations therefore has its tree rewritten and then the run aborts before commit, push, secret and branch protection. Validate first; write nothing until the preconditions pass.\n\nDocument `--force` in `docs/operations.md` and `docs/releasing.md` as the required flag for an upgrade, replacing the current claim that re-running the bootstrap is idempotent, and document the `.new` convention.\n\nReplace the hardcoded `CODEOWNERS_REQUIRED_OWNER = \"@mizutani-140\"` in `scripts/shiki_contracts.py` with a value resolved per target, so a repository owned by anyone else can satisfy its own CODEOWNERS check. Keep the current value as the default for this repository.\n\nAdd `tests/test_install_force_semantics.py`: without `--force` nothing existing changes (the current behaviour, pinned); with `--force`, each of the four project-content files keeps its content and gains a `.new`; each of the two governance files keeps its content, gains a `.new`, and is named in the summary; `migrations/state.json` gains no `.new` and is untouched; every other file is overwritten; a target with pending migrations is refused with NO file written \u2014 asserted by content hashing the tree before and after; and the CODEOWNERS owner is target-resolved, proved with a fixture naming a different owner.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom 1: the operator follows `docs/operations.md:72-74`, re-runs the bootstrap, sees exit 0 and hundreds of `kept existing file:` warnings, and believes the target is upgraded. Nothing changed. The stale gate keeps running and keeps reporting green.\n  Measured: `--force` is `store_true` with default False (`scripts/shiki_cli.py:42`, `:100`); `copy_path` returns after warning `kept existing file:` when the destination exists and `force` is false. `--force` appears nowhere in `docs/operations.md` or `docs/releasing.md`.\n  Symptom 2: the operator discovers `--force`, and it overwrites `CONTEXT.md` \u2014 the glossary AGENTS.md names as the source of truth for domain language \u2014 plus `AGENTS.md`, `CLAUDE.md` and `.github/CODEOWNERS`, with no prompt and no backup, while keeping `.shiki/config.yaml` and `.shiki/guardian-policy.json`.\n  Measured: `PRESERVE_UNDER_FORCE == ('.shiki/guardian-policy.json', '.shiki/config.yaml', '.shiki/migrations/state.json')`; everything else is copied over.\n  Why that split is exactly backwards: `config.yaml` carries `mergegate.required_checks`, which `shiki init --protect` pushes to GitHub as the branch-protection contexts. A gate job added upstream therefore runs in the upgraded target, posts its check, can go red \u2014 and blocks nothing, because the preserved config never listed it. `guardian-policy.json` carries `approval_sources`; a source added upstream is absent from an old target's policy, and a missing block defaults to disabled, so the approval path is silently off. Both states pass `validate_shiki` and `doctor`.\n  Why neither direction can simply be flipped: overwriting either file would destroy target-specific values. Writing `<file>.new` plus an explicit summary is what makes the difference visible without losing anything.\n  Reproducible when: an upgrade of a target with an older config reports exactly which governance keys differ, leaves every project-content file intact, and refuses without writing anything when the target has pending migrations.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_init.sh && bash scripts/test_shiki_doctor.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Make an upgrade upgrade the governance contract and never destroy project content"
+    },
+    {
+      "acceptance_checks": [
+        "A fresh install writes a stamp naming the platform commit, the timestamp, and a per-path content digest.",
+        "An upgrade refreshes the stamp.",
+        "doctor reports no drift on an untouched fresh install.",
+        "Editing one shipped file makes doctor report drift naming that exact path.",
+        "An absent stamp is a distinct doctor finding, never a pass.",
+        "A stamp naming a platform commit that is not an ancestor of the running platform HEAD is reported, not silently accepted.",
+        "doctor --strict fails on drift and on an absent stamp.",
+        "doctor never writes to the target.",
+        "shiki migrate --target pointing at a different repository either resolves that repository's own registry or refuses with a message naming the correct command \u2014 asserted directly.",
+        "tests/test_install_version_drift.py covers every case above.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [
+        "Make an upgrade upgrade the governance contract and never destroy project content"
+      ],
+      "locks": [
+        "path:scripts/shiki_installer.py",
+        "path:scripts/shiki_doctor.py",
+        "path:scripts/shiki_migrations.py",
+        "path:tests/test_install_version_drift.py",
+        "path:scripts/test_shiki_doctor.sh"
+      ],
+      "non_goals": [
+        "Pruning files upstream removed",
+        "Changing the migration registry contents",
+        "Changing any gate or schema",
+        "Making doctor mutate anything",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Write an install stamp into the target \u2014 a small JSON record naming the platform commit the install came from, the install timestamp, and a content digest per shipped path \u2014 and refresh it on every install and upgrade. It is target state, not a contract, so it belongs with the other target-owned records and must never be overwritten by a later install with older content.\n\nTeach `shiki doctor` to report drift from it: a shipped path whose current content differs from the stamped digest (the target was hand-edited or half-upgraded), a stamp naming a platform commit that is not an ancestor of the running platform's HEAD (the target is ahead, or from a different lineage), and an absent stamp (a target installed before stamps existed \u2014 reported as a distinct finding, never as a pass). Drift must be a real doctor finding with its own id, so `--strict` fails on it.\n\nFix the migration target confusion: `shiki migrate` with `--target <other repo>` currently runs the PLATFORM's registry against the TARGET's state file, so it can write migration ids the target's own validator rejects, producing a permanently red required check. Either resolve the registry from the target's own `scripts/` when `--target` names a different repository, or refuse `--target` with a message telling the operator to run the target's own CLI. Refusing is acceptable and is the safer default; whichever is chosen must be covered by a test.\n\nAdd `tests/test_install_version_drift.py`: a fresh install writes a stamp; doctor reports no drift; editing one shipped file makes doctor report drift naming that path; removing the stamp produces the distinct absent-stamp finding, never a pass; `--strict` fails on drift; a stamp from a newer platform commit is reported rather than silently accepted; and `shiki migrate --target <other>` either uses the target's registry or refuses, asserted directly.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: you cannot tell an old target from a current one. A uniformly-old target is internally consistent, so `validate_shiki` passes and `doctor` reports zero failures \u2014 the same output a current target gives.\n  Measured: `'VERSION' in TEMPLATE_PATHS` -> False; no Python file reads `VERSION` (only `.github/workflows/release.yml` mentions it); `shiki status` emits only `claude_command, codex_skill, command, config, root`; `shiki preflight` checks git-repo, GitHub-origin and `.shiki/repo.json` only; `shiki doctor` has no version check. The only instrument available today is diffing `TEMPLATE_PATHS` by hand against the platform.\n  Second defect: the global `shiki` is a symlink into the platform checkout and `bin/shiki` execs the platform's `scripts/shiki.py`, so `shiki migrate --target <old target>` builds the registry from the PLATFORM and applies it to the TARGET's state file. `docs/releasing.md:145-149` shows the migrate commands with no `--target` at all, which is the only safe form.\n  Reproducible when: doctor names the exact drifted paths in a hand-edited target, reports an absent stamp as its own finding, and `--strict` fails on both.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_doctor.sh && bash scripts/test_shiki_init.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Give a target a version stamp and detect drift against it"
+    }
+  ],
+  "title": "Make an installed target work, upgradeable, and identifiable"
+}

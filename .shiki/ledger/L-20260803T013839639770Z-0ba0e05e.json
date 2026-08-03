@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260803T013839638288Z-eebb39bf.json",
+    ".shiki/plans/P-20260803T013829425758Z-805c8ace.json"
+  ],
+  "goal_id": "G-20260803T013839638288Z-eebb39bf",
+  "id": "L-20260803T013839639770Z-0ba0e05e",
+  "links": [],
+  "summary": "Goal registered from plan: Make an installed target work, upgradeable, and identifiable",
+  "task_id": null,
+  "timestamp": "2026-08-03T01:38:39+00:00",
+  "type": "goal-created"
+}
