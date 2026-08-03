@@ -17,7 +17,7 @@
     "T-20260803T013839640984Z-2411811e"
   ],
   "expected_branch": "shiki/t-20260803t013839641506z-d11bb45f-closeout",
-  "expected_pr": 250,
+  "expected_pr": 251,
   "github_issue": null,
   "goal_id": "G-20260803T013839638288Z-eebb39bf",
   "id": "T-20260803T013839641506Z-d11bb45f",
@@ -36,7 +36,8 @@
     "L-20260803T074739998478Z-2e5b00ec",
     "L-20260803T074930586352Z-30b32b18",
     "L-20260803T075421647777Z-004f3932",
-    "L-20260803T083619901376Z-2964dfc8"
+    "L-20260803T083619901376Z-2964dfc8",
+    "L-20260803T083635094720Z-3eca61bd"
   ],
   "locks": [
     "path:scripts/shiki_installer.py",
