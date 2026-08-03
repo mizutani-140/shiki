@@ -1,0 +1,13 @@
+{
+  "created_at": "2026-08-03T03:01:07+00:00",
+  "goal_id": "G-20260803T013839638288Z-eebb39bf",
+  "locks": [
+    "path:scripts/shiki_installer.py",
+    "path:.shiki/manifest.json",
+    "path:tests/test_install_completeness.py",
+    "path:scripts/test_shiki_init.sh"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260803T013839640380Z-ca171b22"
+}

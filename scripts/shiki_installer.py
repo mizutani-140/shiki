@@ -16,6 +16,7 @@ TEMPLATE_PATHS = [
     "CLAUDE.md",
     "CONTEXT.md",
     "SYSTEM_PROMPT.md",
+    ".gitignore",
     ".claude/commands/shiki.md",
     ".codex/skills/shiki/SKILL.md",
     ".shiki",
@@ -31,6 +32,7 @@ TEMPLATE_PATHS = [
     "docs/agents",
     "docs/adr",
     "skills/engineering",
+    "tests",
     "scripts/shiki_schema.py",
     "scripts/validate_shiki.py",
     "scripts/shiki_contracts.py",
@@ -51,6 +53,7 @@ TEMPLATE_PATHS = [
     "scripts/shiki_bootstrap.py",
     "scripts/shiki_cli.py",
     "scripts/shiki_config.py",
+    "scripts/shiki_contract_approval.py",
     "scripts/shiki_doctor.py",
     "scripts/shiki_git.py",
     "scripts/shiki_github.py",
@@ -62,6 +65,7 @@ TEMPLATE_PATHS = [
     "scripts/shiki_runtime.py",
     "scripts/shiki_runtime_adapters.py",
     "scripts/shiki_runtime_registry.py",
+    "scripts/shiki_session_lease.py",
     "scripts/shiki_state_classes.py",
     "scripts/shiki_tasks.py",
     "scripts/shiki_state.py",
@@ -105,6 +109,26 @@ PRESERVE_UNDER_FORCE = (
     ".shiki/config.yaml",
     ".shiki/migrations/state.json",
 )
+
+# Shipped `tests/` files that must NOT be copied into a target install. Each is a
+# platform-only test: it asserts something that exists only in the Shiki platform
+# repo itself, so it can never pass from a freshly installed target and would make
+# the target's own `unittest discover -s tests` (a required check) fail forever.
+# These files are still committed and run in the platform (they are absent only
+# from the target's shipped surface, not from `exclude_from_commit`). Reason per
+# entry: an omission here is a deliberate, recorded decision, not an oversight.
+TARGET_INSTALL_EXCLUDES = {
+    "tests/test_loop_e2e_contract.py": (
+        "Contract meta-test over scripts/test_shiki_loop_e2e.sh and "
+        "docs/agents/autonomous-loop-e2e-acceptance.md — platform-only e2e "
+        "artifacts that are not part of the shipped target surface."
+    ),
+    "tests/test_mirror_lock_injection.py": (
+        "FrozenPlanCorpusTests asserts the platform's own frozen-plan corpus "
+        "(>=1 frozen plan, >=19 tasks); a freshly installed target starts with "
+        "an empty .shiki mirror, so the assertion cannot hold there."
+    ),
+}
 
 def manifest_stage_paths(path: Path) -> list[str]:
     candidates = list(TEMPLATE_PATHS)
@@ -167,6 +191,9 @@ def should_skip(path: Path, *, target_install: bool = False) -> bool:
         manifest = load_manifest(ROOT)
         if relative_text in manifest_install_include(manifest):
             return False
+        # Platform-only tests never ship into a target (see TARGET_INSTALL_EXCLUDES).
+        if relative_text in TARGET_INSTALL_EXCLUDES:
+            return True
         # Provider metadata is created per-target by shiki init/start; copying it
         # into a new target would point that target at this repository's origin.
         if relative_text == ".shiki/repo.json":

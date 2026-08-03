@@ -1,0 +1,17 @@
+{
+  "branch": "shiki/t-20260803t013839640380z-ca171b22-ship-everything-a-shipped-artifact-depends-on-an",
+  "created_at": "2026-08-03T03:01:08+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260803T013839638288Z-eebb39bf",
+  "locks": [
+    "path:scripts/shiki_installer.py",
+    "path:.shiki/manifest.json",
+    "path:tests/test_install_completeness.py",
+    "path:scripts/test_shiki_init.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260803t013839640380z-ca171b22-ship-eve",
+  "pr": 246,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260803T013839640380Z-ca171b22"
+}
