@@ -25,7 +25,7 @@
     "T-20260804T095105534398Z-c2ef0cfc"
   ],
   "expected_branch": "shiki/t-20260804t095105534980z-530c4f17-closeout",
-  "expected_pr": 270,
+  "expected_pr": 271,
   "github_issue": null,
   "goal_id": "G-20260804T095105533205Z-224ce02d",
   "id": "T-20260804T095105534980Z-530c4f17",
@@ -41,7 +41,8 @@
     "L-20260804T130955539808Z-8bc6b939",
     "L-20260804T131352090477Z-5918c74f",
     "L-20260804T131907591665Z-3ece9590",
-    "L-20260804T132533130535Z-9aed65bc"
+    "L-20260804T132533130535Z-9aed65bc",
+    "L-20260804T133927157969Z-ba17fa6f"
   ],
   "locks": [
     "path:scripts/shiki_guardian.py",
