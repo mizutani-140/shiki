@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/254"
+  ],
+  "goal_id": "G-20260804T002751220363Z-1eb2e0d4",
+  "id": "L-20260804T013728397072Z-a2a4809a",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/254"
+  ],
+  "summary": "GitHub PR #254 created for T-20260804T002751221801Z-a914603f",
+  "task_id": "T-20260804T002751221801Z-a914603f",
+  "timestamp": "2026-08-04T01:37:28+00:00",
+  "type": "handoff"
+}

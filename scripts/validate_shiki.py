@@ -206,6 +206,7 @@ LEDGER_TYPES = {
     "completion",
     "handoff",
     "memory-transition",
+    "contract-amended",
 }
 KNOWN_SKILLS = {
     "setup-matt-pocock-skills",
