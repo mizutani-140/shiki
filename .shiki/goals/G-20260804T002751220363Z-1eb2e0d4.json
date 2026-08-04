@@ -35,7 +35,8 @@
   },
   "id": "G-20260804T002751220363Z-1eb2e0d4",
   "ledger_evidence": [
-    "L-20260804T002751221201Z-2208500f"
+    "L-20260804T002751221201Z-2208500f",
+    "L-20260804T025224599722Z-fce737b7"
   ],
   "non_goals": [
     "Letting an Amendment PR touch implementation code, or any Shiki record other than the goal's source plan, its own goal's task files, its DAG and a goal-scoped ledger entry.",
@@ -53,6 +54,6 @@
   ],
   "risk_level": "critical",
   "source_plan": "P-20260804T002743387879Z-7c1183ba",
-  "status": "planned",
+  "status": "complete",
   "title": "Give a Contract Amendment a delivery mode (locks corrected)"
 }
