@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260804T082618611335Z-02de0043.json"
+  ],
+  "goal_id": "G-20260804T082618610097Z-21ffeb4e",
+  "id": "L-20260804T082618611414Z-705c47f4",
+  "links": [],
+  "summary": "Task registered from plan: Refuse approval evidence the gate never read, never bound, or never meant",
+  "task_id": "T-20260804T082618611335Z-02de0043",
+  "timestamp": "2026-08-04T08:26:18+00:00",
+  "type": "task-registered"
+}
