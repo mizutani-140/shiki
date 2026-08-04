@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/plans/P-20260801T040831205733Z-f88e60e0.json",
+    ".shiki/tasks/T-20260801T040836632579Z-2cde7018.json"
+  ],
+  "goal_id": "G-20260801T040836630398Z-f28167e5",
+  "id": "L-20260804T064110171880Z-2bff348c",
+  "summary": "Contract amendment: add path:tests/test_workflow_invocation.py to the task's locks so the --contract-approval flag can be registered in _FLAG_VALUES",
+  "task_id": "T-20260801T040836632579Z-2cde7018",
+  "timestamp": "2026-08-04T06:41:10+00:00",
+  "type": "contract-amended"
+}

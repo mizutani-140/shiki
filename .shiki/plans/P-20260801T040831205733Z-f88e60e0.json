@@ -36,7 +36,9 @@
   "risk_level": "critical",
   "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-CARRY-draft.json",
   "spec_freeze": {
-    "amendments": [],
+    "amendments": [
+      "2026-08-04 lock amendment (task 'Gather the Contract PR registration proof in CI and accept ADR 0015'): add path:tests/test_workflow_invocation.py. Adding --contract-approval to the mergegate job's mergegate_check.py invocation makes tests/test_workflow_invocation.py::_metadata_argv raise KeyError('--contract-approval') at line 228, because _FLAG_VALUES (lines 114-123) has no entry for it and _STORE_TRUE (line 124) holds only --allow-missing-cca. The task's own test_command runs `python3 -m unittest discover -s tests`, so the task could not satisfy its acceptance from inside its locks. The implementation was complete and its pre-PR reviewer blocked it correctly; the defect was in the contract's lock set, not the code."
+    ],
     "approved_by": "mizutani-140",
     "prd": "docs/adr/0015-contract-approval-before-dispatch.md",
     "source": "Operator instruction 2026-08-01 to fix every open finding and to auto-fix newly discovered ones; this defect was measured during that sweep and folded in under that standing authorization.",
@@ -97,7 +99,8 @@
         "path:.github/workflows/shiki-cca-completion.yml",
         "path:.github/workflows/shiki-mergegate.yml",
         "path:docs/adr/0015-contract-approval-before-dispatch.md",
-        "path:scripts/test_shiki_control_plane.sh"
+        "path:scripts/test_shiki_control_plane.sh",
+        "path:tests/test_workflow_invocation.py"
       ],
       "non_goals": [
         "Changing the evaluator's semantics",
