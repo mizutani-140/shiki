@@ -120,6 +120,39 @@ grep -- "--base-shiki .shiki/gha/base-shiki/.shiki" .github/workflows/shiki-merg
 # shellcheck disable=SC2016
 grep -- '--merged-prs "$MERGED_PRS"' .github/workflows/shiki-mergegate.yml >/dev/null
 
+# ADR 0015 Contract Approval carry (T-20260801T040836632579Z-2cde7018). BOTH the
+# CCA workflow and the MergeGate metadata workflow must build the registration
+# proof .shiki/gha/contract-approval.json the evaluator reads and pass it through
+# --contract-approval to their consumer, from evidence the PR head/body cannot
+# forge: the task id resolved with the shared regex; the commit that ADDED the
+# task file found on the base branch with `git log --diff-filter=A` over the
+# ALREADY-fetched base ref; and the MERGED PR behind that commit plus its
+# guardian:approved label read straight from the GitHub API. A shallow base fetch
+# (--depth) or a second base fetch would make the adding-commit lookup return
+# nothing and silently defeat the carry — the exact defect PR #206 removed — so
+# neither base fetch may carry --depth and no second base fetch may be added.
+for wf in .github/workflows/shiki-cca-completion.yml .github/workflows/shiki-mergegate.yml; do
+  grep -F ".shiki/gha/contract-approval.json" "$wf" >/dev/null
+  grep -F -- "--contract-approval .shiki/gha/contract-approval.json" "$wf" >/dev/null
+  # Shared task-id regex, identical to the MERGED_PRS resolution already in each file.
+  grep -F "T-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})" "$wf" >/dev/null
+  # Adding commit found on the base branch (reusing the existing base fetch).
+  grep -F -- "git log --diff-filter=A" "$wf" >/dev/null
+  # Merged registering PR + its Guardian approval resolved from the GitHub API.
+  # shellcheck disable=SC2016
+  grep -F 'commits/${adding_commit}/pulls' "$wf" >/dev/null
+  grep -F "guardian:approved" "$wf" >/dev/null
+  if grep -E 'git fetch.*--depth' "$wf" >/dev/null; then
+    echo "$wf base fetch must not carry --depth (a shallow base silently defeats the contract-approval carry)" >&2
+    exit 1
+  fi
+done
+# No SECOND base fetch may be added by the carry build (the existing fetch is reused):
+# the CCA workflow keeps exactly its two base fetches (one per job) and the
+# MergeGate metadata workflow keeps exactly one.
+[ "$(grep -c 'git fetch origin' .github/workflows/shiki-cca-completion.yml)" = "2" ]
+[ "$(grep -c 'git fetch origin' .github/workflows/shiki-mergegate.yml)" = "1" ]
+
 python3 - "$ROOT" <<'PY'
 import json
 import pathlib

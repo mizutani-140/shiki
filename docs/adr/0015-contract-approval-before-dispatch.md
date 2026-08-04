@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -158,6 +158,33 @@ itself, or the two-factor property collapses to one.
 Follow-up work, deliberately not decided here: making the architecture gate
 deterministic, and reducing the 43/80 high-risk ratio through finer risk
 classification at plan time.
+
+What shipped, and when. This decision reached the repository in three stages, and
+it is marked Accepted only now that the last stage closes the loop. The
+registration half — contract mode, the pre-dispatch gate, the Contract PR, and the
+metadata-job Guardian flags that force the gate from the Goal's frozen-plan risk —
+shipped 2026-07-27 through 2026-07-29. The contract-immutability binding shipped
+2026-08-01 in PR #229: `normal_task_contract_immutability_reasons` freezes the
+seven governance fields (`scope`, `non_goals`, `required_skills`, `risk_level`,
+`locks`, `acceptance_checks`, `test_command`) against the base snapshot
+base-when-present, so an implementation PR can no longer lower its own risk or
+widen its own locks. This change is the third stage: it gathers the registration
+proof in CI — the base-branch commit that added the task file, the merged Contract
+PR behind it, and that PR's Guardian approval — and carries the pre-dispatch
+approval to the implementation PR through the separately-tested
+`evaluate_contract_approval`, wired into both the deterministic CCA Guardian signal
+and the MergeGate policy check. `evaluate_guardian_approval` was not touched, so a
+defect in the carry degrades to "does not apply", never to a weaker live-approval
+path.
+
+The Bootstrap double-approval described above was not hypothetical. Between the
+registration half and this carry, the two evaluator consumers were present and
+correct but no caller supplied the proof, so `--contract-approval` was absent, the
+evaluator degraded to "does not apply" by design, and every high/critical
+implementation PR still returned `needs_guardian`. In that window a contract-approved
+Goal was made to pay for its approval twice — once on the Contract PR before
+dispatch and again with a live Guardian approval on the implementation PR — which is
+exactly the second approval this stage removes.
 
 ## Alternatives Considered
 
