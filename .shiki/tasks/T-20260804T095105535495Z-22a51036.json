@@ -17,7 +17,7 @@
     "T-20260804T095105534980Z-530c4f17"
   ],
   "expected_branch": "shiki/t-20260804t095105535495z-22a51036-closeout",
-  "expected_pr": 272,
+  "expected_pr": 273,
   "github_issue": null,
   "goal_id": "G-20260804T095105533205Z-224ce02d",
   "id": "T-20260804T095105535495Z-22a51036",
@@ -31,7 +31,8 @@
     "L-20260804T142532928021Z-1dc8cbb7",
     "L-20260804T142704671464Z-1a3491a4",
     "L-20260804T142708877690Z-b63fa461",
-    "L-20260804T143331240723Z-c4ff0f53"
+    "L-20260804T143331240723Z-c4ff0f53",
+    "L-20260804T143334789189Z-b6a8e44e"
   ],
   "locks": [
     "path:.github/workflows/shiki-cca-completion.yml",
