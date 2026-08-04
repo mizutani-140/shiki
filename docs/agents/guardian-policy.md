@@ -61,6 +61,47 @@ this policy. It verifies that label-only approval, negative text such as
 actors, CCA Review Bridge reviews, advisory Claude reviews, and close-but-not
 exact approval phrases do not satisfy Guardian approval.
 
+## Carried Guardian Approval Across A Proven Base Sync (ADR 0018)
+
+Strict branch protection requires a PR to be up to date with its base before it
+merges, and `require_head_sha` binds a Guardian comment approval to a specific head
+SHA. Together they invalidate an existing approval every time the base moves under
+an open PR, even when the base sync changes nothing about the approved work. The
+base-sync carry lets a Guardian comment approval that bound to a **prior** head
+stand for the **current** head when — and only when — git proves the move from the
+approved head to the current head was a **pure base sync** (the current tree is
+exactly the approved tree merged with new base commits, proved by tree
+reproduction). This does not weaken the head-SHA binding for anything else: a
+stale-head comment with no such proof remains the soft blocker described above.
+
+The carry is recorded as the `guardian_comment_carried` source and is bounded:
+
+- The `guardian:approved` **label leg is still required**; removing the label
+  defeats even a valid carry.
+- Only the **Guardian comment** source carries, and only when the task risk is
+  exactly **high**. Critical never carries and always demands a fresh, current-head
+  approval.
+- A label-only escalation to high/critical, a retargeted base, or a configured
+  Guardian's freehand revocation each refuse the carry. The proof runs last, after
+  the marker, negation, configured-actor, and allowed-author checks; a
+  non-Guardian's comment is never parsed for a carry SHA.
+- The carried risk is floored **never-weaker** against the base snapshot, computed
+  identically by the MergeGate gate and the CCA signal, so the signal can never be
+  more permissive than the gate.
+
+The carry is **off by default and byte-identical to the pre-carry gate** unless a
+caller passes both `--base-sync-carry` and `--default-branch`. Shiki's four
+Guardian-judging CI invocations pass them — the `guardian_approval_signal.py`
+signal, the `shiki guardian status` blockers render, and the two `mergegate_check.py`
+policy checks — and `validate_shiki`'s workflow-invocation contract pins the flags on
+each so a future edit cannot drop them silently. The proof reads git history over
+`origin/<default_branch>` and reuses each job's existing base fetch; a shallow
+(`--depth`) or second base fetch would make the proof unresolvable and silently
+disable the carry, so neither is permitted. CCA reads `guardian_comment_carried` as
+a recorded authority in the deterministic signal and does not re-derive it. See ADR
+0018 for the full decision, the rejected diff/patch-equality and path-disjointness
+alternatives, and the accepted residual.
+
 ## External AI Guardian Review (ADR 0010)
 
 `external_ai_guardian_review` is a first-class approval source for high/critical

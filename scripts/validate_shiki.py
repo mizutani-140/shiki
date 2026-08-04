@@ -302,10 +302,36 @@ WORKFLOW_CONTRACTS = {
 # The metadata check must pass --base-shiki and --merged-prs so a
 # post_merge_reconcile PR (and the ADR 0017 bookkeeping-closeout exemption) can be
 # proven; without them mergegate_check.py fails closed on a missing base snapshot.
+#
+# ADR 0018 base-sync carry (guardian_comment_carried): every invocation that judges
+# Guardian approval must pass --base-sync-carry and --default-branch, or the carry
+# degrades to "does not apply" silently — no error, feature invisible. Four such
+# invocations exist across the two workflows and each is pinned here so a future
+# edit that drops either flag fails validation loudly:
+#   - shiki-mergegate.yml    mergegate    metadata mergegate_check.py
+#   - shiki-cca-completion.yml cca         guardian_approval_signal.py (the signal)
+#   - shiki-cca-completion.yml cca         shiki.py guardian status (blockers render)
+#   - shiki-cca-completion.yml mergegate   mergegate_check.py (the policy gate)
+# shiki-cca-completion.yml has no other entry in this contract, so without it three
+# of the four invocations would be unguarded against silent flag removal.
 WORKFLOW_INVOCATION_REQUIRED_FLAGS: dict[str, dict[str, dict[str, tuple[str, ...]]]] = {
     "shiki-mergegate.yml": {
         "mergegate": {
-            "scripts/mergegate_check.py": ("--base-shiki", "--merged-prs"),
+            "scripts/mergegate_check.py": (
+                "--base-shiki",
+                "--merged-prs",
+                "--base-sync-carry",
+                "--default-branch",
+            ),
+        },
+    },
+    "shiki-cca-completion.yml": {
+        "cca": {
+            "scripts/guardian_approval_signal.py": ("--base-sync-carry", "--default-branch"),
+            "scripts/shiki.py guardian status": ("--base-sync-carry", "--default-branch"),
+        },
+        "mergegate": {
+            "scripts/mergegate_check.py": ("--base-sync-carry", "--default-branch"),
         },
     },
 }

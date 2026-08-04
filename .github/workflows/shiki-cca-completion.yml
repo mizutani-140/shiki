@@ -46,6 +46,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
           REPOSITORY: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           rm -rf .shiki/gha
           mkdir -p .shiki/gha
@@ -150,6 +151,15 @@ jobs:
           # MergeGate policy check uses (recognizes label/review/comment OR an
           # external AI guardian review artifact, ADR 0010). The policy check
           # remains the authoritative gate.
+          #
+          # ADR 0018 base-sync carry (guardian_comment_carried). --base-sync-carry
+          # + --default-branch let the signal carry a stale Guardian comment
+          # approval across a proven pure base sync, so it matches the gate rather
+          # than under-reporting. The proof reads git history over
+          # origin/<default_branch>; the base fetch above already retrieved it —
+          # do NOT add a second fetch and do NOT use --depth (a shallow base makes
+          # the proof unresolvable and silently disables the carry, the exact
+          # defect PR #206 removed). Inert unless BOTH flags are present.
           gh api --paginate "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" > .shiki/gha/live-guardian-comments.json || echo "[]" > .shiki/gha/live-guardian-comments.json
           gh api --paginate "repos/${REPOSITORY}/issues/${PR_NUMBER}/events" > .shiki/gha/live-guardian-events.json || echo "[]" > .shiki/gha/live-guardian-events.json
           gh api --paginate "repos/${REPOSITORY}/issues/${PR_NUMBER}/timeline" -H "Accept: application/vnd.github+json" > .shiki/gha/live-guardian-timeline.json || echo "[]" > .shiki/gha/live-guardian-timeline.json
@@ -165,6 +175,8 @@ jobs:
             --changed-files-status .shiki/gha/changed-files-status.txt \
             --merged-prs "$MERGED_PRS" \
             --contract-approval .shiki/gha/contract-approval.json \
+            --base-sync-carry \
+            --default-branch "$DEFAULT_BRANCH" \
             --output .shiki/gha/guardian-approval.json
           echo "::group::guardian-approval signal"
           cat .shiki/gha/guardian-approval.json
@@ -269,10 +281,15 @@ jobs:
             result of the authoritative evaluate_guardian_approval). If
             "required" is false, CCA-08 is not applicable. If "required" is true
             and "approved" is true, CCA-08 is satisfied by the recorded authority
-            in "sources"/"ai_reviewers" (an external AI guardian review is a
-            valid authority per ADR 0010; record it as such, never as a human
-            approver). If "required" is true and "approved" is false, return
-            needs_guardian.
+            in "sources"/"ai_reviewers". Read each recorded source as an authority
+            the signal already established; do NOT re-derive it. An external AI
+            guardian review is a valid authority per ADR 0010; record it as such,
+            never as a human approver. A "guardian_comment_carried" source means
+            the signal proved (ADR 0018) that a prior-head Guardian comment
+            approval was carried across a pure base sync; read it as a recorded
+            Guardian authority and do NOT re-run the base-sync proof or re-judge
+            whether the carry applies. If "required" is true and "approved" is
+            false, return needs_guardian.
 
             Judge completion only. Do not edit production code.
             Do not require this CCA verdict check, the downstream MergeGate policy
@@ -303,6 +320,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
           REPOSITORY: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
 
@@ -321,7 +339,15 @@ jobs:
           # paste-ready Guardian-approval body (marker + full live head SHA), from
           # the evidence the Prepare CCA context step already fetched. --no-git:
           # this checkout is the clean PR head, so there is no unpushed/unsynced
-          # SHA drift to detect here.
+          # SHA drift to detect here (--no-git skips only that drift probe; the
+          # base-sync carry proof below still reads git).
+          #
+          # ADR 0018 base-sync carry (guardian_comment_carried). --base-sync-carry
+          # + --default-branch resolve the carry the SAME way the gate does, so the
+          # rendered blockers match MergeGate rather than demanding a fresh approval
+          # a base sync already carried. The proof reads git over
+          # origin/<default_branch>; the checkout is fetch-depth 0 and the base
+          # fetch above is reused — do NOT add a second fetch or any --depth.
           python3 scripts/shiki.py guardian status \
             --pr "$PR_NUMBER" \
             --repo "$REPOSITORY" \
@@ -332,6 +358,8 @@ jobs:
             --comments .shiki/gha/live-guardian-comments.json \
             --events .shiki/gha/live-guardian-events.json \
             --timeline .shiki/gha/live-guardian-timeline.json \
+            --base-sync-carry \
+            --default-branch "$DEFAULT_BRANCH" \
             --output .shiki/gha/guardian-status-comment.md
 
           # Update the existing marker comment in place across re-runs instead of
@@ -584,6 +612,7 @@ jobs:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
 
@@ -671,6 +700,12 @@ jobs:
           cat "$approval_file"
           echo "::endgroup::"
 
+          # ADR 0018 base-sync carry (guardian_comment_carried) passed to the
+          # authoritative gate. --base-sync-carry + --default-branch let MergeGate
+          # carry a stale Guardian comment approval across a proven pure base sync.
+          # The proof reads git over origin/<default_branch>; the base fetch in
+          # "Refresh live PR state" already retrieved it — do NOT add a second fetch
+          # or any --depth. Inert unless BOTH flags are present.
           python3 scripts/mergegate_check.py \
             --pr-json .shiki/gha/live-pr.json \
             --changed-files .shiki/gha/live-changed-files.txt \
@@ -682,6 +717,8 @@ jobs:
             --base-shiki .shiki/gha/base-shiki/.shiki \
             --merged-prs "$MERGED_PRS" \
             --contract-approval .shiki/gha/contract-approval.json \
+            --base-sync-carry \
+            --default-branch "$DEFAULT_BRANCH" \
             --guardian-policy .shiki/guardian-policy.json \
             --guardian-comments .shiki/gha/live-guardian-comments.json \
             --guardian-events .shiki/gha/live-guardian-events.json \
