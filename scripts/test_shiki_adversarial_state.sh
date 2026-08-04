@@ -1199,6 +1199,62 @@ expect_ready(mg_plan_touch)
 
 
 # ============================================================================
+# Amendment mode (ADR 0009/0015) is two-factor (marker + mergegate:amendment
+# label), exactly like contract/goal_reconcile. NEITHER factor alone relaxes the
+# normal-path prohibitions: the operator-only spec_freeze gate behaves EXACTLY as
+# before unless BOTH factors are present (a maintainer applies the label, not
+# untrusted PR text). Prove marker-alone fails closed AND the spec_freeze
+# prohibition still fires, and label-alone does not even enter the mode.
+# ============================================================================
+AMEND_MARKER = "<!-- shiki:amendment -->"
+_SPEC_FREEZE_BLOCK = f"must not create or modify the spec_freeze block of .shiki/plans/{SOURCE_PLAN}.json"
+
+
+def _amend_smuggle_fixture(name, *, body_marker, labels):
+    fx = make_fixture(
+        name,
+        locks=["path:.shiki/**"],
+        changed=[f".shiki/plans/{SOURCE_PLAN}.json"],
+        status_entries=[f"M\t.shiki/plans/{SOURCE_PLAN}.json"],
+        base={"plans": {SOURCE_PLAN: {"id": SOURCE_PLAN, "spec_freeze": {"status": "frozen", "amendments": []}}}},
+    )
+    with_source_plan(fx)
+    # A normal implementation PR trying to append an amendment to its OWN source plan.
+    write_json(
+        fx / ".shiki" / "plans" / f"{SOURCE_PLAN}.json",
+        {"id": SOURCE_PLAN, "spec_freeze": {"status": "frozen", "amendments": ["smuggled amendment"]}},
+    )
+    pr = pr_payload()
+    if body_marker:
+        pr["body"] = pr["body"] + "\n" + AMEND_MARKER
+    pr["labels"] = labels
+    write_json(fx / ".shiki" / "gha" / "pr.json", pr)
+    return fx
+
+
+# Marker WITHOUT the maintainer label: fails closed on the missing label AND the
+# normal operator-only spec_freeze prohibition still fires (normal path unchanged).
+_marker_res = run_mergegate(
+    _amend_smuggle_fixture("mg-amend-marker-no-label", body_marker=True, labels=[{"name": "guardian:approved"}])
+)
+assert _marker_res.returncode != 0, _marker_res.stdout
+assert_contains(_marker_res.stdout, "amendment mode requires the mergegate:amendment label")
+assert_contains(_marker_res.stdout, _SPEC_FREEZE_BLOCK)
+
+# Label WITHOUT the marker: does NOT enter amendment mode (no label-required
+# error), and the normal spec_freeze prohibition is likewise untouched.
+_label_res = run_mergegate(
+    _amend_smuggle_fixture(
+        "mg-amend-label-no-marker", body_marker=False,
+        labels=[{"name": "guardian:approved"}, {"name": "mergegate:amendment"}],
+    )
+)
+assert _label_res.returncode != 0, _label_res.stdout
+assert "amendment mode requires the mergegate:amendment label" not in _label_res.stdout, _label_res.stdout
+assert_contains(_label_res.stdout, _SPEC_FREEZE_BLOCK)
+
+
+# ============================================================================
 # T-20260801T003238841526Z-9f3f6f63: the Guardian requirement SURVIVES a
 # self-lowered risk_level on the NORMAL task-PR path. The gate resolves the task's
 # risk never-weaker-than-base, so a PR that drops its OWN risk_level critical ->

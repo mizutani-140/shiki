@@ -328,6 +328,40 @@ def contract_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
     return (marker and label), None
 
 
+# An Amendment PR (Spec Amendment, ADR 0009/0015) declares itself with this exact
+# HTML-comment marker. It carries an operator-approved amendment of a spec-frozen
+# Goal's source plan — an append to ``spec_freeze.amendments`` — plus the task
+# files bound to the newly amended plan, so a contract that implementation proved
+# wrong (an unsatisfiable acceptance criterion, locks too narrow for the change
+# the task requires) can be corrected on a protected branch instead of by a hand
+# commit to main. Like contract/goal_reconcile, the marker only DECLARES intent;
+# the maintainer-applied label below is the independent second factor.
+AMENDMENT_MARKER = re.compile(r"<!--\s*shiki:amendment\s*-->")
+# The amendment mode's second factor. Only a write-access maintainer/Guardian can
+# apply it, so amendment mode cannot be self-granted from the PR body alone.
+AMENDMENT_LABEL = "mergegate:amendment"
+
+
+def amendment_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
+    """Decide whether a PR runs in amendment mode (marker + label).
+
+    Requires BOTH the body marker (declares intent) AND the maintainer-applied
+    label (authorizes the mode) — the same two-factor shape ``contract_decision``
+    implements, with the same message when the label is missing. A marker without
+    the label fails closed so untrusted PR text cannot self-grant the relaxed
+    amendment mode.
+    """
+    body = str(pr.get("body") or "")
+    marker = bool(AMENDMENT_MARKER.search(body))
+    label = AMENDMENT_LABEL in pr_label_names(pr)
+    if marker and not label:
+        return False, (
+            f"amendment mode requires the {AMENDMENT_LABEL} label (a maintainer-applied "
+            "second factor) in addition to the body marker"
+        )
+    return (marker and label), None
+
+
 # Governance-relevant fields of a frozen plan task that, when present in the
 # plan, a goal_reconcile-registered task MUST match exactly. Plan tasks carry no
 # ids, so title is the lookup key; everything else binds the task definition so a
@@ -398,6 +432,123 @@ def _frozen_task_match_errors(
             f"does not match the frozen plan runtime {frozen.get('runtime')!r}"
         )
     return errors
+
+
+def _check_frozen_dag_in_diff(
+    target: Path, goal_id: str, frozen_titles: set[str], path: str, blocking: list[str], mode: str
+) -> None:
+    """Per-node validation of a goal's DAG file present in the diff.
+
+    Every node must resolve to a frozen-plan task ANCHORED TO THIS GOAL (existing
+    or added/modified in this PR), so a foreign task with a colliding title cannot
+    be wired in (poisoning), and the DAG must COVER the full frozen plan — a
+    truncated DAG that drops frozen tasks is rejected. Shared by the frozen
+    registration modes (contract / goal_reconcile) and amendment mode, so the DAG
+    rules are literally identical across them."""
+    dag = load_json(target / path)
+    nodes = dag.get("nodes") if isinstance(dag, dict) else None
+    if not isinstance(nodes, list):
+        blocking.append(f"{mode} DAG {path} must have a nodes list")
+        return
+    node_titles: set[str] = set()
+    for node in nodes:
+        node_task = load_task(target, str(node))
+        if node_task is None:
+            blocking.append(f"{mode} DAG node {node} has no task file")
+            continue
+        if str(node_task.get("goal_id") or "") != goal_id:
+            blocking.append(f"{mode} DAG node {node} is not anchored to goal {goal_id}")
+            continue
+        node_title = str(node_task.get("title") or "").strip()
+        if node_title not in frozen_titles:
+            blocking.append(f"{mode} DAG node {node} title {node_title!r} is not in the goal's frozen plan")
+        else:
+            node_titles.add(node_title)
+    missing = frozen_titles - node_titles
+    if missing:
+        blocking.append(
+            f"{mode} DAG must cover every frozen plan task; missing {sorted(missing)}"
+        )
+
+
+def _check_frozen_dag_head_invariant(
+    target: Path, goal_id: str, frozen_tasks: dict[str, dict[str, Any]], blocking: list[str], mode: str
+) -> None:
+    """HEAD invariant + frozen-dependency edge binding for a goal's DAG.
+
+    Independent of whether the DAG file is in this diff: after the registration or
+    amendment, the goal's DAG at HEAD must cover every frozen-plan task, and its
+    edges (plus each registered task's own ``dependencies`` field) must be EXACTLY
+    the frozen plan's title-declared dependencies mapped to registered task ids.
+    Shared by the frozen registration modes and amendment mode so the ordering
+    semantics the DAG encodes cannot be dropped or invented by either."""
+    frozen_titles = set(frozen_tasks)
+    head_dag = load_dag(target, goal_id)
+    head_nodes = head_dag.get("nodes") if isinstance(head_dag, dict) else None
+    covered_titles: set[str] = set()
+    title_to_id: dict[str, str] = {}
+    if isinstance(head_nodes, list):
+        for node in head_nodes:
+            node_task = load_task(target, str(node))
+            if isinstance(node_task, dict) and str(node_task.get("goal_id") or "") == goal_id:
+                node_title = str(node_task.get("title") or "").strip()
+                covered_titles.add(node_title)
+                title_to_id[node_title] = str(node)
+    head_missing = frozen_titles - covered_titles
+    if head_missing:
+        blocking.append(
+            f"{mode} must leave the goal's DAG covering every frozen plan task; missing {sorted(head_missing)}"
+        )
+
+    # Bind frozen dependency semantics to the DAG edges: the frozen plan declares
+    # dependencies by title; the restored DAG edges must be EXACTLY the set of
+    # those dependencies mapped to registered task ids (from -> dependency, to ->
+    # dependent). Otherwise a registration/amendment could register all
+    # tasks/nodes but drop or invent dependency edges, weakening the
+    # dependency-done ordering the DAG encodes. Only checked once every frozen task
+    # is covered (ids resolvable).
+    if not head_missing:
+        expected_edges: set[tuple[str, str]] = set()
+        # Per dependent task id, the exact set of dependency task ids the frozen
+        # plan declares — used to bind BOTH the DAG edges AND the task file's own
+        # `dependencies` field (the normal MergeGate path gates dependency-done
+        # from task.dependencies, so the DAG alone is insufficient).
+        expected_task_deps: dict[str, set[str]] = {tid: set() for tid in title_to_id.values()}
+        edge_errors: list[str] = []
+        for title, frozen in frozen_tasks.items():
+            for dep_title in frozen.get("dependencies") or []:
+                dep_title = str(dep_title).strip()
+                if dep_title not in title_to_id:
+                    edge_errors.append(
+                        f"{mode} frozen dependency {dep_title!r} of task {title!r} does not resolve to a registered task"
+                    )
+                    continue
+                expected_edges.add((title_to_id[dep_title], title_to_id[title]))
+                expected_task_deps[title_to_id[title]].add(title_to_id[dep_title])
+        blocking.extend(edge_errors)
+        head_edges: set[tuple[str, str]] = set()
+        for edge in (head_dag.get("edges") if isinstance(head_dag, dict) else None) or []:
+            if isinstance(edge, dict) and edge.get("from") and edge.get("to"):
+                head_edges.add((str(edge["from"]), str(edge["to"])))
+        if not edge_errors and head_edges != expected_edges:
+            missing_edges = expected_edges - head_edges
+            extra_edges = head_edges - expected_edges
+            blocking.append(
+                f"{mode} DAG edges must match the frozen plan dependencies; "
+                f"missing {sorted(missing_edges)}, unexpected {sorted(extra_edges)}"
+            )
+        # Bind each registered task's own `dependencies` field to the frozen plan
+        # (mapped to ids), so the normal dependency-done gate that reads
+        # task.dependencies cannot be bypassed by a divergent/absent field.
+        if not edge_errors:
+            for tid, expected_deps in expected_task_deps.items():
+                tdata = load_task(target, tid)
+                actual_deps = {str(d) for d in (tdata.get("dependencies") if isinstance(tdata, dict) else None) or []}
+                if actual_deps != expected_deps:
+                    blocking.append(
+                        f"{mode} task {tid} dependencies {sorted(actual_deps)} do not match the frozen plan "
+                        f"{sorted(expected_deps)}"
+                    )
 
 
 def _enforce_frozen_registration(
@@ -504,37 +655,11 @@ def _enforce_frozen_registration(
                 # plan declares (risk_level, locks, acceptance_checks, ...).
                 blocking.extend(_frozen_task_match_errors(task_id, data, frozen_tasks[title], mode))
         elif path == dag_file:
-            # DAG restore is allowed; every node must resolve to a frozen-plan
-            # task ANCHORED TO THIS GOAL (existing or added in this PR), so a
-            # foreign task with a colliding title cannot be wired in (poisoning).
-            dag = load_json(target / path)
-            nodes = dag.get("nodes") if isinstance(dag, dict) else None
-            if not isinstance(nodes, list):
-                blocking.append(f"{mode} DAG {path} must have a nodes list")
-                continue
-            node_titles: set[str] = set()
-            for node in nodes:
-                node_task = load_task(target, str(node))
-                if node_task is None:
-                    blocking.append(f"{mode} DAG node {node} has no task file")
-                    continue
-                if str(node_task.get("goal_id") or "") != goal_id:
-                    blocking.append(f"{mode} DAG node {node} is not anchored to goal {goal_id}")
-                    continue
-                node_title = str(node_task.get("title") or "").strip()
-                if node_title not in frozen_titles:
-                    blocking.append(f"{mode} DAG node {node} title {node_title!r} is not in the goal's frozen plan")
-                else:
-                    node_titles.add(node_title)
-            # The restored DAG must COVER the full frozen plan, not a subset: a
-            # truncated DAG (dropping frozen tasks) would later let validate force
-            # premature goal-complete once the registered subset finishes, while
-            # frozen tasks that were never registered are silently abandoned.
-            missing = frozen_titles - node_titles
-            if missing:
-                blocking.append(
-                    f"{mode} DAG must cover every frozen plan task; missing {sorted(missing)}"
-                )
+            # DAG restore is allowed; every node must resolve to a frozen-plan task
+            # anchored to this goal, and the DAG must cover the full frozen plan (a
+            # truncated DAG that drops frozen tasks would later let validate force
+            # premature goal-complete on the registered subset).
+            _check_frozen_dag_in_diff(target, goal_id, frozen_titles, path, blocking, mode)
         elif path.startswith(".shiki/dag/") and path.endswith(".json"):
             blocking.append(f"{mode} must not change another goal's DAG {path}")
         elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
@@ -589,77 +714,14 @@ def _enforce_frozen_registration(
     if not reconcile_ledger_seen:
         blocking.append(f"{mode} must include a goal-scoped task-registered reconcile ledger event for {goal_id}")
 
-    # HEAD invariant (independent of whether the DAG file is in this diff): after
-    # the reconcile, the goal's DAG must cover every frozen-plan task. Without
-    # this, a PR could register a subset of tasks and simply OMIT the DAG; a
-    # legacy DAG-less goal would then let validate force premature goal-complete
-    # on the registered subset, abandoning the unregistered frozen tasks. This
-    # makes "the reconcile restores the goal's DAG" a hard invariant.
-    head_dag = load_dag(target, goal_id)
-    head_nodes = head_dag.get("nodes") if isinstance(head_dag, dict) else None
-    covered_titles: set[str] = set()
-    title_to_id: dict[str, str] = {}
-    if isinstance(head_nodes, list):
-        for node in head_nodes:
-            node_task = load_task(target, str(node))
-            if isinstance(node_task, dict) and str(node_task.get("goal_id") or "") == goal_id:
-                node_title = str(node_task.get("title") or "").strip()
-                covered_titles.add(node_title)
-                title_to_id[node_title] = str(node)
-    head_missing = frozen_titles - covered_titles
-    if head_missing:
-        blocking.append(
-            f"{mode} must leave the goal's DAG covering every frozen plan task; missing {sorted(head_missing)}"
-        )
-
-    # Bind frozen dependency semantics to the DAG edges: the frozen plan declares
-    # dependencies by title; the restored DAG edges must be EXACTLY the set of
-    # those dependencies mapped to registered task ids (from -> dependency, to ->
-    # dependent). Otherwise a reconcile could register all tasks/nodes but drop or
-    # invent dependency edges, weakening the dependency-done ordering the DAG
-    # encodes. Only checked once every frozen task is covered (ids resolvable).
-    if not head_missing:
-        expected_edges: set[tuple[str, str]] = set()
-        # Per dependent task id, the exact set of dependency task ids the frozen
-        # plan declares — used to bind BOTH the DAG edges AND the task file's own
-        # `dependencies` field (the normal MergeGate path gates dependency-done
-        # from task.dependencies, so the DAG alone is insufficient).
-        expected_task_deps: dict[str, set[str]] = {tid: set() for tid in title_to_id.values()}
-        edge_errors: list[str] = []
-        for title, frozen in frozen_tasks.items():
-            for dep_title in frozen.get("dependencies") or []:
-                dep_title = str(dep_title).strip()
-                if dep_title not in title_to_id:
-                    edge_errors.append(
-                        f"{mode} frozen dependency {dep_title!r} of task {title!r} does not resolve to a registered task"
-                    )
-                    continue
-                expected_edges.add((title_to_id[dep_title], title_to_id[title]))
-                expected_task_deps[title_to_id[title]].add(title_to_id[dep_title])
-        blocking.extend(edge_errors)
-        head_edges: set[tuple[str, str]] = set()
-        for edge in (head_dag.get("edges") if isinstance(head_dag, dict) else None) or []:
-            if isinstance(edge, dict) and edge.get("from") and edge.get("to"):
-                head_edges.add((str(edge["from"]), str(edge["to"])))
-        if not edge_errors and head_edges != expected_edges:
-            missing_edges = expected_edges - head_edges
-            extra_edges = head_edges - expected_edges
-            blocking.append(
-                f"{mode} DAG edges must match the frozen plan dependencies; "
-                f"missing {sorted(missing_edges)}, unexpected {sorted(extra_edges)}"
-            )
-        # Bind each registered task's own `dependencies` field to the frozen plan
-        # (mapped to ids), so the normal dependency-done gate that reads
-        # task.dependencies cannot be bypassed by a divergent/absent field.
-        if not edge_errors:
-            for tid, expected_deps in expected_task_deps.items():
-                tdata = load_task(target, tid)
-                actual_deps = {str(d) for d in (tdata.get("dependencies") if isinstance(tdata, dict) else None) or []}
-                if actual_deps != expected_deps:
-                    blocking.append(
-                        f"{mode} task {tid} dependencies {sorted(actual_deps)} do not match the frozen plan "
-                        f"{sorted(expected_deps)}"
-                    )
+    # HEAD invariant + frozen-dependency edge binding (independent of whether the
+    # DAG file is in this diff): after the reconcile, the goal's DAG must cover
+    # every frozen-plan task and its edges/task.dependencies must match the frozen
+    # plan. Without this, a PR could register a subset of tasks and simply OMIT the
+    # DAG; a legacy DAG-less goal would then let validate force premature
+    # goal-complete on the registered subset, abandoning the unregistered frozen
+    # tasks. This makes "the reconcile restores the goal's DAG" a hard invariant.
+    _check_frozen_dag_head_invariant(target, goal_id, frozen_tasks, blocking, mode)
 
 
 def enforce_goal_reconcile(
@@ -855,6 +917,287 @@ def contract_guardian_risk(target: Path, goal_id: str) -> str | None:
     plan_risk = str(plan.get("risk_level") or "") if isinstance(plan, dict) else ""
     resolved = _max_risk(plan_risk, goal_risk)
     return resolved or None
+
+
+# A task file an amendment MODIFIES freezes these fields to the base snapshot: they
+# are the loop-owned bookkeeping (expected_pr/closeout_pr/expected_branch/
+# ledger_evidence) that an amendment — which re-opens a task for re-dispatch, not
+# a completion — must never rewrite. This is the ADR 0017 mutable set minus
+# ``status`` (which the amendment MAY move, but only to planned/ready below).
+_AMENDMENT_TASK_FROZEN_FIELDS: tuple[str, ...] = (
+    "expected_pr",
+    "closeout_pr",
+    "expected_branch",
+    "ledger_evidence",
+)
+# An amended task may only be re-opened to a pre-dispatch status; a move to any
+# terminal or in-flight status (done/review/cancelled/...) is not an amendment.
+_AMENDMENT_TASK_STATUSES = {"planned", "ready"}
+
+
+def _validate_amendment_source_plan(
+    *,
+    target: Path,
+    base_shiki: Path | None,
+    source_plan_id: str,
+    entry: ChangedFile,
+    blocking: list[str],
+) -> None:
+    """Validate the goal's own source plan an Amendment PR MODIFIES.
+
+    Deny by default. The only permitted change is an APPEND to
+    ``spec_freeze.amendments``: the head's ``spec_freeze`` must equal the base's on
+    every key EXCEPT ``amendments``, the base's ``amendments`` must be a strict
+    PREFIX of the head's, and there must be at least one new entry. The plan's id
+    must not change, and a plan that is not the goal's ``source_plan`` or is not
+    spec-frozen at base is blocked — so an amendment can never author a fresh
+    spec_freeze, freeze a draft plan, edit/remove/reorder an existing amendment, or
+    amend a plan other than the one that governs this goal."""
+    path = normalize_repo_path(entry.path)
+    plan_id = Path(path).stem
+    if not source_plan_id or plan_id != source_plan_id:
+        blocking.append(
+            f"amendment may only amend the goal's source_plan {source_plan_id or '<unresolved>'}, not {plan_id}"
+        )
+        return
+    if entry.status != "M":
+        blocking.append(
+            f"amendment may only MODIFY the goal's source plan, not {entry.status} {path}"
+        )
+        return
+    if base_shiki is None or not base_shiki.exists():
+        blocking.append(
+            f"amendment requires a base snapshot to verify the source plan amendment {path}"
+        )
+        return
+    head_plan = load_json(target / path)
+    base_plan = load_json(base_shiki / "plans" / f"{plan_id}.json")
+    if not isinstance(head_plan, dict):
+        blocking.append(f"amendment source plan {path} is not a JSON object")
+        return
+    if not isinstance(base_plan, dict):
+        blocking.append(
+            f"amendment source plan {path} has no spec-frozen base snapshot to amend against"
+        )
+        return
+    if str(head_plan.get("id") or "") != plan_id:
+        blocking.append(
+            f"amendment source plan filename {path} does not match its id {head_plan.get('id')!r}"
+        )
+    if str(head_plan.get("id") or "") != str(base_plan.get("id") or ""):
+        blocking.append(f"amendment must not change the id of source plan {path}")
+    base_freeze = base_plan.get("spec_freeze")
+    head_freeze = head_plan.get("spec_freeze")
+    if not (isinstance(base_freeze, dict) and base_freeze.get("status") == "frozen"):
+        blocking.append(f"amendment source plan {path} is not spec-frozen at base")
+        return
+    if not isinstance(head_freeze, dict):
+        blocking.append(f"amendment source plan {path} must keep a spec_freeze block")
+        return
+    # Every spec_freeze key EXCEPT amendments is frozen to base: an amendment may
+    # only append amendments, never re-author status/approved_by/prd/source.
+    base_other = {k: v for k, v in base_freeze.items() if k != "amendments"}
+    head_other = {k: v for k, v in head_freeze.items() if k != "amendments"}
+    if head_other != base_other:
+        blocking.append(
+            f"amendment must not change spec_freeze fields other than amendments "
+            f"(e.g. status/approved_by/prd/source) of {path}"
+        )
+    base_amendments = base_freeze.get("amendments") or []
+    head_amendments = head_freeze.get("amendments") or []
+    if not isinstance(base_amendments, list) or not isinstance(head_amendments, list):
+        blocking.append(f"amendment spec_freeze.amendments of {path} must be a list")
+        return
+    # The base's amendments must remain a strict PREFIX of the head's: editing,
+    # removing, or reordering an existing entry breaks the prefix and is blocked.
+    if head_amendments[: len(base_amendments)] != base_amendments:
+        blocking.append(
+            f"amendment must not edit, remove, or reorder existing spec_freeze.amendments entries of {path}; "
+            "the base must remain a strict prefix of the head"
+        )
+    elif len(head_amendments) <= len(base_amendments):
+        blocking.append(
+            f"amendment must append at least one new spec_freeze.amendments entry to {path}"
+        )
+
+
+def _validate_amendment_task(
+    *,
+    target: Path,
+    base_shiki: Path | None,
+    goal_id: str,
+    frozen_tasks: dict[str, dict[str, Any]],
+    frozen_titles: set[str],
+    entry: ChangedFile,
+    blocking: list[str],
+) -> None:
+    """Validate a task file an Amendment PR MODIFIES.
+
+    Deny by default. The task must belong to THIS goal, must be a MODIFY (an ADDed
+    task file is blocked — new tasks come through contract mode), must match the
+    amended (HEAD) plan's frozen definition for its title via the existing
+    ``_frozen_task_match_errors`` binding, may move ``status`` only to planned or
+    ready, and must keep ``expected_pr``/``closeout_pr``/``expected_branch``/
+    ``ledger_evidence`` byte-identical to the base snapshot."""
+    path = normalize_repo_path(entry.path)
+    task_id = Path(path).stem
+    if entry.status != "M":
+        # The only non-MODIFY status reaching here is an ADD (deletes are filtered
+        # by the caller). A brand-new task file comes through contract mode, never
+        # an amendment: an amendment re-opens EXISTING tasks bound to the base.
+        blocking.append(
+            f"amendment may only MODIFY this goal's existing task files, not ADD {path}"
+        )
+        return
+    data = load_json(target / path)
+    if not isinstance(data, dict):
+        blocking.append(f"amendment task file {path} is not a JSON object")
+        return
+    if str(data.get("id") or "") != task_id:
+        blocking.append(f"amendment task filename {path} does not match its id {data.get('id')!r}")
+    if str(data.get("goal_id") or "") != goal_id:
+        blocking.append(f"amendment task {task_id} is not anchored to goal {goal_id}")
+        return
+    title = str(data.get("title") or "").strip()
+    if title not in frozen_titles:
+        blocking.append(f"amendment task {task_id} title {title!r} is not in the goal's frozen plan")
+    else:
+        # Bind to the AMENDED plan's frozen task definition: after the amendment the
+        # task must match every governance field the amended plan declares (this is
+        # what lets a widened lock set pass — plan and task widen together).
+        blocking.extend(_frozen_task_match_errors(task_id, data, frozen_tasks[title], "amendment"))
+    if data.get("status") not in _AMENDMENT_TASK_STATUSES:
+        blocking.append(
+            f"amendment task {task_id} status must be planned or ready, not {data.get('status')!r}"
+        )
+    if base_shiki is None or not base_shiki.exists():
+        blocking.append(
+            f"amendment requires a base snapshot to verify the frozen fields of task {task_id}"
+        )
+        return
+    base_task = load_json(base_shiki / "tasks" / f"{task_id}.json")
+    if not isinstance(base_task, dict):
+        blocking.append(
+            f"amendment task {task_id} has no base snapshot to verify its frozen fields against"
+        )
+        return
+    for field in _AMENDMENT_TASK_FROZEN_FIELDS:
+        if data.get(field) != base_task.get(field):
+            blocking.append(
+                f"amendment must not change frozen field {field!r} of task {task_id} (frozen to the base snapshot)"
+            )
+
+
+def enforce_amendment(
+    *,
+    target: Path,
+    goal_id: str,
+    base_shiki: Path | None,
+    changed_files_status: list[ChangedFile],
+    blocking: list[str],
+    warnings: list[str],
+) -> None:
+    """Validate a Spec Amendment PR (ADR 0009/0015): correct a spec-frozen Goal's
+    contract on a protected branch. Deny by default.
+
+    An amendment PR may change EXACTLY four classes of file, everything else is
+    blocked with the mode named:
+
+      1. the goal's own ``source_plan`` (MODIFY) — an append to
+         ``spec_freeze.amendments`` only (see ``_validate_amendment_source_plan``);
+      2. task files of THIS goal (MODIFY) — each bound to the amended plan's frozen
+         definition, ``status`` movable only to planned/ready, and
+         expected_pr/closeout_pr/expected_branch/ledger_evidence frozen to base
+         (see ``_validate_amendment_task``);
+      3. the goal's DAG — under the same rules the frozen-registration modes apply
+         (``_check_frozen_dag_in_diff`` + ``_check_frozen_dag_head_invariant``);
+      4. a goal-scoped ledger entry of type ``contract-amended``, which is REQUIRED
+         (mirroring contract mode's ``task-registered`` requirement).
+
+    The frozen authority is the HEAD (amended) plan — ``_frozen_plan_tasks`` reads
+    the goal's source_plan at HEAD, which spec_freeze keeps frozen through the
+    amendment. Guardian evaluation is forced separately in ``main`` from the
+    stronger of the goal's base-plan and head-plan risk via ``contract_guardian_risk``.
+    """
+    if not goal_id:
+        blocking.append("amendment PR must reference a Shiki goal id")
+        return
+    if base_shiki is None or not base_shiki.exists():
+        blocking.append(
+            "amendment requires a base .shiki snapshot to verify the plan amendment and frozen task fields"
+        )
+        return
+    frozen_tasks, frozen_errors = _frozen_plan_tasks(target, goal_id, "amendment")
+    if frozen_errors:
+        blocking.extend(frozen_errors)
+        return
+    frozen_titles = set(frozen_tasks)
+
+    goal_for_plan = load_goal(target, goal_id)
+    source_plan_id = (
+        str(goal_for_plan.get("source_plan") or "") if isinstance(goal_for_plan, dict) else ""
+    )
+    dag_file = f".shiki/dag/{goal_id}.json"
+    amendment_ledger_seen = False
+
+    for entry in changed_files_status:
+        path = normalize_repo_path(entry.path)
+        if not path.startswith(".shiki/"):
+            blocking.append(f"amendment must not change non-Shiki (implementation) file {path}")
+            continue
+        if entry.status == "D":
+            blocking.append(f"amendment must not delete {path}")
+            continue
+        if path.startswith(".shiki/plans/") and path.endswith(".json"):
+            _validate_amendment_source_plan(
+                target=target,
+                base_shiki=base_shiki,
+                source_plan_id=source_plan_id,
+                entry=entry,
+                blocking=blocking,
+            )
+        elif path.startswith(".shiki/tasks/") and path.endswith(".json"):
+            _validate_amendment_task(
+                target=target,
+                base_shiki=base_shiki,
+                goal_id=goal_id,
+                frozen_tasks=frozen_tasks,
+                frozen_titles=frozen_titles,
+                entry=entry,
+                blocking=blocking,
+            )
+        elif path == dag_file:
+            _check_frozen_dag_in_diff(target, goal_id, frozen_titles, path, blocking, "amendment")
+        elif path.startswith(".shiki/dag/") and path.endswith(".json"):
+            blocking.append(f"amendment must not change another goal's DAG {path}")
+        elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
+            if entry.status != "A":
+                blocking.append(f"amendment must append, not modify, ledger {path}")
+                continue
+            led = load_json(target / path)
+            if not isinstance(led, dict) or str(led.get("goal_id") or "") != goal_id:
+                blocking.append(f"amendment ledger {path} must be scoped to goal {goal_id}")
+                continue
+            # The amendment event must be a contract-amended ledger, not any
+            # goal-scoped ledger, so the requirement proves an actual amendment.
+            if led.get("type") == "contract-amended":
+                amendment_ledger_seen = True
+        else:
+            blocking.append(
+                f"amendment must not change {path}; only the goal's source_plan amendment, "
+                f"this goal's task files, the DAG for {goal_id}, and a contract-amended ledger are allowed"
+            )
+
+    if not amendment_ledger_seen:
+        blocking.append(
+            f"amendment must include a goal-scoped contract-amended ledger event for {goal_id}"
+        )
+
+    # HEAD invariant + frozen-dependency edge binding: the amended DAG must still
+    # cover every frozen (amended) plan task and match its dependency edges. Runs
+    # whether or not the DAG file is in this diff (an amendment that only widens a
+    # task's locks need not touch the DAG, but one that adds a plan task must).
+    _check_frozen_dag_head_invariant(target, goal_id, frozen_tasks, blocking, "amendment")
 
 
 POST_MERGE_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:post_merge_reconcile\s*-->")
@@ -2252,6 +2595,7 @@ def main() -> int:
     reconcile_mode = False
     post_merge_mode = False
     contract_mode = False
+    amendment_mode = False
     # PR numbers proven merged (live PR state gathered by the workflow). Used by
     # post_merge_reconcile to prove its referenced PR merged, and by the bookkeeping
     # closeout classifier to prove the task's implementation PR merged (ADR 0017).
@@ -2279,18 +2623,27 @@ def main() -> int:
         reconcile_mode, reconcile_error = goal_reconcile_decision(pr)
         post_merge_mode, post_merge_error = post_merge_reconcile_decision(pr)
         contract_mode, contract_error = contract_decision(pr)
+        amendment_mode, amendment_error = amendment_decision(pr)
         if reconcile_error:
             blocking.append(reconcile_error)
         if post_merge_error:
             blocking.append(post_merge_error)
         if contract_error:
             blocking.append(contract_error)
+        if amendment_error:
+            blocking.append(amendment_error)
         if reconcile_mode and post_merge_mode:
             blocking.append("a PR cannot be both goal_reconcile and post_merge_reconcile")
         if contract_mode and reconcile_mode:
             blocking.append("a PR cannot be both contract and goal_reconcile")
         if contract_mode and post_merge_mode:
             blocking.append("a PR cannot be both contract and post_merge_reconcile")
+        if amendment_mode and reconcile_mode:
+            blocking.append("a PR cannot be both amendment and goal_reconcile")
+        if amendment_mode and post_merge_mode:
+            blocking.append("a PR cannot be both amendment and post_merge_reconcile")
+        if amendment_mode and contract_mode:
+            blocking.append("a PR cannot be both amendment and contract")
         if args.expected_head_sha:
             pr_head = str(pr.get("headRefOid") or "")
             if not pr_head:
@@ -2307,6 +2660,12 @@ def main() -> int:
             # it carries no single implementation task id (ADR 0015).
             if not resolved_goal_id:
                 blocking.append("contract PR body does not contain a Shiki goal id like G-0001")
+        elif amendment_mode:
+            # An Amendment PR is goal-scoped (amends the goal's spec-frozen source
+            # plan and re-opens this goal's tasks); it carries no single
+            # implementation task id.
+            if not resolved_goal_id:
+                blocking.append("amendment PR body does not contain a Shiki goal id like G-0001")
         elif post_merge_mode:
             # A post_merge_reconcile PR is task-scoped (reconcile a merged task).
             if not resolved_task_id:
@@ -2376,6 +2735,58 @@ def main() -> int:
                 enforce_guardian_policy(
                     pr=pr,
                     task={"risk_level": contract_risk},
+                    target=target,
+                    guardian_policy=args.guardian_policy,
+                    guardian_comments=args.guardian_comments,
+                    guardian_events=args.guardian_events,
+                    guardian_timeline=args.guardian_timeline,
+                    blocking=blocking,
+                    warnings=warnings,
+                    expected_repository=args.expected_repository,
+                )
+    elif amendment_mode and pr:
+        # Amendment mode (ADR 0009/0015): a goal-scoped PR that corrects a
+        # spec-frozen Goal's contract on a protected branch — an append to the
+        # source plan's spec_freeze.amendments plus the task files bound to the
+        # amended plan. Deny-by-default validator; Guardian gate forced from the
+        # goal's frozen plan and INDEPENDENT of a CCA verdict (an amendment carries
+        # no implementation for CCA to judge). Like contract mode, the Guardian
+        # requirement runs here rather than in the single-task CCA flow.
+        files_status = parse_changed_files_status(
+            Path(args.changed_files_status), changed_files(Path(args.changed_files))
+        )
+        base_shiki_amend = Path(args.base_shiki) if args.base_shiki else None
+        enforce_amendment(
+            target=target,
+            goal_id=resolved_goal_id or "",
+            base_shiki=base_shiki_amend,
+            changed_files_status=files_status,
+            blocking=blocking,
+            warnings=warnings,
+        )
+        if resolved_goal_id:
+            # Reuse contract_guardian_risk on BOTH the head and the base snapshot
+            # and take the stronger, so an amendment that WEAKENS its own plan's
+            # risk_level can never lower its own Guardian gate below what the
+            # pre-amendment (base) contract required. No second resolution — the
+            # existing resolver runs against each root and _max_risk combines them.
+            head_risk = contract_guardian_risk(target, resolved_goal_id) or ""
+            base_risk = ""
+            if base_shiki_amend is not None and base_shiki_amend.exists():
+                base_risk = contract_guardian_risk(base_shiki_amend.parent, resolved_goal_id) or ""
+            amendment_risk = _max_risk(head_risk, base_risk) or None
+            if amendment_risk not in _RISK_ORDER:
+                # Fail closed: an unresolvable amendment risk means the Guardian gate
+                # cannot be evaluated, so the amendment must not slip through as if
+                # it were unguarded.
+                blocking.append(
+                    f"amendment PR Guardian risk for goal {resolved_goal_id} could not be resolved "
+                    f"from its frozen plan (got {amendment_risk!r}); the Guardian gate cannot be evaluated"
+                )
+            else:
+                enforce_guardian_policy(
+                    pr=pr,
+                    task={"risk_level": amendment_risk},
                     target=target,
                     guardian_policy=args.guardian_policy,
                     guardian_comments=args.guardian_comments,

@@ -962,5 +962,152 @@ expect_guardian_fallback(
 expect_guardian_fallback(build_closeout("close-smuggle-unmerged"), merged="")
 
 
+# ============================================================================
+# Amendment mode (ADR 0009/0015): a Spec Amendment PR cannot lower its OWN
+# Guardian gate. The gate is forced from the STRONGER of the goal's base-plan and
+# head-plan risk, so an amendment that WEAKENS its own plan (critical -> low)
+# still resolves at the base (critical) risk and blocks for missing approval.
+# End-to-end through the real gate: a well-formed, weakened amendment WITHOUT
+# guardian approval blocks; the SAME amendment WITH approval is ready — proving
+# the only thing gating the fires-case is the Guardian requirement the amendment
+# tried to shed, not a malformed contract.
+# ============================================================================
+AMEND_GOAL = "G-20260804T111111111111Z-0000a0d1"
+AMEND_PLAN = "P-20260804T111111111111Z-0000a0d2"
+AMEND_T_A = "T-20260804T111111111111Z-0000a0a1"
+AMEND_T_B = "T-20260804T111111111111Z-0000a0b2"
+AMEND_LEDGER = "L-20260804T111111111111Z-0000a0c3"
+AMEND_MARKER = "<!-- shiki:amendment -->"
+NARROW_A = ["path:scripts/amend_a.py"]
+WIDE_A = ["path:scripts/amend_a.py", "path:scripts/amend_a2.py"]
+_A1 = {"id": "AMD-0001", "reason": "initial freeze"}
+_A2 = {"id": "AMD-0002", "reason": "widen T_A locks"}
+
+
+def _amend_plan(*, amendments, risk, a_locks):
+    return {
+        "id": AMEND_PLAN,
+        "title": "amendment plan",
+        "outcome": "corrected contract",
+        "risk_level": risk,
+        "spec_freeze": {"status": "frozen", "approved_by": "operator", "prd": "PRD-1", "source": "grill", "amendments": amendments},
+        "tasks": [
+            {"title": "Widen the narrow lock", "scope": "scope-a", "non_goals": ["ng-a"],
+             "required_skills": ["tdd", "code-review"], "risk_level": "high", "locks": a_locks,
+             "acceptance_checks": ["a"], "runtime": "claude-code"},
+            {"title": "Downstream slice", "scope": "scope-b", "non_goals": ["ng-b"],
+             "required_skills": ["tdd", "code-review"], "risk_level": "high", "locks": ["path:scripts/amend_b.py"],
+             "acceptance_checks": ["b"], "runtime": "claude-code", "dependencies": ["Widen the narrow lock"]},
+        ],
+    }
+
+
+def _amend_task_a(*, locks, status):
+    return {
+        "id": AMEND_T_A, "goal_id": AMEND_GOAL, "title": "Widen the narrow lock", "status": status,
+        "scope": "scope-a", "non_goals": ["ng-a"], "required_skills": ["tdd", "code-review"],
+        "risk_level": "high", "locks": locks, "acceptance_checks": ["a"], "assigned_runtime": "claude-code",
+        "dependencies": [], "expected_pr": 100, "closeout_pr": None, "expected_branch": "shiki/amend-a",
+        "ledger_evidence": ["L-20260804T111111111111Z-0000ba51"],
+    }
+
+
+def _amend_task_b():
+    return {
+        "id": AMEND_T_B, "goal_id": AMEND_GOAL, "title": "Downstream slice", "status": "planned",
+        "scope": "scope-b", "non_goals": ["ng-b"], "required_skills": ["tdd", "code-review"],
+        "risk_level": "high", "locks": ["path:scripts/amend_b.py"], "acceptance_checks": ["b"],
+        "assigned_runtime": "claude-code", "dependencies": [AMEND_T_A], "expected_pr": 101,
+        "closeout_pr": None, "expected_branch": "shiki/amend-b",
+        "ledger_evidence": ["L-20260804T111111111111Z-0000ba52"],
+    }
+
+
+def _amend_dag():
+    return {"goal_id": AMEND_GOAL, "nodes": [AMEND_T_A, AMEND_T_B],
+            "edges": [{"from": AMEND_T_A, "to": AMEND_T_B, "reason": "declared plan dependency"}]}
+
+
+def _amend_goal():
+    return {"id": AMEND_GOAL, "status": "planned", "source_plan": AMEND_PLAN, "risk_level": "low", "title": "g"}
+
+
+def make_amendment_fixture(name: str, *, approved: bool) -> pathlib.Path:
+    """A well-formed amendment that WEAKENS its own plan risk (base critical ->
+    head low). The Guardian evidence is the only knob: ``approved`` toggles a
+    current-head approval vs a non-approving comment."""
+    target = tmp_root / name
+    if target.exists():
+        shutil.rmtree(target)
+    copy_base_support(target)
+    # Head (the amendment): plan weakened to low, amendments appended, T_A locks widened + re-opened.
+    write_json(target / ".shiki" / "goals" / f"{AMEND_GOAL}.json", _amend_goal())
+    write_json(target / ".shiki" / "plans" / f"{AMEND_PLAN}.json", _amend_plan(amendments=[_A1, _A2], risk="low", a_locks=WIDE_A))
+    write_json(target / ".shiki" / "tasks" / f"{AMEND_T_A}.json", _amend_task_a(locks=WIDE_A, status="planned"))
+    write_json(target / ".shiki" / "tasks" / f"{AMEND_T_B}.json", _amend_task_b())
+    write_json(target / ".shiki" / "dag" / f"{AMEND_GOAL}.json", _amend_dag())
+    write_json(target / ".shiki" / "ledger" / f"{AMEND_LEDGER}.json",
+               {"id": AMEND_LEDGER, "goal_id": AMEND_GOAL, "task_id": None, "type": "contract-amended",
+                "actor": "operator", "timestamp": "2026-08-04T00:00:00Z", "summary": "Spec Amendment", "evidence": ["PR #777"]})
+    # Base snapshot (pre-amendment): plan CRITICAL with one amendment, narrow T_A locks.
+    base_root = target / ".shiki" / "gha" / "base-shiki" / ".shiki"
+    write_json(base_root / "goals" / f"{AMEND_GOAL}.json", _amend_goal())
+    write_json(base_root / "plans" / f"{AMEND_PLAN}.json", _amend_plan(amendments=[_A1], risk="critical", a_locks=NARROW_A))
+    write_json(base_root / "tasks" / f"{AMEND_T_A}.json", _amend_task_a(locks=NARROW_A, status="review"))
+    write_json(base_root / "tasks" / f"{AMEND_T_B}.json", _amend_task_b())
+    write_json(base_root / "dag" / f"{AMEND_GOAL}.json", _amend_dag())
+    # A goal-scoped Amendment PR (marker + label, no single task id).
+    pr = {
+        "number": PR_NUMBER,
+        "title": "shiki: amend the frozen contract",
+        "body": "\n".join([
+            "## Scope", f"Amend Goal {AMEND_GOAL} source plan and re-open its task.",
+            "## Acceptance", "The widened lock is registered.",
+            "## Evidence", f"Ledger {AMEND_LEDGER}; PR #{PR_NUMBER}.",
+            "## MergeGate", "Ready when the Guardian approves.", AMEND_MARKER,
+        ]),
+        "author": {"login": "mizutani-140"},
+        "headRefName": "shiki/amend-goal", "baseRefName": "main", "headRefOid": HEAD,
+        # The maintainer-applied mergegate:amendment label authorizes the mode; the
+        # guardian:approved label is present only when the Guardian actually signed off.
+        "labels": ([{"name": "mergegate:amendment"}, {"name": "guardian:approved"}]
+                   if approved else [{"name": "mergegate:amendment"}]),
+        "reviews": [{"state": "APPROVED", "author": {"login": "github-actions"}}],
+        "reviewDecision": "APPROVED",
+        "statusCheckRollup": [
+            {"name": "Validate Shiki mirror", "status": "COMPLETED", "conclusion": "SUCCESS", "headSha": HEAD},
+            {"name": "MergeGate metadata check", "status": "COMPLETED", "conclusion": "SUCCESS", "headSha": HEAD},
+        ],
+    }
+    write_json(target / ".shiki" / "gha" / "pr.json", pr)
+    changed = [f".shiki/plans/{AMEND_PLAN}.json", f".shiki/tasks/{AMEND_T_A}.json", f".shiki/ledger/{AMEND_LEDGER}.json"]
+    (target / ".shiki" / "gha" / "changed-files.txt").write_text("\n".join(changed) + "\n", encoding="utf-8")
+    status_lines = [f"M\t.shiki/plans/{AMEND_PLAN}.json", f"M\t.shiki/tasks/{AMEND_T_A}.json", f"A\t.shiki/ledger/{AMEND_LEDGER}.json"]
+    (target / ".shiki" / "gha" / "changed-files-status.txt").write_text("\n".join(status_lines) + "\n", encoding="utf-8")
+    if approved:
+        comments = [{"author": {"login": "mizutani-140"}, "body": f"Guardian approval granted for head {HEAD}"}]
+        events = [{"event": "labeled", "actor": {"login": "mizutani-140"}, "label": {"name": "guardian:approved"}}]
+    else:
+        comments = _NO_GUARDIAN_APPROVAL
+        events = []
+    write_json(target / ".shiki" / "gha" / "live-guardian-comments.json", comments)
+    write_json(target / ".shiki" / "gha" / "live-guardian-events.json", events)
+    write_json(target / ".shiki" / "gha" / "live-guardian-timeline.json", [])
+    return target
+
+
+_amend_base = str(tmp_root / "amend-guardian-fires" / ".shiki" / "gha" / "base-shiki" / ".shiki")
+_amend_fires = make_amendment_fixture("amend-guardian-fires", approved=False)
+_amend_fires_res = run_mergegate(_amend_fires, allow_missing_cca=True, base_shiki=_amend_base)
+if _amend_fires_res.returncode == 0:
+    raise AssertionError(f"expected the weakened amendment to block for missing Guardian approval:\n{_amend_fires_res.stdout}")
+# The gate resolved at the base (critical) risk despite the head plan being low.
+assert_contains(_amend_fires_res.stdout, _GUARDIAN_REQUIRED_NEEDLE)
+# Control: the SAME amendment WITH a current-head Guardian approval is ready, so
+# the fires-case blocked ONLY on the Guardian requirement, not a malformed contract.
+_amend_ok_base = str(tmp_root / "amend-guardian-ok" / ".shiki" / "gha" / "base-shiki" / ".shiki")
+expect_ready(make_amendment_fixture("amend-guardian-ok", approved=True), allow_missing_cca=True, base_shiki=_amend_ok_base)
+
+
 print("governance evidence adversarial fixtures passed")
 PY

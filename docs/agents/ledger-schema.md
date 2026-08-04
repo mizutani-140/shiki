@@ -19,6 +19,7 @@ The canonical ledger `type` vocabulary is:
 - `mergegate`
 - `completion`
 - `handoff`
+- `contract-amended`
 
 ## Minimum Ledger Entry
 

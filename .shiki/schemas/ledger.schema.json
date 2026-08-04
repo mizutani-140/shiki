@@ -44,7 +44,8 @@
         "mergegate",
         "completion",
         "handoff",
-        "memory-transition"
+        "memory-transition",
+        "contract-amended"
       ]
     },
     "actor": {
