@@ -24,12 +24,20 @@
     "T-20260804T095105534398Z-c2ef0cfc"
   ],
   "expected_branch": "shiki/t-20260804t095105534980z-530c4f17-accept-a-carried-guardian-approval-in-the-gate-a",
-  "expected_pr": null,
+  "expected_pr": 270,
   "github_issue": null,
   "goal_id": "G-20260804T095105533205Z-224ce02d",
   "id": "T-20260804T095105534980Z-530c4f17",
   "ledger_evidence": [
-    "L-20260804T095105535000Z-8c9e264f"
+    "L-20260804T095105535000Z-8c9e264f",
+    "L-20260804T115828367170Z-4dbded8c",
+    "L-20260804T115854028160Z-233c540c",
+    "L-20260804T120521117442Z-fc15afef",
+    "L-20260804T120521817600Z-37f1930b",
+    "L-20260804T130124805683Z-dfff81c8",
+    "L-20260804T130815804255Z-b15290bc",
+    "L-20260804T130952107965Z-6d4ea3bb",
+    "L-20260804T130955539808Z-8bc6b939"
   ],
   "locks": [
     "path:scripts/shiki_guardian.py",
@@ -49,13 +57,29 @@
     "Changing which risk levels require a Guardian",
     "Touching any file outside the declared locks"
   ],
+  "pre_pr_code_review": {
+    "findings": [
+      {
+        "detail": "git diff main...HEAD reverts unrelated already-merged task T-...c2ef0cfc: status done->review, lock released->active, and deletes closeout ledger L-20260804T115804376798Z-65c06450 (which still exists on the current main tip). This would be a control-plane regression IF merged as-is, but `git status` shows the working tree stages only THIS task's files (guardian scripts, the 530c4f17 lock, the two new tests). The c2ef0cfc delta is stale-base/goal-loop bookkeeping drift from a moving main ref, reconciled by the loop's own base-sync merge (git merge origin/main), not implementer-authored and not fixable by editing this diff. Surfaced for visibility only; not a defect in this task's scope.",
+        "severity": "low",
+        "title": "Diff carries an unrelated closeout reversion for task c2ef0cfc (base-sync drift, not this task's code)"
+      },
+      {
+        "detail": "_carry_global_refusal refuses the carry when the PR's actual labels intersect {high, critical}. Since Shiki derives risk from the task's risk_level (not by auto-labeling the PR object) this correctly targets manual maintainer escalation. If the goal loop ever begins stamping risk:<level> labels on PRs, this would silently disable the carry for every high-risk PR \u2014 but the direction is fail-closed (refuse carry, require fresh approval), so it is safe, and the feature is currently dormant/unwired. Worth a comment noting the assumption that PRs are not auto-risk-labeled.",
+        "severity": "low",
+        "title": "Carry global-refusal rejects any PR whose labels resolve high/critical (fails safe)"
+      }
+    ],
+    "ledger_id": "L-20260804T130815804255Z-b15290bc",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "critical",
   "scope": "Introduce the source token `guardian_comment_carried`. It is produced only when a candidate approved head is proved by `verify_pure_base_sync`, and it joins the human-secondary set alongside `github_review` and `guardian_comment` \u2014 so the label leg is still required and removing the label remains a working revocation lever.\n\nGating conditions evaluated BEFORE the git proof, each refusing the carry with a distinct reason:\n  - The feature is OFF unless `--base-sync-carry` is passed AND `--default-branch` is non-empty. Absent either, every code path is inert.\n  - Resolved Guardian risk is exactly `high`. `critical` never carries. If the PR's LABELS alone resolve high or critical, the carry is refused \u2014 a maintainer escalating by label must get a fresh approval.\n  - The PR's `baseRefName` equals the default branch, and no `base_ref_changed` entry appears anywhere in the timeline feed.\n  - Candidate extraction runs in the EXISTING `_comment_source` order \u2014 marker, not-negating, actor configured, author allowed \u2014 and only then extracts the SHA. A comment from a non-configured actor is never parsed.\n  - The carrying comment is unedited (`updated_at == created_at`, or `updated_at` absent).\n  - Only the newest candidate by (created_at, feed index) is eligible. Any comment from a configured Guardian carrying a negation marker with `created_at` at or after the candidate's refuses the carry AND raises a HARD blocker \u2014 routed through `_comment_source`'s blockers channel so it survives the demotion the caller applies to soft blockers.\n\nWire `--base-sync-carry` and `--default-branch` into `scripts/mergegate_check.py` (argparse, `enforce_guardian_policy`, and BOTH call sites \u2014 the contract-mode one and the normal-path one; missing either makes the feature unreachable on that path), `scripts/guardian_approval_signal.py` (argparse, the evaluate call, and the emitted JSON, which gains `carried_from_head` and `carry_refused_reasons`), `scripts/shiki_guardian_status.py` (so the operator-facing and CCA-posted status cannot contradict the gate) and the `guardian status` subparser in `scripts/shiki_cli.py`.\n\nThe proof is recomputed in-process in every judging invocation. It is never written to `.shiki/gha` and never carried in an artifact, so there is nothing to go stale or be forged.\n\nAdd `tests/test_guardian_carry.py` driving the real evaluator, and `tests/test_guardian_carry_parity.py` asserting MergeGate and the signal return identical approved/sources over one fixture set and that the signal is never more permissive. Positive cases assert both `approved` and that `guardian_comment_carried` is in `sources`. EVERY negative case must assert BOTH that the carry did not happen AND that the Guardian requirement still resolves as required \u2014 the signal reporting `required=true, approved=false`, and MergeGate blocking with a Guardian blocker string \u2014 never merely a non-zero exit. Cover: a fresh current-head comment still wins over a carry; critical risk refuses; a label-only high escalation refuses; a retargeted base refuses; a `base_ref_changed` timeline entry refuses; an edited comment refuses; a body with two SHAs refuses; a non-configured actor is dropped before extraction; a later negation comment refuses AND produces a hard blocker, asserted not to be a warning; a removed label defeats approval; an empty `--default-branch` behaves exactly as the pre-change gate; the flag omitted entirely produces a byte-identical result on the full existing fixture set; a comment from another PR is never a candidate; and no invented guardian-policy.json key can enable the carry.\n\nREPRODUCIBILITY \u2014 what this task changes, and what to change to get the same result.\n  Symptom: a PR whose content nobody touched loses its approval because branch protection made it merge main. Measured 2026-08-01 across five Contract PRs: four extra operator approvals, entirely mechanical.\n  Why the carry must reach BOTH the gate and the signal: the MergeGate policy job depends on the CCA job, `enforce_cca_verdict` fails any verdict that is not complete, and the signal the CCA prompt reads is computed from the guardian evaluation alone. Wiring the carry into MergeGate only means the CCA still returns needs_guardian, its job fails, and the policy check never runs \u2014 the gate this change exists to move is never reached. This exact duality has been undercounted repeatedly in this repository; both call sites inside mergegate_check.py have the same property.\n  Why the label leg is still required: the label is the operator's revocation lever that does not depend on any SHA. Keeping it means an operator can always kill a carried approval by removing one label.\n  Why a negation must be a HARD blocker: the caller demotes soft blockers to warnings once any approval path succeeds, so a revocation routed as a soft blocker would be silently swallowed by the very carry it is trying to revoke.\n  Reproducible when: a base-synced PR keeps its approval with `guardian_comment_carried` in sources, and every listed attack refuses the carry while leaving the Guardian requirement required.\n\nBACKWARD-COMPATIBILITY CONSTRAINT (audited 2026-08-04): every new parameter added to `evaluate_guardian_approval` and to the functions the signal/status paths call MUST be keyword-only WITH a default. Out-of-lock callers exist and must keep working unchanged: `scripts/test_shiki_governance_evidence.sh`, `tests/test_guardian_evidence.py`, `tests/test_guardian_status.py`, `tests/test_guardian_signal*.py`, `tests/test_contract_approval.py`, `tests/test_bookkeeping_closeout.py`. A positional or required parameter breaks all of them and the task cannot repair them from inside its locks.",
-  "status": "planned",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_guardian_policy.sh && bash scripts/test_shiki_governance_evidence.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Accept a carried Guardian approval in the gate and the signal"
 }
