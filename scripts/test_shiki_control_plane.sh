@@ -1204,7 +1204,15 @@ target = pathlib.Path(sys.argv[1])
 task_id = sys.argv[2]
 pr_path = target / ".shiki" / "gha" / "pr.json"
 pr = json.loads(pr_path.read_text())
-head = pr["headRefOid"]
+# The positional Guardian head-SHA binding requires a full 40-character object
+# name standing on its own line (build_approval_body's shape), so promote the
+# fixture's placeholder short head SHA to a full one and carry it consistently
+# across the PR head, the status checks, and the CCA verdict (all head-SHA
+# equality checks in MergeGate).
+head = "d" * 40
+pr["headRefOid"] = head
+for check in pr.get("statusCheckRollup", []):
+    check["headSha"] = head
 pr["labels"] = [{"name": "guardian:approved"}]
 pr["author"] = {"login": "mizutani-140"}
 pr_path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
@@ -1214,10 +1222,15 @@ task = json.loads(task_path.read_text())
 task["risk_level"] = "high"
 task_path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
 
+cca_path = target / ".shiki" / "gha" / "cca-verdict.json"
+cca = json.loads(cca_path.read_text())
+cca["head_sha"] = head
+cca_path.write_text(json.dumps(cca, indent=2, sort_keys=True) + "\n")
+
 (target / ".shiki" / "gha" / "live-guardian-comments.json").write_text(json.dumps([
     {
         "user": {"login": "mizutani-140"},
-        "body": f"Guardian approval granted for current head {head}"
+        "body": f"Guardian approval granted\n\n{head}"
     }
 ], indent=2) + "\n")
 (target / ".shiki" / "gha" / "live-guardian-events.json").write_text(json.dumps([
