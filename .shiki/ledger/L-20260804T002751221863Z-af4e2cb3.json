@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260804T002751221801Z-a914603f.json"
+  ],
+  "goal_id": "G-20260804T002751220363Z-1eb2e0d4",
+  "id": "L-20260804T002751221863Z-af4e2cb3",
+  "links": [],
+  "summary": "Task registered from plan: Enforce an amendment mode, with the ledger type registered in both places",
+  "task_id": "T-20260804T002751221801Z-a914603f",
+  "timestamp": "2026-08-04T00:27:51+00:00",
+  "type": "task-registered"
+}

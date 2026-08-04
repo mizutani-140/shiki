@@ -1,0 +1,103 @@
+{
+  "completion_conditions": [
+    "An Amendment PR carrying the marker and the maintainer-applied label can correct a registered task contract on main.",
+    "Every relaxation is deny-by-default; each negative case blocks with its own reason.",
+    "Guardian risk is forced from the frozen plan and never resolves weaker than base.",
+    "A contract-amended ledger entry validates: the schema enum and validate_shiki.LEDGER_TYPES agree, and validate_shiki passes.",
+    "The existing modes' test suites stay green, proving nothing else changed.",
+    "The full suite, the governance-evidence, adversarial and control-plane suites and validate_shiki stay green."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "LOCK-SUFFICIENCY CHECK (the step whose absence caused three blocked tasks today). For every symbol this task must change, the repository was searched for referencing sites and each was classified as must-change, must-not-break, or irrelevant. Results below; the locks are the union of the must-change set.",
+      "`contract-amended` (new ledger type) \u2014 MUST CHANGE, two files: `.shiki/schemas/ledger.schema.json` (the `type` enum) and `scripts/validate_shiki.py` (`LEDGER_TYPES`, line 196). These are not independent: `validate_shiki.py:1892` raises `type enum must match ...` unless `set(ledger_type_enum) == LEDGER_TYPES`. Changing either alone fails immediately. THIS IS THE EXACT GAP that blocked the superseded task, whose locks held the schema but not validate_shiki.py.",
+      "`contract-amended` \u2014 ALSO documentation: `docs/agents/ledger-schema.md` enumerates the types (line 11 onward). No machine check binds it, but a type registered in code and absent from its own reference document is drift, so it is in scope and in the locks.",
+      "`contract-amended` \u2014 NOT gated elsewhere. `scripts/shiki_tasks.py` only passes literal `ledger_type=` values at its own call sites (lines 303, 751) and enumerates nothing. `tests/test_contract_mode.py` and `tests/test_contract_plan_registration.py` mention existing types but assert no complete set. Neither is in the locks.",
+      "The amendment mode itself \u2014 `scripts/mergegate_check.py` (enforcement), `tests/test_contract_amendment.py` (new), and the two adversarial suites `scripts/test_shiki_governance_evidence.sh` and `scripts/test_shiki_adversarial_state.sh`.",
+      "Mode-enumerating files that MUST NOT BREAK but need no change: `tests/test_contract_mode.py` (27 references), `tests/test_goal_reconcile.py` (11), `tests/test_contract_immutability.py`, `tests/test_bookkeeping_closeout.py`, `tests/test_loop_lock_guard.py`. They pin the existing modes' behaviour, which this task must leave untouched, so they belong in the verification command rather than the locks.",
+      "`docs/agents/decision-control.md` and the ADRs mention modes descriptively and are not changed by this task; documenting the new label is the second task's job.",
+      "DESIGN (unchanged from the superseded task, measured 2026-08-01): there is no delivery mode today. `enforce_untrusted_shiki_mutations` blocks any PR from creating or modifying a spec_freeze block; contract and goal_reconcile mode reject a task file whose diff status is not `A`; and since PR #229 the normal task-PR path freezes its own contract's seven governance fields to base. All three are correct, and together they leave zero routes.",
+      "Amendment is a DISTINCT act and gets its own marker and label, so one operator action cannot mean either 'approve this new contract' or 'approve this change to one you already approved'.",
+      "The plan stays the authority: each modified task must match the amended HEAD plan's definition for its title, via the existing `_frozen_task_match_errors` binding.",
+      "The spec_freeze relaxation is append-only: head must equal base on every key except `amendments`, and base's `amendments` must be a strict PREFIX of head's with at least one new entry.",
+      "Risk may never resolve weaker than base, forced from the frozen plan through the existing `contract_guardian_risk`.",
+      "Lifecycle fields are constrained: `status` may move only to `planned` or `ready` (ADR 0009's 'affected tasks pause'); `expected_pr`, `closeout_pr`, `expected_branch` and `ledger_evidence` are frozen to base."
+    ],
+    "source": "Lock-sufficiency check performed 2026-08-04 against main; the amendment mode's design was measured 2026-08-01 and is unchanged.",
+    "status": "complete"
+  },
+  "id": "P-20260804T002743387879Z-7c1183ba",
+  "ingested_at": "2026-08-04T00:27:43+00:00",
+  "non_goals": [
+    "Letting an Amendment PR touch implementation code, or any Shiki record other than the goal's source plan, its own goal's task files, its DAG and a goal-scoped ledger entry.",
+    "Letting any mode edit or remove an existing amendment entry, or change status/approved_by/prd/source of a spec_freeze block.",
+    "Changing contract, goal_reconcile, post_merge_reconcile, bookkeeping-closeout or normal-path handling.",
+    "Adding, removing or reordering any ledger type other than contract-amended.",
+    "Changing the plan schema's amendments item type.",
+    "Documenting the label or adding the CLI \u2014 that is the second task.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A frozen contract that implementation proves wrong can be corrected on the default branch through a labelled, deny-by-default Amendment PR. This supersedes T-20260801T041653348134Z-bf8a3c4b, whose implementation was correct and complete but could not pass its own acceptance: registering the required `contract-amended` ledger type needs TWO files kept set-equal by validate_shiki, and only one of them was in that task's locks.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-AMENDMENT2-draft.json",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": "docs/adr/0015-contract-approval-before-dispatch.md",
+    "source": "Operator instruction 2026-08-04 (\"A\u3067\u5fc5\u305a\u305d\u306e\u78ba\u8a8d\u3092\u3057\u3066\") \u2014 re-register the amendment mode with locks widened, after performing an explicit lock-sufficiency check.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "contract-amended is in the ledger.schema.json type enum AND in validate_shiki.LEDGER_TYPES, and validate_shiki passes \u2014 proving the set-equality check at validate_shiki.py:1892 is satisfied.",
+        "A test asserts the schema enum and LEDGER_TYPES are set-equal, so the pair cannot drift.",
+        "A contract-amended ledger entry validates against the schema.",
+        "docs/agents/ledger-schema.md lists contract-amended alongside the other types.",
+        "Amendment mode is entered only with BOTH the marker and the label; the marker alone blocks with the label message.",
+        "Head spec_freeze equals base on every key except amendments, and base's amendments is a strict prefix of head's with at least one new entry; editing, removing or reordering an entry, and changing status/approved_by/prd/source, are each blocked.",
+        "An amendment with no new amendments entry is blocked.",
+        "A plan that is not the goal's source_plan, or not spec-frozen at base, is blocked.",
+        "Each modified task matches the amended HEAD plan's definition; one that does not is blocked.",
+        "A task of another goal, a title absent from the amended plan, and an ADDed task file are each blocked.",
+        "status may move only to planned or ready; any other value is blocked.",
+        "expected_pr, closeout_pr, expected_branch and ledger_evidence are frozen to base \u2014 one blocking case per field.",
+        "A goal-scoped contract-amended ledger entry is required.",
+        "An implementation file, or any record outside the four allowed classes, is blocked with the mode named.",
+        "Guardian risk resolves as the stronger of base and head, proved with a head plan weaker than base.",
+        "tests/test_contract_mode.py, tests/test_goal_reconcile.py, tests/test_contract_immutability.py, tests/test_bookkeeping_closeout.py and tests/test_loop_lock_guard.py all still pass unchanged, proving no other mode moved.",
+        "tests/test_contract_amendment.py drives the gate for every case above.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/mergegate_check.py",
+        "path:.shiki/schemas/ledger.schema.json",
+        "path:scripts/validate_shiki.py",
+        "path:docs/agents/ledger-schema.md",
+        "path:tests/test_contract_amendment.py",
+        "path:scripts/test_shiki_governance_evidence.sh",
+        "path:scripts/test_shiki_adversarial_state.sh"
+      ],
+      "non_goals": [
+        "Touching implementation code or any record outside the four allowed classes",
+        "Editing or removing an existing amendment entry, or changing status/approved_by/prd/source",
+        "Changing contract, goal_reconcile, post_merge_reconcile, closeout or normal-path handling",
+        "Adding, removing or reordering any ledger type other than contract-amended",
+        "Documenting the label or adding the CLI",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "critical",
+      "runtime": "claude-code",
+      "scope": "Register the `contract-amended` ledger type in BOTH places that must agree, and add an `amendment` mode to `scripts/mergegate_check.py`.\n\nLEDGER TYPE. Add `contract-amended` to the `type` enum in `.shiki/schemas/ledger.schema.json` AND to `LEDGER_TYPES` in `scripts/validate_shiki.py`. These are bound: `validate_shiki.py:1892` raises `type enum must match ...` unless the two are set-equal, so both must change in the same commit. Add the type to `docs/agents/ledger-schema.md` alongside the others. Add a test asserting a `contract-amended` ledger entry validates against the schema AND that the enum and `LEDGER_TYPES` are set-equal, so the pair can never drift.\n\nAMENDMENT MODE. Entered only when BOTH the `<!-- shiki:amendment -->` marker is in the PR body AND the maintainer-applied `mergegate:amendment` label is present \u2014 the same two-factor shape `contract_decision` implements, with the same message when the label is missing.\n\nIn amendment mode, deny-by-default, a PR may change exactly four things:\n  1. The goal's own `source_plan` (MODIFY). Head's `spec_freeze` must equal base's on every key except `amendments`; base's `amendments` must be a strict PREFIX of head's; at least one new entry. The plan's `id` must not change. A plan that is not this goal's `source_plan`, or is not spec-frozen at base, is blocked.\n  2. Task files of THIS goal (MODIFY). Each must match the HEAD plan's frozen definition for its title, using the existing `_frozen_task_match_errors` binding against the amended plan. `status` may change only to `planned` or `ready`; `expected_pr`, `closeout_pr`, `expected_branch` and `ledger_evidence` are frozen to base. A task of another goal, a title absent from the amended plan, and an ADDed task file are each blocked.\n  3. The goal's DAG, under the same rules contract mode applies.\n  4. A goal-scoped ledger entry of type `contract-amended`, which is REQUIRED \u2014 mirroring contract mode's `task-registered` requirement.\nEverything else is blocked with the mode named.\n\nGuardian risk is forced from the goal's frozen plan through the existing `contract_guardian_risk`, resolved as the STRONGER of base and head. Reuse it; do not write a second resolution.\n\nThe other modes must be untouched: contract and goal_reconcile keep ADD-only registration, post_merge_reconcile and the ADR 0017 closeout classifier keep their own base comparisons, and the normal path keeps `normal_task_contract_immutability_reasons`. No mode may report a blocking reason twice.\n\nAdd `tests/test_contract_amendment.py` driving the real gate: a well-formed amendment passes; marker without label blocks with the label message; label without marker does not enter the mode; a spec_freeze change that edits, removes or reorders an existing amendment entry, or changes status/approved_by/prd/source, is blocked \u2014 one case each; an amendment with no new entry is blocked; a foreign plan is blocked; a task of another goal is blocked; a title absent from the amended plan is blocked; a task that does not match the amended plan is blocked; an ADDed task file is blocked; `status` moved to anything other than planned or ready is blocked; each of expected_pr, closeout_pr, expected_branch and ledger_evidence differing from base is blocked \u2014 one case each; an implementation file is blocked; a missing `contract-amended` ledger is blocked; and the resolved Guardian risk is the stronger of base and head, proved with a head plan weaker than base. Add adversarial cases to the two shell suites asserting an amendment cannot lower its own Guardian gate and that contract, goal_reconcile, post_merge_reconcile, closeout and normal-path PRs behave exactly as before.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: implementation proves a frozen contract wrong \u2014 an acceptance criterion that cannot be satisfied, locks too narrow for the change the task requires \u2014 and there is no way to correct it. The loop's only options are to stop, or for the operator to commit to main by hand, losing branch protection and the audit trail. This happened THREE times on 2026-08-03/04 (T-\u20262cde7018, the CODEOWNERS wiring, and the superseded amendment task itself).\n  Measured on main, three independent blocks, all correct: (1) `enforce_untrusted_shiki_mutations` blocks any PR from creating or modifying a spec_freeze block \u2014 its comment names the reason, an implementation PR could 'append amendments to the plan that governs it'; (2) contract and goal_reconcile mode reject a task file whose diff status is not `A`; (3) since PR #229 the normal task-PR path freezes its own contract's seven governance fields against base. Zero routes.\n  Why this task exists rather than the original: the original's implementation was complete and its pre-PR reviewer blocked it \u2014 correctly \u2014 because `contract-amended` must be registered in `.shiki/schemas/ledger.schema.json` AND `scripts/validate_shiki.py`'s `LEDGER_TYPES`, which `validate_shiki.py:1892` holds set-equal, and only the schema was in its locks. The defect was in the contract, not the implementation.\n  Exact change that reproduces this result: register the ledger type in both bound files plus its reference doc, then add the two-factor amendment mode whose relaxations are append-only `spec_freeze.amendments` on the goal's own source plan and MODIFY of this goal's task files bound to the amended plan.\n  Reproducible when: a task whose locks were too narrow is amended and re-dispatched with no hand-commit to main, every negative case above is blocked, and the existing modes' suites stay green.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_governance_evidence.sh && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Enforce an amendment mode, with the ledger type registered in both places"
+    }
+  ],
+  "title": "Give a Contract Amendment a delivery mode (locks corrected)"
+}

@@ -1,0 +1,58 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "An Amendment PR carrying the marker and the maintainer-applied label can correct a registered task contract on main.",
+    "Every relaxation is deny-by-default; each negative case blocks with its own reason.",
+    "Guardian risk is forced from the frozen plan and never resolves weaker than base.",
+    "A contract-amended ledger entry validates: the schema enum and validate_shiki.LEDGER_TYPES agree, and validate_shiki passes.",
+    "The existing modes' test suites stay green, proving nothing else changed.",
+    "The full suite, the governance-evidence, adversarial and control-plane suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-04T00:27:51+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "LOCK-SUFFICIENCY CHECK (the step whose absence caused three blocked tasks today). For every symbol this task must change, the repository was searched for referencing sites and each was classified as must-change, must-not-break, or irrelevant. Results below; the locks are the union of the must-change set.",
+      "`contract-amended` (new ledger type) \u2014 MUST CHANGE, two files: `.shiki/schemas/ledger.schema.json` (the `type` enum) and `scripts/validate_shiki.py` (`LEDGER_TYPES`, line 196). These are not independent: `validate_shiki.py:1892` raises `type enum must match ...` unless `set(ledger_type_enum) == LEDGER_TYPES`. Changing either alone fails immediately. THIS IS THE EXACT GAP that blocked the superseded task, whose locks held the schema but not validate_shiki.py.",
+      "`contract-amended` \u2014 ALSO documentation: `docs/agents/ledger-schema.md` enumerates the types (line 11 onward). No machine check binds it, but a type registered in code and absent from its own reference document is drift, so it is in scope and in the locks.",
+      "`contract-amended` \u2014 NOT gated elsewhere. `scripts/shiki_tasks.py` only passes literal `ledger_type=` values at its own call sites (lines 303, 751) and enumerates nothing. `tests/test_contract_mode.py` and `tests/test_contract_plan_registration.py` mention existing types but assert no complete set. Neither is in the locks.",
+      "The amendment mode itself \u2014 `scripts/mergegate_check.py` (enforcement), `tests/test_contract_amendment.py` (new), and the two adversarial suites `scripts/test_shiki_governance_evidence.sh` and `scripts/test_shiki_adversarial_state.sh`.",
+      "Mode-enumerating files that MUST NOT BREAK but need no change: `tests/test_contract_mode.py` (27 references), `tests/test_goal_reconcile.py` (11), `tests/test_contract_immutability.py`, `tests/test_bookkeeping_closeout.py`, `tests/test_loop_lock_guard.py`. They pin the existing modes' behaviour, which this task must leave untouched, so they belong in the verification command rather than the locks.",
+      "`docs/agents/decision-control.md` and the ADRs mention modes descriptively and are not changed by this task; documenting the new label is the second task's job.",
+      "DESIGN (unchanged from the superseded task, measured 2026-08-01): there is no delivery mode today. `enforce_untrusted_shiki_mutations` blocks any PR from creating or modifying a spec_freeze block; contract and goal_reconcile mode reject a task file whose diff status is not `A`; and since PR #229 the normal task-PR path freezes its own contract's seven governance fields to base. All three are correct, and together they leave zero routes.",
+      "Amendment is a DISTINCT act and gets its own marker and label, so one operator action cannot mean either 'approve this new contract' or 'approve this change to one you already approved'.",
+      "The plan stays the authority: each modified task must match the amended HEAD plan's definition for its title, via the existing `_frozen_task_match_errors` binding.",
+      "The spec_freeze relaxation is append-only: head must equal base on every key except `amendments`, and base's `amendments` must be a strict PREFIX of head's with at least one new entry.",
+      "Risk may never resolve weaker than base, forced from the frozen plan through the existing `contract_guardian_risk`.",
+      "Lifecycle fields are constrained: `status` may move only to `planned` or `ready` (ADR 0009's 'affected tasks pause'); `expected_pr`, `closeout_pr`, `expected_branch` and `ledger_evidence` are frozen to base."
+    ],
+    "source": "Lock-sufficiency check performed 2026-08-04 against main; the amendment mode's design was measured 2026-08-01 and is unchanged.",
+    "status": "complete"
+  },
+  "id": "G-20260804T002751220363Z-1eb2e0d4",
+  "ledger_evidence": [
+    "L-20260804T002751221201Z-2208500f"
+  ],
+  "non_goals": [
+    "Letting an Amendment PR touch implementation code, or any Shiki record other than the goal's source plan, its own goal's task files, its DAG and a goal-scoped ledger entry.",
+    "Letting any mode edit or remove an existing amendment entry, or change status/approved_by/prd/source of a spec_freeze block.",
+    "Changing contract, goal_reconcile, post_merge_reconcile, bookkeeping-closeout or normal-path handling.",
+    "Adding, removing or reordering any ledger type other than contract-amended.",
+    "Changing the plan schema's amendments item type.",
+    "Documenting the label or adding the CLI \u2014 that is the second task.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A frozen contract that implementation proves wrong can be corrected on the default branch through a labelled, deny-by-default Amendment PR. This supersedes T-20260801T041653348134Z-bf8a3c4b, whose implementation was correct and complete but could not pass its own acceptance: registering the required `contract-amended` ledger type needs TWO files kept set-equal by validate_shiki, and only one of them was in that task's locks.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_plan": "P-20260804T002743387879Z-7c1183ba",
+  "status": "planned",
+  "title": "Give a Contract Amendment a delivery mode (locks corrected)"
+}
