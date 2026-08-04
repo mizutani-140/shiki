@@ -26,7 +26,8 @@
   },
   "id": "G-20260801T040948350468Z-4a542e71",
   "ledger_evidence": [
-    "L-20260801T040948351623Z-236d177f"
+    "L-20260801T040948351623Z-236d177f",
+    "L-20260804T055854499800Z-30be8131"
   ],
   "non_goals": [
     "Changing what a live, healthy session does.",
@@ -43,6 +44,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260801T040831274049Z-8c4d29d1",
-  "status": "planned",
+  "status": "complete",
   "title": "Make the loop survive a dead runner session and a branch that fell behind"
 }

@@ -7,6 +7,6 @@
     "path:scripts/test_shiki_goal_loop.sh"
   ],
   "owner": "shiki-run",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260801T040948352877Z-eea16def"
 }
