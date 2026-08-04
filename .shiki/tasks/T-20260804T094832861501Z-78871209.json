@@ -10,9 +10,11 @@
     "No file outside the declared locks is changed."
   ],
   "assigned_runtime": "claude-code",
+  "cca_rerun_count": 1,
+  "closeout_pr": 266,
   "dependencies": [],
-  "expected_branch": "shiki/t-20260804t094832861501z-78871209-carry-adr-0016-and-0017-and-bind-adr-citations-t",
-  "expected_pr": 265,
+  "expected_branch": "shiki/t-20260804t094832861501z-78871209-closeout",
+  "expected_pr": 266,
   "github_issue": null,
   "goal_id": "G-20260804T094832859551Z-2d0958fd",
   "id": "T-20260804T094832861501Z-78871209",
@@ -24,7 +26,9 @@
     "L-20260804T103419171798Z-2580773a",
     "L-20260804T104012096698Z-4bd63940",
     "L-20260804T104120669451Z-3142cc00",
-    "L-20260804T104124324788Z-d579f111"
+    "L-20260804T104124324788Z-d579f111",
+    "L-20260804T104657314193Z-047d46c1",
+    "L-20260804T105150110236Z-c10b4fc3"
   ],
   "locks": [
     "path:docs/adr/0016-locks-bound-product-paths.md",
