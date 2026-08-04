@@ -20,7 +20,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260804t082618611335z-02de0043-closeout",
-  "expected_pr": 261,
+  "expected_pr": 262,
   "github_issue": null,
   "goal_id": "G-20260804T082618610097Z-21ffeb4e",
   "id": "T-20260804T082618611335Z-02de0043",
@@ -33,7 +33,8 @@
     "L-20260804T091845796586Z-9f4fa270",
     "L-20260804T092014139985Z-00dd5776",
     "L-20260804T092017970375Z-2866f4de",
-    "L-20260804T092556764156Z-7abdb274"
+    "L-20260804T092556764156Z-7abdb274",
+    "L-20260804T092600391580Z-90a129b1"
   ],
   "locks": [
     "path:scripts/shiki_guardian.py",
