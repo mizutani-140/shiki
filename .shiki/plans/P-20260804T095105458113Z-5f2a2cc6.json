@@ -1,0 +1,179 @@
+{
+  "completion_conditions": [
+    "A PR whose only pushes since the approved head were clean base merges keeps its Guardian approval, disclosed as guardian_comment_carried.",
+    "An evil merge, a `merge -s ours`, a forged merge commit, an octopus merge, a superseded second parent, an authored commit, a reversed merge direction, a force-push orphan, a shallow checkout, an edited comment, a multi-SHA body, a retargeted base, a critical risk level and a removed label each independently refuse the carry \u2014 and in every one of those cases the Guardian requirement still resolves as required.",
+    "With the flag absent, every existing fixture produces a byte-identical result to the pre-change gate.",
+    "MergeGate and the deterministic CCA Guardian signal agree on every fixture, and the signal is never more permissive.",
+    "The full suite, the guardian-policy, governance-evidence, adversarial and control-plane suites and validate_shiki stay green."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "The problem is structural, not incidental. Branch protection has required_status_checks.strict = true, so a BEHIND PR cannot merge. Syncing changes the head SHA. guardian-policy.json sets guardian_comment.require_head_sha = true, and dismiss_stale_reviews is true so a github_review approval is dismissed by the same push. The label survives but the human path needs label AND a head-bound secondary. So every base sync costs a fresh approval.",
+      "The carry applies to the guardian_comment source ONLY, as a new source token guardian_comment_carried. Never guardian_label (there is no head binding to carry). Never github_review (GitHub's dismissal IS the Guardian's revocation UI, and a deliberate dismissal is indistinguishable from a stale one in the payload the workflows write). Never external_ai_guardian_review (validate_guardian_policy hard-fails any policy that unbinds it).",
+      "The load-bearing proof is tree reproduction, not a diff comparison: `git merge-tree --write-tree <approved head A> <origin/default>` must produce exactly `tree(H)`. This proves every byte at the current head is either Guardian-approved content or content that already reached the default branch through its own gate. Measured: `git merge -s ours <base>` produces an identical DIFF while reverting the base, and an evil merge can carry a payload while touching zero out-of-base paths \u2014 so `git diff A H` and patch-equality are both unsafe shortcuts and are explicitly rejected. First-parent membership, no-authored-commits, 2-parent arity and second-parent-ancestry are kept as cheap pre-rejects and as the bound on which A may be named, but they are NOT sufficient alone.",
+      "Yield was measured, because a rule that is safe and never fires is worthless. Against the real sync on PR #237 (A=7f34529a\u2026, H=fa826dbe\u2026, base=3bdda917\u2026): first-parent membership PASS, authored commits in A..H = 0, merge arity 2 with the second parent an ancestor of base, and merge-tree reproduced tree(H) exactly (a0566fcc\u2026). Against a synthetic two-consecutive-sync history with disjoint paths: PASS. Against a sync where both sides changed the same file: git conflicts, so the carry is refused and a real operator resolution happens \u2014 which is the correct outcome, not a gap.",
+      "The residual is accepted and disclosed: proving tree(H) is the mechanical merge does NOT prove the base did not change what the approved code MEANS. It is bounded by refusing the carry for critical risk and for any maintainer-applied high/critical label, and by disclosing the carry as guardian_comment_carried in sources, in the MergeGate warning and in the CCA signal, so nothing downstream reads it as a fresh approval. The alternative bound \u2014 requiring the PR's paths and the base's paths to be disjoint \u2014 was rejected: measured, 4 of 8 real syncs overlap on .shiki/tasks/*.json, which halves the yield without closing the semantic gap.",
+      "Default OFF. Without the explicit flag the code paths are inert and the gate is byte-for-byte today's gate, so a defect degrades to the current behaviour rather than weakening the current one.",
+      "No guardian-policy.json key may enable the carry. The policy is loaded from the HEAD checkout, so a head-settable knob would let a PR widen its own approval semantics. The carry is code-pinned, not policy-pinned.",
+      "This Goal depends on the four approval-evaluation defects being fixed first. Two of them are load-bearing here: the un-paginated evidence fetch in shiki-mergegate.yml would let a negation comment past page one be invisible to the carry, and the whole-body substring head-SHA test would let a quoted SHA name a carry anchor nobody chose."
+    ],
+    "source": "Designed and adversarially attacked 2026-08-01 by a parallel exploration sweep (8 agents: 3 mapping, 4 adversarial lenses, 1 synthesis), then the\u6838\u5fc3 condition was measured against a real PR sync and a synthetic multi-sync history.",
+    "status": "complete"
+  },
+  "id": "P-20260804T095105458113Z-5f2a2cc6",
+  "ingested_at": "2026-08-04T09:51:05+00:00",
+  "non_goals": [
+    "Carrying a github_review, a guardian_label, or an external AI guardian review.",
+    "Carrying for critical risk, or when a maintainer label alone resolves high or critical.",
+    "Tolerating a merge that required conflict resolution.",
+    "Persisting the proof to any artifact \u2014 it is recomputed in every judging job.",
+    "Adding any guardian-policy.json key that enables or configures the carry.",
+    "Fixing the four approval-evaluation defects, which are a separate Goal and a prerequisite.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "When branch protection forces a stale PR to merge its base in, the Guardian approval already granted for the reviewed content is no longer thrown away. The approval carries if and only if the gate can prove, from git, that every push since the approved head was a mechanical merge of the default branch and changed nothing else. Measured cost today: opening five Contract PRs at once cost four extra operator approvals, one per PR per merge round, purely because main moved.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-SYNCCARRY-draft.json",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": "docs/agents/guardian-policy.md",
+    "source": "Operator approval 2026-08-01 (\"B\u3067\u627f\u8a8d\u3057\u305f\") of option B \u2014 carry the approval across a push proven to be a base sync only \u2014 over option A, keeping one Contract PR open at a time.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "verify_pure_base_sync performs no network or API call, and every git invocation is read-only and runs with cwd=target.",
+        "No git invocation in the module has its failure swallowed (no `|| true`, no bare except that continues).",
+        "A single clean sync, two consecutive clean syncs, and a base that did not move each prove.",
+        "An evil merge is refused by the tree-reproduction step while the first-parent, no-authored-commit and arity steps all PASS \u2014 asserted explicitly.",
+        "`git merge -s ours <base>` is refused by the tree-reproduction step with the earlier steps passing.",
+        "A .gitattributes merge=union is refused before the tree-reproduction step runs.",
+        "An octopus merge, an authored non-merge commit, a reversed merge direction, and a second parent that is not an ancestor of the base are each refused by their own step.",
+        "A superseded feature tip passes the arity/ancestry step and is refused by tree reproduction.",
+        "A commit-tree-forged merge with correct parents and an arbitrary tree is refused.",
+        "An orphaned a_sha is refused, with an assertion that no network call was attempted.",
+        "A shallow repository is refused with a distinct shallow reason.",
+        "An unavailable or failing merge-tree capability probe refuses the carry.",
+        "Every test builds a real temporary git repository; git is never mocked.",
+        "The module is registered in shiki_installer.py TEMPLATE_PATHS and in test_shiki_module_boundaries.sh.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/shiki_sync_proof.py",
+        "path:tests/test_sync_proof.py",
+        "path:scripts/shiki_installer.py",
+        "path:scripts/test_shiki_module_boundaries.sh"
+      ],
+      "non_goals": [
+        "Any network or GitHub API lookup",
+        "Persisting the proof to a file",
+        "Tolerating a merge that required conflict resolution",
+        "Reading or writing any approval state",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "critical",
+      "runtime": "claude-code",
+      "scope": "Add `scripts/shiki_sync_proof.py` exposing `verify_pure_base_sync(*, target, a_sha, head_sha, default_branch) -> SyncProof`, where `SyncProof` carries `proved: bool`, `reason: str` and the merge count. It is the ONLY module in the guardian family that runs git; every git invocation is read-only, runs with `cwd=target`, and no invocation may be suffixed with `|| true` or have its failure swallowed.\n\nConditions, in this order, each failure recorded as a distinct reason:\n  1. `git rev-parse --is-shallow-repository` is false; `refs/remotes/origin/<default_branch>^{commit}` resolves; `git rev-parse HEAD` equals `head_sha`. A shallow repository is reported distinctly so the caller can fail the step loudly rather than silently not carrying.\n  2. Capability probe: `git merge-tree --write-tree <head> <head>` exits 0 and prints 40 hex characters. (Requires git >= 2.38; the probe is what makes an older runner fail closed rather than mysteriously.)\n  3. No path named `.gitattributes` exists in the trees of `a_sha`, `head_sha` or the base, and every merge-tree invocation passes `-c core.attributesFile=/dev/null`. A `merge=union` attribute can reprogram what a merge produces, which would let a merge be simultaneously 'mechanical' and attacker-chosen.\n  4. `a_sha` resolves as a LOCAL object (`git cat-file -e`). Never fall back to any network or API lookup: an API lookup serves commits orphaned by a force-push, which is exactly the case this condition exists to reject.\n  5. `a_sha != head_sha` (equal needs no carry).\n  6. `a_sha` appears in `git rev-list --first-parent <head_sha>`.\n  7. `git rev-list --first-parent --no-merges <a_sha>..<head_sha>` is empty.\n  8. Every commit in `git rev-list --first-parent <a_sha>..<head_sha>` has EXACTLY two parents and its second parent is an ancestor of the base.\n  9. THE PROOF: `git -c core.attributesFile=/dev/null merge-tree --write-tree <a_sha> <base>` exits 0 (no conflict) and its output equals `git rev-parse <head_sha>^{tree}`.\nAny exception is caught at the function boundary and returns `proved=False` with the exception named. There is no branch that returns `proved=True` without step 9 having run and matched.\n\nRegister the module in `scripts/shiki_installer.py` TEMPLATE_PATHS and in `scripts/test_shiki_module_boundaries.sh`.\n\nAdd `tests/test_sync_proof.py` building REAL temporary git repositories \u2014 no mocks of git \u2014 one per case: a single clean sync proves; two consecutive clean syncs prove; a base that did not move proves; an evil merge (hand-edited merge tree) with a payload in a base-touched path is refused by step 9 while steps 6-8 pass, asserted explicitly so step 9 is proved load-bearing; `git merge -s ours <base>` is refused by step 9 with steps 6-8 passing; a `.gitattributes` with `merge=union` is refused by step 3 BEFORE step 9 runs; an octopus merge is refused by the arity check; an authored non-merge commit after `a_sha` is refused by step 7; a reversed merge (base merged the feature) is refused by step 6; a merge whose second parent is not an ancestor of the base is refused by step 8; a superseded feature tip merged in \u2014 reachable from base but stale \u2014 passes step 8 and is refused by step 9; a `commit-tree`-forged merge with an arbitrary tree and correct parents is refused by step 9; an orphaned `a_sha` is refused by step 4 with an assertion that no network call was attempted; a shallow clone is refused with the distinct shallow reason.\n\nREPRODUCIBILITY \u2014 what this task builds, and what to change to get the same result.\n  Problem: branch protection has `required_status_checks.strict = true`, so a PR that goes BEHIND must merge its base in before it can merge; that changes the head SHA; and `guardian_comment.require_head_sha` is true, so the approval already granted for the reviewed content is discarded. Measured on 2026-08-01: landing five Contract PRs cost four extra operator approvals, one per PR per merge round, with no content change whatsoever between them.\n  Why tree reproduction and not a diff: measured in throwaway repositories \u2014 `git merge -s ours <base>` yields an identical `git diff A H` while reverting the base entirely, and an evil merge can carry a payload while touching zero paths outside those the base itself touched. Both defeat every cheaper check. Step 9 is the criterion; steps 6-8 are pre-rejects and bound which `a_sha` may be named.\n  Measured yield, so the rule is known to fire: on the real PR #237 sync (A=7f34529a72a14c076adae67bee1cd8a390ce8df0, H=fa826dbe0b5a5670cf0aa5994f042e7592ff41d2, base=3bdda917d6e1f3e879a55f6eb7c7478640e8d896) with git 2.54.0, step 6 PASS, step 7 count 0, step 8 arity 2 with the second parent an ancestor of base, and step 9 produced a0566fcca76b075a48693e461921efe616ea1408 which equals tree(H) exactly. A synthetic two-sync history with disjoint paths also proved. A sync where both sides edited the same file conflicts, so the carry is refused and the operator resolves it \u2014 the correct outcome.\n  Known landmine: `git merge-tree --write-tree` needs git >= 2.38 and the runner's version is NOT verified by this repository. That is why the capability probe is a condition rather than an assumption: an older runner must refuse the carry loudly, never silently mis-prove one.\n  Reproducible when: every attack case above is refused with the step that refused it named, and the real #237 shape proves.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_module_boundaries.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Prove from git that a push was a pure base-sync"
+    },
+    {
+      "acceptance_checks": [
+        "guardian_comment_carried is produced only when verify_pure_base_sync proves the candidate, and it joins the human-secondary set without removing the label requirement.",
+        "The feature is inert unless --base-sync-carry is passed AND --default-branch is non-empty; with it absent, the full existing fixture set produces a byte-identical result to the pre-change gate.",
+        "critical risk refuses the carry; a label-only high or critical escalation refuses the carry.",
+        "A baseRefName other than the default branch, and any base_ref_changed timeline entry, each refuse the carry.",
+        "Candidate extraction happens only after the marker, negation, actor and author checks \u2014 asserted by ordering, not only by outcome.",
+        "An edited comment, a body with two or more SHAs, and a comment from another PR are each never candidates.",
+        "Only the newest candidate is eligible, and a later Guardian negation refuses the carry AND produces a HARD blocker \u2014 asserted not to be a warning.",
+        "A fresh current-head comment still resolves as guardian_comment, not carried.",
+        "Removing the guardian:approved label defeats approval even with a valid carry.",
+        "Both mergegate_check.py call sites \u2014 contract mode and normal path \u2014 pass the flags.",
+        "guardian_approval_signal.py emits carried_from_head and carry_refused_reasons.",
+        "shiki_guardian_status.py and the guardian status CLI accept and apply the same flags, so the posted status cannot contradict the gate.",
+        "The proof is computed in-process; no proof file is written to .shiki/gha.",
+        "No guardian-policy.json key can enable the carry \u2014 asserted with an invented key.",
+        "MergeGate and the signal agree on every fixture, and the signal is never more permissive.",
+        "Every negative case asserts the Guardian requirement still resolves as required, not merely that something blocked.",
+        "No file outside the declared locks is changed.",
+        "Every new evaluator parameter is keyword-only with a default, and the out-of-lock callers listed in the scope pass unchanged."
+      ],
+      "dependencies": [
+        "Prove from git that a push was a pure base-sync"
+      ],
+      "locks": [
+        "path:scripts/shiki_guardian.py",
+        "path:scripts/mergegate_check.py",
+        "path:scripts/guardian_approval_signal.py",
+        "path:scripts/shiki_guardian_status.py",
+        "path:scripts/shiki_cli.py",
+        "path:tests/test_guardian_carry.py",
+        "path:tests/test_guardian_carry_parity.py",
+        "path:scripts/test_shiki_guardian_policy.sh"
+      ],
+      "non_goals": [
+        "Carrying a github_review, a guardian_label, or an external AI guardian review",
+        "Carrying for critical risk or a label-only high/critical escalation",
+        "Persisting the proof to any artifact",
+        "Adding any guardian-policy.json key that enables the carry",
+        "Changing which risk levels require a Guardian",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "critical",
+      "runtime": "claude-code",
+      "scope": "Introduce the source token `guardian_comment_carried`. It is produced only when a candidate approved head is proved by `verify_pure_base_sync`, and it joins the human-secondary set alongside `github_review` and `guardian_comment` \u2014 so the label leg is still required and removing the label remains a working revocation lever.\n\nGating conditions evaluated BEFORE the git proof, each refusing the carry with a distinct reason:\n  - The feature is OFF unless `--base-sync-carry` is passed AND `--default-branch` is non-empty. Absent either, every code path is inert.\n  - Resolved Guardian risk is exactly `high`. `critical` never carries. If the PR's LABELS alone resolve high or critical, the carry is refused \u2014 a maintainer escalating by label must get a fresh approval.\n  - The PR's `baseRefName` equals the default branch, and no `base_ref_changed` entry appears anywhere in the timeline feed.\n  - Candidate extraction runs in the EXISTING `_comment_source` order \u2014 marker, not-negating, actor configured, author allowed \u2014 and only then extracts the SHA. A comment from a non-configured actor is never parsed.\n  - The carrying comment is unedited (`updated_at == created_at`, or `updated_at` absent).\n  - Only the newest candidate by (created_at, feed index) is eligible. Any comment from a configured Guardian carrying a negation marker with `created_at` at or after the candidate's refuses the carry AND raises a HARD blocker \u2014 routed through `_comment_source`'s blockers channel so it survives the demotion the caller applies to soft blockers.\n\nWire `--base-sync-carry` and `--default-branch` into `scripts/mergegate_check.py` (argparse, `enforce_guardian_policy`, and BOTH call sites \u2014 the contract-mode one and the normal-path one; missing either makes the feature unreachable on that path), `scripts/guardian_approval_signal.py` (argparse, the evaluate call, and the emitted JSON, which gains `carried_from_head` and `carry_refused_reasons`), `scripts/shiki_guardian_status.py` (so the operator-facing and CCA-posted status cannot contradict the gate) and the `guardian status` subparser in `scripts/shiki_cli.py`.\n\nThe proof is recomputed in-process in every judging invocation. It is never written to `.shiki/gha` and never carried in an artifact, so there is nothing to go stale or be forged.\n\nAdd `tests/test_guardian_carry.py` driving the real evaluator, and `tests/test_guardian_carry_parity.py` asserting MergeGate and the signal return identical approved/sources over one fixture set and that the signal is never more permissive. Positive cases assert both `approved` and that `guardian_comment_carried` is in `sources`. EVERY negative case must assert BOTH that the carry did not happen AND that the Guardian requirement still resolves as required \u2014 the signal reporting `required=true, approved=false`, and MergeGate blocking with a Guardian blocker string \u2014 never merely a non-zero exit. Cover: a fresh current-head comment still wins over a carry; critical risk refuses; a label-only high escalation refuses; a retargeted base refuses; a `base_ref_changed` timeline entry refuses; an edited comment refuses; a body with two SHAs refuses; a non-configured actor is dropped before extraction; a later negation comment refuses AND produces a hard blocker, asserted not to be a warning; a removed label defeats approval; an empty `--default-branch` behaves exactly as the pre-change gate; the flag omitted entirely produces a byte-identical result on the full existing fixture set; a comment from another PR is never a candidate; and no invented guardian-policy.json key can enable the carry.\n\nREPRODUCIBILITY \u2014 what this task changes, and what to change to get the same result.\n  Symptom: a PR whose content nobody touched loses its approval because branch protection made it merge main. Measured 2026-08-01 across five Contract PRs: four extra operator approvals, entirely mechanical.\n  Why the carry must reach BOTH the gate and the signal: the MergeGate policy job depends on the CCA job, `enforce_cca_verdict` fails any verdict that is not complete, and the signal the CCA prompt reads is computed from the guardian evaluation alone. Wiring the carry into MergeGate only means the CCA still returns needs_guardian, its job fails, and the policy check never runs \u2014 the gate this change exists to move is never reached. This exact duality has been undercounted repeatedly in this repository; both call sites inside mergegate_check.py have the same property.\n  Why the label leg is still required: the label is the operator's revocation lever that does not depend on any SHA. Keeping it means an operator can always kill a carried approval by removing one label.\n  Why a negation must be a HARD blocker: the caller demotes soft blockers to warnings once any approval path succeeds, so a revocation routed as a soft blocker would be silently swallowed by the very carry it is trying to revoke.\n  Reproducible when: a base-synced PR keeps its approval with `guardian_comment_carried` in sources, and every listed attack refuses the carry while leaving the Guardian requirement required.\n\nBACKWARD-COMPATIBILITY CONSTRAINT (audited 2026-08-04): every new parameter added to `evaluate_guardian_approval` and to the functions the signal/status paths call MUST be keyword-only WITH a default. Out-of-lock callers exist and must keep working unchanged: `scripts/test_shiki_governance_evidence.sh`, `tests/test_guardian_evidence.py`, `tests/test_guardian_status.py`, `tests/test_guardian_signal*.py`, `tests/test_contract_approval.py`, `tests/test_bookkeeping_closeout.py`. A positional or required parameter breaks all of them and the task cannot repair them from inside its locks.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_guardian_policy.sh && bash scripts/test_shiki_governance_evidence.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Accept a carried Guardian approval in the gate and the signal"
+    },
+    {
+      "acceptance_checks": [
+        "All four invocations \u2014 signal, guardian status, cca-workflow mergegate, mergegate-workflow metadata \u2014 pass --base-sync-carry and --default-branch.",
+        "Each of those steps sets DEFAULT_BRANCH in env, and the run bodies reference \"$DEFAULT_BRANCH\" with no ${{ }}.",
+        "validate_shiki's required-flags contract covers both flags AND has a new top-level entry for shiki-cca-completion.yml covering both of its judging invocations.",
+        "validate_shiki fails when any one of the four invocations loses either flag \u2014 one case per invocation per flag.",
+        "No base fetch carries --depth, and no second base fetch was added.",
+        "The CCA prompt reads guardian_comment_carried as a recorded authority and does not re-derive it.",
+        "docs/adr/0018 records Context, Decision, Alternatives with the measured counterexamples, the accepted residual, and Consequences.",
+        "docs/agents/guardian-policy.md documents the carry and every previously documented needle is still present.",
+        "tests/test_workflow_invocation_carry.py enumerates every invocation in both workflows.",
+        "No file outside the declared locks is changed.",
+        "tests/test_workflow_invocation.py registers both new flags in _FLAG_VALUES/_STORE_TRUE and stages shiki-cca-completion.yml, so the unittest suite passes with the new required-flags entry."
+      ],
+      "dependencies": [
+        "Accept a carried Guardian approval in the gate and the signal"
+      ],
+      "locks": [
+        "path:.github/workflows/shiki-cca-completion.yml",
+        "path:.github/workflows/shiki-mergegate.yml",
+        "path:scripts/validate_shiki.py",
+        "path:docs/adr/0018-carried-guardian-approval-across-a-proven-base-sync.md",
+        "path:docs/agents/guardian-policy.md",
+        "path:.github/prompts/cca-completion-check.md",
+        "path:tests/test_workflow_invocation_carry.py",
+        "path:scripts/test_shiki_control_plane.sh",
+        "path:tests/test_workflow_invocation.py"
+      ],
+      "non_goals": [
+        "Changing the verifier's or the evaluator's semantics",
+        "Adding or restoring any --depth on a base fetch, or adding a second base fetch",
+        "Removing any documented needle from the guardian-policy docs",
+        "Using ${{ }} inside a run body",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "high",
+      "runtime": "claude-code",
+      "scope": "Pass `--base-sync-carry` and `--default-branch \"$DEFAULT_BRANCH\"` at EVERY invocation that judges Guardian approval, and set `DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}` in each of those steps' `env:`:\n  - `.github/workflows/shiki-cca-completion.yml`, job `cca`, the `guardian_approval_signal.py` invocation;\n  - the same workflow's \"Post Guardian blockers comment\" step, the `shiki.py guardian status` invocation;\n  - the same workflow's job `mergegate`, the `mergegate_check.py` invocation;\n  - `.github/workflows/shiki-mergegate.yml`, the metadata check's `mergegate_check.py` invocation.\nIn `.github/workflows/shiki-mergegate.yml` ONLY, the `run:` body must reference `\"$DEFAULT_BRANCH\"` and never `${{ }}`: `WORKFLOW_RUN_EXPRESSION_FREE` (scripts/validate_shiki.py:318-321) is exactly (\"shiki-mergegate.yml\", \"shiki-orchestrator.yml\"). `shiki-cca-completion.yml` is NOT in that tuple and already interpolates `${{ }}` in run bodies 34 times, so adding a flags entry for it does not pull it into the rule. Reuse the base fetch each job already performs and do NOT add a second fetch or any `--depth`: a shallow base makes the proof unresolvable, which fails closed but silently disables the feature.\n\nExtend `scripts/validate_shiki.py`'s workflow-invocation required-flags contract to cover both new flags, and ADD a top-level entry for `.github/workflows/shiki-cca-completion.yml`, which has none today \u2014 covering its `mergegate` job's `mergegate_check.py` and its `cca` job's `guardian_approval_signal.py`. Without that entry, three of the four invocations above are unguarded against silent removal.\n\nUpdate `.github/prompts/cca-completion-check.md` and the inline CCA prompt so CCA-08 reads `guardian_comment_carried` as a recorded authority and does not re-derive it, exactly as it already treats the other sources.\n\nWrite `docs/adr/0018-carried-guardian-approval-across-a-proven-base-sync.md`: Context (strict branch protection plus head-bound approval, and the measured four extra approvals across five Contract PRs on 2026-08-01), Decision (scope limited to guardian_comment; tree reproduction as the proof; the ordered conditions; default off; code-pinned not policy-pinned), Alternatives (keeping one Contract PR open at a time \u2014 rejected as it serialises unrelated Goals; diff or patch equality \u2014 rejected with the measured `merge -s ours` and evil-merge counterexamples; path disjointness \u2014 rejected, measured 4 of 8 real syncs overlap on `.shiki/tasks/*.json`), the ACCEPTED residual (the merged tree is not the semantically approved tree; bounded by excluding critical, by label escalation, and by disclosure) and Consequences. Document the carry in `docs/agents/guardian-policy.md` without removing any existing documented needle.\n\nAdd `tests/test_workflow_invocation_carry.py` enumerating every `mergegate_check.py` and `guardian_approval_signal.py` invocation in both workflows and asserting both flags on each, plus control-plane assertions that no `--depth` appears on a base fetch, that no second base fetch was added, and that the run bodies stay expression-free.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the verifier and the evaluator are correct and nothing changes, because no caller ever passes the flags. The feature degrades to 'does not apply' by design and is invisible.\n  Why this is its own task: the previous two are pure and provable in isolation; this one is YAML across four invocation sites in two workflows, whose failure modes are silent \u2014 a missing flag disables the feature without any error.\n  Measured landmine: `.github/workflows/shiki-cca-completion.yml` has NO entry in validate_shiki's workflow-invocation required-flags contract today, so three of the four invocations have nothing preventing a future edit from dropping the flags. Adding that entry is part of this task, not optional.\n  Second landmine: the base fetch in this workflow carried `--depth=1` until PR #206. Re-adding it, or adding a second fetch that goes shallow, makes the git history unreachable and silently disables the carry rather than failing loudly.\n  Reproducible when: a live PR that is base-synced merges with the approval it already had, and validate_shiki fails if any of the four invocations loses either flag.\n\nLOCK NOTE (audited 2026-08-04): `tests/test_workflow_invocation.py` is in the locks because TWO independent binders require it. `_metadata_argv` (:215-229) re-derives flags from the workflow by regex and does `argv.append(_FLAG_VALUES[flag])` at :228, and `_FLAG_VALUES` (:114-123) has no entry for `--base-sync-carry` or `--default-branch`; separately `_stage` (:278-285) copies only MERGEGATE_WF and ORCHESTRATOR_WF into its throwaway root, while `validate_workflow_invocation_contracts` loops over every file in WORKFLOW_INVOCATION_REQUIRED_FLAGS, so adding a shiki-cca-completion.yml entry raises FileNotFoundError inside the unittest suite while `validate_shiki` still exits 0.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Reach the carry from CI and record the decision"
+    }
+  ],
+  "title": "Let a Guardian approval survive a proven pure base-sync"
+}

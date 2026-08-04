@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260804T095105535495Z-22a51036.json"
+  ],
+  "goal_id": "G-20260804T095105533205Z-224ce02d",
+  "id": "L-20260804T095105535511Z-da2a584d",
+  "links": [],
+  "summary": "Task registered from plan: Reach the carry from CI and record the decision",
+  "task_id": "T-20260804T095105535495Z-22a51036",
+  "timestamp": "2026-08-04T09:51:05+00:00",
+  "type": "task-registered"
+}
