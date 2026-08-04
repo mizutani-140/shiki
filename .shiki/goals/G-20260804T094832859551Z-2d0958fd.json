@@ -25,7 +25,8 @@
   },
   "id": "G-20260804T094832859551Z-2d0958fd",
   "ledger_evidence": [
-    "L-20260804T094832860972Z-0757cb5a"
+    "L-20260804T094832860972Z-0757cb5a",
+    "L-20260804T104700008991Z-5253ba65"
   ],
   "non_goals": [
     "Rewriting, renumbering or editing the content of either ADR.",
@@ -40,6 +41,6 @@
   ],
   "risk_level": "low",
   "source_plan": "P-20260804T094832785739Z-b731b1e2",
-  "status": "planned",
+  "status": "complete",
   "title": "Carry the two ADRs the code already cites, and bind citations to files"
 }
