@@ -87,6 +87,63 @@ jobs:
             fi
           fi
 
+          # ADR 0015 Contract Approval carry. Build the registration proof the
+          # evaluator (shiki_contract_approval.evaluate_contract_approval) reads via
+          # --contract-approval, from evidence neither the PR head nor the PR body
+          # can forge. Resolve the task id with the SAME regex used above; find the
+          # commit that ADDED .shiki/tasks/<task_id>.json on the base branch with
+          # `git log --diff-filter=A` over the base ref the fetch above already
+          # retrieved (do NOT add a second fetch and do NOT use --depth: a shallow
+          # base makes this return nothing and silently defeats the carry, the exact
+          # defect PR #206 removed); resolve the MERGED PR behind that commit and its
+          # guardian:approved label straight from the GitHub API. Field names match
+          # the evaluator (guardian_source, adding_commit_pr) — the authority over the
+          # looser list in the task handoff. EVERY failure path writes a well-formed
+          # JSON object whose values DEFEAT the carry (the evaluator recomputes
+          # applies) with a reason, never an absent or partial file a reader could
+          # treat as permissive.
+          approval_file=.shiki/gha/contract-approval.json
+          ca_base_ref="$(jq -r '.baseRefName // ""' .shiki/gha/pr.json 2>/dev/null || echo "")"
+          if [ -z "$task_id" ]; then
+            jq -n '{applies: false, reason: "contract approval does not apply: no Shiki task id in the PR body"}' > "$approval_file"
+          elif [ -z "$ca_base_ref" ]; then
+            jq -n --arg t "$task_id" '{task_id: $t, applies: false, reason: "contract approval does not apply: no base ref resolved"}' > "$approval_file"
+          else
+            adding_commit="$(git log --diff-filter=A --format=%H "origin/${ca_base_ref}" -- ".shiki/tasks/${task_id}.json" 2>/dev/null | tail -1 || true)"
+            if [ -z "$adding_commit" ]; then
+              jq -n --arg t "$task_id" '{task_id: $t, merged: false, applies: false, reason: "contract approval does not apply: no commit adds this task file on the base branch (a first-registration PR is never covered)"}' > "$approval_file"
+            else
+              pulls="$(gh api "repos/${REPOSITORY}/commits/${adding_commit}/pulls" 2>/dev/null || echo "[]")"
+              reg_pr="$(printf '%s' "$pulls" | jq 'map(select(.merged_at != null)) | (.[0].number // empty)' 2>/dev/null || echo "")"
+              if [ -z "$reg_pr" ]; then
+                jq -n --arg t "$task_id" --arg c "$adding_commit" '{task_id: $t, adding_commit: $c, merged: false, applies: false, reason: "contract approval does not apply: no merged PR is associated with the adding commit"}' > "$approval_file"
+              else
+                guardian_approved="$(printf '%s' "$pulls" | jq --argjson n "$reg_pr" 'any(.[]; .number == $n and ((.labels // []) | any(.name == "guardian:approved")))' 2>/dev/null || echo false)"
+                jq -n \
+                  --arg t "$task_id" \
+                  --argjson pr "$reg_pr" \
+                  --arg c "$adding_commit" \
+                  --argjson ga "$guardian_approved" \
+                  '{
+                     task_id: $t,
+                     pr: $pr,
+                     merged: true,
+                     adding_commit: $c,
+                     adding_commit_pr: $pr,
+                     guardian_approved: $ga,
+                     guardian_source: (if $ga then "guardian_label" else "" end),
+                     applies: $ga,
+                     reason: (if $ga
+                       then "task contract registered and Guardian-approved (guardian:approved label) on merged Contract PR \($pr) before dispatch"
+                       else "contract approval does not apply: registering PR \($pr) carries no guardian:approved label" end)
+                   }' > "$approval_file"
+              fi
+            fi
+          fi
+          echo "::group::contract-approval carry"
+          cat "$approval_file"
+          echo "::endgroup::"
+
           # Deterministic Guardian-approval signal for CCA-08. The CCA must not
           # judge Guardian approval by LLM-reading raw comments; it reads the
           # result of the SAME authoritative evaluate_guardian_approval the
@@ -107,6 +164,7 @@ jobs:
             --base-shiki .shiki/gha/base-shiki/.shiki \
             --changed-files-status .shiki/gha/changed-files-status.txt \
             --merged-prs "$MERGED_PRS" \
+            --contract-approval .shiki/gha/contract-approval.json \
             --output .shiki/gha/guardian-approval.json
           echo "::group::guardian-approval signal"
           cat .shiki/gha/guardian-approval.json
@@ -559,6 +617,57 @@ jobs:
             fi
           fi
 
+          # ADR 0015 Contract Approval carry, built the SAME way the CCA context
+          # step builds it (from the base-branch adding commit and the MERGED PR
+          # behind it) and passed to mergegate_check.py via --contract-approval. The
+          # base fetch in "Refresh live PR state" already retrieved origin/<base_ref>
+          # — reuse it; do NOT add a second fetch and do NOT use --depth (a shallow
+          # base makes `git log --diff-filter=A` return nothing and silently defeats
+          # the carry, the exact defect PR #206 removed). Field names match the
+          # evaluator (guardian_source, adding_commit_pr). EVERY failure path writes a
+          # well-formed JSON object whose values DEFEAT the carry with a reason.
+          approval_file=.shiki/gha/contract-approval.json
+          ca_base_ref="$(jq -r '.baseRefName // ""' .shiki/gha/live-pr.json 2>/dev/null || echo "")"
+          if [ -z "$task_id" ]; then
+            jq -n '{applies: false, reason: "contract approval does not apply: no Shiki task id in the PR body"}' > "$approval_file"
+          elif [ -z "$ca_base_ref" ]; then
+            jq -n --arg t "$task_id" '{task_id: $t, applies: false, reason: "contract approval does not apply: no base ref resolved"}' > "$approval_file"
+          else
+            adding_commit="$(git log --diff-filter=A --format=%H "origin/${ca_base_ref}" -- ".shiki/tasks/${task_id}.json" 2>/dev/null | tail -1 || true)"
+            if [ -z "$adding_commit" ]; then
+              jq -n --arg t "$task_id" '{task_id: $t, merged: false, applies: false, reason: "contract approval does not apply: no commit adds this task file on the base branch (a first-registration PR is never covered)"}' > "$approval_file"
+            else
+              pulls="$(gh api "repos/${REPOSITORY}/commits/${adding_commit}/pulls" 2>/dev/null || echo "[]")"
+              reg_pr="$(printf '%s' "$pulls" | jq 'map(select(.merged_at != null)) | (.[0].number // empty)' 2>/dev/null || echo "")"
+              if [ -z "$reg_pr" ]; then
+                jq -n --arg t "$task_id" --arg c "$adding_commit" '{task_id: $t, adding_commit: $c, merged: false, applies: false, reason: "contract approval does not apply: no merged PR is associated with the adding commit"}' > "$approval_file"
+              else
+                guardian_approved="$(printf '%s' "$pulls" | jq --argjson n "$reg_pr" 'any(.[]; .number == $n and ((.labels // []) | any(.name == "guardian:approved")))' 2>/dev/null || echo false)"
+                jq -n \
+                  --arg t "$task_id" \
+                  --argjson pr "$reg_pr" \
+                  --arg c "$adding_commit" \
+                  --argjson ga "$guardian_approved" \
+                  '{
+                     task_id: $t,
+                     pr: $pr,
+                     merged: true,
+                     adding_commit: $c,
+                     adding_commit_pr: $pr,
+                     guardian_approved: $ga,
+                     guardian_source: (if $ga then "guardian_label" else "" end),
+                     applies: $ga,
+                     reason: (if $ga
+                       then "task contract registered and Guardian-approved (guardian:approved label) on merged Contract PR \($pr) before dispatch"
+                       else "contract approval does not apply: registering PR \($pr) carries no guardian:approved label" end)
+                   }' > "$approval_file"
+              fi
+            fi
+          fi
+          echo "::group::contract-approval carry"
+          cat "$approval_file"
+          echo "::endgroup::"
+
           python3 scripts/mergegate_check.py \
             --pr-json .shiki/gha/live-pr.json \
             --changed-files .shiki/gha/live-changed-files.txt \
@@ -569,6 +678,7 @@ jobs:
             --expected-head-sha "$EXPECTED_HEAD_SHA" \
             --base-shiki .shiki/gha/base-shiki/.shiki \
             --merged-prs "$MERGED_PRS" \
+            --contract-approval .shiki/gha/contract-approval.json \
             --guardian-policy .shiki/guardian-policy.json \
             --guardian-comments .shiki/gha/live-guardian-comments.json \
             --guardian-events .shiki/gha/live-guardian-events.json \

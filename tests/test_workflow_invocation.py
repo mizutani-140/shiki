@@ -120,6 +120,12 @@ _FLAG_VALUES = {
     "--guardian-timeline": ".shiki/gha/live-guardian-timeline.json",
     "--base-shiki": ".shiki/gha/base-shiki/.shiki",
     "--merged-prs": str(IMPL_PR),
+    # ADR 0015 Contract Approval carry: the metadata job now passes
+    # --contract-approval (built earlier in the step). The fixture does not write
+    # this file, so mergegate_check degrades to "no proof" (missing file -> None)
+    # and the medium-risk reconcile PR is unaffected — but the flag must resolve a
+    # value here or argv reconstruction KeyErrors the moment the workflow adds it.
+    "--contract-approval": ".shiki/gha/contract-approval.json",
 }
 _STORE_TRUE = {"--allow-missing-cca"}
 
