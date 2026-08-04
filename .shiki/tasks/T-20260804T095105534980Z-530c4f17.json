@@ -20,6 +20,7 @@
     "Every new evaluator parameter is keyword-only with a default, and the out-of-lock callers listed in the scope pass unchanged."
   ],
   "assigned_runtime": "claude-code",
+  "cca_rerun_count": 1,
   "dependencies": [
     "T-20260804T095105534398Z-c2ef0cfc"
   ],
@@ -39,7 +40,8 @@
     "L-20260804T130952107965Z-6d4ea3bb",
     "L-20260804T130955539808Z-8bc6b939",
     "L-20260804T131352090477Z-5918c74f",
-    "L-20260804T131907591665Z-3ece9590"
+    "L-20260804T131907591665Z-3ece9590",
+    "L-20260804T132533130535Z-9aed65bc"
   ],
   "locks": [
     "path:scripts/shiki_guardian.py",
