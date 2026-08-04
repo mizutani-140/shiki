@@ -43,6 +43,18 @@ approved PR head SHA, then add `guardian:approved`. Guardian approval comments
 use the exact marker `Guardian approval granted`. Re-run CCA so MergeGate uses
 fresh live evidence.
 
+The head-SHA binding is positional, not a substring match. The approval comment
+must carry the current 40-character head SHA as the sole content of its own line,
+in the exact shape `shiki guardian status` renders (the policy marker line, a
+blank line, then the head SHA alone) — pasted verbatim. The gate parses the SHA
+only after the marker, negation, and configured-Guardian actor checks pass, so a
+comment from a non-Guardian is never even read for a SHA. A head SHA merely
+quoted inside other prose (for example when a Guardian quotes the gate's own
+status comment to explain a blocker), an abbreviated SHA, two or more 40-hex
+tokens, or an empty PR head all fail the binding and are recorded as the same
+soft blocker a stale comment produces — never a silent pass. When the binding
+fails the Guardian requirement still resolves as required.
+
 `scripts/test_shiki_governance_evidence.sh` fixes the adversarial cases around
 this policy. It verifies that label-only approval, negative text such as
 "no Guardian approval evidence is present", stale-head comments, unconfigured

@@ -243,7 +243,7 @@ def make_fixture(
             else [
                 {
                     "author": {"login": "mizutani-140"},
-                    "body": f"Guardian approval granted for fixture head {HEAD}",
+                    "body": f"Guardian approval granted\n\n{HEAD}",
                 }
             ],
         )
@@ -342,7 +342,7 @@ valid_guardian = evaluate_guardian_approval(
     policy=policy,
     pr=guardian_pr,
     reviews=[],
-    comments=[{"author": {"login": "mizutani-140"}, "body": f"Guardian approval granted for head {HEAD}"}],
+    comments=[{"author": {"login": "mizutani-140"}, "body": f"Guardian approval granted\n\n{HEAD}"}],
     label_events=[{"event": "labeled", "actor": {"login": "mizutani-140"}, "label": {"name": "guardian:approved"}}],
     head_sha=HEAD,
 )
@@ -700,7 +700,7 @@ expect_block(
 expect_ready(
     make_fixture(
         "guardian-exact-marker",
-        guardian_comments=[{"author": {"login": "mizutani-140"}, "body": f"Guardian approval granted for head {HEAD}"}],
+        guardian_comments=[{"author": {"login": "mizutani-140"}, "body": f"Guardian approval granted\n\n{HEAD}"}],
     )
 )
 expect_block(
@@ -1085,7 +1085,7 @@ def make_amendment_fixture(name: str, *, approved: bool) -> pathlib.Path:
     status_lines = [f"M\t.shiki/plans/{AMEND_PLAN}.json", f"M\t.shiki/tasks/{AMEND_T_A}.json", f"A\t.shiki/ledger/{AMEND_LEDGER}.json"]
     (target / ".shiki" / "gha" / "changed-files-status.txt").write_text("\n".join(status_lines) + "\n", encoding="utf-8")
     if approved:
-        comments = [{"author": {"login": "mizutani-140"}, "body": f"Guardian approval granted for head {HEAD}"}]
+        comments = [{"author": {"login": "mizutani-140"}, "body": f"Guardian approval granted\n\n{HEAD}"}]
         events = [{"event": "labeled", "actor": {"login": "mizutani-140"}, "label": {"name": "guardian:approved"}}]
     else:
         comments = _NO_GUARDIAN_APPROVAL

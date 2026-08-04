@@ -338,6 +338,53 @@ def _review_source(
     return sources, approvers, blockers, soft, warnings
 
 
+# A full git object name standing ALONE on its own line — the exact shape
+# build_approval_body (scripts/shiki_guardian_status.py) renders: marker line,
+# blank line, then the head SHA on its own line. The head-SHA binding is
+# POSITIONAL, not a substring test: the approval comment must carry the current
+# 40-character head SHA as the sole content of a line, so a Guardian who merely
+# QUOTES the gate's own status comment (which renders the head SHA inside prose)
+# can never satisfy the binding without actually approving.
+_FULL_SHA_LINE_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+# A standalone hex line short of a full object name — an abbreviated SHA a
+# Guardian might paste from a prefix (PR #179 failure mode). Named distinctly so
+# the soft blocker says what was wrong.
+_ABBREV_SHA_LINE_RE = re.compile(r"^[0-9a-fA-F]{7,39}$")
+
+
+def _head_sha_line_tokens(body: str) -> list[str]:
+    """Return every line of ``body`` whose sole content is a 40-hex token."""
+    tokens: list[str] = []
+    for line in body.splitlines():
+        stripped = line.strip()
+        if _FULL_SHA_LINE_RE.match(stripped):
+            tokens.append(stripped)
+    return tokens
+
+
+def _head_sha_binding_blocker(body: str, head_sha: str) -> str | None:
+    """Soft-blocker reason when ``body`` fails to bind to ``head_sha`` in the
+    shape ``build_approval_body`` produces, or ``None`` when it binds exactly.
+
+    The binding requires EXACTLY ONE 40-character hex token, standing on its own
+    line, equal to ``head_sha``. An empty ``head_sha`` (with ``require_head_sha``
+    set) is MISSING evidence and is treated identically to a stale comment —
+    never a vacuous pass (the old ``head_sha not in body`` guard was dead for an
+    empty SHA because ``'' in body`` is always true). Zero tokens, two or more
+    tokens, or an abbreviated SHA each yield a soft blocker naming what was wrong.
+    """
+    if not head_sha:
+        return "Guardian approval comment does not reference current head SHA"
+    tokens = _head_sha_line_tokens(body)
+    if len(tokens) == 1 and tokens[0] == head_sha:
+        return None
+    if len(tokens) > 1:
+        return "Guardian approval comment carries more than one 40-character head SHA token"
+    if not tokens and any(_ABBREV_SHA_LINE_RE.match(line.strip()) for line in body.splitlines()):
+        return "Guardian approval comment references an abbreviated head SHA, not the full 40-character head SHA"
+    return "Guardian approval comment does not reference current head SHA"
+
+
 def _comment_source(
     *,
     policy: GuardianPolicy,
@@ -382,12 +429,19 @@ def _comment_source(
         if not _author_allowed(actor, pr_author, policy):
             soft.append(f"PR author {actor} cannot satisfy Guardian comment without solo maintainer policy")
             continue
-        if policy.require_head_sha and head_sha not in body:
-            # Stale/malformed marker comment lacking the current head SHA. This
-            # is a SOFT blocker: it is fatal only when no other valid approval
-            # source exists (the poisoning fix is applied in the caller).
-            soft.append("Guardian approval comment does not reference current head SHA")
-            continue
+        if policy.require_head_sha:
+            # Head-SHA binding is POSITIONAL (build_approval_body's shape), not a
+            # substring test: an empty head SHA, a SHA only quoted inside prose,
+            # an abbreviated SHA, or two or more SHA tokens are each MISSING or
+            # ambiguous evidence — the SAME soft blocker a stale comment produces
+            # (fatal only when no other valid approval source exists; the
+            # poisoning fix is applied in the caller). Extraction happens HERE,
+            # after the _configured_guardian and _author_allowed checks above, so
+            # a comment from a non-Guardian is never even parsed for a SHA.
+            binding_blocker = _head_sha_binding_blocker(body, head_sha)
+            if binding_blocker is not None:
+                soft.append(binding_blocker)
+                continue
         sources.append("guardian_comment")
         approvers.append(actor)
     return sources, approvers, blockers, soft, warnings

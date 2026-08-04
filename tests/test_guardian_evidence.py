@@ -72,10 +72,14 @@ def _comment(body: str, author: str = GUARDIAN) -> dict:
 
 
 class CommentMarkerLineInitialTests(unittest.TestCase):
-    def test_line_initial_marker_approves(self) -> None:
+    def test_loose_prose_marker_does_not_approve(self) -> None:
+        # Defect 3: the loose form — the head SHA quoted inside the marker's prose
+        # line rather than standing on its own line — is NOT a positional binding
+        # and must NOT approve. A Guardian quoting the head SHA while explaining a
+        # blocker must never be read as an affirmative approval.
         result = _evaluate(comments=[_comment(f"Guardian approval granted for head {HEAD}")])
-        self.assertTrue(result.approved, result)
-        self.assertIn("guardian_comment", result.sources)
+        self.assertFalse(result.approved, result)
+        self.assertNotIn("guardian_comment", result.sources)
 
     def test_line_initial_marker_with_blank_line_approves(self) -> None:
         result = _evaluate(comments=[_comment(f"Guardian approval granted\n\n{HEAD}")])
@@ -125,7 +129,7 @@ class CommentMarkerLineInitialTests(unittest.TestCase):
         # it must not poison an otherwise-current approval (proves it is soft).
         result = _evaluate(
             comments=[
-                _comment(f"Guardian approval granted for head {HEAD}"),
+                _comment(f"Guardian approval granted\n\n{HEAD}"),
                 _comment(f"Guardian approval granted earlier is now RESCINDED at {HEAD}."),
             ]
         )
@@ -173,7 +177,7 @@ class LabelActorLatestTransitionTests(unittest.TestCase):
     def test_full_gate_blocks_when_latest_label_actor_is_not_guardian(self) -> None:
         events = [_labeled(GUARDIAN), _labeled(GUARDIAN, "unlabeled"), _labeled(MALLORY)]
         result = _evaluate(
-            comments=[_comment(f"Guardian approval granted for head {HEAD}")],
+            comments=[_comment(f"Guardian approval granted\n\n{HEAD}")],
             events=events,
         )
         self.assertFalse(result.approved, result)
@@ -187,7 +191,7 @@ class LabelActorLatestTransitionTests(unittest.TestCase):
     def test_full_gate_approves_when_latest_label_actor_is_guardian(self) -> None:
         events = [_labeled(MALLORY), _labeled(MALLORY, "unlabeled"), _labeled(GUARDIAN)]
         result = _evaluate(
-            comments=[_comment(f"Guardian approval granted for head {HEAD}")],
+            comments=[_comment(f"Guardian approval granted\n\n{HEAD}")],
             events=events,
         )
         self.assertTrue(result.approved, result)

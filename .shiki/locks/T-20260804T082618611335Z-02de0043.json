@@ -1,0 +1,21 @@
+{
+  "created_at": "2026-08-04T08:35:45+00:00",
+  "goal_id": "G-20260804T082618610097Z-21ffeb4e",
+  "locks": [
+    "path:scripts/shiki_guardian.py",
+    "path:.github/workflows/shiki-mergegate.yml",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:docs/agents/guardian-policy.md",
+    "path:tests/test_guardian_approval_binding.py",
+    "path:tests/test_guardian_evidence.py",
+    "path:tests/test_contract_open.py",
+    "path:tests/test_contract_plan_registration.py",
+    "path:scripts/test_shiki_guardian_policy.sh",
+    "path:scripts/test_shiki_evidence_integrity.sh",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:scripts/test_shiki_control_plane.sh"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260804T082618611335Z-02de0043"
+}

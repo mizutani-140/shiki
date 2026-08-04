@@ -163,7 +163,7 @@ def _write_guardian_evidence(target: Path, *, approved: bool) -> None:
     )
     (gha / "live-guardian-comments.json").write_text(
         json.dumps([{"author": {"login": "mizutani-140"},
-                     "body": f"Guardian approval granted for head {HEAD_SHA}"}]),
+                     "body": f"Guardian approval granted\n\n{HEAD_SHA}"}]),
         encoding="utf-8",
     )
 

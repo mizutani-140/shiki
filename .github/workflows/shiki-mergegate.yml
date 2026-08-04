@@ -60,9 +60,9 @@ jobs:
           # MISSING INPUT ("Guardian comments evidence file is missing"), not a
           # missing approval. Fall back to an empty array so a fetch failure is a
           # deterministic "no approval evidence", never a broken run.
-          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" > .shiki/gha/live-guardian-comments.json || echo "[]" > .shiki/gha/live-guardian-comments.json
-          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/events" > .shiki/gha/live-guardian-events.json || echo "[]" > .shiki/gha/live-guardian-events.json
-          gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/timeline" -H "Accept: application/vnd.github+json" > .shiki/gha/live-guardian-timeline.json || echo "[]" > .shiki/gha/live-guardian-timeline.json
+          gh api --paginate "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" > .shiki/gha/live-guardian-comments.json || echo "[]" > .shiki/gha/live-guardian-comments.json
+          gh api --paginate "repos/${REPOSITORY}/issues/${PR_NUMBER}/events" > .shiki/gha/live-guardian-events.json || echo "[]" > .shiki/gha/live-guardian-events.json
+          gh api --paginate "repos/${REPOSITORY}/issues/${PR_NUMBER}/timeline" -H "Accept: application/vnd.github+json" > .shiki/gha/live-guardian-timeline.json || echo "[]" > .shiki/gha/live-guardian-timeline.json
 
           # Base .shiki snapshot from origin/<base_ref>, built the SAME way
           # shiki-cca-completion.yml builds it. mergegate_check.py needs it to

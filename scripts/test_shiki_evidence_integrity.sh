@@ -273,7 +273,7 @@ JSON
 touch "$MG/.shiki/gha/live-changed-files.txt" "$MG/.shiki/gha/live-changed-files-status.txt"
 touch "$MG/.shiki/gha/changed-files.txt" "$MG/.shiki/gha/changed-files-status.txt"
 cat >"$MG/.shiki/gha/live-guardian-comments.json" <<'JSON'
-[{"user":{"login":"mizutani-140"},"body":"Guardian approval granted aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]
+[{"user":{"login":"mizutani-140"},"body":"Guardian approval granted\n\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]
 JSON
 cat >"$MG/.shiki/gha/live-guardian-events.json" <<'JSON'
 [{"event":"labeled","label":{"name":"guardian:approved"},"actor":{"login":"mizutani-140"}}]

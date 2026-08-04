@@ -252,7 +252,7 @@ for name, result, expected, needle in cases:
 # Latest labeled/unlabeled transition governs label authority. A configured
 # Guardian labeling that a later unlabel/relabel supersedes must not keep
 # approving; the current label state (its most recent transition) decides.
-_valid_comment = [{"user": {"login": "mizutani-140"}, "body": f"Guardian approval granted for head {head}"}]
+_valid_comment = [{"user": {"login": "mizutani-140"}, "body": f"Guardian approval granted\n\n{head}"}]
 relabel_by_mallory = approved(
     comments=_valid_comment,
     events=[
@@ -369,6 +369,38 @@ grep "live-guardian-events.json" .github/workflows/shiki-cca-completion.yml >/de
 grep -- "--guardian-comments .shiki/gha/live-guardian-comments.json" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep -- "--guardian-events .shiki/gha/live-guardian-events.json" .github/workflows/shiki-cca-completion.yml >/dev/null
 
+# Defect 1 (pagination): EVERY Guardian-evidence `gh api` call that builds the
+# live-guardian-{comments,events,timeline}.json evidence in BOTH the MergeGate
+# and CCA workflows MUST page with --paginate. GitHub's issue-comments API pages
+# at 30 by default, so without it a Contract PR with more than 30 comments cannot
+# see an approval — or a REVOCATION — posted later than the 30th comment. Assert
+# the two workflows cannot silently drift apart.
+for wf in .github/workflows/shiki-mergegate.yml .github/workflows/shiki-cca-completion.yml; do
+  for endpoint in comments events timeline; do
+    ge_lines="$(grep -E "gh api .*issues/[^\"]*/${endpoint}\"" "$wf" || true)"
+    if [ -z "$ge_lines" ]; then
+      echo "no Guardian-evidence gh api ${endpoint} call found in ${wf}" >&2
+      exit 1
+    fi
+    while IFS= read -r ge_line; do
+      [ -z "$ge_line" ] && continue
+      case "$ge_line" in
+        *"gh api --paginate "*) : ;;
+        *) echo "Guardian-evidence gh api ${endpoint} call missing --paginate in ${wf}: ${ge_line}" >&2; exit 1 ;;
+      esac
+    done <<EOF
+$ge_lines
+EOF
+  done
+done
+
+# Defect 4 (PATCH target): the guardian-status comment the CCA workflow updates
+# in place must be selected by AUTHOR — only github-actions[bot]'s OWN marker
+# comment may be PATCHed, never a human comment that merely quotes the marker.
+# When no bot comment exists it still posts a new one (the `else` branch below).
+grep -Eq 'contains\("<!-- shiki:guardian-status -->"\).*\.user\.login.*github-actions\[bot\]' .github/workflows/shiki-cca-completion.yml \
+  || { echo "guardian-status PATCH must select only github-actions[bot] comments" >&2; exit 1; }
+
 MG="$TMP_ROOT/mergegate"
 mkdir -p "$MG/.shiki/tasks" "$MG/.shiki/goals" "$MG/.shiki/ledger" "$MG/.shiki/gha" "$MG/.github/workflows"
 cp .shiki/config.yaml "$MG/.shiki/config.yaml"
@@ -462,7 +494,7 @@ cat >"$MG/.shiki/gha/live-guardian-comments.json" <<'JSON'
 [
   {
     "user": {"login": "mizutani-140"},
-    "body": "Guardian approval granted for head aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    "body": "Guardian approval granted\n\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   }
 ]
 JSON

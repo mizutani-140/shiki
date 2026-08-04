@@ -336,8 +336,11 @@ jobs:
 
           # Update the existing marker comment in place across re-runs instead of
           # spamming a new comment on every synchronize (mid-run approval churn was
-          # a PR #179 failure mode). The comments feed was fetched above.
-          existing_id="$(jq -r 'map(select((.body // "") | contains("<!-- shiki:guardian-status -->"))) | (.[0].id // empty)' .shiki/gha/live-guardian-comments.json 2>/dev/null || true)"
+          # a PR #179 failure mode). The comments feed was fetched above. Select on
+          # AUTHOR as well as the marker: only github-actions[bot]'s OWN status
+          # comment may be PATCHed, so a human who quotes the marker is never
+          # overwritten; when no bot comment exists a fresh one is posted below.
+          existing_id="$(jq -r 'map(select(((.body // "") | contains("<!-- shiki:guardian-status -->")) and ((.user.login // "") == "github-actions[bot]"))) | (.[0].id // empty)' .shiki/gha/live-guardian-comments.json 2>/dev/null || true)"
           if [ -n "${existing_id:-}" ]; then
             # Read the markdown as a raw string into the request body so nothing in
             # the comment is misinterpreted as a typed field.

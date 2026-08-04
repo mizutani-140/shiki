@@ -1,0 +1,25 @@
+{
+  "branch": "shiki/t-20260804t082618611335z-02de0043-refuse-approval-evidence-the-gate-never-read-nev",
+  "created_at": "2026-08-04T08:35:56+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260804T082618610097Z-21ffeb4e",
+  "locks": [
+    "path:scripts/shiki_guardian.py",
+    "path:.github/workflows/shiki-mergegate.yml",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:docs/agents/guardian-policy.md",
+    "path:tests/test_guardian_approval_binding.py",
+    "path:tests/test_guardian_evidence.py",
+    "path:tests/test_contract_open.py",
+    "path:tests/test_contract_plan_registration.py",
+    "path:scripts/test_shiki_guardian_policy.sh",
+    "path:scripts/test_shiki_evidence_integrity.sh",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:scripts/test_shiki_control_plane.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260804t082618611335z-02de0043-refuse-a",
+  "pr": 261,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260804T082618611335Z-02de0043"
+}
