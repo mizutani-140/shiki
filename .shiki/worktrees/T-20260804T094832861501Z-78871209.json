@@ -1,0 +1,16 @@
+{
+  "branch": "shiki/t-20260804t094832861501z-78871209-carry-adr-0016-and-0017-and-bind-adr-citations-t",
+  "created_at": "2026-08-04T10:27:38+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260804T094832859551Z-2d0958fd",
+  "locks": [
+    "path:docs/adr/0016-locks-bound-product-paths.md",
+    "path:docs/adr/0017-bookkeeping-closeouts-do-not-inherit-risk.md",
+    "path:tests/test_adr_references.py"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260804t094832861501z-78871209-carry-ad",
+  "pr": 265,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260804T094832861501Z-78871209"
+}
