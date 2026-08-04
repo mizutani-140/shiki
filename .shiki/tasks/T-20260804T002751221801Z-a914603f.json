@@ -23,7 +23,7 @@
   "cca_rerun_count": 2,
   "dependencies": [],
   "expected_branch": "shiki/t-20260804t002751221801z-a914603f-closeout",
-  "expected_pr": 254,
+  "expected_pr": 255,
   "github_issue": null,
   "goal_id": "G-20260804T002751220363Z-1eb2e0d4",
   "id": "T-20260804T002751221801Z-a914603f",
@@ -39,7 +39,8 @@
     "L-20260804T014934950828Z-e60dd590",
     "L-20260804T015425610122Z-0dc0e326",
     "L-20260804T020000847461Z-58b81b89",
-    "L-20260804T025224599722Z-fce737b7"
+    "L-20260804T025224599722Z-fce737b7",
+    "L-20260804T025228000479Z-e007ea1c"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
