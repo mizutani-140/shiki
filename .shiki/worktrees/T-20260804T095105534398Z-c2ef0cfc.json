@@ -1,0 +1,17 @@
+{
+  "branch": "shiki/t-20260804t095105534398z-c2ef0cfc-prove-from-git-that-a-push-was-a-pure-base-sync",
+  "created_at": "2026-08-04T10:27:39+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260804T095105533205Z-224ce02d",
+  "locks": [
+    "path:scripts/shiki_sync_proof.py",
+    "path:tests/test_sync_proof.py",
+    "path:scripts/shiki_installer.py",
+    "path:scripts/test_shiki_module_boundaries.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260804t095105534398z-c2ef0cfc-prove-fr",
+  "pr": 267,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260804T095105534398Z-c2ef0cfc"
+}

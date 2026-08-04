@@ -32,6 +32,7 @@ modules = [
     "shiki_runtime",
     "shiki_runtime_adapters",
     "shiki_runtime_registry",
+    "shiki_sync_proof",
     "shiki_tasks",
 ]
 for module in modules:
@@ -72,6 +73,7 @@ for required in [
     "scripts/shiki_runtime.py",
     "scripts/shiki_runtime_adapters.py",
     "scripts/shiki_runtime_registry.py",
+    "scripts/shiki_sync_proof.py",
     "scripts/shiki_tasks.py",
     "scripts/test_shiki_doctor.sh",
     "scripts/test_shiki_runner_claude.sh",
