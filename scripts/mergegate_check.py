@@ -341,6 +341,22 @@ AMENDMENT_MARKER = re.compile(r"<!--\s*shiki:amendment\s*-->")
 # apply it, so amendment mode cannot be self-granted from the PR body alone.
 AMENDMENT_LABEL = "mergegate:amendment"
 
+# Fenced code blocks and inline code spans in Markdown render their contents as
+# literal text, not markup, so a marker QUOTED inside them (```` ``` ````…/`` ` ``…)
+# is documentation, not a directive. This matters concretely: the amendment task's
+# own scope documents the marker as `` `<!-- shiki:amendment -->` ``, and the goal
+# loop inlines that scope verbatim into every implementation PR body it opens for
+# the task (``github_pr_body``). Stripping code spans before matching keeps such a
+# reproduced marker from self-declaring amendment mode. A real directive is a bare
+# HTML comment and is never backtick-wrapped, so it survives the strip.
+_FENCED_CODE = re.compile(r"```.*?```", re.DOTALL)
+_INLINE_CODE = re.compile(r"`+[^`]*`+")
+
+
+def _strip_markdown_code(text: str) -> str:
+    """Remove fenced code blocks and inline code spans from Markdown text."""
+    return _INLINE_CODE.sub(" ", _FENCED_CODE.sub(" ", text))
+
 
 def amendment_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
     """Decide whether a PR runs in amendment mode (marker + label).
@@ -350,9 +366,13 @@ def amendment_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
     implements, with the same message when the label is missing. A marker without
     the label fails closed so untrusted PR text cannot self-grant the relaxed
     amendment mode.
+
+    The marker is matched only OUTSIDE code spans: a marker quoted as literal
+    text (e.g. a task scope that documents it, reproduced verbatim into the PR
+    body by the goal loop) is not a directive and must not enter the mode.
     """
     body = str(pr.get("body") or "")
-    marker = bool(AMENDMENT_MARKER.search(body))
+    marker = bool(AMENDMENT_MARKER.search(_strip_markdown_code(body)))
     label = AMENDMENT_LABEL in pr_label_names(pr)
     if marker and not label:
         return False, (

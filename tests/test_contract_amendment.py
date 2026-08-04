@@ -251,6 +251,27 @@ class AmendmentDecisionTests(unittest.TestCase):
         self.assertFalse(mode)
         self.assertIsNone(err)
 
+    def test_marker_quoted_in_code_span_is_not_a_directive(self) -> None:
+        # The marker is a directive only OUTSIDE code spans. A normal task PR whose
+        # scope DOCUMENTS the marker (e.g. this feature's own task scope, which the
+        # goal loop inlines verbatim into the PR body) carries it backtick-quoted;
+        # that is literal text, not intent, so it must not enter the mode — and must
+        # not fail closed on the missing label either, which would block an ordinary
+        # PR that merely mentions the marker.
+        inline = f"Entered when the `{self.MARKER}` marker is in the body. G-0001"
+        mode, err = amendment_decision({"body": inline, "labels": []})
+        self.assertFalse(mode)
+        self.assertIsNone(err)
+        fenced = f"```\n{self.MARKER}\n```\nnormal work G-0001"
+        mode, err = amendment_decision({"body": fenced, "labels": []})
+        self.assertFalse(mode)
+        self.assertIsNone(err)
+        # Even with the label applied, a quoted marker is documentation, not a
+        # declaration: a real amendment PR places a bare marker.
+        mode, err = amendment_decision({"body": inline, "labels": [self.LABEL]})
+        self.assertFalse(mode)
+        self.assertIsNone(err)
+
 
 class AmendmentGateTests(unittest.TestCase):
     def _ctx(self):
