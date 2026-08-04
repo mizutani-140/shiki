@@ -16,6 +16,6 @@
     "path:scripts/test_shiki_control_plane.sh"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260804T082618611335Z-02de0043"
 }

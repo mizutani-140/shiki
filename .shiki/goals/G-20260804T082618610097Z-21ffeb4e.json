@@ -31,7 +31,8 @@
   },
   "id": "G-20260804T082618610097Z-21ffeb4e",
   "ledger_evidence": [
-    "L-20260804T082618610678Z-2d915707"
+    "L-20260804T082618610678Z-2d915707",
+    "L-20260804T092556764156Z-7abdb274"
   ],
   "non_goals": [
     "Adding, removing or reordering approval sources.",
@@ -49,6 +50,6 @@
   ],
   "risk_level": "critical",
   "source_plan": "P-20260804T082618526063Z-c9f357c4",
-  "status": "planned",
+  "status": "complete",
   "title": "Close four fail-open paths in Guardian approval evaluation"
 }
