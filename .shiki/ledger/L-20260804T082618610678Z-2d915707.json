@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260804T082618610097Z-21ffeb4e.json",
+    ".shiki/plans/P-20260804T082618526063Z-c9f357c4.json"
+  ],
+  "goal_id": "G-20260804T082618610097Z-21ffeb4e",
+  "id": "L-20260804T082618610678Z-2d915707",
+  "links": [],
+  "summary": "Goal registered from plan: Close four fail-open paths in Guardian approval evaluation",
+  "task_id": null,
+  "timestamp": "2026-08-04T08:26:18+00:00",
+  "type": "goal-created"
+}
