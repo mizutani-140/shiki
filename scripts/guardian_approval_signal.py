@@ -34,7 +34,11 @@ from shiki_guardian import (
 # SAME classifier — never a second copy of its six conditions — is what keeps the
 # two Guardian decision points from diverging. ``parse_changed_files_status``
 # comes from the same module so the diff is parsed exactly as MergeGate parses it.
-from mergegate_check import is_bookkeeping_closeout, parse_changed_files_status
+from mergegate_check import (
+    is_bookkeeping_closeout,
+    parse_changed_files_status,
+    resolved_guardian_risk_never_weaker,
+)
 
 # The canonical Shiki task-id pattern, identical to the MergeGate policy check's
 # TASK_ID. The signal MUST resolve risk the same way MergeGate does so the two
@@ -97,6 +101,31 @@ def _resolve_task_risk_level(shiki_root: str, pr_body: str) -> str | None:
 def _parse_merged_prs(value: str) -> set[int]:
     """Parse the comma-separated ``--merged-prs`` list exactly as MergeGate does."""
     return {int(token.strip()) for token in str(value or "").split(",") if token.strip().isdigit()}
+
+
+def _carry_resolved_risk(*, shiki_root: str, base_shiki: str, pr_body: str, task_risk: str | None, exemption: bool) -> str:
+    """Resolve the carry's Guardian risk the SAME way the MergeGate gate does.
+
+    The gate floors the head task risk against the base snapshot
+    (``resolved_guardian_risk_never_weaker`` at the normal-path call site), so a PR
+    that LOWERED its own ``risk_level`` still gates at the base risk. The signal
+    must apply the identical floor, or it would be MORE permissive than the gate: a
+    base=critical / head=high task would carry in the signal while the gate refuses
+    it. A proven bookkeeping closeout is evaluated as low, identically to the gate.
+    Falls back to the head risk when the task cannot be resolved (fail closed via
+    the caller's required-gate).
+    """
+    if exemption:
+        return "low"
+    match = _TASK_ID_RE.search(pr_body or "")
+    if not match:
+        return str(task_risk or "")
+    task_id = match.group(0)
+    head_task = _load_json(str(Path(shiki_root) / ".shiki" / "tasks" / f"{task_id}.json"))
+    if not isinstance(head_task, dict):
+        return str(task_risk or "")
+    base_task = _load_json(str(Path(base_shiki) / "tasks" / f"{task_id}.json")) if base_shiki else None
+    return resolved_guardian_risk_never_weaker(base_task if isinstance(base_task, dict) else None, head_task)
 
 
 def _load_changed_files_status(path: str) -> list | None:
@@ -249,6 +278,20 @@ def main(argv: list[str] | None = None) -> int:
             "Guardian requirement satisfied with a contract_approval source. Absent/missing/unreadable => no effect."
         ),
     )
+    # Base-sync carry (guardian_comment_carried). The SAME carry the MergeGate
+    # policy check applies must reach this deterministic signal, or the CCA still
+    # returns needs_guardian, its job fails, and the policy check never runs — the
+    # gate this change moves would never be reached. Inert unless BOTH are given.
+    parser.add_argument(
+        "--base-sync-carry",
+        action="store_true",
+        help="Carry a Guardian comment approval across a proven pure base sync (guardian_comment_carried); requires --default-branch.",
+    )
+    parser.add_argument(
+        "--default-branch",
+        default="",
+        help="Default branch name the carry proves a pure sync against. Empty disables the carry.",
+    )
     parser.add_argument("--output", required=True)
     args = parser.parse_args(argv)
 
@@ -393,6 +436,21 @@ def main(argv: list[str] | None = None) -> int:
         label_events=events + timeline,
         head_sha=head_sha,
         expected_repo=args.expected_repository,
+        base_sync_carry=args.base_sync_carry,
+        default_branch=args.default_branch,
+        # The proof is recomputed in-process against the checkout at --shiki-root;
+        # it is never read from an artifact, so it cannot go stale or be forged.
+        carry_target=args.shiki_root,
+        # Resolve the carry risk with the SAME never-weaker-vs-base floor the gate
+        # uses, so the signal is never more permissive than MergeGate. A label
+        # escalation is refused separately inside the evaluator.
+        resolved_risk=_carry_resolved_risk(
+            shiki_root=args.shiki_root,
+            base_shiki=args.base_shiki,
+            pr_body=pr_body,
+            task_risk=task_risk,
+            exemption=exemption,
+        ),
     )
 
     signal = {
@@ -408,6 +466,11 @@ def main(argv: list[str] | None = None) -> int:
         "risk_level": task_risk,
         "risk_determined": not risk_unknown,
         "bookkeeping_closeout_exemption": exemption,
+        # The prior reviewed head carried onto the current head (empty when no
+        # carry happened) and one distinct reason per refused carry attempt, so the
+        # CCA-posted signal cannot contradict the MergeGate gate.
+        "carried_from_head": result.carried_from_head,
+        "carry_refused_reasons": list(result.carry_refused_reasons),
     }
     Path(args.output).write_text(json.dumps(signal, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return 0

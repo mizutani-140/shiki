@@ -1951,6 +1951,8 @@ def enforce_guardian_policy(
     expected_repository: str = "",
     bookkeeping_closeout: bool = False,
     contract_approval: Any = None,
+    base_sync_carry: bool = False,
+    default_branch: str = "",
 ) -> None:
     risk_labels = _guardian_risk_labels(pr, task, bookkeeping_closeout=bookkeeping_closeout)
     requires_guardian = _builtin_guardian_risk_required(risk_labels)
@@ -2020,6 +2022,11 @@ def enforce_guardian_policy(
 
     reviews = [review for review in pr.get("reviews") or [] if isinstance(review, dict)]
     head_sha = str(pr.get("headRefOid") or "")
+    # The carry evaluates the TASK's resolved risk (a proven bookkeeping closeout
+    # is treated as low here, identically to _guardian_risk_labels), never the PR
+    # labels — a label escalation is refused inside the evaluator. The git proof
+    # runs in-process against ``target`` and is never persisted.
+    carry_resolved_risk = "low" if bookkeeping_closeout else str((task or {}).get("risk_level") or "")
     result = evaluate_guardian_approval(
         policy=policy,
         pr=pr,
@@ -2028,6 +2035,10 @@ def enforce_guardian_policy(
         label_events=events + timeline,
         head_sha=head_sha,
         expected_repo=expected_repository,
+        base_sync_carry=base_sync_carry,
+        default_branch=default_branch,
+        carry_target=target,
+        resolved_risk=carry_resolved_risk,
     )
     warnings.extend(result.warnings)
     if not result.approved:
@@ -2605,6 +2616,19 @@ def main() -> int:
     parser.add_argument("--guardian-timeline", default=".shiki/gha/live-guardian-timeline.json")
     parser.add_argument("--result-file", default=".shiki/gha/mergegate-result.json")
     parser.add_argument("--allow-missing-cca", action="store_true")
+    # Base-sync carry (guardian_comment_carried). Inert unless BOTH are given: the
+    # flag is off by default and --default-branch defaults to empty, so an
+    # invocation that omits them is byte-for-byte the pre-carry gate.
+    parser.add_argument(
+        "--base-sync-carry",
+        action="store_true",
+        help="Carry a Guardian comment approval across a proven pure base sync (guardian_comment_carried); requires --default-branch.",
+    )
+    parser.add_argument(
+        "--default-branch",
+        default="",
+        help="Default branch name; the base the carry proves a pure sync against. Empty disables the carry.",
+    )
     args = parser.parse_args()
 
     target = Path(args.target).resolve()
@@ -2763,6 +2787,8 @@ def main() -> int:
                     blocking=blocking,
                     warnings=warnings,
                     expected_repository=args.expected_repository,
+                    base_sync_carry=args.base_sync_carry,
+                    default_branch=args.default_branch,
                 )
     elif amendment_mode and pr:
         # Amendment mode (ADR 0009/0015): a goal-scoped PR that corrects a
@@ -3052,6 +3078,8 @@ def main() -> int:
                 expected_repository=args.expected_repository,
                 bookkeeping_closeout=bookkeeping_closeout,
                 contract_approval=contract_approval,
+                base_sync_carry=args.base_sync_carry,
+                default_branch=args.default_branch,
             )
     elif not args.allow_missing_cca:
         blocking.append(f"CCA verdict file not found at {args.cca_verdict}")
