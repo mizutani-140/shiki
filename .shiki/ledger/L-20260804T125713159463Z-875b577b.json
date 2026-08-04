@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/plans/P-20260801T041646760027Z-2a4c05db.json",
+    ".shiki/tasks/T-20260801T041653274008Z-54d3477c.json",
+    ".shiki/tasks/T-20260801T041653274543Z-6df3af7e.json"
+  ],
+  "goal_id": "G-20260801T041653272590Z-81f6f71d",
+  "id": "L-20260804T125713159463Z-875b577b",
+  "summary": "Contract amendment: add path:scripts/shiki_installer.py to the CCA-retry task's locks, and correct the non-degeneracy task's scope (seventh fixture site + transport-schema mirroring)",
+  "timestamp": "2026-08-04T12:57:13+00:00",
+  "type": "contract-amended"
+}
