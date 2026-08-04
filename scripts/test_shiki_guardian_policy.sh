@@ -791,4 +791,70 @@ with tempfile.TemporaryDirectory() as tmp:
 print("contract approval end-to-end carry fixtures passed")
 PY
 
+# --------------------------------------------------------------------------- #
+# Base-sync carry (guardian_comment_carried): the `shiki guardian status` CLI
+# must APPLY the same flags as the gate, over a REAL proven base sync, so the
+# operator-facing status cannot contradict MergeGate. A base-synced PR whose only
+# approval is a comment bound to the PRIOR head is APPROVED with --base-sync-carry;
+# omitting the flag, or removing the guardian:approved label, defeats it.
+# --------------------------------------------------------------------------- #
+CARRY="$TMP_ROOT/carry"
+mkdir -p "$CARRY/.shiki/tasks" "$CARRY/.shiki/gha"
+cp .shiki/guardian-policy.json "$CARRY/.shiki/guardian-policy.json"
+git -C "$CARRY" init -q -b main
+git -C "$CARRY" config user.email t@t
+git -C "$CARRY" config user.name t
+printf 'base\n' >"$CARRY/shared.txt"; git -C "$CARRY" add -A; git -C "$CARRY" commit -qm base >/dev/null
+CARRY_B0="$(git -C "$CARRY" rev-parse HEAD)"
+git -C "$CARRY" checkout -q -b feat "$CARRY_B0"
+printf 'feature\n' >"$CARRY/feature.txt"; git -C "$CARRY" add -A; git -C "$CARRY" commit -qm A >/dev/null
+CARRY_A="$(git -C "$CARRY" rev-parse HEAD)"
+git -C "$CARRY" checkout -q main
+printf 'o1\n' >"$CARRY/other.txt"; git -C "$CARRY" add -A; git -C "$CARRY" commit -qm B1 >/dev/null
+CARRY_B1="$(git -C "$CARRY" rev-parse HEAD)"
+git -C "$CARRY" checkout -q feat
+git -C "$CARRY" merge -q --no-ff -m sync "$CARRY_B1"
+CARRY_M="$(git -C "$CARRY" rev-parse HEAD)"
+git -C "$CARRY" update-ref refs/remotes/origin/main "$CARRY_B1"
+
+cat >"$CARRY/.shiki/tasks/T-0031.json" <<JSON
+{"id":"T-0031","goal_id":"G-0031","status":"review","risk_level":"high","locks":["scripts/**"],"ledger_evidence":["L-0031"],"required_skills":[]}
+JSON
+cat >"$CARRY/.shiki/gha/pr.json" <<JSON
+{"number":4343,"title":"x","body":"T-0031 G-0031","author":{"login":"implementer"},"headRefName":"shiki/t","baseRefName":"main","headRefOid":"$CARRY_M","labels":[{"name":"guardian:approved"}],"reviews":[]}
+JSON
+cat >"$CARRY/.shiki/gha/pr-nolabel.json" <<JSON
+{"number":4343,"title":"x","body":"T-0031 G-0031","author":{"login":"implementer"},"headRefName":"shiki/t","baseRefName":"main","headRefOid":"$CARRY_M","labels":[],"reviews":[]}
+JSON
+cat >"$CARRY/.shiki/gha/comments.json" <<JSON
+[{"user":{"login":"mizutani-140"},"body":"Guardian approval granted\n\n$CARRY_A","created_at":"2026-08-01T00:00:00Z"}]
+JSON
+cat >"$CARRY/.shiki/gha/events.json" <<'JSON'
+[{"event":"labeled","label":{"name":"guardian:approved"},"actor":{"login":"mizutani-140"}}]
+JSON
+
+# Carry ON: the prior-head comment is carried across the proven base sync.
+python3 scripts/shiki.py guardian status --pr 4343 --target "$CARRY" --repo mizutani-140/shiki --no-git \
+  --guardian-policy "$CARRY/.shiki/guardian-policy.json" --base-sync-carry --default-branch main \
+  --pr-json "$CARRY/.shiki/gha/pr.json" --comments "$CARRY/.shiki/gha/comments.json" \
+  --events "$CARRY/.shiki/gha/events.json" --output "$CARRY/on.txt" >/dev/null
+grep -q "Result: APPROVED" "$CARRY/on.txt"
+grep -q "guardian_comment_carried" "$CARRY/on.txt"
+
+# Carry OFF (flag omitted): the stale comment does not bind to the current head.
+python3 scripts/shiki.py guardian status --pr 4343 --target "$CARRY" --repo mizutani-140/shiki --no-git \
+  --guardian-policy "$CARRY/.shiki/guardian-policy.json" \
+  --pr-json "$CARRY/.shiki/gha/pr.json" --comments "$CARRY/.shiki/gha/comments.json" \
+  --events "$CARRY/.shiki/gha/events.json" --output "$CARRY/off.txt" >/dev/null
+grep -q "Result: NOT APPROVED" "$CARRY/off.txt"
+
+# Removing the guardian:approved label defeats approval even with a valid carry.
+python3 scripts/shiki.py guardian status --pr 4343 --target "$CARRY" --repo mizutani-140/shiki --no-git \
+  --guardian-policy "$CARRY/.shiki/guardian-policy.json" --base-sync-carry --default-branch main \
+  --pr-json "$CARRY/.shiki/gha/pr-nolabel.json" --comments "$CARRY/.shiki/gha/comments.json" \
+  --events "$CARRY/.shiki/gha/events.json" --output "$CARRY/nolabel.txt" >/dev/null
+grep -q "Result: NOT APPROVED" "$CARRY/nolabel.txt"
+
+echo "guardian status base-sync carry fixtures passed"
+
 echo "shiki guardian policy tests passed"

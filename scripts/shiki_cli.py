@@ -508,6 +508,16 @@ def build_parser() -> argparse.ArgumentParser:
     guardian_status.add_argument("--events", help="Offline: PR issue events JSON file")
     guardian_status.add_argument("--timeline", help="Offline: PR issue timeline JSON file")
     guardian_status.add_argument("--output", help="Also write the rendered report to this path")
+    guardian_status.add_argument(
+        "--base-sync-carry",
+        action="store_true",
+        help="Apply the base-sync carry (guardian_comment_carried) so status matches the gate; requires --default-branch.",
+    )
+    guardian_status.add_argument(
+        "--default-branch",
+        default="",
+        help="Default branch name the carry proves a pure sync against. Empty disables the carry.",
+    )
     guardian_status.set_defaults(func=cmd_guardian_status)
 
     task = subcommands.add_parser("task", help="Manage Shiki task state")

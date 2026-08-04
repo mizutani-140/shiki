@@ -144,12 +144,18 @@ def build_status_report(
     pr_number: int | None = None,
     sha_will_change: bool = False,
     sha_change_reasons: tuple[str, ...] | list[str] = (),
+    base_sync_carry: bool = False,
+    default_branch: str = "",
+    carry_target: object = None,
+    resolved_risk: str = "",
 ) -> GuardianStatusReport:
     """Assemble the Guardian status report from live evidence.
 
     Delegates the approval decision entirely to ``evaluate_guardian_approval`` so
     this surface can never diverge from MergeGate; it only presents that result
-    and derives the paste-ready body.
+    and derives the paste-ready body. The base-sync carry flags are forwarded to
+    the SAME evaluator so the operator-facing and CCA-posted status cannot
+    contradict the gate.
     """
     result = evaluate_guardian_approval(
         policy=policy,
@@ -159,6 +165,10 @@ def build_status_report(
         label_events=label_events,
         head_sha=head_sha,
         expected_repo=expected_repo,
+        base_sync_carry=base_sync_carry,
+        default_branch=default_branch,
+        carry_target=carry_target,
+        resolved_risk=resolved_risk,
     )
 
     human_by = ", ".join(result.approvers) if result.approvers else "<unknown>"
@@ -446,10 +456,65 @@ def _policy_path(args: argparse.Namespace, target: Path) -> Path:
     return target / GUARDIAN_POLICY_PATH
 
 
+# The canonical Shiki task-id pattern, identical to the MergeGate policy check's
+# TASK_ID. The status surface resolves the carry's risk the SAME way the gate does
+# so it cannot contradict it.
+_ID_SUFFIX = r"(?:[0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})"
+_TASK_ID_RE = re.compile(rf"\bT-{_ID_SUFFIX}\b")
+
+
+def _base_task_json(target: Path, default_branch: str, task_id: str) -> dict[str, Any] | None:
+    """The base snapshot's task file, read READ-ONLY from ``origin/<default_branch>``.
+
+    Returns the parsed dict, or ``None`` when the ref/file is absent or git is
+    unavailable. This lets the status surface floor the carry risk against the base
+    exactly as the gate does (via ``--base-shiki``); when the task file is not yet
+    on the base (the common case — created on the branch), the head risk stands.
+    """
+    if not default_branch:
+        return None
+    result = run(
+        ["git", "-C", str(target), "show", f"refs/remotes/origin/{default_branch}:.shiki/tasks/{task_id}.json"],
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    try:
+        data = json.loads(result.stdout or "null")
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _resolve_carry_risk(target: Path, default_branch: str, pr_body: str) -> str:
+    """Resolve the carry's Guardian risk the SAME way the gate does: the head task
+    risk FLOORED by the base snapshot (never weaker), so the status surface can
+    never be more permissive than MergeGate.
+
+    Returns ``""`` when the task cannot be determined (no task id, missing/corrupt
+    task file) — the carry then refuses (not exactly high), the safe direction.
+    """
+    match = _TASK_ID_RE.search(pr_body or "")
+    if not match:
+        return ""
+    task_id = match.group(0)
+    head_task = _load_json_file(str(target / ".shiki" / "tasks" / f"{task_id}.json"))
+    if not isinstance(head_task, dict):
+        return ""
+    base_task = _base_task_json(target, default_branch, task_id)
+    # Lazy import: keeps module load (validate_shiki's import chain) free of the
+    # heavier mergegate_check dependency; both surfaces share the ONE resolver so
+    # the never-weaker floor can never drift.
+    from mergegate_check import resolved_guardian_risk_never_weaker
+
+    return resolved_guardian_risk_never_weaker(base_task, head_task)
+
+
 def cmd_guardian_status(args: argparse.Namespace) -> int:
     target = target_path(args.target)
     policy = load_guardian_policy_file(_policy_path(args, target))
     evidence = _gather_evidence(args, target)
+    default_branch = str(getattr(args, "default_branch", "") or "")
     report = build_status_report(
         policy=policy,
         pr=evidence["pr"],
@@ -462,6 +527,10 @@ def cmd_guardian_status(args: argparse.Namespace) -> int:
         pr_number=args.pr,
         sha_will_change=evidence["sha_will_change"],
         sha_change_reasons=tuple(evidence["sha_change_reasons"]),
+        base_sync_carry=bool(getattr(args, "base_sync_carry", False)),
+        default_branch=default_branch,
+        carry_target=target,
+        resolved_risk=_resolve_carry_risk(target, default_branch, str(evidence["pr"].get("body") or "")),
     )
     rendered = render_report(report, fmt=args.format)
     if getattr(args, "output", None):

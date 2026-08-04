@@ -3,11 +3,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import re
 from pathlib import Path
 from typing import Any
+
+# The carry re-derives its proof from git in-process on every judging invocation;
+# it is never read from an artifact, so there is nothing to go stale or be forged.
+# shiki_sync_proof is the ONLY guardian-family module that runs git, and every one
+# of its invocations is read-only and local (ADR: prove-from-git base sync).
+from shiki_sync_proof import verify_pure_base_sync
 
 GUARDIAN_POLICY_PATH = ".shiki/guardian-policy.json"
 KNOWN_RISK_LEVELS = {"low", "medium", "high", "critical"}
@@ -60,6 +66,16 @@ class GuardianApprovalResult:
     # satisfied approval. Recorded distinctly from human `approvers` so the
     # merge ledger can stamp reviewer_type=external_ai_model.
     ai_reviewers: tuple[str, ...] = ()
+    # The prior reviewed head (``a_sha``) whose Guardian approval was carried onto
+    # the current head after ``verify_pure_base_sync`` proved a pure base sync.
+    # Empty when no carry happened. When set, ``guardian_comment_carried`` is in
+    # ``sources``.
+    carried_from_head: str = ""
+    # One distinct reason per refused carry attempt (risk not high, label
+    # escalation, retargeted base, edited comment, later negation, failed git
+    # proof, …). Surfaced by the CCA signal so the operator can see WHY a stale
+    # approval was not carried. Empty when the carry succeeded or never ran.
+    carry_refused_reasons: tuple[str, ...] = ()
 
 
 def _strings(value: Any) -> tuple[str, ...]:
@@ -385,12 +401,216 @@ def _head_sha_binding_blocker(body: str, head_sha: str) -> str | None:
     return "Guardian approval comment does not reference current head SHA"
 
 
+# --------------------------------------------------------------------------- #
+# Base-sync carry (guardian_comment_carried)
+#
+# Branch protection with strict status checks forces a PR that fell BEHIND to
+# merge its base in before it can merge; that advances the head SHA, and
+# require_head_sha then discards the approval already granted for the reviewed
+# content — one fresh operator approval per merge round, for zero content change.
+# When ``verify_pure_base_sync`` proves the move from the reviewed head to the
+# current head is a PURE base sync, the earlier Guardian comment approval is
+# carried forward as the ``guardian_comment_carried`` source. It joins the
+# human-secondary set alongside ``github_review`` and ``guardian_comment``, so the
+# guardian:approved LABEL leg is still required — removing the label remains a
+# working, SHA-independent revocation lever.
+# --------------------------------------------------------------------------- #
+CARRIED_COMMENT_SOURCE = "guardian_comment_carried"
+
+# The human-secondary approval sources. The label leg is required IN ADDITION to
+# one of these; the carry is a peer of the live comment, never a replacement for
+# the label.
+_HUMAN_SECONDARY_SOURCES = frozenset({"github_review", "guardian_comment", CARRIED_COMMENT_SOURCE})
+
+
+@dataclass(frozen=True)
+class _CarryConfig:
+    """Everything ``_comment_source`` needs to decide a base-sync carry.
+
+    ``enabled`` is the whole feature switch (``--base-sync-carry`` AND a non-empty
+    ``--default-branch``); when False every carry code path is inert and the
+    evaluator is byte-for-byte the pre-carry gate. ``global_refusal`` is the first
+    candidate-independent refusal (risk not exactly high, a label escalation, a
+    retargeted base), computed once so the git proof only runs when a carry is
+    otherwise viable.
+    """
+
+    enabled: bool
+    target: object
+    default_branch: str
+    global_refusal: str | None
+
+
+@dataclass(frozen=True)
+class _CarryCandidate:
+    """A stale Guardian-approval comment that passed every non-SHA check and
+    carries exactly one prior head SHA (``a_sha``)."""
+
+    created_at: str
+    index: int
+    actor: str
+    a_sha: str
+    edited: bool
+
+
+@dataclass
+class _CarryOutcome:
+    """Mutable carry result the evaluator threads INTO ``_comment_source``.
+
+    ``_comment_source`` must keep its 5-tuple return (out-of-lock callers unpack
+    it), so the carry result travels through this holder rather than a wider
+    return signature.
+    """
+
+    carried_from_head: str = ""
+    carry_refused_reasons: list[str] = field(default_factory=list)
+
+
+def _comment_is_edited(comment: dict[str, Any]) -> bool:
+    """True when a comment was edited after posting.
+
+    Unedited means ``updated_at`` equals ``created_at`` OR ``updated_at`` is
+    absent. An edited approval comment can never carry: its bound SHA may have
+    been rewritten after the Guardian posted it.
+    """
+    updated = comment.get("updated_at")
+    if updated is None:
+        return False
+    return str(updated) != str(comment.get("created_at") or "")
+
+
+def _timeline_has_base_ref_changed(label_events: list[dict[str, Any]]) -> bool:
+    """True when any timeline entry records a base-ref retarget.
+
+    A ``base_ref_changed`` entry means the PR's base was pointed at a different
+    branch — the carry's whole premise (the move is a pure sync of THIS base) no
+    longer holds, so the carry is refused.
+    """
+    for event in label_events:
+        if isinstance(event, dict) and str(event.get("event") or "").strip().lower() == "base_ref_changed":
+            return True
+    return False
+
+
+def _carry_negation_defeats(neg_created_at: str, candidate_created_at: str) -> bool:
+    """Whether a configured-Guardian negation defeats a carry candidate.
+
+    A negation counts when it is AT or AFTER the candidate. ISO-8601 timestamps
+    sort lexically, so a direct string compare is correct for real timestamps. A
+    missing timestamp on either side is treated as defeating (fail closed): a
+    revocation we cannot time-order must never be silently dropped — that is the
+    exact soft-blocker demotion this hard blocker exists to survive.
+    """
+    if not neg_created_at or not candidate_created_at:
+        return True
+    return neg_created_at >= candidate_created_at
+
+
+def _carry_global_refusal(
+    *,
+    resolved_risk: str,
+    default_branch: str,
+    pr: dict[str, Any],
+    label_events: list[dict[str, Any]],
+) -> str | None:
+    """The first candidate-independent reason the carry is refused, or None.
+
+    Each condition yields a DISTINCT reason and is checked before the git proof:
+      1. the resolved Guardian risk must be exactly ``high`` (``critical`` and
+         anything lower never carry);
+      2. the PR's LABELS alone must not resolve high or critical — a maintainer
+         escalating by label must get a fresh approval;
+      3. the PR base must equal the default branch and no ``base_ref_changed``
+         entry may appear in the timeline feed.
+    """
+    risk = (resolved_risk or "").strip().lower().removeprefix("risk:")
+    if risk != "high":
+        return (
+            f"carry refused: resolved Guardian risk {risk or 'unknown'!r} is not exactly high; "
+            "only a high-risk approval carries"
+        )
+    labels = _pr_label_names(pr)
+    if {name.removeprefix("risk:") for name in labels}.intersection({"high", "critical"}):
+        return (
+            "carry refused: PR labels alone resolve high or critical risk; "
+            "a label escalation requires a fresh Guardian approval"
+        )
+    base_ref = str(pr.get("baseRefName") or "").strip()
+    if base_ref != default_branch:
+        return f"carry refused: PR base branch {base_ref!r} is not the default branch {default_branch!r}"
+    if _timeline_has_base_ref_changed(label_events):
+        return "carry refused: the PR base was retargeted (a base_ref_changed timeline entry is present)"
+    return None
+
+
+def _resolve_carry(
+    *,
+    carry: _CarryConfig,
+    head_sha: str,
+    candidates: list[_CarryCandidate],
+    negations: list[str],
+    sources: list[str],
+    approvers: list[str],
+    blockers: list[str],
+    soft: list[str],
+    carry_out: _CarryOutcome | None,
+) -> None:
+    """Decide the carry for the newest eligible candidate.
+
+    Only the newest candidate by ``(created_at, feed index)`` is eligible. The
+    gates run in order — candidate-independent refusals, then edited, then a
+    later negation (a HARD blocker so the revocation survives the caller's
+    soft->warning demotion), then the git proof. On success
+    ``guardian_comment_carried`` joins ``sources``; on any refusal the Guardian
+    requirement is kept in force (the stale comment does not bind to the current
+    head) and the distinct reason is recorded for the signal.
+    """
+    newest = max(candidates, key=lambda candidate: (candidate.created_at, candidate.index))
+    refusal: str | None = carry.global_refusal
+    if refusal is None and newest.edited:
+        refusal = "carry refused: the carrying Guardian approval comment was edited after posting (updated_at != created_at)"
+    if refusal is None:
+        for neg_created_at in negations:
+            if _carry_negation_defeats(neg_created_at, newest.created_at):
+                hard = (
+                    "Guardian approval carry refused: a configured Guardian posted a negation or "
+                    "revocation at or after the carried approval comment"
+                )
+                # HARD channel: the caller demotes soft blockers to warnings once
+                # any approval path succeeds, so a revocation MUST be a hard blocker
+                # or the very carry it revokes would swallow it.
+                blockers.append(hard)
+                refusal = hard
+                break
+    if refusal is None:
+        proof = verify_pure_base_sync(
+            target=carry.target,
+            a_sha=newest.a_sha,
+            head_sha=head_sha,
+            default_branch=carry.default_branch,
+        )
+        if proof.proved:
+            sources.append(CARRIED_COMMENT_SOURCE)
+            approvers.append(newest.actor)
+            if carry_out is not None:
+                carry_out.carried_from_head = newest.a_sha
+            return
+        refusal = f"carry refused: {proof.reason}"
+    # Not carried: keep the Guardian requirement required, exactly as the
+    # pre-carry gate did for a stale comment.
+    soft.append("Guardian approval comment does not reference current head SHA")
+    if carry_out is not None:
+        carry_out.carry_refused_reasons.append(refusal or "carry refused")
+
+
 def _comment_source(
     *,
     policy: GuardianPolicy,
     comments: list[dict[str, Any]],
     head_sha: str,
     pr_author: str,
+    carry: _CarryConfig | None = None,
+    carry_out: _CarryOutcome | None = None,
 ) -> tuple[list[str], list[str], list[str], list[str], list[str]]:
     sources: list[str] = []
     approvers: list[str] = []
@@ -399,11 +619,25 @@ def _comment_source(
     warnings: list[str] = []
     if not policy.guardian_comment_enabled:
         return sources, approvers, blockers, soft, warnings
-    for comment in comments:
+    carry_on = bool(carry and carry.enabled)
+    carry_candidates: list[_CarryCandidate] = []
+    # created_at of configured-Guardian negation-marker comments (carry only).
+    negations: list[str] = []
+    for index, comment in enumerate(comments):
         if not isinstance(comment, dict):
             continue
         body = str(comment.get("body") or "")
         marker = policy.comment_marker
+        if carry_on and _comment_negates_approval(body):
+            # Carry-only: a configured Guardian's negation/revocation can defeat a
+            # carried approval even WITHOUT the affirmative marker — a freehand
+            # "I revoke my Guardian approval" is honored, not only a negated marker.
+            # Tracked BEFORE the marker gate so a marker-less revocation is not
+            # skipped. Carry-only, so the marker-less soft-blocker behavior below is
+            # byte-identical when the carry is off.
+            negating_actor = _actor_login(comment.get("author") or comment.get("user"))
+            if _configured_guardian(negating_actor, policy):
+                negations.append(str(comment.get("created_at") or ""))
         if not marker or marker not in body:
             # Not a Guardian-approval comment at all.
             continue
@@ -440,10 +674,45 @@ def _comment_source(
             # a comment from a non-Guardian is never even parsed for a SHA.
             binding_blocker = _head_sha_binding_blocker(body, head_sha)
             if binding_blocker is not None:
+                # A single stale 40-hex token (a PRIOR head) is the only shape a
+                # base-sync carry can salvage. SHA extraction for the carry happens
+                # HERE too — after the same configured-Guardian and author checks —
+                # so a non-Guardian comment is never parsed for a carry SHA. Zero,
+                # two-or-more, or abbreviated tokens are never candidates and stay
+                # ordinary soft blockers.
+                if carry_on:
+                    tokens = _head_sha_line_tokens(body)
+                    if len(tokens) == 1:
+                        carry_candidates.append(
+                            _CarryCandidate(
+                                created_at=str(comment.get("created_at") or ""),
+                                index=index,
+                                actor=actor,
+                                a_sha=tokens[0],
+                                edited=_comment_is_edited(comment),
+                            )
+                        )
+                        # Defer the soft blocker; the carry resolution below keeps
+                        # the requirement in force if the carry is refused.
+                        continue
                 soft.append(binding_blocker)
                 continue
         sources.append("guardian_comment")
         approvers.append(actor)
+    # A fresh current-head Guardian comment always wins over a carry; only try the
+    # carry when no live comment approval exists.
+    if carry_on and carry_candidates and "guardian_comment" not in sources:
+        _resolve_carry(
+            carry=carry,  # type: ignore[arg-type]  # carry_on implies carry is not None
+            head_sha=head_sha,
+            candidates=carry_candidates,
+            negations=negations,
+            sources=sources,
+            approvers=approvers,
+            blockers=blockers,
+            soft=soft,
+            carry_out=carry_out,
+        )
     return sources, approvers, blockers, soft, warnings
 
 
@@ -606,6 +875,10 @@ def evaluate_guardian_approval(
     label_events: list[dict[str, Any]],
     head_sha: str,
     expected_repo: str = "",
+    base_sync_carry: bool = False,
+    default_branch: str = "",
+    carry_target: object = None,
+    resolved_risk: str = "",
 ) -> GuardianApprovalResult:
     blockers: list[str] = []
     warnings: list[str] = []
@@ -645,11 +918,35 @@ def evaluate_guardian_approval(
     blockers.extend(review_blockers)
     soft_blockers.extend(review_soft)
     warnings.extend(review_warnings)
+    # Base-sync carry configuration. The whole feature is inert unless
+    # ``--base-sync-carry`` was passed AND ``--default-branch`` is non-empty, so
+    # with it off the evaluator is byte-for-byte the pre-carry gate. The
+    # candidate-independent refusals (risk, label escalation, retargeted base) are
+    # resolved once here, before any git proof runs.
+    carry_enabled = bool(base_sync_carry and default_branch)
+    carry_config = _CarryConfig(
+        enabled=carry_enabled,
+        target=carry_target,
+        default_branch=default_branch,
+        global_refusal=(
+            _carry_global_refusal(
+                resolved_risk=resolved_risk,
+                default_branch=default_branch,
+                pr=pr,
+                label_events=label_events,
+            )
+            if carry_enabled
+            else None
+        ),
+    )
+    carry_out = _CarryOutcome()
     comment_sources, comment_approvers, comment_blockers, comment_soft, comment_warnings = _comment_source(
         policy=policy,
         comments=comments,
         head_sha=head_sha,
         pr_author=pr_author,
+        carry=carry_config,
+        carry_out=carry_out,
     )
     sources.extend(comment_sources)
     approvers.extend(comment_approvers)
@@ -671,10 +968,13 @@ def evaluate_guardian_approval(
 
     # Two approval paths satisfy the gate independently:
     #  - the human path: Guardian label applied by a configured Guardian PLUS a
-    #    current-head Guardian review or comment;
+    #    current-head Guardian review or comment, OR a Guardian comment approval
+    #    carried across a proven pure base sync (guardian_comment_carried);
     #  - the external AI guardian path: a valid head-bound external AI review
     #    artifact (a distinct authority kind; no human label required).
-    human_secondary = bool(set(sources).intersection({"github_review", "guardian_comment"}))
+    # The label leg is required for the human path regardless of the carry, so
+    # removing the label always defeats a carried approval.
+    human_secondary = bool(set(sources).intersection(_HUMAN_SECONDARY_SOURCES))
     human_approved = label_present and label_actor_ok and human_secondary
     ai_approved = "external_ai_guardian_review" in sources
     approved_path = human_approved or ai_approved
@@ -704,4 +1004,6 @@ def evaluate_guardian_approval(
         warnings=tuple(dict.fromkeys(warnings)),
         approvers=tuple(dict.fromkeys(approvers)),
         ai_reviewers=tuple(dict.fromkeys(ai_reviewers)),
+        carried_from_head=carry_out.carried_from_head,
+        carry_refused_reasons=tuple(dict.fromkeys(carry_out.carry_refused_reasons)),
     )
