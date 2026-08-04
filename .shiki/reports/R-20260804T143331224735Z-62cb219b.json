@@ -1,0 +1,54 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-08-04T14:33:31+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260804T095105534398Z-c2ef0cfc.json",
+    ".shiki/tasks/T-20260804T095105534980Z-530c4f17.json",
+    ".shiki/tasks/T-20260804T095105535495Z-22a51036.json"
+  ],
+  "goal_id": "G-20260804T095105533205Z-224ce02d",
+  "id": "R-20260804T143331224735Z-62cb219b",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "critical"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 1
+    },
+    "duration_ms": 16563000,
+    "generated_at": "2026-08-04T14:33:31+00:00",
+    "goal_id": "G-20260804T095105533205Z-224ce02d",
+    "lock_amendments": {
+      "total": 5
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 1
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 3,
+      "failed": 0,
+      "total": 3
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard",
+      "repairs.by_area is not derivable from ledger events; reported empty"
+    ],
+    "window": {
+      "from": "2026-08-04T09:51:05+00:00",
+      "to": "2026-08-04T14:27:08+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "Autonomous loop closeout: push goal completion to main (ADR 0012)."
+}

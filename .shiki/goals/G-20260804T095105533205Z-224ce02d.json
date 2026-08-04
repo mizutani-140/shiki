@@ -29,7 +29,8 @@
   },
   "id": "G-20260804T095105533205Z-224ce02d",
   "ledger_evidence": [
-    "L-20260804T095105533800Z-166b4b28"
+    "L-20260804T095105533800Z-166b4b28",
+    "L-20260804T143331240723Z-c4ff0f53"
   ],
   "non_goals": [
     "Carrying a github_review, a guardian_label, or an external AI guardian review.",
@@ -47,6 +48,6 @@
   ],
   "risk_level": "critical",
   "source_plan": "P-20260804T095105458113Z-5f2a2cc6",
-  "status": "planned",
+  "status": "complete",
   "title": "Let a Guardian approval survive a proven pure base-sync"
 }
