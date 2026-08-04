@@ -11,8 +11,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260804t094832861501z-78871209-carry-adr-0016-and-0017-and-bind-adr-citations-t",
-  "expected_pr": 265,
+  "expected_branch": "shiki/t-20260804t094832861501z-78871209-closeout",
+  "expected_pr": 266,
   "github_issue": null,
   "goal_id": "G-20260804T094832859551Z-2d0958fd",
   "id": "T-20260804T094832861501Z-78871209",
@@ -24,7 +24,9 @@
     "L-20260804T103419171798Z-2580773a",
     "L-20260804T104012096698Z-4bd63940",
     "L-20260804T104120669451Z-3142cc00",
-    "L-20260804T104124324788Z-d579f111"
+    "L-20260804T104124324788Z-d579f111",
+    "L-20260804T104700008991Z-5253ba65",
+    "L-20260804T104703729035Z-cd61920c"
   ],
   "locks": [
     "path:docs/adr/0016-locks-bound-product-paths.md",
@@ -49,7 +51,7 @@
   ],
   "risk_level": "low",
   "scope": "Add `docs/adr/0016-locks-bound-product-paths.md` (233 lines) and `docs/adr/0017-bookkeeping-closeouts-do-not-inherit-risk.md` (129 lines). Both already exist verbatim in the coordinator checkout this session runs from; copy them unchanged. Do not rewrite, reformat, renumber or update them \u2014 a decision record edited after the fact misrepresents when the decision was made.\n\nAdd `tests/test_adr_references.py` binding citations to files: scan every `scripts/*.py` (and, if cheap, every `docs/**/*.md` and the root `*.md` governance files) for the pattern `ADR ####`, and assert each cited number resolves to exactly one `docs/adr/####-*.md`. The failure message must name the citing file, the cited number, and the missing path. Assert the converse is NOT required \u2014 an ADR may exist without being cited.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: an operator or a CCA reads `is_bookkeeping_closeout` in `scripts/mergegate_check.py`, sees it justified by 'ADR 0017' nine times, goes to `docs/adr/` and finds the numbering stops at 0015. The stated basis of the exemption that merged seven PRs with zero Guardian approvals cannot be read.\n  Measured on origin/main 2026-08-04: `git cat-file -e origin/main:docs/adr/0017-bookkeeping-closeouts-do-not-inherit-risk.md` fails; so does 0016. `git merge-base --is-ancestor 9914d22 origin/main` fails \u2014 the authoring commits are unreachable from main. Meanwhile `scripts/mergegate_check.py` cites ADR 0017 nine times and `scripts/guardian_approval_signal.py` cites 0016/0017 seven times.\n  Root cause: the documents were written on a coordinator branch during the work they describe, and no task ever declared `docs/adr/\u2026` in its locks, so nothing carried them. ADR 0015 reached main only because a Contract PR carries its Goal's source plan; 0016 and 0017 had no equivalent route.\n  Why it was silent: `grep -n 'docs/adr' scripts/validate_shiki.py` returns nothing. No validator requires a cited ADR to exist, so the citations and the directory drifted with no signal. This is the same unbound-pair shape behind the other silent failures this week \u2014 hence the test, not just the two files.\n  Reproducible when: both files are on the default branch and the new test fails if a script cites an ADR number with no matching document.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target .",
   "title": "Carry ADR 0016 and 0017 and bind ADR citations to their files"
 }

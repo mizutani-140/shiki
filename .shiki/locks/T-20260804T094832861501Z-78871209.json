@@ -7,6 +7,6 @@
     "path:tests/test_adr_references.py"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260804T094832861501Z-78871209"
 }
