@@ -8,6 +8,6 @@
     "path:scripts/test_shiki_control_plane.sh"
   ],
   "owner": "shiki-run",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260801T040836632579Z-2cde7018"
 }

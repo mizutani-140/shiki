@@ -27,7 +27,8 @@
   },
   "id": "G-20260801T040836630398Z-f28167e5",
   "ledger_evidence": [
-    "L-20260801T040836631297Z-2e876fa7"
+    "L-20260801T040836631297Z-2e876fa7",
+    "L-20260804T075016328557Z-ca44e7a7"
   ],
   "non_goals": [
     "Modifying evaluate_guardian_approval or any of its four existing sources.",
@@ -44,6 +45,6 @@
   ],
   "risk_level": "critical",
   "source_plan": "P-20260801T040831205733Z-f88e60e0",
-  "status": "planned",
+  "status": "complete",
   "title": "Let a Contract Approval carry to the implementation PR it approved"
 }
