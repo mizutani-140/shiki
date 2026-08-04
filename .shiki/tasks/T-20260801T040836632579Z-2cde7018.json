@@ -14,13 +14,17 @@
     "T-20260801T040836631930Z-97030be9"
   ],
   "expected_branch": "shiki/t-20260801t040836632579z-2cde7018-gather-the-contract-pr-registration-proof-in-ci-",
-  "expected_pr": null,
+  "expected_pr": 258,
   "github_issue": null,
   "goal_id": "G-20260801T040836630398Z-f28167e5",
   "id": "T-20260801T040836632579Z-2cde7018",
   "ledger_evidence": [
     "L-20260801T040836632610Z-4df92873",
-    "L-20260804T071807085949Z-6193fdcf"
+    "L-20260804T071807085949Z-6193fdcf",
+    "L-20260804T072736364720Z-31be9e05",
+    "L-20260804T074102813063Z-61690089",
+    "L-20260804T074217374832Z-c986827a",
+    "L-20260804T074221424984Z-2624f63c"
   ],
   "locks": [
     "path:.github/workflows/shiki-cca-completion.yml",
@@ -35,13 +39,18 @@
     "Changing any other workflow step",
     "Touching any file outside the declared locks"
   ],
+  "pre_pr_code_review": {
+    "findings": [],
+    "ledger_id": "L-20260804T074102813063Z-61690089",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "critical",
   "scope": "In BOTH `.github/workflows/shiki-cca-completion.yml` and `.github/workflows/shiki-mergegate.yml`, build `.shiki/gha/contract-approval.json` and pass it as `--contract-approval` to the evaluator's two consumers. Build it the same way in both workflows, from evidence neither the PR head nor the PR body can forge:\n  - Resolve the task id with the SAME regex the rest of the workflow already uses (`T-([0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})`, first match in the PR body).\n  - Find the commit that ADDED `.shiki/tasks/<task_id>.json` on the base branch: `git log --diff-filter=A --format=%H origin/<base_ref> -- .shiki/tasks/<task_id>.json | tail -1`. The base fetch already performed earlier in the job must be reused \u2014 do NOT add a second `git fetch`, and do NOT introduce `--depth`; a shallow base is exactly the defect PR #206 removed and it would silently make the adding commit unfindable.\n  - Resolve the PR associated with that commit via `gh api repos/{repo}/commits/<sha>/pulls`, take the PR that is MERGED, and read its labels and its Guardian approval the same way the Guardian evidence is already read in the same job.\n  - Emit `{task_id, pr, merged, guardian_approved, approval_source, adding_commit}`. Every failure path writes a JSON object with `applies`-defeating values and a `reason`, never a partial or absent file that a downstream reader might treat as permissive.\nAdd assertions to `scripts/test_shiki_control_plane.sh` that both workflows build the file, pass `--contract-approval`, use the shared task-id regex, and contain no `--depth` on the base fetch.\n\nUpdate `docs/adr/0015-contract-approval-before-dispatch.md`: move Status from Proposed to Accepted, and record in Consequences what actually shipped and when \u2014 the registration half on 2026-07-27..29, the contract-immutability binding on 2026-08-01 (PR #229), and this approval carry \u2014 plus the measured fact that between those dates the approval was demanded twice.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the evaluator from the previous task is present and correct, and nothing changes, because no caller ever supplies the registration proof. `--contract-approval` is absent, the evaluator degrades to 'does not apply' by design, and every high/critical implementation PR still returns needs_guardian.\n  Why it is a separate task: the evaluator is pure and provable in isolation; the proof-gathering is shell inside two workflows whose failure modes are shallow fetches, unresolvable task ids and API shape drift. Landing them together would hide a defect in either behind the other.\n  Exact change that reproduces this result: build .shiki/gha/contract-approval.json from the base branch's adding-commit and the merged PR behind it, in both workflows, and pass it through.\n  Known landmine: the base fetch in shiki-cca-completion.yml had `--depth=1` until PR #206 and re-adding it \u2014 or adding a second fetch that goes shallow \u2014 makes `git log --diff-filter=A` return nothing, which silently defeats the carry rather than failing loudly. The control-plane assertion exists to catch that.\n  Reproducible when: a live high-risk implementation PR whose contract was approved before dispatch merges with zero approvals on the implementation PR itself.",
-  "status": "running",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Gather the Contract PR registration proof in CI and accept ADR 0015"
 }
