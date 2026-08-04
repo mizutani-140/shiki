@@ -1,0 +1,45 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "docs/adr/0016 and docs/adr/0017 exist on the default branch with their content unchanged.",
+    "A test fails when any `ADR NNNN` cited in scripts/ has no corresponding docs/adr/NNNN-*.md.",
+    "The full suite and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-04T09:48:32+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "Measured: `git cat-file -e origin/main:docs/adr/0016-locks-bound-product-paths.md` and the 0017 equivalent both fail; `git ls-tree origin/main docs/adr/` lists 0001-0015 plus README and template. The commits that authored them (9914d22, 9515998) are NOT reachable from origin/main \u2014 they were written on a coordinator branch and never rode a PR.",
+      "Measured citations on origin/main: `scripts/mergegate_check.py` contains 'ADR 0017' nine times; `scripts/guardian_approval_signal.py` contains 'ADR 0016'/'ADR 0017' seven times. `docs/agents/checklists.md`, `docs/agents/decision-control.md`, `CONTEXT.md` and `AGENTS.md` cite neither.",
+      "Why it stayed silent: nothing binds a citation to a file. `grep -n 'docs/adr' scripts/validate_shiki.py` returns nothing \u2014 no validator requires a cited ADR to exist. This is the same unbound-pair shape that produced the other silent failures this week, so the fix is the pair binding, not just the two files.",
+      "The content is not authored here. Both documents already exist verbatim in the coordinator checkout with their own commit history; this task carries them unchanged. Rewriting a decision record after the fact would misrepresent when the decision was made.",
+      "LOCK-SUFFICIENCY CHECK. The two ADR paths are MUST-CHANGE (they are the deliverable). `tests/test_adr_references.py` is MUST-CHANGE (new). Nothing else: `tests/test_install_completeness.py`'s `classify()` returns None for `tests/\u2026` so no TEMPLATE_PATHS entry is needed; `docs/adr/` ships as part of `docs` and needs no manifest change; `scripts/validate_shiki.py` is deliberately NOT locked because the binding lives in a test, not in the validator, and touching validate_shiki would collide with four other backlog items.",
+      "Risk is low and honest: no product behaviour changes, no gate moves, no schema changes. Two documents are added and one test asserts a property that already holds once they are. Under `.shiki/guardian-policy.json` (`applies_to_risk: [high, critical]`) neither the Contract PR nor the implementation PR triggers the Guardian gate, so this goal costs zero operator approvals."
+    ],
+    "source": "Measured 2026-08-04 against origin/main.",
+    "status": "complete"
+  },
+  "id": "G-20260804T094832859551Z-2d0958fd",
+  "ledger_evidence": [
+    "L-20260804T094832860972Z-0757cb5a"
+  ],
+  "non_goals": [
+    "Rewriting, renumbering or editing the content of either ADR.",
+    "Adding a new ADR.",
+    "Changing scripts/validate_shiki.py, or any gate, schema or workflow.",
+    "Fixing any citation in prose docs \u2014 none cite these ADRs.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "Every `ADR NNNN` a script cites resolves to a real document in the repository. Today two do not: `scripts/mergegate_check.py` cites ADR 0017 nine times and `scripts/guardian_approval_signal.py` cites 0016/0017 seven times, while `docs/adr/` on the default branch stops at 0015. ADR 0017 is the stated basis of the bookkeeping-closeout exemption that has merged seven PRs with zero approvals \u2014 its rationale is currently unreadable to anyone auditing that behaviour, human or CCA.",
+  "required_skills": [
+    "code-review"
+  ],
+  "risk_level": "low",
+  "source_plan": "P-20260804T094832785739Z-b731b1e2",
+  "status": "planned",
+  "title": "Carry the two ADRs the code already cites, and bind citations to files"
+}

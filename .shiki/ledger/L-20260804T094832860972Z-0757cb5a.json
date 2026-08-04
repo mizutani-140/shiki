@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260804T094832859551Z-2d0958fd.json",
+    ".shiki/plans/P-20260804T094832785739Z-b731b1e2.json"
+  ],
+  "goal_id": "G-20260804T094832859551Z-2d0958fd",
+  "id": "L-20260804T094832860972Z-0757cb5a",
+  "links": [],
+  "summary": "Goal registered from plan: Carry the two ADRs the code already cites, and bind citations to files",
+  "task_id": null,
+  "timestamp": "2026-08-04T09:48:32+00:00",
+  "type": "goal-created"
+}
