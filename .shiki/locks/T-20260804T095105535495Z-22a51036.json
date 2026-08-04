@@ -1,0 +1,18 @@
+{
+  "created_at": "2026-08-04T13:44:18+00:00",
+  "goal_id": "G-20260804T095105533205Z-224ce02d",
+  "locks": [
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:.github/workflows/shiki-mergegate.yml",
+    "path:scripts/validate_shiki.py",
+    "path:docs/adr/0018-carried-guardian-approval-across-a-proven-base-sync.md",
+    "path:docs/agents/guardian-policy.md",
+    "path:.github/prompts/cca-completion-check.md",
+    "path:tests/test_workflow_invocation_carry.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:tests/test_workflow_invocation.py"
+  ],
+  "owner": "shiki-run",
+  "state": "active",
+  "task_id": "T-20260804T095105535495Z-22a51036"
+}

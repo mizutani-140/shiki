@@ -56,6 +56,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
 MERGEGATE_WF = WORKFLOWS / "shiki-mergegate.yml"
 ORCHESTRATOR_WF = WORKFLOWS / "shiki-orchestrator.yml"
+# ADR 0018 base-sync carry: shiki-cca-completion.yml now has a top-level entry in
+# validate_shiki.WORKFLOW_INVOCATION_REQUIRED_FLAGS, so the staged root the contract
+# check runs against must include it or the loop FileNotFoundErrors (see _stage).
+CCA_WF = WORKFLOWS / "shiki-cca-completion.yml"
 
 
 # --- shared workflow-text helpers ----------------------------------------
@@ -126,8 +130,13 @@ _FLAG_VALUES = {
     # and the medium-risk reconcile PR is unaffected — but the flag must resolve a
     # value here or argv reconstruction KeyErrors the moment the workflow adds it.
     "--contract-approval": ".shiki/gha/contract-approval.json",
+    # ADR 0018 base-sync carry: the metadata job now also passes --default-branch.
+    # A concrete branch name resolves the argv; the carry is inert for this
+    # medium-risk reconcile PR (the carry refuses risk != high before any git), so
+    # the ready result is unchanged. --base-sync-carry is store_true (below).
+    "--default-branch": "main",
 }
-_STORE_TRUE = {"--allow-missing-cca"}
+_STORE_TRUE = {"--allow-missing-cca", "--base-sync-carry"}
 
 
 def _write(path: Path, payload: dict) -> None:
@@ -282,11 +291,14 @@ class MetadataArgvPostMergeReconcile(unittest.TestCase):
 
 class ValidateWorkflowInvocationContract(unittest.TestCase):
     def _stage(self, tmp: Path) -> Path:
-        """A throwaway repo root holding only the two hardened workflows so the
-        contract check can run against a mutated copy."""
+        """A throwaway repo root holding the hardened workflows plus every workflow
+        named in the invocation contract so the contract check can run against a
+        mutated copy. shiki-cca-completion.yml is included because ADR 0018 added a
+        top-level entry for it to WORKFLOW_INVOCATION_REQUIRED_FLAGS; omitting it
+        would FileNotFoundError inside validate_workflow_invocation_contracts."""
         dest = tmp / ".github" / "workflows"
         dest.mkdir(parents=True, exist_ok=True)
-        for wf in (MERGEGATE_WF, ORCHESTRATOR_WF):
+        for wf in (MERGEGATE_WF, ORCHESTRATOR_WF, CCA_WF):
             shutil.copyfile(wf, dest / wf.name)
         return tmp
 

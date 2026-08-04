@@ -153,6 +153,45 @@ done
 [ "$(grep -c 'git fetch origin' .github/workflows/shiki-cca-completion.yml)" = "2" ]
 [ "$(grep -c 'git fetch origin' .github/workflows/shiki-mergegate.yml)" = "1" ]
 
+# ADR 0018 base-sync carry (guardian_comment_carried) reaches CI
+# (T-20260804T095105535495Z-22a51036). Every invocation that judges Guardian
+# approval must pass --base-sync-carry and --default-branch, or the carry degrades
+# to "does not apply" with no error and the feature is invisible. Four such
+# invocations exist: the signal, the guardian-status blockers render, and the
+# MergeGate policy check in shiki-cca-completion.yml, plus the metadata check in
+# shiki-mergegate.yml. DEFAULT_BRANCH is exported through env: (never re-derived),
+# and referenced as "$DEFAULT_BRANCH" so shiki-mergegate.yml stays expression-free.
+# The proof reads git history over origin/<default_branch>; it reuses each job's
+# existing base fetch (no second fetch, no --depth — already asserted above).
+for wf in .github/workflows/shiki-cca-completion.yml .github/workflows/shiki-mergegate.yml; do
+  # shellcheck disable=SC2016
+  grep -F 'DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}' "$wf" >/dev/null
+  # Each carry invocation references the shell variable, not a GitHub expression.
+  # shellcheck disable=SC2016
+  grep -E '^[[:space:]]*--default-branch "\$DEFAULT_BRANCH"' "$wf" >/dev/null
+  grep -E '^[[:space:]]*--base-sync-carry \\$' "$wf" >/dev/null
+done
+# shiki-cca-completion.yml carries the flags on all THREE of its judging invocations
+# (signal, guardian status, cca mergegate); shiki-mergegate.yml on its ONE metadata
+# invocation. Count the anchored flag lines (comment mentions never start a line
+# with the flag) so dropping an invocation fails here too.
+[ "$(grep -cE '^[[:space:]]*--base-sync-carry \\$' .github/workflows/shiki-cca-completion.yml)" = "3" ]
+# shellcheck disable=SC2016
+[ "$(grep -cE '^[[:space:]]*--default-branch "\$DEFAULT_BRANCH"' .github/workflows/shiki-cca-completion.yml)" = "3" ]
+[ "$(grep -cE '^[[:space:]]*--base-sync-carry \\$' .github/workflows/shiki-mergegate.yml)" = "1" ]
+# shellcheck disable=SC2016
+[ "$(grep -cE '^[[:space:]]*--default-branch "\$DEFAULT_BRANCH"' .github/workflows/shiki-mergegate.yml)" = "1" ]
+# The metadata run body must not reintroduce a GitHub expression around the carry.
+if grep -E '^[[:space:]]*--default-branch "\$\{\{' .github/workflows/shiki-mergegate.yml >/dev/null; then
+  echo "shiki-mergegate.yml --default-branch must use \"\$DEFAULT_BRANCH\", not a GitHub expression" >&2
+  exit 1
+fi
+# validate_shiki's required-flags contract now guards all four invocations against
+# silent flag removal, including a top-level entry for shiki-cca-completion.yml.
+grep -F '"shiki-cca-completion.yml":' scripts/validate_shiki.py >/dev/null
+grep -F '"--base-sync-carry"' scripts/validate_shiki.py >/dev/null
+grep -F '"--default-branch"' scripts/validate_shiki.py >/dev/null
+
 python3 - "$ROOT" <<'PY'
 import json
 import pathlib
