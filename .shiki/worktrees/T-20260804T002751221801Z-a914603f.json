@@ -1,0 +1,20 @@
+{
+  "branch": "shiki/t-20260804t002751221801z-a914603f-enforce-an-amendment-mode-with-the-ledger-type-r",
+  "created_at": "2026-08-04T00:50:33+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260804T002751220363Z-1eb2e0d4",
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:.shiki/schemas/ledger.schema.json",
+    "path:scripts/validate_shiki.py",
+    "path:docs/agents/ledger-schema.md",
+    "path:tests/test_contract_amendment.py",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:scripts/test_shiki_adversarial_state.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260804t002751221801z-a914603f-enforce-",
+  "pr": 254,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260804T002751221801Z-a914603f"
+}
