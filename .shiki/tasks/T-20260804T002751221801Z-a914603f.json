@@ -20,7 +20,7 @@
     "No file outside the declared locks is changed."
   ],
   "assigned_runtime": "claude-code",
-  "cca_rerun_count": 1,
+  "cca_rerun_count": 2,
   "dependencies": [],
   "expected_branch": "shiki/t-20260804t002751221801z-a914603f-enforce-an-amendment-mode-with-the-ledger-type-r",
   "expected_pr": 254,
@@ -37,7 +37,8 @@
     "L-20260804T013728397072Z-a2a4809a",
     "L-20260804T013817920448Z-a7b4f891",
     "L-20260804T014934950828Z-e60dd590",
-    "L-20260804T015425610122Z-0dc0e326"
+    "L-20260804T015425610122Z-0dc0e326",
+    "L-20260804T020000847461Z-58b81b89"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
