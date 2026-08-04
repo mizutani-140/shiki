@@ -1,0 +1,52 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A PR whose only pushes since the approved head were clean base merges keeps its Guardian approval, disclosed as guardian_comment_carried.",
+    "An evil merge, a `merge -s ours`, a forged merge commit, an octopus merge, a superseded second parent, an authored commit, a reversed merge direction, a force-push orphan, a shallow checkout, an edited comment, a multi-SHA body, a retargeted base, a critical risk level and a removed label each independently refuse the carry \u2014 and in every one of those cases the Guardian requirement still resolves as required.",
+    "With the flag absent, every existing fixture produces a byte-identical result to the pre-change gate.",
+    "MergeGate and the deterministic CCA Guardian signal agree on every fixture, and the signal is never more permissive.",
+    "The full suite, the guardian-policy, governance-evidence, adversarial and control-plane suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-04T09:51:05+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "The problem is structural, not incidental. Branch protection has required_status_checks.strict = true, so a BEHIND PR cannot merge. Syncing changes the head SHA. guardian-policy.json sets guardian_comment.require_head_sha = true, and dismiss_stale_reviews is true so a github_review approval is dismissed by the same push. The label survives but the human path needs label AND a head-bound secondary. So every base sync costs a fresh approval.",
+      "The carry applies to the guardian_comment source ONLY, as a new source token guardian_comment_carried. Never guardian_label (there is no head binding to carry). Never github_review (GitHub's dismissal IS the Guardian's revocation UI, and a deliberate dismissal is indistinguishable from a stale one in the payload the workflows write). Never external_ai_guardian_review (validate_guardian_policy hard-fails any policy that unbinds it).",
+      "The load-bearing proof is tree reproduction, not a diff comparison: `git merge-tree --write-tree <approved head A> <origin/default>` must produce exactly `tree(H)`. This proves every byte at the current head is either Guardian-approved content or content that already reached the default branch through its own gate. Measured: `git merge -s ours <base>` produces an identical DIFF while reverting the base, and an evil merge can carry a payload while touching zero out-of-base paths \u2014 so `git diff A H` and patch-equality are both unsafe shortcuts and are explicitly rejected. First-parent membership, no-authored-commits, 2-parent arity and second-parent-ancestry are kept as cheap pre-rejects and as the bound on which A may be named, but they are NOT sufficient alone.",
+      "Yield was measured, because a rule that is safe and never fires is worthless. Against the real sync on PR #237 (A=7f34529a\u2026, H=fa826dbe\u2026, base=3bdda917\u2026): first-parent membership PASS, authored commits in A..H = 0, merge arity 2 with the second parent an ancestor of base, and merge-tree reproduced tree(H) exactly (a0566fcc\u2026). Against a synthetic two-consecutive-sync history with disjoint paths: PASS. Against a sync where both sides changed the same file: git conflicts, so the carry is refused and a real operator resolution happens \u2014 which is the correct outcome, not a gap.",
+      "The residual is accepted and disclosed: proving tree(H) is the mechanical merge does NOT prove the base did not change what the approved code MEANS. It is bounded by refusing the carry for critical risk and for any maintainer-applied high/critical label, and by disclosing the carry as guardian_comment_carried in sources, in the MergeGate warning and in the CCA signal, so nothing downstream reads it as a fresh approval. The alternative bound \u2014 requiring the PR's paths and the base's paths to be disjoint \u2014 was rejected: measured, 4 of 8 real syncs overlap on .shiki/tasks/*.json, which halves the yield without closing the semantic gap.",
+      "Default OFF. Without the explicit flag the code paths are inert and the gate is byte-for-byte today's gate, so a defect degrades to the current behaviour rather than weakening the current one.",
+      "No guardian-policy.json key may enable the carry. The policy is loaded from the HEAD checkout, so a head-settable knob would let a PR widen its own approval semantics. The carry is code-pinned, not policy-pinned.",
+      "This Goal depends on the four approval-evaluation defects being fixed first. Two of them are load-bearing here: the un-paginated evidence fetch in shiki-mergegate.yml would let a negation comment past page one be invisible to the carry, and the whole-body substring head-SHA test would let a quoted SHA name a carry anchor nobody chose."
+    ],
+    "source": "Designed and adversarially attacked 2026-08-01 by a parallel exploration sweep (8 agents: 3 mapping, 4 adversarial lenses, 1 synthesis), then the\u6838\u5fc3 condition was measured against a real PR sync and a synthetic multi-sync history.",
+    "status": "complete"
+  },
+  "id": "G-20260804T095105533205Z-224ce02d",
+  "ledger_evidence": [
+    "L-20260804T095105533800Z-166b4b28"
+  ],
+  "non_goals": [
+    "Carrying a github_review, a guardian_label, or an external AI guardian review.",
+    "Carrying for critical risk, or when a maintainer label alone resolves high or critical.",
+    "Tolerating a merge that required conflict resolution.",
+    "Persisting the proof to any artifact \u2014 it is recomputed in every judging job.",
+    "Adding any guardian-policy.json key that enables or configures the carry.",
+    "Fixing the four approval-evaluation defects, which are a separate Goal and a prerequisite.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "When branch protection forces a stale PR to merge its base in, the Guardian approval already granted for the reviewed content is no longer thrown away. The approval carries if and only if the gate can prove, from git, that every push since the approved head was a mechanical merge of the default branch and changed nothing else. Measured cost today: opening five Contract PRs at once cost four extra operator approvals, one per PR per merge round, purely because main moved.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "source_plan": "P-20260804T095105458113Z-5f2a2cc6",
+  "status": "planned",
+  "title": "Let a Guardian approval survive a proven pure base-sync"
+}
