@@ -1,0 +1,54 @@
+{
+  "acceptance_checks": [
+    "All four invocations \u2014 signal, guardian status, cca-workflow mergegate, mergegate-workflow metadata \u2014 pass --base-sync-carry and --default-branch.",
+    "Each of those steps sets DEFAULT_BRANCH in env, and the run bodies reference \"$DEFAULT_BRANCH\" with no ${{ }}.",
+    "validate_shiki's required-flags contract covers both flags AND has a new top-level entry for shiki-cca-completion.yml covering both of its judging invocations.",
+    "validate_shiki fails when any one of the four invocations loses either flag \u2014 one case per invocation per flag.",
+    "No base fetch carries --depth, and no second base fetch was added.",
+    "The CCA prompt reads guardian_comment_carried as a recorded authority and does not re-derive it.",
+    "docs/adr/0018 records Context, Decision, Alternatives with the measured counterexamples, the accepted residual, and Consequences.",
+    "docs/agents/guardian-policy.md documents the carry and every previously documented needle is still present.",
+    "tests/test_workflow_invocation_carry.py enumerates every invocation in both workflows.",
+    "No file outside the declared locks is changed.",
+    "tests/test_workflow_invocation.py registers both new flags in _FLAG_VALUES/_STORE_TRUE and stages shiki-cca-completion.yml, so the unittest suite passes with the new required-flags entry."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260804T095105534980Z-530c4f17"
+  ],
+  "expected_branch": "shiki/t-20260804t095105535495z-22a51036-reach-the-carry-from-ci-and-record-the-decision",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260804T095105533205Z-224ce02d",
+  "id": "T-20260804T095105535495Z-22a51036",
+  "ledger_evidence": [
+    "L-20260804T095105535511Z-da2a584d"
+  ],
+  "locks": [
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:.github/workflows/shiki-mergegate.yml",
+    "path:scripts/validate_shiki.py",
+    "path:docs/adr/0018-carried-guardian-approval-across-a-proven-base-sync.md",
+    "path:docs/agents/guardian-policy.md",
+    "path:.github/prompts/cca-completion-check.md",
+    "path:tests/test_workflow_invocation_carry.py",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:tests/test_workflow_invocation.py"
+  ],
+  "non_goals": [
+    "Changing the verifier's or the evaluator's semantics",
+    "Adding or restoring any --depth on a base fetch, or adding a second base fetch",
+    "Removing any documented needle from the guardian-policy docs",
+    "Using ${{ }} inside a run body",
+    "Touching any file outside the declared locks"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Pass `--base-sync-carry` and `--default-branch \"$DEFAULT_BRANCH\"` at EVERY invocation that judges Guardian approval, and set `DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}` in each of those steps' `env:`:\n  - `.github/workflows/shiki-cca-completion.yml`, job `cca`, the `guardian_approval_signal.py` invocation;\n  - the same workflow's \"Post Guardian blockers comment\" step, the `shiki.py guardian status` invocation;\n  - the same workflow's job `mergegate`, the `mergegate_check.py` invocation;\n  - `.github/workflows/shiki-mergegate.yml`, the metadata check's `mergegate_check.py` invocation.\nIn `.github/workflows/shiki-mergegate.yml` ONLY, the `run:` body must reference `\"$DEFAULT_BRANCH\"` and never `${{ }}`: `WORKFLOW_RUN_EXPRESSION_FREE` (scripts/validate_shiki.py:318-321) is exactly (\"shiki-mergegate.yml\", \"shiki-orchestrator.yml\"). `shiki-cca-completion.yml` is NOT in that tuple and already interpolates `${{ }}` in run bodies 34 times, so adding a flags entry for it does not pull it into the rule. Reuse the base fetch each job already performs and do NOT add a second fetch or any `--depth`: a shallow base makes the proof unresolvable, which fails closed but silently disables the feature.\n\nExtend `scripts/validate_shiki.py`'s workflow-invocation required-flags contract to cover both new flags, and ADD a top-level entry for `.github/workflows/shiki-cca-completion.yml`, which has none today \u2014 covering its `mergegate` job's `mergegate_check.py` and its `cca` job's `guardian_approval_signal.py`. Without that entry, three of the four invocations above are unguarded against silent removal.\n\nUpdate `.github/prompts/cca-completion-check.md` and the inline CCA prompt so CCA-08 reads `guardian_comment_carried` as a recorded authority and does not re-derive it, exactly as it already treats the other sources.\n\nWrite `docs/adr/0018-carried-guardian-approval-across-a-proven-base-sync.md`: Context (strict branch protection plus head-bound approval, and the measured four extra approvals across five Contract PRs on 2026-08-01), Decision (scope limited to guardian_comment; tree reproduction as the proof; the ordered conditions; default off; code-pinned not policy-pinned), Alternatives (keeping one Contract PR open at a time \u2014 rejected as it serialises unrelated Goals; diff or patch equality \u2014 rejected with the measured `merge -s ours` and evil-merge counterexamples; path disjointness \u2014 rejected, measured 4 of 8 real syncs overlap on `.shiki/tasks/*.json`), the ACCEPTED residual (the merged tree is not the semantically approved tree; bounded by excluding critical, by label escalation, and by disclosure) and Consequences. Document the carry in `docs/agents/guardian-policy.md` without removing any existing documented needle.\n\nAdd `tests/test_workflow_invocation_carry.py` enumerating every `mergegate_check.py` and `guardian_approval_signal.py` invocation in both workflows and asserting both flags on each, plus control-plane assertions that no `--depth` appears on a base fetch, that no second base fetch was added, and that the run bodies stay expression-free.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the verifier and the evaluator are correct and nothing changes, because no caller ever passes the flags. The feature degrades to 'does not apply' by design and is invisible.\n  Why this is its own task: the previous two are pure and provable in isolation; this one is YAML across four invocation sites in two workflows, whose failure modes are silent \u2014 a missing flag disables the feature without any error.\n  Measured landmine: `.github/workflows/shiki-cca-completion.yml` has NO entry in validate_shiki's workflow-invocation required-flags contract today, so three of the four invocations have nothing preventing a future edit from dropping the flags. Adding that entry is part of this task, not optional.\n  Second landmine: the base fetch in this workflow carried `--depth=1` until PR #206. Re-adding it, or adding a second fetch that goes shallow, makes the git history unreachable and silently disables the carry rather than failing loudly.\n  Reproducible when: a live PR that is base-synced merges with the approval it already had, and validate_shiki fails if any of the four invocations loses either flag.\n\nLOCK NOTE (audited 2026-08-04): `tests/test_workflow_invocation.py` is in the locks because TWO independent binders require it. `_metadata_argv` (:215-229) re-derives flags from the workflow by regex and does `argv.append(_FLAG_VALUES[flag])` at :228, and `_FLAG_VALUES` (:114-123) has no entry for `--base-sync-carry` or `--default-branch`; separately `_stage` (:278-285) copies only MERGEGATE_WF and ORCHESTRATOR_WF into its throwaway root, while `validate_workflow_invocation_contracts` loops over every file in WORKFLOW_INVOCATION_REQUIRED_FLAGS, so adding a shiki-cca-completion.yml entry raises FileNotFoundError inside the unittest suite while `validate_shiki` still exits 0.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
+  "title": "Reach the carry from CI and record the decision"
+}
