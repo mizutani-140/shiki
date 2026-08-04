@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-08-04T10:27:25+00:00",
+  "goal_id": "G-20260804T094832859551Z-2d0958fd",
+  "locks": [
+    "path:docs/adr/0016-locks-bound-product-paths.md",
+    "path:docs/adr/0017-bookkeeping-closeouts-do-not-inherit-risk.md",
+    "path:tests/test_adr_references.py"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260804T094832861501Z-78871209"
+}
