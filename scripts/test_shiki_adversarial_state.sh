@@ -1391,5 +1391,159 @@ finally:
     shiki_loop._dispatch = _orig_dispatch
 
 
+# ============================================================================
+# Migration mode (repository-wide re-run proof). Both cases run against a REAL
+# git repository, so the BASE-registry resolution — the security property, that
+# the migration function is read from the base branch and NEVER the PR head —
+# executes end to end via `git show origin/<base>:scripts/shiki_migrations.py`.
+#
+#   1. Self-defining-migration attempt: a PR that DEFINES its own new migration
+#      and declares it must NOT pass, because the id is absent from the base
+#      registry (a PR cannot author the migration whose output it is measured
+#      against).
+#   2. One-byte deviation: a conforming PR whose .shiki output differs from the
+#      re-run by a single byte in one file is blocked with a reason naming that
+#      file.
+# ============================================================================
+import mergegate_check
+
+MIG_ID = "M-20260801-0001-cca-profile-backfill"
+ATTACK_ID = "M-20260801-0002-attacker"
+MIG_TASKS = ("T-20260801T000000000000Z-0000a001", "T-20260801T000000000000Z-0000a002")
+MIG_STATE = {
+    "version": 1,
+    "source_of_truth": "x",
+    "applied": [{"id": "M-20260604-0001-baseline", "status": "applied", "applied_at": "t", "actor": "a", "summary": "s"}],
+}
+
+
+def _mig_git(cwd: pathlib.Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True, text=True)
+
+
+def _mig_init(repo: pathlib.Path) -> None:
+    repo.mkdir(parents=True)
+    _mig_git(repo, "init", "-q", "-b", "main")
+    _mig_git(repo, "config", "user.email", "t@t")
+    _mig_git(repo, "config", "user.name", "t")
+
+
+def _mig_module_src(ids) -> str:
+    # A self-contained migrations module (no shiki_process import) that DEFINES a
+    # deterministic backfill migration for each id, so resolve_base_migration_registry
+    # can exec it and enforce_migration can re-run it.
+    body = ", ".join('Migration(id="%s", apply=_backfill)' % migration_id for migration_id in ids)
+    template = '''
+from dataclasses import dataclass
+import json
+from pathlib import Path
+from typing import Any, Callable
+
+
+@dataclass(frozen=True)
+class Migration:
+    id: str
+    destructive: bool = False
+    apply: "Callable[..., Any] | None" = None
+
+
+def _backfill(root, dry_run):
+    tasks = Path(root) / ".shiki" / "tasks"
+    for path in sorted(tasks.glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if "cca_checklist_profile" not in data:
+            data["cca_checklist_profile"] = []
+            if not dry_run:
+                path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+    return {"summary": "backfill", "evidence": []}
+
+
+def migration_registry():
+    return (__BODY__,)
+'''
+    return template.replace("__BODY__", body)
+
+
+def _mig_seed_base_shiki(root: pathlib.Path) -> None:
+    for task_id in MIG_TASKS:
+        write_json(root / ".shiki" / "tasks" / f"{task_id}.json", {"id": task_id, "goal_id": "G-mig", "title": task_id, "status": "planned"})
+    write_json(root / ".shiki" / "migrations" / "state.json", MIG_STATE)
+
+
+def _mig_changes():
+    return [mergegate_check.ChangedFile("M", f".shiki/tasks/{task_id}.json") for task_id in MIG_TASKS]
+
+
+# Case 1: the self-defining-migration attempt.
+with tempfile.TemporaryDirectory(dir=tmp_root) as _mig_tmp:
+    repo = pathlib.Path(_mig_tmp) / "repo"
+    _mig_init(repo)
+    (repo / "scripts").mkdir()
+    # Base branch registers ONLY the backfill migration, not the attacker one.
+    (repo / "scripts" / "shiki_migrations.py").write_text(_mig_module_src([MIG_ID]), encoding="utf-8")
+    _mig_seed_base_shiki(repo)
+    _mig_git(repo, "add", "-A")
+    _mig_git(repo, "commit", "-qm", "base")
+    # The PR head defines a brand-new migration and delivers a .shiki change,
+    # declaring the id it just invented.
+    _mig_git(repo, "checkout", "-q", "-b", "head")
+    (repo / "scripts" / "shiki_migrations.py").write_text(_mig_module_src([MIG_ID, ATTACK_ID]), encoding="utf-8")
+    for task_id in MIG_TASKS:
+        _path = repo / ".shiki" / "tasks" / f"{task_id}.json"
+        _data = read_json(_path)
+        _data["cca_checklist_profile"] = []
+        write_json(_path, _data)
+    _blocking = []
+    mergegate_check.enforce_migration(
+        target=repo,
+        pr={"body": f"<!-- shiki:migration -->\nMigration: {ATTACK_ID}", "baseRefName": "main"},
+        base_shiki=repo / ".shiki",
+        changed_files_status=_mig_changes(),
+        blocking=_blocking,
+        warnings=[],
+    )
+    assert_contains("\n".join(_blocking), f"migration {ATTACK_ID} is not registered in the base branch")
+
+# Case 2: a one-byte deviation from the re-run output.
+with tempfile.TemporaryDirectory(dir=tmp_root) as _mig_tmp:
+    _base = pathlib.Path(_mig_tmp)
+    repo = _base / "repo"
+    _mig_init(repo)
+    (repo / "scripts").mkdir()
+    (repo / "scripts" / "shiki_migrations.py").write_text(_mig_module_src([MIG_ID]), encoding="utf-8")
+    _mig_seed_base_shiki(repo)
+    _mig_git(repo, "add", "-A")
+    _mig_git(repo, "commit", "-qm", "base")
+    # The unmodified base .shiki snapshot the gate re-runs against.
+    base_snap = _base / "base-shiki"
+    shutil.copytree(repo / ".shiki", base_snap)
+    # The PR head applies the (base-registered) migration, then flips ONE byte in
+    # exactly one produced file.
+    _mig_git(repo, "checkout", "-q", "-b", "head")
+    for task_id in MIG_TASKS:
+        _path = repo / ".shiki" / "tasks" / f"{task_id}.json"
+        _data = read_json(_path)
+        _data["cca_checklist_profile"] = []
+        write_json(_path, _data)
+    _deviant = repo / ".shiki" / "tasks" / f"{MIG_TASKS[1]}.json"
+    _bytes = _deviant.read_bytes()
+    _deviant.write_bytes(_bytes[:-2] + b"X" + _bytes[-1:])
+    _blocking = []
+    mergegate_check.enforce_migration(
+        target=repo,
+        pr={"body": f"<!-- shiki:migration -->\nMigration: {MIG_ID}", "baseRefName": "main"},
+        base_shiki=base_snap,
+        changed_files_status=_mig_changes(),
+        blocking=_blocking,
+        warnings=[],
+    )
+    _joined = "\n".join(_blocking)
+    assert_contains(_joined, "byte-for-byte")
+    assert_contains(_joined, f".shiki/tasks/{MIG_TASKS[1]}.json")
+    # The conforming file must NOT be flagged: exactly the deviant file is named.
+    if f".shiki/tasks/{MIG_TASKS[0]}.json" in _joined:
+        raise AssertionError(f"the conforming file must not be flagged: {_blocking}")
+
+
 print("adversarial state/evidence/lock regression suite passed")
 PY

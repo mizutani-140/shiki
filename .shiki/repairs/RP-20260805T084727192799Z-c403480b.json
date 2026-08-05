@@ -1,0 +1,32 @@
+{
+  "attempt": 1,
+  "created_at": "2026-08-05T08:47:27+00:00",
+  "evidence_required": [
+    "test_shiki_init.sh passes, proving the module runs green inside a freshly installed target",
+    "The platform run still executes the assertion against the real task file, not a skip"
+  ],
+  "failing_acceptance_criteria": [
+    "No file outside the declared locks is changed; the target install suite passes"
+  ],
+  "failing_checklist_items": [
+    "Validate Shiki mirror"
+  ],
+  "goal_id": "G-20260801T041653421243Z-2d98487f",
+  "minimal_required_changes": [
+    "tests/test_migration_mode.py:220 test_this_tasks_own_impl_pr_body_does_not_enter_or_error reads a PLATFORM-ONLY mirror file and crashes inside a freshly installed target. VERBATIM failure from the 'Validate Shiki mirror' check, step 'Run all Shiki contract tests': \"install-verify: target unittest discovery failed\" then \"ERROR: test_this_tasks_own_impl_pr_body_does_not_enter_or_error (test_migration_mode.MigrationDecisionTests.test_this_tasks_own_impl_pr_body_does_not_enter_or_error)\" then \"FileNotFoundError: [Errno 2] No such file or directory: '/tmp/shiki-init-test-11003/install-verify/.shiki/tasks/T-20260801T041653422672Z-c4815d7a.json'\". Cause: scripts/test_shiki_init.sh runs the INSTALLED target's 'python3 -m unittest discover -s tests', and the installer does not copy the platform's .shiki mirror records, so shiki_test_support.REPO_ROOT/'.shiki'/'tasks'/'T-20260801T041653422672Z-c4815d7a.json' does not exist there. Fix ONLY this: make the test target-valid by reading the real task file when it EXISTS (the platform run, where the assertion must keep its full force) and skipping with unittest.SkipTest naming the absent path when it does not (the installed-target run). Do NOT weaken the platform-side assertion, do NOT inline a paraphrased copy of the body, and do NOT change migration_decision or any production code."
+  ],
+  "pr": 291,
+  "prohibited_changes": [
+    "Any file other than tests/test_migration_mode.py",
+    "Weakening or removing the platform-side assertions (assertFalse(mode) / assertIsNone(err))",
+    "Changing scripts/mergegate_check.py or any production behaviour",
+    "Authoring any approval record"
+  ],
+  "repair_id": "RP-20260805T084727192799Z-c403480b",
+  "required_skill": "tdd",
+  "stop_condition": "If the fix requires changing any file other than tests/test_migration_mode.py, stop and report",
+  "task_id": "T-20260801T041653422672Z-c4815d7a",
+  "verification_commands": [
+    "python3 -m unittest discover -s tests && bash scripts/test_shiki_init.sh && python3 scripts/validate_shiki.py --target ."
+  ]
+}

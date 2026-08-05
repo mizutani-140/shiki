@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/repairs/RP-20260805T084727192799Z-c403480b.json"
+  ],
+  "goal_id": "G-20260801T041653421243Z-2d98487f",
+  "id": "L-20260805T084727194300Z-f780e352",
+  "links": [],
+  "summary": "Repair packet RP-20260805T084727192799Z-c403480b created for PR #291",
+  "task_id": "T-20260801T041653422672Z-c4815d7a",
+  "timestamp": "2026-08-05T08:47:27+00:00",
+  "type": "repair"
+}
