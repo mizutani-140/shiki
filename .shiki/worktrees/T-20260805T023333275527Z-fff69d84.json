@@ -1,0 +1,16 @@
+{
+  "branch": "shiki/t-20260805t023333275527z-fff69d84-resolve-the-loop-s-base-ref-from-origin-at-all-t",
+  "created_at": "2026-08-05T02:58:06+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260805T023333273780Z-cd2e69ec",
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_loop_code_review.py",
+    "path:tests/test_repair_delivery.py"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260805t023333275527z-fff69d84-resolve-",
+  "pr": 280,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260805T023333275527Z-fff69d84"
+}
