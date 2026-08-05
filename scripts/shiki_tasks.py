@@ -9,7 +9,7 @@ import re
 from typing import Any
 
 from shiki_git import github_origin, is_git_repo
-from shiki_locks import active_lock_conflicts, path_matches_lock
+from shiki_locks import active_lock_conflicts, load_lock_record, path_matches_lock
 from shiki_process import ShikiError, print_json, read_json, run, shiki_path, slugify, target_path, utc_now, write_json, ensure_control_dirs
 from shiki_state import append_ledger_entry, new_control_id
 
@@ -462,46 +462,82 @@ def refresh_lock_grant(target: Path, task_id: str) -> tuple[bool, list[str], dic
     return True, [], record
 
 
+def _ungranted_lock_reason(
+    target: Path,
+    task_id: str,
+    declared: list[str],
+    missing: list[str],
+    detail: str,
+) -> str:
+    """A lock-precondition refusal that always names the task and the locks.
+
+    ``missing`` is the set the reason must call out — the full declared set when no
+    usable grant exists, or the uncovered subset of a partial grant. When another
+    active task holds any of those locks its id is named, so a conflicted acquire
+    followed by a dispatch attempt (the 2026-08-04 sequence) is refused with a
+    reason pointing at the task still holding the paths, never the bare 'locks are
+    not granted' that scrolled past unnoticed.
+    """
+    reason = (
+        f"lock grant precondition unmet for {task_id}: {detail}; "
+        f"declared locks {sorted(declared)}, missing/stale {sorted(missing)}"
+    )
+    owners = _lock_conflict_owners(has_active_lock_conflict(target, task_id, missing))
+    if owners:
+        reason += f"; those locks are held by active lock(s) of {', '.join(owners)}"
+    return reason
+
+
 def evaluate_lock_grant(target: Path, task_id: str) -> tuple[bool, str | None]:
-    """Whether ``task_id``'s declared locks are granted, refreshing on divergence.
+    """Whether ``task_id``'s declared locks are currently granted to IT.
 
-    Returns ``(locks_granted, blocker)``. Cases:
+    A PURE, side-effect-free precondition: it reports whether the grant ALREADY
+    exists and never acquires or refreshes one. Dispatch, ``dispatchable_task_ids``,
+    the runner-execute status write and moving a task into ``ready`` all share it,
+    so it must REFUSE an ungranted task, never silently grant it — the 2026-08-04
+    defect was a task dispatched, implemented and merged while its lock grant did
+    not exist, surfacing only as an unexpected Guardian demand at closeout three
+    steps downstream.
 
-    * no declared locks ................. granted (nothing to hold).
-    * active grant covers the contract .. granted, with no rewrite.
-    * active grant but contract widened . a Spec Amendment diverged the grant.
-      Refresh it to the current contract so no manual re-acquisition is needed;
-      granted when the refresh lands. If the widened contract collides with
-      another task's active lock the refresh is refused and the blocker names
-      BOTH lock sets and the owning task, never a bare 'locks are not granted'.
-    * no active grant at all ............ not granted ('locks are not granted').
+    Returns ``(granted, reason)``:
+
+    * a task whose ``locks`` list is EMPTY has nothing to grant and is SATISFIED
+      vacuously — ``(True, None)``. Treating an empty list as ungranted would
+      refuse every lock-free task and halt all autonomous work, a worse failure
+      than the one this guards.
+    * a task that declares locks is satisfied only when
+      ``.shiki/locks/<task_id>.json`` exists, is readable, has ``state: active``,
+      and its ``locks`` cover every path the task declares.
+    * anything else — file missing, unreadable/malformed, ``state`` not active, or
+      a declared lock absent from the record — is NOT satisfied, and the reason
+      names the task and the specific missing or stale locks (and, when those
+      locks are held by another active task, that conflicting owner).
+
+    It NEVER refreshes a diverged grant: that widened-lock amendment heal is the
+    readiness gate's job (``cmd_dispatch_check``), which layers a refresh over this
+    predicate. Keeping the predicate pure is exactly what lets the dispatch, status
+    and advertisement gates share it without any of them acquiring a lock as a side
+    effect.
     """
     task = load_task(target, task_id)
-    contract_locks = list(dict.fromkeys(task.get("locks", [])))
-    if not contract_locks:
+    declared = list(dict.fromkeys(task.get("locks", [])))
+    if not declared:
         return True, None
-    record = lock_record(target, task_id)
-    active = record if (record and record.get("state") == "active") else None
-    granted_locks = list(active.get("locks", [])) if active else []
-    if active and set(contract_locks).issubset(set(granted_locks)):
-        return True, None
-    if not active:
-        return False, "locks are not granted"
-    # Divergence: an active grant exists but the contract now requires locks it
-    # does not hold (a Spec Amendment widened them). Refresh it, or name the clash.
-    refreshed, conflicts, _ = refresh_lock_grant(target, task_id)
-    if refreshed:
-        return True, None
-    owners = _lock_conflict_owners(conflicts)
-    missing = sorted(set(contract_locks) - set(granted_locks))
-    reason = (
-        "grant/contract divergence: task contract locks "
-        f"{sorted(contract_locks)} are not covered by the active grant "
-        f"{sorted(granted_locks)}; refreshing to add {missing} is blocked"
-    )
-    if owners:
-        reason += f" because the widened locks overlap active lock(s) held by {', '.join(owners)}"
-    return False, reason
+    lock_file = shiki_path(target, "locks", f"{task_id}.json")
+    record = load_lock_record(lock_file)
+    if record is None:
+        detail = "its lock record is unreadable" if lock_file.exists() else "no active lock record exists"
+        return False, _ungranted_lock_reason(target, task_id, declared, declared, detail)
+    if record.get("state") != "active":
+        detail = f"its lock record state is {record.get('state')!r}, not 'active'"
+        return False, _ungranted_lock_reason(target, task_id, declared, declared, detail)
+    granted = list(record.get("locks") or [])
+    missing = [lock for lock in declared if lock not in granted]
+    if missing:
+        return False, _ungranted_lock_reason(
+            target, task_id, declared, missing, "its active grant does not cover every declared lock"
+        )
+    return True, None
 
 
 def try_acquire_locks(target: Path, task_id: str) -> tuple[bool, list[str], str | None]:
@@ -958,6 +994,12 @@ def cmd_lock_acquire(args: argparse.Namespace) -> int:
         "blocking_reasons": conflicts,
     }
     if conflicts:
+        # Make the failure impossible to miss at its source AND legible to the next
+        # step: return non-zero with `locks_granted: false` and the conflict reasons
+        # (which name the owning task), and — critically — write NO grant record.
+        # The absence of an active grant is what the dispatch / status preconditions
+        # (evaluate_lock_grant) independently read and refuse on, so a conflicted
+        # acquire can no longer be swallowed by a `tail -1` and let dispatch proceed.
         print_json(result)
         return 1
 
@@ -987,6 +1029,38 @@ def cmd_lock_acquire(args: argparse.Namespace) -> int:
     return 0
 
 
+def _refresh_amendment_grant(target: Path, task_id: str, blocker: str | None) -> tuple[bool, str | None]:
+    """Heal a widened-lock Spec Amendment forward at the dispatch-readiness gate.
+
+    ``evaluate_lock_grant`` already refused; only a diverged ACTIVE grant is
+    refreshed here (a task with no active grant is reported ungranted verbatim,
+    never auto-acquired). On a clean refresh the grant is re-evaluated and now
+    covers. A refresh blocked by another task's active lock is reported as a
+    grant/contract divergence naming BOTH lock sets and the owning task, never the
+    bare predicate reason — so the CLI keeps the exact divergence signal callers
+    grep for.
+    """
+    record = load_lock_record(shiki_path(target, "locks", f"{task_id}.json"))
+    if not (record and record.get("state") == "active"):
+        return False, blocker
+    refreshed, conflicts, _ = refresh_lock_grant(target, task_id)
+    if refreshed:
+        return evaluate_lock_grant(target, task_id)
+    task = load_task(target, task_id)
+    contract_locks = list(dict.fromkeys(task.get("locks", [])))
+    granted_locks = list(record.get("locks", []))
+    missing = sorted(set(contract_locks) - set(granted_locks))
+    reason = (
+        "grant/contract divergence: task contract locks "
+        f"{sorted(contract_locks)} are not covered by the active grant "
+        f"{sorted(granted_locks)}; refreshing to add {missing} is blocked"
+    )
+    owners = _lock_conflict_owners(conflicts)
+    if owners:
+        reason += f" because the widened locks overlap active lock(s) held by {', '.join(owners)}"
+    return False, reason
+
+
 def cmd_dispatch_check(args: argparse.Namespace) -> int:
     target = target_path(args.target)
     require_github_first_target(target)
@@ -994,11 +1068,17 @@ def cmd_dispatch_check(args: argparse.Namespace) -> int:
 
     dependency_tasks = [load_task(target, dep) for dep in task.get("dependencies", [])]
     dependencies_complete = all(dep.get("status") == "done" for dep in dependency_tasks)
-    # A Spec Amendment that widened the task's locks leaves the old grant behind;
-    # evaluate_lock_grant refreshes the grant to the current contract (so no manual
-    # re-acquisition is needed before dispatch) or reports a named divergence when
-    # the widened contract collides with another task's active lock.
+    # The grant must already cover the contract (evaluate_lock_grant is pure and
+    # side-effect-free). The dispatch-readiness gate is the ONE place a widened-lock
+    # Spec Amendment is healed forward: if an ACTIVE grant exists but no longer
+    # covers the (widened) contract, _refresh_amendment_grant refreshes it to the
+    # current contract so no manual re-acquisition is needed before dispatch — a
+    # task with no active grant is never auto-acquired here — or reports a named
+    # grant/contract divergence when the widened contract collides with another
+    # task's active lock.
     locks_granted, lock_blocker = evaluate_lock_grant(target, args.task_id)
+    if not locks_granted:
+        locks_granted, lock_blocker = _refresh_amendment_grant(target, args.task_id, lock_blocker)
     worktree_allocated = worktree_record(target, args.task_id) is not None
     guardian_required = task.get("risk_level") in {"high", "critical"}
     verification_present = bool(task.get("acceptance_checks"))
@@ -1165,6 +1245,14 @@ def cmd_task_status(args: argparse.Namespace) -> int:
     target = target_path(args.target)
     require_github_first_target(target)
     task = load_task(target, args.task_id)
+    # `ready` is the dispatchable status: a task may only be MOVED into it when its
+    # declared locks are already granted to it. Advertising an ungranted task as
+    # ready is exactly the 2026-08-04 defect, so REFUSE (never acquire) with the
+    # precondition reason. Every other transition is unaffected.
+    if args.status == "ready":
+        granted, reason = evaluate_lock_grant(target, args.task_id)
+        if not granted:
+            raise ShikiError(reason)
     task["status"] = args.status
     ledger_id = append_ledger(
         target,
