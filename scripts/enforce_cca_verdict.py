@@ -178,6 +178,39 @@ def load_schema(path: Path) -> dict[str, Any]:
     return data
 
 
+# ``checklist`` and ``acceptance`` each stand for a dimension the CCA must
+# judge. A verdict that carries an EMPTY ``checklist`` or an EMPTY ``acceptance``
+# list judged nothing for that dimension: it is a hollow record that "judged
+# nothing" (observed on PR #233, where it was schema-VALID and slipped through to
+# a downstream MergeGate rule). ``minItems: 1`` on both arrays in
+# ``cca-verdict.schema.json`` now rejects it, but the schema's message is a
+# generic "array length must be >= 1" that names neither the array nor the
+# judgment it stands for. This explicit check runs FIRST -- before schema
+# validation -- so the operator reading a red X sees exactly which dimension the
+# judge left empty.
+#
+# Only a PRESENT-but-empty list is degenerate here. A MISSING array is a
+# different fault -- the required property is absent -- and is deliberately left
+# to schema validation so its "missing required property" message is preserved.
+DEGENERATE_JUDGMENT_ARRAYS = ("checklist", "acceptance")
+
+
+def degenerate_judgment_arrays(verdict: dict[str, Any]) -> list[str]:
+    """Names of judgment arrays that are present but empty.
+
+    ``checklist`` and ``acceptance`` each stand for a dimension the CCA must
+    judge; an empty list for either means the judge evaluated nothing for that
+    dimension. A missing array is NOT reported here -- that is the schema's
+    "missing required property" fault, not a degenerate judgment.
+    """
+    empty: list[str] = []
+    for field in DEGENERATE_JUDGMENT_ARRAYS:
+        value = verdict.get(field)
+        if isinstance(value, list) and not value:
+            empty.append(field)
+    return empty
+
+
 def blocking_checklist_failures(verdict: dict[str, Any]) -> list[str]:
     failures: list[str] = []
     for item in verdict.get("checklist") or []:
@@ -273,6 +306,14 @@ def short_circuited_evaluations(verdict: dict[str, Any]) -> list[str]:
 
 
 def validate_verdict(verdict: dict[str, Any]) -> None:
+    degenerate = degenerate_judgment_arrays(verdict)
+    if degenerate:
+        field = degenerate[0]
+        raise SchemaValidationError(
+            f"$.{field}: CCA verdict is degenerate: the {field} array is empty; "
+            f"a verdict that judged no {field} entries proves nothing and is rejected"
+        )
+
     schema = load_schema(Path(".shiki/schemas/cca-verdict.schema.json"))
     validate_instance(verdict, schema)
 

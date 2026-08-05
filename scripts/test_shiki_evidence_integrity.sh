@@ -53,7 +53,7 @@ with tempfile.TemporaryDirectory(prefix="shiki-evidence-") as tmp:
         "pr": 123,
         "head_sha": head,
         "can_merge": True,
-        "checklist": [],
+        "checklist": [{"id": "CCA-01", "status": "pass", "blocking": True}],
         "acceptance": [{"criterion": "fixture", "status": "pass", "evidence": ["fixture"]}],
         "mergegate": {},
         "confidence": 1,
@@ -264,7 +264,7 @@ cat >"$MG/.shiki/gha/cca-verdict.json" <<'JSON'
   "pr": 123,
   "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "can_merge": true,
-  "checklist": [],
+  "checklist": [{"id":"CCA-01","status":"pass","blocking":true}],
   "acceptance": [{"criterion":"fixture","status":"pass","evidence":["fixture"]}],
   "mergegate": {},
   "confidence": 1

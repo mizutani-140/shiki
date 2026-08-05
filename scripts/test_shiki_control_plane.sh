@@ -349,7 +349,7 @@ grep "missing required property" /tmp/shiki-expected-fail.out >/dev/null
 
 expect_fail env \
   CCA_VERDICT_FILE=/tmp/shiki-cca-invalid-repair.json \
-  STRUCTURED_OUTPUT='{"verdict":"repair_required","summary":"needs repair","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[],"acceptance":[{"criterion":"A1","status":"fail","evidence":["fixture"]}],"mergegate":{},"confidence":0.5,"repair_packet":null}' \
+  STRUCTURED_OUTPUT='{"verdict":"repair_required","summary":"needs repair","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[{"id":"CCA-01","status":"fail","blocking":true}],"acceptance":[{"criterion":"A1","status":"fail","evidence":["fixture"]}],"mergegate":{},"confidence":0.5,"repair_packet":null}' \
   python3 scripts/enforce_cca_verdict.py
 grep "repair_required verdict must include a non-null object" /tmp/shiki-expected-fail.out >/dev/null
 
@@ -834,7 +834,7 @@ cca = {
     "pr": 123,
     "head_sha": "abc123",
     "can_merge": True,
-    "checklist": [],
+    "checklist": [{"id": "CCA-01", "status": "pass", "blocking": True}],
     "acceptance": [{"criterion": "A1", "status": "pass", "evidence": ["fixture"]}],
     "mergegate": {"required_checks": "pass"},
     "confidence": 1,
@@ -1021,7 +1021,10 @@ import sys
 target = pathlib.Path(sys.argv[1])
 path = target / ".shiki" / "gha" / "cca-verdict.json"
 cca = json.loads(path.read_text())
-cca["checklist"] = []
+# Clear the prior blocking failure with a passing item (NOT []): this verdict is
+# reused by the later expected-ready mergegate calls, and an empty checklist is a
+# schema violation (minItems) that would block them.
+cca["checklist"] = [{"id": "CCA-01", "status": "pass", "blocking": True}]
 cca["task_id"] = "T-9999"
 path.write_text(json.dumps(cca, indent=2, sort_keys=True) + "\n")
 PY
@@ -1407,7 +1410,7 @@ Policy inputs are fixture-controlled.
         "pr": 123,
         "head_sha": "abc123",
         "can_merge": True,
-        "checklist": [],
+        "checklist": [{"id": "CCA-01", "status": "pass", "blocking": True}],
         "acceptance": [{"criterion": "fixture", "status": "pass", "evidence": ["fixture"]}],
         "mergegate": {},
         "confidence": 1,

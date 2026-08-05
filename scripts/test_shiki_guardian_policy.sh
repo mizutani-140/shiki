@@ -463,7 +463,7 @@ cat >"$MG/.shiki/gha/cca-verdict.json" <<'JSON'
   "pr": 99,
   "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "can_merge": true,
-  "checklist": [],
+  "checklist": [{"id":"CCA-01","status":"pass","blocking":true}],
   "acceptance": [{"criterion":"fixture","status":"pass","evidence":["fixture"]}],
   "mergegate": {},
   "confidence": 1
@@ -691,7 +691,8 @@ with tempfile.TemporaryDirectory() as tmp:
     cca.write_text(
         json.dumps({
             "verdict": "complete", "summary": "fixture", "goal_id": GOAL, "task_id": TASK,
-            "pr": IMPL_PR, "head_sha": HEAD, "can_merge": True, "checklist": [],
+            "pr": IMPL_PR, "head_sha": HEAD, "can_merge": True,
+            "checklist": [{"id": "CCA-01", "status": "pass", "blocking": True}],
             "acceptance": [{"criterion": "fixture", "status": "pass", "evidence": ["fixture"]}],
             "mergegate": {}, "confidence": 1,
         }),
