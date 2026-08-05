@@ -109,6 +109,38 @@ grep "live-pr.json" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep "live-changed-files-status.txt" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep -- "--base-shiki .shiki/gha/base-shiki/.shiki" .github/workflows/shiki-cca-completion.yml >/dev/null
 grep -- "--expected-head-sha" .github/workflows/shiki-cca-completion.yml >/dev/null
+
+# T-20260801T041653274543Z-6df3af7e: an unusable CCA generation (absent,
+# unparseable or a schema-valid-but-empty degenerate verdict) is regenerated
+# exactly ONCE before enforcement; a real answer of ANY verdict value is usable
+# and is never regenerated (retrying it until it changes would be judge-shopping,
+# PR #233). The classification step must sit BETWEEN Run CCA and Enforce CCA
+# verdict, the retry is bounded to a single extra generation, and it fires only
+# for the unusable classes.
+cca_wf=.github/workflows/shiki-cca-completion.yml
+grep -F "name: Classify CCA output" "$cca_wf" >/dev/null
+grep -F "python3 scripts/cca_verdict_usable.py" "$cca_wf" >/dev/null
+# Classify BEFORE enforce: the classifier invocation is after "Run CCA" and
+# before "Enforce CCA verdict".
+run_cca_line="$(grep -n '^      - name: Run CCA$' "$cca_wf" | head -1 | cut -d: -f1)"
+classify_line="$(grep -n 'python3 scripts/cca_verdict_usable.py' "$cca_wf" | head -1 | cut -d: -f1)"
+enforce_line="$(grep -n '^      - name: Enforce CCA verdict$' "$cca_wf" | head -1 | cut -d: -f1)"
+[ -n "$run_cca_line" ] && [ -n "$classify_line" ] && [ -n "$enforce_line" ]
+[ "$run_cca_line" -lt "$classify_line" ]
+[ "$classify_line" -lt "$enforce_line" ]
+# Single-retry bound: exactly one first generation plus exactly one retry of the
+# CCA action -- never a third generation.
+[ "$(grep -c 'uses: anthropics/claude-code-action@v1' "$cca_wf")" = "2" ]
+# Retry limited to the unusable classes: the retry step fires only when the first
+# generation is NOT usable (absent/unparseable/degenerate). Exactly one CCA
+# generation carries this guard; the other (the first) is unconditional.
+grep -F "if: steps.classify.outputs.classification != 'usable'" "$cca_wf" >/dev/null
+[ "$(grep -cF "if: steps.classify.outputs.classification != 'usable'" "$cca_wf")" = "1" ]
+# Enforcement consumes the retry output only when the first was unusable, else the
+# first output -- so a usable first answer is enforced as-is with no second run.
+# shellcheck disable=SC2016
+grep -F "steps.classify.outputs.classification == 'usable' && steps.cca.outputs.structured_output || steps.cca_retry.outputs.structured_output" "$cca_wf" >/dev/null
+
 grep "author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup" .github/workflows/shiki-mergegate.yml >/dev/null
 grep "rm -rf .shiki/gha" .github/workflows/shiki-mergegate.yml >/dev/null
 grep "changed-files-status.txt" .github/workflows/shiki-mergegate.yml >/dev/null
