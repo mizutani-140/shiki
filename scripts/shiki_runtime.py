@@ -29,7 +29,7 @@ from shiki_runtime_adapters import (
     get_runner_adapter,
 )
 from shiki_runtime_registry import RuntimeRegistryError, get_runtime, runtime_registry_as_json
-from shiki_tasks import append_ledger, load_task, orchestrate_plan, require_github_first_target, require_grilled_plan, next_control_id, task_files, worktree_record
+from shiki_tasks import append_ledger, evaluate_lock_grant, load_task, orchestrate_plan, require_github_first_target, require_grilled_plan, next_control_id, task_files, worktree_record
 
 
 # --------------------------------------------------------------------------- #
@@ -241,6 +241,11 @@ def dispatchable_task_ids(target: Path) -> list[str]:
             continue
         if worktree_record(target, task["id"]) is None:
             continue
+        # Same lock-grant precondition dispatch enforces: a task the dispatcher
+        # would refuse must not be advertised as dispatchable, so the advertised set
+        # and the dispatchable set cannot drift (both consult evaluate_lock_grant).
+        if not evaluate_lock_grant(target, task["id"])[0]:
+            continue
         if task.get("dependencies"):
             dependencies = [load_task(target, dep) for dep in task.get("dependencies", [])]
             if any(dep.get("status") != "done" for dep in dependencies):
@@ -296,7 +301,13 @@ def cmd_runner_execute(args: argparse.Namespace) -> int:
     )
     task = load_task(target, args.task_id)
     task.setdefault("ledger_evidence", []).append(ledger_id)
-    task["status"] = "ready" if process.returncode == 0 else "repair-needed"
+    # A successful run advertises the task as `ready` for the next dispatch only
+    # when its lock grant still holds — agreeing with dispatchable_task_ids and
+    # dispatch so a task the dispatcher would refuse is never advertised ready.
+    if process.returncode == 0:
+        task["status"] = "ready" if evaluate_lock_grant(target, args.task_id)[0] else "blocked"
+    else:
+        task["status"] = "repair-needed"
     write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
     print_json({"task_id": args.task_id, "returncode": process.returncode, "runner_record": str(record_file), "ledger_id": ledger_id})
     return process.returncode
@@ -524,6 +535,16 @@ def dispatch_runner_task(args: argparse.Namespace, adapter: RunnerAdapter) -> in
         allowed_statuses.add("repair-needed")
     if task.get("status") not in allowed_statuses:
         raise ShikiError(f"task {args.task_id} is not ready for {adapter.display_name} execution")
+
+    # A granted lock is a precondition of dispatch: the task's declared locks must
+    # already be granted to IT (evaluate_lock_grant is side-effect-free — dispatch
+    # REFUSES an ungranted task, it never acquires the lock). Without this a task
+    # whose acquire conflicted (or was never run) is dispatched, implemented and
+    # merged with no grant, surfacing only as an unexplained Guardian demand at
+    # closeout three steps downstream (the 2026-08-04 defect).
+    locks_granted, lock_blocker = evaluate_lock_grant(target, args.task_id)
+    if not locks_granted:
+        raise ShikiError(lock_blocker)
 
     require_tool(adapter.required_tool)
     auth = adapter.auth_status()

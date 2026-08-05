@@ -199,7 +199,10 @@ class RefreshLockGrantTests(_TargetCase):
 
 
 class EvaluateLockGrantTests(_TargetCase):
-    """Defect (b) as the dispatch gate sees it (evaluate_lock_grant)."""
+    """evaluate_lock_grant is now the PURE dispatch precondition: it reports whether
+    the grant already covers the contract and NEVER refreshes one. The widened-lock
+    amendment heal moved to the readiness gate (cmd_dispatch_check); see
+    CmdWiringTests and tests/test_dispatch_lock_precondition.py."""
 
     def test_no_declared_locks_is_granted(self) -> None:
         tmp = self._target()
@@ -218,27 +221,33 @@ class EvaluateLockGrantTests(_TargetCase):
         # No divergence → no churn: the grant is not rewritten.
         self.assertNotIn("refreshed_at", lock_record(tmp, TASK))
 
-    def test_never_acquired_reports_bare_not_granted(self) -> None:
+    def test_never_acquired_names_task_and_declared_locks(self) -> None:
+        # The pure predicate refuses a task with no grant and — unlike the old bare
+        # 'locks are not granted' that scrolled past unnoticed — names the task and
+        # the declared locks so the refusal is legible at dispatch.
         tmp = self._target()
         self._write_task(tmp, _task(locks=[CONTRACT]))  # no grant record at all
         granted, blocker = evaluate_lock_grant(tmp, TASK)
         self.assertFalse(granted)
-        self.assertEqual(blocker, "locks are not granted")
+        self.assertIn(TASK, blocker)
+        self.assertIn(CONTRACT, blocker)
 
-    def test_amendment_without_conflict_auto_refreshes(self) -> None:
-        # Acceptance: amending a task's locks does not require a manual
-        # re-acquisition before dispatch — the gate refreshes the grant itself.
+    def test_partial_grant_refuses_without_side_effect(self) -> None:
+        # A grant that covers only some declared locks is REFUSED (naming the
+        # uncovered one) and the record is left untouched — the predicate never
+        # widens a grant as a side effect.
         tmp = self._target()
         self._write_task(tmp, _task(status="review", locks=[CONTRACT, WIDENED]))
         self._write_grant(tmp, TASK, [CONTRACT])
 
         granted, blocker = evaluate_lock_grant(tmp, TASK)
 
-        self.assertTrue(granted)
-        self.assertIsNone(blocker)
-        self.assertEqual(set(lock_record(tmp, TASK)["locks"]), {CONTRACT, WIDENED})
+        self.assertFalse(granted)
+        self.assertIn(WIDENED, blocker)  # the uncovered contract lock is named
+        self.assertEqual(lock_record(tmp, TASK)["locks"], [CONTRACT])
+        self.assertNotIn("refreshed_at", lock_record(tmp, TASK))
 
-    def test_divergence_with_conflict_names_both_sets_and_owner(self) -> None:
+    def test_partial_grant_with_conflict_names_uncovered_and_owner(self) -> None:
         tmp = self._target()
         self._write_task(tmp, _task(status="review", locks=[CONTRACT, WIDENED]))
         self._write_grant(tmp, TASK, [CONTRACT])
@@ -248,9 +257,7 @@ class EvaluateLockGrantTests(_TargetCase):
 
         self.assertFalse(granted)
         self.assertNotEqual(blocker, "locks are not granted")
-        self.assertIn("divergence", blocker)
-        self.assertIn(CONTRACT, blocker)  # the granted set is named
-        self.assertIn(WIDENED, blocker)  # the widened contract set is named
+        self.assertIn(WIDENED, blocker)  # the uncovered contract lock is named
         self.assertIn(OWNER, blocker)  # the colliding owner is named
 
 
@@ -276,6 +283,21 @@ class CmdWiringTests(_TargetCase):
         code, _ = self._run(cmd_lock_acquire, target=str(tmp), owner="shiki-cli", task_id=TASK)
         self.assertEqual(code, 0)
         self.assertEqual(load_task(tmp, TASK)["status"], "review")
+
+    def test_dispatch_check_auto_refreshes_amendment_without_conflict(self) -> None:
+        # The amendment heal moved from the predicate to the readiness gate: a
+        # widened-lock contract whose grant lags is refreshed by cmd_dispatch_check
+        # itself (no manual re-acquisition), and the record gains the widened lock.
+        tmp = self._target()
+        self._write_task(tmp, _task(status="review", locks=[CONTRACT, WIDENED]))
+        self._write_grant(tmp, TASK, [CONTRACT])
+
+        _, result = self._run(
+            cmd_dispatch_check, target=str(tmp), task_id=TASK, require_worktree=False
+        )
+
+        self.assertTrue(result["locks_granted"])
+        self.assertEqual(set(lock_record(tmp, TASK)["locks"]), {CONTRACT, WIDENED})
 
     def test_dispatch_check_reports_divergence_not_bare_string(self) -> None:
         tmp = self._target()
