@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/worktrees/T-20260805T034218808409Z-0f0d9640.json"
+  ],
+  "goal_id": "G-20260805T034218806676Z-4459a890",
+  "id": "L-20260805T040811970032Z-ee94a778",
+  "links": [],
+  "summary": "Worktree allocated for T-20260805T034218808409Z-0f0d9640",
+  "task_id": "T-20260805T034218808409Z-0f0d9640",
+  "timestamp": "2026-08-05T04:08:11+00:00",
+  "type": "handoff"
+}

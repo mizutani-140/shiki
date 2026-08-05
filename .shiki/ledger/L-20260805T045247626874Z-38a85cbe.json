@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/runner/EXEC-20260805T045247626058Z-6ced7a10.json"
+  ],
+  "goal_id": "G-20260805T034218806676Z-4459a890",
+  "id": "L-20260805T045247626874Z-38a85cbe",
+  "links": [],
+  "summary": "Loop-observed TDD gate (skill: tdd) exited 0 for T-20260805T034218808409Z-0f0d9640: python3 -m unittest discover -s tests && bash scripts/test_shiki_runner_claude.sh && bash scripts/test_shiki_daemon_runner.sh && bash scripts/test_shiki_loop_lock_guard.sh && bash scripts/test_shiki_goal_loop.sh && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
+  "task_id": "T-20260805T034218808409Z-0f0d9640",
+  "timestamp": "2026-08-05T04:52:47+00:00",
+  "type": "check"
+}
