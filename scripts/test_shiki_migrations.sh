@@ -95,7 +95,7 @@ python3 scripts/shiki.py migrate status --json --target "$VALID" >/tmp/shiki-mig
 python3 -m json.tool /tmp/shiki-migrate-valid.json >/dev/null
 test "$(json_get /tmp/shiki-migrate-valid.json valid)" = "True"
 test "$(json_get /tmp/shiki-migrate-valid.json pending_count)" = "0"
-test "$(json_get /tmp/shiki-migrate-valid.json applied_count)" = "5"
+test "$(json_get /tmp/shiki-migrate-valid.json applied_count)" = "6"
 
 # M-20260612-0001-spec-freeze backfills stored plans that predate Spec Freeze.
 SPEC_FREEZE_TARGET="$TMP_ROOT/spec-freeze"

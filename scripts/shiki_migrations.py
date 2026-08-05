@@ -23,6 +23,7 @@ GUARDIAN_POLICY_MIGRATION_ID = "M-20260604-0002-guardian-policy"
 STATE_CLASSES_MIGRATION_ID = "M-20260605-0002-state-classes"
 SPEC_FREEZE_MIGRATION_ID = "M-20260612-0001-spec-freeze"
 MEMORIES_MIGRATION_ID = "M-20260613-0001-memories"
+CHECKLIST_PROFILE_MIGRATION_ID = "M-20260801-0001-checklist-profile"
 MIGRATION_ID_RE = re.compile(r"^M-[0-9]{8}-[0-9]{4}-[a-z0-9][a-z0-9-]*$")
 MIGRATION_SOURCE_OF_TRUTH = "Repository-local Shiki migration state. GitHub operational state remains authoritative."
 
@@ -182,6 +183,107 @@ def _memories_apply(root: Path, dry_run: bool) -> dict[str, Any]:
     }
 
 
+def _checklist_profile_is_bare_family(entry: Any) -> bool:
+    """A bare family name has no id separator and no digits (e.g. ``PR``, ``V``).
+
+    An id-shaped profile entry carries a family prefix, a ``-`` and digits
+    (``CCA-08``, ``V-04``); it names a real, gate-matchable checklist item and
+    must be preserved. A bare family expresses nothing the CCA gate can match, so
+    it is the only value this migration collapses.
+    """
+    return isinstance(entry, str) and "-" not in entry and not any(char.isdigit() for char in entry)
+
+
+def _checklist_profile_insert(raw: str) -> str | None:
+    """Insert ``"cca_checklist_profile": []`` directly after ``assigned_runtime``.
+
+    Edits the raw text so a task file that is not canonically serialized keeps
+    its exact byte layout apart from the one inserted line. Returns ``None`` when
+    no ``assigned_runtime`` anchor line is present, leaving the file untouched.
+    """
+    lines = raw.split("\n")
+    for index, line in enumerate(lines):
+        if line.lstrip().startswith('"assigned_runtime"'):
+            indent = line[: len(line) - len(line.lstrip())]
+            trimmed = line.rstrip()
+            had_comma = trimmed.endswith(",")
+            if not had_comma:
+                lines[index] = trimmed + ","
+            new_line = f'{indent}"cca_checklist_profile": []' + ("," if had_comma else "")
+            lines.insert(index + 1, new_line)
+            return "\n".join(lines)
+    return None
+
+
+def _checklist_profile_collapse(raw: str) -> str | None:
+    """Collapse the existing ``cca_checklist_profile`` array to ``[]`` in place.
+
+    Only the array text between the key and its closing bracket is rewritten; the
+    surrounding bytes (indentation, the trailing comma, sibling keys) are left
+    exactly as they were. Entries are JSON strings without nested brackets, so a
+    non-greedy match to the first ``]`` is the array close. Returns ``None`` when
+    nothing changed.
+    """
+    rewritten, count = re.subn(
+        r'("cca_checklist_profile"\s*:\s*)\[.*?\]',
+        r"\1[]",
+        raw,
+        count=1,
+        flags=re.DOTALL,
+    )
+    if count == 0 or rewritten == raw:
+        return None
+    return rewritten
+
+
+def _checklist_profile_backfill_text(raw: str) -> str | None:
+    """Return the rewritten task JSON text, or ``None`` when no change is needed.
+
+    Parses to classify the current value, then edits the raw text in place so
+    files that are not canonically serialized keep their byte layout:
+
+    * key absent -> insert ``[]`` after ``assigned_runtime``;
+    * value is a non-empty list of bare family names -> collapse to ``[]``;
+    * id-shaped or already-empty value -> untouched.
+    """
+    data = json.loads(raw)
+    if not isinstance(data, dict):
+        return None
+    if "cca_checklist_profile" not in data:
+        return _checklist_profile_insert(raw)
+    value = data["cca_checklist_profile"]
+    if isinstance(value, list) and value and all(_checklist_profile_is_bare_family(item) for item in value):
+        return _checklist_profile_collapse(raw)
+    return None
+
+
+def _checklist_profile_apply(root: Path, dry_run: bool) -> dict[str, Any]:
+    tasks_dir = root / ".shiki" / "tasks"
+    changed: list[str] = []
+    if tasks_dir.exists():
+        for path in sorted(tasks_dir.glob("*.json")):
+            raw = path.read_text(encoding="utf-8")
+            try:
+                rewritten = _checklist_profile_backfill_text(raw)
+            except json.JSONDecodeError as error:
+                raise MigrationError(f"{CHECKLIST_PROFILE_MIGRATION_ID}: {path} is not valid JSON: {error}") from error
+            if rewritten is None or rewritten == raw:
+                continue
+            if not dry_run:
+                path.write_text(rewritten, encoding="utf-8")
+            changed.append(path.name)
+    return {
+        "summary": f"Backfilled cca_checklist_profile in {len(changed)} task file(s).",
+        "evidence": [
+            "Inserted cca_checklist_profile: [] directly after assigned_runtime where the key was absent.",
+            "Collapsed bare-family checklist profiles (no '-', no digits) to [].",
+            "Left id-shaped and already-empty profiles untouched and preserved existing byte layout.",
+            f"Task files changed: {', '.join(changed) or 'none'}.",
+        ],
+        "dry_run": dry_run,
+    }
+
+
 def migration_registry() -> tuple[Migration, ...]:
     return (
         Migration(
@@ -253,6 +355,19 @@ def migration_registry() -> tuple[Migration, ...]:
             ),
             destructive=False,
             apply=_memories_apply,
+        ),
+        Migration(
+            id=CHECKLIST_PROFILE_MIGRATION_ID,
+            title="Backfill cca_checklist_profile in stored tasks",
+            description="Insert cca_checklist_profile: [] into stored tasks that lack the key and collapse bare-family checklist profiles (e.g. ['PR','TDD','V','CCA']) to [] so the field can become a required, CCA-gate-matchable contract; id-shaped and already-empty values are left untouched and existing byte layout is preserved.",
+            introduced_in="T-20260801T041653423255Z-2798773b",
+            requires=(MEMORIES_MIGRATION_ID,),
+            affected_paths=(
+                ".shiki/tasks",
+                MIGRATION_STATE_PATH,
+            ),
+            destructive=False,
+            apply=_checklist_profile_apply,
         ),
     )
 

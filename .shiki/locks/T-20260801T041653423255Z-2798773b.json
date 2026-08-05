@@ -1,0 +1,13 @@
+{
+  "created_at": "2026-08-05T07:45:51+00:00",
+  "goal_id": "G-20260801T041653421243Z-2d98487f",
+  "locks": [
+    "path:scripts/shiki_migrations.py",
+    "path:tests/test_checklist_profile_migration.py",
+    "path:.shiki/migrations/state.json",
+    "path:scripts/test_shiki_migrations.sh"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260801T041653423255Z-2798773b"
+}

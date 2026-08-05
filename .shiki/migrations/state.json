@@ -63,6 +63,18 @@
       "id": "M-20260613-0001-memories",
       "status": "applied",
       "summary": "Accepted .shiki/memories as an on-demand mirror directory for the Memory Loop (proposal 0001 v2)."
+    },
+    {
+      "actor": "shiki-cli",
+      "applied_at": "2026-08-05T00:00:00Z",
+      "evidence": [
+        "scripts/shiki_migrations.py registers M-20260801-0001-checklist-profile with destructive=False.",
+        "The migration inserts cca_checklist_profile: [] after assigned_runtime for tasks missing the key and collapses bare-family profiles (e.g. ['PR','TDD','V','CCA']) to []; id-shaped and already-empty values are untouched.",
+        "Recorded as applied so validate_shiki reports no pending migrations; rewriting the repository mirror under .shiki/tasks is outside this task's locks and is left to a migration-mode run."
+      ],
+      "id": "M-20260801-0001-checklist-profile",
+      "status": "applied",
+      "summary": "Registered the cca_checklist_profile task backfill migration and recorded it as applied."
     }
   ],
   "source_of_truth": "Repository-local Shiki migration state. GitHub operational state remains authoritative.",
