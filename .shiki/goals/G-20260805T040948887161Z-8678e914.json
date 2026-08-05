@@ -1,0 +1,50 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A target whose .shiki/repo.json names a different owner passes both validate_codeowners_governance and doctor.codeowners.coverage.",
+    "A target with no resolvable owner falls back to the documented constant and behaves exactly as today.",
+    "This repository's own gate and doctor finding are unchanged.",
+    "The full suite, the doctor, start, init and control-plane suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-05T04:09:48+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "A resolver already exists and is wired to nothing. `scripts/shiki_contracts.py:33-54` defines `codeowners_required_owner()`, and its only callers are in `tests/test_install_force_semantics.py` (`:285,:291,:300`) \u2014 zero production consumers. It was added by an earlier task whose locks did not include the enforcement sites, so the function landed and the behaviour did not. That task recorded the gap rather than reaching outside its locks, which is why this contract exists.",
+      "Two enforcement sites still read the constant: `scripts/validate_shiki.py:1575,:1577` (inside `validate_codeowners_governance`, `:1554`) and `scripts/shiki_doctor.py:426,:454,:463,:464` (the `doctor.codeowners.coverage` finding).",
+      "Wiring the resolver ALONE would make things worse, not better. `.github/CODEOWNERS` ships verbatim with `@mizutani-140` on all 18 lines and sits in `PROJECT_CONTENT_FILES` (`scripts/shiki_installer.py:126-131`), so `--force` never rewrites it. A foreign target would then resolve its own owner, compare it against a shipped file naming someone else, and fail. Owner substitution at the target write is MUST-CHANGE, not optional.",
+      "`.github/CODEOWNERS` in THIS repository is explicitly EXCLUDED from the locks: `scripts/test_shiki_control_plane.sh:73-75` pins the literal `@mizutani-140` in this repo's own copy. Substitution must happen on the TARGET write only, never by editing the platform's file.",
+      "Two shell suites are MUST-CHANGE for a reason install-time substitution cannot fix. `scripts/test_shiki_doctor.sh` writes `.shiki/repo.json` naming `example/shiki-doctor` AFTER `install-target` (`:57`) and then asserts `doctor.codeowners.coverage == pass` (`:85`); `scripts/test_shiki_start.sh` writes `.shiki/repo.json` at `:130` in an installed target. `.shiki/repo.json` is explicitly excluded from the install copy (`shiki_installer.py:305-309`) and `install-target` has no `--repo` argument (`shiki_cli.py:97-102`), so at install time the owner is not yet knowable in those fixtures.",
+      "The acceptance criterion the earlier attempt lacked, and which this contract requires: a target whose `.shiki/repo.json` names a DIFFERENT owner, and whose installed CODEOWNERS names that owner, PASSES both `validate_codeowners_governance` and `doctor.codeowners.coverage`. Asserting the resolver's return value is not sufficient \u2014 that is exactly what the earlier attempt proved, and it proved nothing about the gate.",
+      "`CODEOWNERS_REQUIRED_OWNER` is kept as the documented fallback for a target with no resolvable owner, so behaviour in this repository is unchanged.",
+      "Risk is high: this changes what a required check enforces. A wrong resolution either lets an unowned target pass (weakening the governance CODEOWNERS provides) or fails this repository's own gate. The failure direction must be: unresolvable owner falls back to the constant, never to 'anything passes'."
+    ],
+    "source": "Measured 2026-08-03 while implementing the installer upgrade path; lock set computed by the repository-wide audit 2026-08-04.",
+    "status": "complete"
+  },
+  "id": "G-20260805T040948887161Z-8678e914",
+  "ledger_evidence": [
+    "L-20260805T040948888005Z-d9fb95e2"
+  ],
+  "non_goals": [
+    "Editing this repository's own .github/CODEOWNERS \u2014 scripts/test_shiki_control_plane.sh:73-75 pins its content; substitution happens on the target write only.",
+    "Removing CODEOWNERS_REQUIRED_OWNER \u2014 it stays as the documented fallback.",
+    "Adding a --repo argument to install-target, or changing which files the installer excludes.",
+    "Changing what CODEOWNERS governs, or which paths are critical.",
+    "Weakening the check so an unresolvable owner passes.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A Shiki target owned by someone other than this repository's maintainer can satisfy its own required `Validate Shiki mirror` check and its own `shiki doctor` CODEOWNERS finding. Today both enforce a hardcoded `@mizutani-140`, and the installer ships a CODEOWNERS naming that owner on every line \u2014 so every foreign target fails a required check it cannot fix without editing shipped content.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260805T040948811693Z-b168f414",
+  "status": "planned",
+  "title": "Let a repository owned by anyone else pass its own CODEOWNERS check"
+}
