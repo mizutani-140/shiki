@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260805T025939375698Z-94a2fa82.json"
+  ],
+  "goal_id": "G-20260805T025939374293Z-96ec6ced",
+  "id": "L-20260805T025939375754Z-1e608b14",
+  "links": [],
+  "summary": "Task registered from plan: Add a set-equality binder for every paired invariant that agrees today",
+  "task_id": "T-20260805T025939375698Z-94a2fa82",
+  "timestamp": "2026-08-05T02:59:39+00:00",
+  "type": "task-registered"
+}
