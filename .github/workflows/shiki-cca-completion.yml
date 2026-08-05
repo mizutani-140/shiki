@@ -328,9 +328,100 @@ jobs:
             --max-turns 60
             --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
 
-      - name: Enforce CCA verdict
+      - name: Classify CCA output
+        id: classify
+        shell: bash
         env:
           STRUCTURED_OUTPUT: ${{ steps.cca.outputs.structured_output }}
+        run: |
+          set -euo pipefail
+          # Classify the first CCA generation BEFORE enforcement
+          # (scripts/cca_verdict_usable.py): usable | absent | unparseable |
+          # degenerate. A usable output -- INCLUDING a well-formed
+          # repair_required / needs_guardian / blocked / insufficient_evidence --
+          # is a real answer and is enforced as-is; regenerating a real negative
+          # verdict until it changes would be judge-shopping. Only absent,
+          # unparseable or degenerate output is regenerated, exactly once, by the
+          # "Run CCA (retry)" step below. PR #233: a degenerate first generation
+          # could only be recovered by a full manual `gh run rerun` OUTSIDE the
+          # run, and `gh run rerun --failed` reused the stale artifact and
+          # reproduced the identical degenerate verdict -- the classifier gives
+          # the run a way to express the recovery that works.
+          result="$(python3 scripts/cca_verdict_usable.py)"
+          classification="$(printf '%s' "$result" | jq -r '.classification')"
+          reason="$(printf '%s' "$result" | jq -r '.reason')"
+          echo "classification=$classification" >> "$GITHUB_OUTPUT"
+          if [ "$classification" = "usable" ]; then
+            echo "CCA first generation classified usable (${reason}); enforcing it without retry."
+          else
+            echo "::warning::CCA first generation classified ${classification} (${reason}); regenerating the CCA verdict once (exactly one retry) before enforcement."
+          fi
+
+      - name: Run CCA (retry)
+        id: cca_retry
+        # Exactly one retry, and only when the first generation was NOT usable
+        # (absent, unparseable or degenerate). A usable first answer of any
+        # verdict value never reaches this step. This guard is free of any event
+        # gate, so the single retry is reachable from workflow_dispatch and
+        # pull_request alike. The prompt, schema and allowed tools are identical
+        # to "Run CCA" above -- same judge, one more generation.
+        if: steps.classify.outputs.classification != 'usable'
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ github.token }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPOSITORY: ${{ github.repository }}
+            PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+            HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+            Run the Shiki CCA Completion Check using:
+            - .github/prompts/cca-completion-check.md
+            - AGENTS.md
+            - CLAUDE.md
+            - CONTEXT.md
+            - docs/agents/checklists.md
+            - docs/agents/completion-check-agent.md
+            - docs/agents/runtime-auth-model.md
+            - .shiki/gha/pr.json
+            - .shiki/gha/changed-files.txt
+            - .shiki/gha/guardian-approval.json
+
+            For Guardian approval (CCA-08), do NOT interpret raw PR comments
+            yourself. Read .shiki/gha/guardian-approval.json (the deterministic
+            result of the authoritative evaluate_guardian_approval). If
+            "required" is false, CCA-08 is not applicable. If "required" is true
+            and "approved" is true, CCA-08 is satisfied by the recorded authority
+            in "sources"/"ai_reviewers". Read each recorded source as an authority
+            the signal already established; do NOT re-derive it. An external AI
+            guardian review is a valid authority per ADR 0010; record it as such,
+            never as a human approver. A "guardian_comment_carried" source means
+            the signal proved (ADR 0018) that a prior-head Guardian comment
+            approval was carried across a pure base sync; read it as a recorded
+            Guardian authority and do NOT re-run the base-sync proof or re-judge
+            whether the carry applies. If "required" is true and "approved" is
+            false, return needs_guardian.
+
+            Judge completion only. Do not edit production code.
+            Do not require this CCA verdict check, the downstream MergeGate policy
+            check, or advisory Claude review to have completed before returning
+            the CCA verdict.
+            Return structured JSON matching .shiki/schemas/cca-verdict.schema.json.
+          claude_args: |
+            --append-system-prompt "You are Shiki CCA. Judge completion only. Do not edit production code. Non-complete verdicts must include precise next actions."
+            --json-schema '${{ steps.schema.outputs.json }}'
+            --max-turns 60
+            --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
+
+      - name: Enforce CCA verdict
+        env:
+          # Enforce the retry's output when the first generation was unusable,
+          # else the first output. When the first was usable no retry ran and its
+          # output is enforced unchanged. A still-unusable retry reaches this step
+          # and fails the job through enforce_cca_verdict's own parse/degeneracy
+          # checks, with the first classification's reason already recorded in the
+          # log by "Classify CCA output" above.
+          STRUCTURED_OUTPUT: ${{ steps.classify.outputs.classification == 'usable' && steps.cca.outputs.structured_output || steps.cca_retry.outputs.structured_output }}
           SHIKI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 scripts/enforce_cca_verdict.py
 
