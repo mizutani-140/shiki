@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260805T034218808409Z-0f0d9640.json"
+  ],
+  "goal_id": "G-20260805T034218806676Z-4459a890",
+  "id": "L-20260805T034218808485Z-20b63652",
+  "links": [],
+  "summary": "Task registered from plan: Make a granted lock a precondition of dispatch",
+  "task_id": "T-20260805T034218808409Z-0f0d9640",
+  "timestamp": "2026-08-05T03:42:18+00:00",
+  "type": "task-registered"
+}
