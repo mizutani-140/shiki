@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260805T025939374293Z-96ec6ced.json",
+    ".shiki/plans/P-20260805T025939296778Z-45b224d9.json"
+  ],
+  "goal_id": "G-20260805T025939374293Z-96ec6ced",
+  "id": "L-20260805T025939375132Z-e895c6b7",
+  "links": [],
+  "summary": "Goal registered from plan: Bind every paired invariant that agrees today, before it can silently drift",
+  "task_id": null,
+  "timestamp": "2026-08-05T02:59:39+00:00",
+  "type": "goal-created"
+}

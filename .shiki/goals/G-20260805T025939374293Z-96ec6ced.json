@@ -1,0 +1,49 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "Each of the fourteen pairs has an assertion that fails when the sites diverge.",
+    "Every assertion names both sites and the fix in its failure message.",
+    "Every assertion runs green inside a freshly installed target, not only on the platform.",
+    "The full suite, the init suite and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-05T02:59:39+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "The pattern was measured, not assumed. `scripts/validate_shiki.py:1892` holds `.shiki/schemas/ledger.schema.json`'s type enum SET-EQUAL to `LEDGER_TYPES`; when a task tried to add a ledger type with only the schema in its locks, that binder failed instantly and named the fix \u2014 a cheap, loud failure. By contrast the CCA workflow's inline transport schema had NO binder against `.shiki/schemas/cca-verdict.schema.json`, and six distinct shape violations reached production over two days, each costing one to three CCA re-runs per PR. Same shape, opposite cost, and the difference is entirely whether a binder exists.",
+      "Fourteen pairs are in scope; all AGREE today, so the module is green on landing and no other file changes. Ten further pairs are already DIVERGED and are explicitly out of scope \u2014 repairing a divergence is the owning task's job, and folding repairs in here would make a test-only task carry behaviour changes.",
+      "Assertions must be SET-EQUALITY, never needle or containment, except where the audit found containment is the correct relation (the prose sites in pair 5, and the subset relation in pair 11).",
+      "Every assertion must be TARGET-VALID: it may read only artifacts that ship (`scripts/shiki_installer.py` `TEMPLATE_PATHS`) and must tolerate an empty `.shiki` mirror. `scripts/test_shiki_init.sh:383` runs the installed target's `python3 -m unittest discover -s tests`, so a platform-only assertion would need a `TARGET_INSTALL_EXCLUDES` entry (`shiki_installer.py:161`) \u2014 which is outside these locks and would make the task unsatisfiable.",
+      "LOCK-SUFFICIENCY CHECK (2026-08-04). MUST-CHANGE: `tests/test_paired_invariants.py` only. Verified: `tests/test_install_completeness.py`'s `classify()` (`:130-138`) returns None for `tests/\u2026`, so a new test file needs no `TEMPLATE_PATHS` entry; `tests` ships as a whole directory (`shiki_installer.py:41`); nothing in `scripts/validate_shiki.py` enumerates `tests/` (`:1628` pins only the `scripts/test_shiki_*.sh` sweep); `scripts/test_shiki_module_boundaries.sh` is positive-membership over `scripts/`. ONE file, and zero lock conflicts against every other backlog item.",
+      "`scripts/validate_shiki.py` is deliberately NOT locked. Binders that must run inside validate_shiki (the mirror-record loops) belong to their own repair tasks, and locking it here would collide with four other backlog items.",
+      "No new `scripts/*.py` module may be added: that would require a `TEMPLATE_PATHS` entry (`tests/test_install_completeness.py:183`) and pull `shiki_installer.py` into the locks.",
+      "Risk is medium and honest: this adds one test file. It changes no behaviour, no gate, no schema and no workflow. Under `.shiki/guardian-policy.json` (`applies_to_risk: [high, critical]`) neither the Contract PR nor the implementation PR triggers the Guardian gate."
+    ],
+    "source": "Enumerated by a repository-wide paired-invariant audit on 2026-08-04, adversarially checked for completeness, and each listed assertion evaluated clean against the tree.",
+    "status": "complete"
+  },
+  "id": "G-20260805T025939374293Z-96ec6ced",
+  "ledger_evidence": [
+    "L-20260805T025939375132Z-e895c6b7"
+  ],
+  "non_goals": [
+    "Repairing any pair that is already diverged \u2014 ten were measured; each belongs to its owning task.",
+    "Editing scripts/validate_shiki.py, or adding any binder that must run inside it.",
+    "Adding any new scripts/*.py module.",
+    "Changing any behaviour, gate, schema or workflow.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "Fourteen places where two or more artifacts must agree gain a set-equality assertion, so divergence fails immediately and loudly instead of silently. This is the single highest-recurrence defect class measured in this repository: where a pair is bound, failure is instant and cheap; where nothing binds it, failure is silent and expensive. Every pair listed agrees on the tree today, so the module lands green and changes no other file.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "source_plan": "P-20260805T025939296778Z-45b224d9",
+  "status": "planned",
+  "title": "Bind every paired invariant that agrees today, before it can silently drift"
+}
