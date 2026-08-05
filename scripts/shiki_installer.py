@@ -12,6 +12,7 @@ import subprocess
 from typing import Any
 
 from shiki_config import load_shiki_config
+from shiki_contracts import CODEOWNERS_PATH, CODEOWNERS_REQUIRED_OWNER, codeowners_required_owner
 from shiki_manifest import load_manifest, manifest_create_directories, manifest_directories, manifest_exclude_from_commit, manifest_install_include
 from shiki_migrations import migration_status
 from shiki_process import ROOT, ShikiError, info, warn, validate_target_shiki, load_default_config, utc_now
@@ -241,13 +242,28 @@ def install_template(target: Path, *, force: bool, validate: bool) -> list[NewFi
     # upgraded cleanly (see refuse_pending_migrations).
     refuse_pending_migrations(target)
 
+    # Resolve the target's required CODEOWNERS owner once from its
+    # ``.shiki/repo.json`` (present when a target already knows its GitHub
+    # identity). The shipped ``.github/CODEOWNERS`` names this maintainer on every
+    # line, so a foreign target's copy is rewritten to name its own owner; when no
+    # owner can be resolved this is the documented fallback and the file is copied
+    # verbatim. See ``codeowners_required_owner``.
+    codeowners_owner = codeowners_required_owner(target)
+
     notes: list[NewFileNote] = []
     for relative in TEMPLATE_PATHS:
         source = ROOT / relative
         if not source.exists():
             warn(f"template path missing, skipped: {relative}")
             continue
-        copy_path(source, target / relative, force=force, target_install=True, notes=notes)
+        copy_path(
+            source,
+            target / relative,
+            force=force,
+            target_install=True,
+            notes=notes,
+            codeowners_owner=codeowners_owner,
+        )
 
     manifest = load_manifest(ROOT)
     directories = manifest_directories(manifest)
@@ -347,12 +363,20 @@ def copy_path(
     force: bool,
     target_install: bool = False,
     notes: list[NewFileNote] | None = None,
+    codeowners_owner: str | None = None,
 ) -> None:
     if should_skip(source, target_install=target_install):
         return
     if source.is_dir():
         for child in source.iterdir():
-            copy_path(child, target / child.name, force=force, target_install=target_install, notes=notes)
+            copy_path(
+                child,
+                target / child.name,
+                force=force,
+                target_install=target_install,
+                notes=notes,
+                codeowners_owner=codeowners_owner,
+            )
         return
 
     if target.exists():
@@ -375,7 +399,20 @@ def copy_path(
             return
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source, target)
+    if (
+        target_install
+        and codeowners_owner
+        and codeowners_owner != CODEOWNERS_REQUIRED_OWNER
+        and template_relative(source) == CODEOWNERS_PATH
+    ):
+        # Substitute the target's own owner for the shipped maintainer so the
+        # target's CODEOWNERS check resolves against its own owner. Only the
+        # owner token changes; when it equals the fallback the file is copied
+        # verbatim above, preserving byte-for-byte behaviour for this repo.
+        text = source.read_text(encoding="utf-8").replace(CODEOWNERS_REQUIRED_OWNER, codeowners_owner)
+        target.write_text(text, encoding="utf-8")
+    else:
+        shutil.copy2(source, target)
     info(f"installed {target}")
 
 

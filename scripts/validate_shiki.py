@@ -24,6 +24,7 @@ from shiki_contracts import (
     RUNTIME_NAMES,
     TARGET_STATE_DIRECTORIES,
     canonical_source_of_truth_markdown,
+    codeowners_required_owner,
 )
 from shiki_evidence import (
     CCA_EVIDENCE_ARTIFACT_NAME,
@@ -1577,8 +1578,14 @@ def validate_issue_forms() -> None:
                 raise ValidationError(f"{path}: label {label!r} is not declared in docs/agents/triage-labels.md")
 
 
-def validate_codeowners_governance() -> None:
-    path = ROOT / CODEOWNERS_PATH
+def validate_codeowners_governance(root: Path = ROOT) -> None:
+    # The required owner is resolved per target from ``.shiki/repo.json`` so a
+    # repository owned by anyone other than this maintainer can satisfy its own
+    # CODEOWNERS check; ``CODEOWNERS_REQUIRED_OWNER`` remains the fallback when no
+    # owner can be resolved (as in this platform repository), never "anything
+    # passes".
+    required_owner = codeowners_required_owner(root)
+    path = root / CODEOWNERS_PATH
     if not path.exists():
         raise ValidationError(f"{path}: CODEOWNERS file is required for critical Shiki governance paths")
 
@@ -1598,9 +1605,9 @@ def validate_codeowners_governance() -> None:
         owners = coverage.get(critical_path)
         if not owners:
             raise ValidationError(f"{path}: missing CODEOWNERS rule for {critical_path}")
-        if CODEOWNERS_REQUIRED_OWNER not in owners:
+        if required_owner not in owners:
             raise ValidationError(
-                f"{path}: {critical_path} must be owned by {CODEOWNERS_REQUIRED_OWNER}"
+                f"{path}: {critical_path} must be owned by {required_owner}"
             )
 
 

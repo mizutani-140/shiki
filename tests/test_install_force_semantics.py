@@ -32,6 +32,7 @@ import shiki_test_support  # noqa: F401  (path bootstrap)
 
 import shiki_contracts
 import shiki_installer
+import validate_shiki
 from shiki_migrations import MEMORIES_MIGRATION_ID, migration_status
 from shiki_process import ShikiError
 
@@ -300,6 +301,21 @@ class CodeownersResolverTests(unittest.TestCase):
             shiki_contracts.codeowners_required_owner(target), "@mizutani-140"
         )
         self.assertEqual(shiki_contracts.CODEOWNERS_REQUIRED_OWNER, "@mizutani-140")
+
+    def test_installed_foreign_owner_target_passes_wired_gate(self) -> None:
+        # Asserting the resolver's return value is not enough: a foreign target
+        # whose repo.json is present at install time gets a CODEOWNERS naming its
+        # own owner, and that installed file passes the wired validate_shiki gate.
+        target = self._target_with_repo("acme-org/widgets")
+        with _captured_output():
+            shiki_installer.install_template(target, force=False, validate=False)
+
+        codeowners = (target / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
+        self.assertIn("@acme-org", codeowners)
+        self.assertNotIn(shiki_contracts.CODEOWNERS_REQUIRED_OWNER, codeowners)
+
+        # No exception == the wired gate accepts the foreign target's own owner.
+        validate_shiki.validate_codeowners_governance(target)
 
 
 if __name__ == "__main__":

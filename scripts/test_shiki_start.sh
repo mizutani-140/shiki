@@ -23,6 +23,31 @@ python3 scripts/shiki.py --help | grep "start" >/dev/null
 
 mkdir -p "$TARGET" "$FAKE_BIN"
 
+# Record a target's GitHub identity BEFORE its first start. The installer wires
+# the per-target CODEOWNERS owner from .shiki/repo.json, so a target that already
+# knows it is example/shiki-start-test installs a CODEOWNERS naming @example; the
+# start flow's own write_target_repo_config later overwrites this seed with the
+# full config. Without it, start's install (which runs before repo.json is
+# written, and keeps the existing CODEOWNERS on a re-run) would ship the
+# maintainer's owner, and the target's own validate_shiki — run at the end of
+# install and again at line ~151 — would then fail its CODEOWNERS check for a
+# foreign owner.
+seed_repo_json() {
+  mkdir -p "$1/.shiki"
+  cat >"$1/.shiki/repo.json" <<'JSON'
+{
+  "source_of_truth": "github",
+  "default_branch": "main",
+  "mirror": ".shiki",
+  "provider": "github",
+  "repo": "example/shiki-start-test",
+  "host": "github.com",
+  "remote_protocol": "https"
+}
+JSON
+}
+seed_repo_json "$TARGET"
+
 cat >"$FAKE_BIN/gh" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -236,6 +261,7 @@ export SHIKI_FAKE_GH_PROTECT_COUNT="$TMP_ROOT/protect-count"
 # protection and workflow-permissions calls (today both are zero).
 RETRY_PROTECT="$TMP_ROOT/retry-protect"
 mkdir -p "$RETRY_PROTECT"
+seed_repo_json "$RETRY_PROTECT"
 : >"$SHIKI_FAKE_GH_PROTECT_COUNT"
 export SHIKI_FAKE_GH_PROTECT_FAILS=1
 export CLAUDE_CODE_OAUTH_TOKEN="fake-test-token"
@@ -254,6 +280,7 @@ grep "actions/permissions/workflow -X PUT" "$SHIKI_FAKE_GH_LOG" >/dev/null
 # the token present must attempt the secret set.
 RETRY_SECRET="$TMP_ROOT/retry-secret"
 mkdir -p "$RETRY_SECRET"
+seed_repo_json "$RETRY_SECRET"
 : >"$SHIKI_FAKE_GH_PROTECT_COUNT"
 export SHIKI_FAKE_GH_PROTECT_FAILS=0
 unset CLAUDE_CODE_OAUTH_TOKEN
@@ -276,6 +303,7 @@ grep "secret set CLAUDE_CODE_OAUTH_TOKEN --repo example/shiki-start-test" "$SHIK
 # still re-attempts the failing step rather than skipping it.
 RETRY_UNFIXED="$TMP_ROOT/retry-unfixed"
 mkdir -p "$RETRY_UNFIXED"
+seed_repo_json "$RETRY_UNFIXED"
 : >"$SHIKI_FAKE_GH_PROTECT_COUNT"
 export SHIKI_FAKE_GH_PROTECT_FAILS=99
 export CLAUDE_CODE_OAUTH_TOKEN="fake-test-token"
