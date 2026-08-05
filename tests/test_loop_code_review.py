@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -42,6 +43,12 @@ GOAL = "G-20260617T031753970001Z-1de3b322"
 
 def _git(cwd, *args):
     subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True, text=True)
+
+
+def _rev(cwd, ref: str) -> str:
+    return subprocess.run(
+        ["git", "rev-parse", ref], cwd=str(cwd), check=True, capture_output=True, text=True
+    ).stdout.strip()
 
 
 def _write(path: Path, obj):
@@ -236,6 +243,80 @@ def _install_stub_reviewer(bindir: Path, verdict_json: str | None, *, returncode
     fake.chmod(0o755)
 
 
+def _install_capturing_reviewer(bindir: Path, capture_path: Path, verdict_json: str):
+    """A fake `claude` that saves the review prompt (diff and all) to a file.
+
+    Identical to ``_install_stub_reviewer`` for the verdict it emits, but the
+    review invocation tees stdin — the full prompt, whose tail is the git diff the
+    loop handed the reviewer — to ``capture_path`` so a test can assert exactly
+    what the reviewer was shown, then emits the configured clean/blocking verdict.
+    """
+    fake = bindir / "claude"
+    script = (
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        'case "${1:-}" in\n'
+        "  --version) echo '2.0.0 (Claude Code)'; exit 0 ;;\n"
+        "  auth) echo '{\"loggedIn\": true}'; exit 0 ;;\n"
+        "esac\n"
+        f"cat >{shlex.quote(str(capture_path))}\n"
+        f"cat <<'VERDICT'\n{verdict_json}\nVERDICT\n"
+    )
+    fake.write_text(script)
+    fake.chmod(0o755)
+
+
+def _diff_file_count(diff_text: str) -> int:
+    """Number of files a unified diff touches (one ``diff --git`` header each)."""
+    return diff_text.count("diff --git ")
+
+
+def _repo_with_local_default_behind_remote(tmp: Path, *, bulk_files: int = 60):
+    """A repo whose local default branch (and tracking ref) LAG the remote tip.
+
+    Models the drift the loop hit live: after other goals merge to ``origin/main``
+    a coordinator's local ``main`` and its ``origin/main`` tracking ref both sit
+    behind the remote until a fetch. A large already-merged history (``bulk/``)
+    lands on the remote, then the local branch and tracking ref are pinned back to
+    the stale tip. Returns ``(target, stale_tip, remote_tip)`` with the coordinator
+    parked on a feature branch.
+    """
+    remote = tmp / "remote.git"
+    subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+    target = tmp / "repo"
+    target.mkdir()
+    _git(target, "init", "-b", "main")
+    _git(target, "config", "user.email", "t@t")
+    _git(target, "config", "user.name", "t")
+    (target / "README.md").write_text("base\n")
+    _git(target, "add", "-A")
+    _git(target, "commit", "-m", "init on main")
+    _git(target, "remote", "add", "origin", str(remote))
+    _git(target, "push", "-u", "origin", "main")
+    # Pin origin/HEAD -> origin/main (as a real clone would) so the shared default
+    # branch resolver names `main` without consulting the operator's config.
+    _git(target, "remote", "set-head", "origin", "main")
+    stale_tip = _rev(target, "main")
+
+    # A large history merges to the remote. Committing locally then pushing
+    # advances both local main and origin; they are pinned back below.
+    bulk = target / "bulk"
+    bulk.mkdir()
+    for i in range(bulk_files):
+        (bulk / f"f{i:03d}.txt").write_text("merged history line\n" * 40)
+    _git(target, "add", "-A")
+    _git(target, "commit", "-m", "bulk merged history")
+    _git(target, "push", "origin", "main")
+    remote_tip = _rev(target, "main")
+
+    # Coordinator parks on a feature branch; local main and the tracking ref are
+    # both pinned back behind the remote tip (pre-fetch drift).
+    _git(target, "checkout", "-b", "feature")
+    _git(target, "branch", "-f", "main", stale_tip)
+    _git(target, "update-ref", "refs/remotes/origin/main", stale_tip)
+    return target, stale_tip, remote_tip
+
+
 def _with_path(bindir: Path):
     old = os.environ["PATH"]
     os.environ["PATH"] = f"{bindir}:{old}"
@@ -344,6 +425,78 @@ class ExecuteCreatePrGateTests(unittest.TestCase):
                 os.environ["PATH"] = old
             self.assertEqual(result["action"], "stop_blocked")
             self.assertNotIn("impl_commit", result)
+
+
+class ReviewerDiffBaseTests(unittest.TestCase):
+    """The reviewer's diff is cut from the origin-resolved default, not a stale
+    local ``main`` (T-20260805T023333275527Z-fff69d84).
+
+    A coordinator's local default branch silently lags ``origin`` after other
+    goals merge; diffing the task branch against that stale local ref hands the
+    reviewer the entire already-merged history instead of the task's own change.
+    Measured live 2026-08-03 (local ``main`` 151 commits behind): ``git diff
+    --cached main`` -> 2,904,002 bytes / 697 files, versus 47,899 bytes / 4 files
+    against ``origin/main``. The reviewer, given megabytes of unrelated files,
+    exits 1 and the loop stops with no PR to anchor a repair. This pins the fix:
+    the diff is resolved from origin, so it contains only the task's own change.
+    """
+
+    def test_reviewer_diff_is_only_the_task_change_when_local_default_lags(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            target, stale_tip, remote_tip = _repo_with_local_default_behind_remote(d, bulk_files=60)
+            ensure_control_dirs(target)
+            task_branch = "shiki/lag-regression"
+            wt = d / "wt"
+            # The task branch is cut from the true remote tip and carries only the
+            # task's own change — as ensure_physical_worktree cuts it from origin.
+            _git(target, "worktree", "add", "-b", task_branch, str(wt), remote_tip)
+            _git(wt, "config", "user.email", "t@t")
+            _git(wt, "config", "user.name", "t")
+            (wt / "feature.py").write_text("def f():\n    return 1\n")
+            _git(wt, "add", "-A")
+            _git(wt, "commit", "-m", "impl: the task's own change")
+            _write(target / ".shiki" / "worktrees" / f"{TASK}.json",
+                   {"path": str(wt), "branch": task_branch})
+            _write(target / ".shiki" / "tasks" / f"{TASK}.json",
+                   {"id": TASK, "goal_id": GOAL, "status": "review", "title": "t",
+                    "scope": "the task's own change", "expected_branch": task_branch,
+                    "ledger_evidence": []})
+
+            # Discriminating power: the buggy base (stale local `main`) WOULD drag
+            # the whole merged `bulk/` history into the diff. If any site is
+            # reverted to a bare local name the reviewer is handed THIS diff, so the
+            # file-count assertion below fails — the regression is proven, not
+            # merely passing today.
+            stale_diff = subprocess.run(
+                ["git", "diff", "--cached", "main"], cwd=str(wt),
+                capture_output=True, text=True,
+            ).stdout
+            self.assertGreater(_diff_file_count(stale_diff), 1)
+            self.assertIn("bulk/", stale_diff)
+
+            capture = d / "captured-prompt.txt"
+            bindir = d / "bin"; bindir.mkdir()
+            _install_capturing_reviewer(bindir, capture, json.dumps({"verdict": "clean", "findings": []}))
+            old = _with_path(bindir)
+            try:
+                result = shiki_loop._run_pre_pr_code_review(target, TASK)
+            finally:
+                os.environ["PATH"] = old
+
+            self.assertEqual(result["status"], "clean")
+            shown = capture.read_text(encoding="utf-8")
+            # The reviewer saw ONLY the task's own change: exactly one file, and
+            # none of the already-merged bulk history. Asserted by file count AND
+            # byte size (not content sampling) so a regression is loud.
+            self.assertEqual(_diff_file_count(shown), 1)
+            self.assertIn("feature.py", shown)
+            self.assertNotIn("bulk/", shown)
+            self.assertLess(len(shown), len(stale_diff) // 10)
+            # Only the tracking ref was refreshed by the resolver's fetch; the
+            # local default branch itself was left untouched.
+            self.assertEqual(_rev(target, "main"), stale_tip)
+            self.assertEqual(_rev(target, "origin/main"), remote_tip)
 
 
 if __name__ == "__main__":
