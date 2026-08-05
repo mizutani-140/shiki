@@ -29,7 +29,8 @@
   },
   "id": "G-20260805T034218806676Z-4459a890",
   "ledger_evidence": [
-    "L-20260805T034218807532Z-ed461e2a"
+    "L-20260805T034218807532Z-ed461e2a",
+    "L-20260805T045739756682Z-f832abba"
   ],
   "non_goals": [
     "A merge-side lock-grant requirement in mergegate_check.py \u2014 it would retroactively block twelve non-terminal tasks that have no lock record on the default branch.",
@@ -46,6 +47,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260805T034218729381Z-43271caf",
-  "status": "planned",
+  "status": "complete",
   "title": "Refuse to dispatch a task whose locks were never granted"
 }
