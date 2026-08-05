@@ -1,0 +1,54 @@
+{
+  "acceptance_checks": [
+    "A BEHIND branch with a repairable red check and base_sync_attempts under MAX_BASE_SYNCS decides sync_branch, not dispatch_repair.",
+    "A BEHIND branch whose CCA verdict is needs_guardian still decides stop_guardian; blocked still decides stop_blocked \u2014 proved by a test, and evaluated after _cca_verdict_stop.",
+    "No sync fires while MergeGate policy check is in failed, including when another check is also red \u2014 proved by a test that fails if the guard is relaxed to 'only policy red'.",
+    "BEHIND plus pending checks still decides wait_checks.",
+    "At and past MAX_BASE_SYNCS the decision reverts to dispatch_repair, and the repair limit's stop_guardian is still reachable \u2014 both asserted.",
+    "base_sync_attempts is a task-file field; .shiki/schemas/task.schema.json is unchanged.",
+    "scripts/test_shiki_goal_loop.sh proves end to end that a sync creates no RP-*.json and does not advance repair_attempts, using the before/after count already used at :408-417.",
+    "_sync_branch appends a durable ledger entry using an EXISTING ledger type; .shiki/schemas/ledger.schema.json and scripts/validate_shiki.py are unchanged.",
+    "A repair dispatched after a sync still pushes successfully \u2014 proved in tests/test_loop_branch_plumbing.py, with no destructive reset of the registered worktree.",
+    "scripts/shiki_runtime.py is unchanged.",
+    "_sync_branch resolves its base rather than hard-coding main, and never produces origin/origin/<name>.",
+    "The closeout decision table is unchanged and docs/adr/0012 remains truthful \u2014 asserted, not merely stated.",
+    "No \"verdict\": \"...\" literal is added to scripts/shiki_loop.py; tests/test_paired_invariants.py passes.",
+    "python3 -m unittest discover -s tests, test_shiki_goal_loop.sh, test_shiki_adversarial_state.sh, test_shiki_module_boundaries.sh and validate_shiki all pass.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260805t075725961882z-91c2ecac-sync-a-behind-branch-before-spending-repair-atte",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260805T075725959969Z-61d080fb",
+  "id": "T-20260805T075725961882Z-91c2ecac",
+  "ledger_evidence": [
+    "L-20260805T075725961950Z-e2d13cbb"
+  ],
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_branch_behind_sync.py",
+    "path:tests/test_loop_branch_plumbing.py",
+    "path:scripts/test_shiki_goal_loop.sh"
+  ],
+  "non_goals": [
+    "Reordering the decision function or changing _merge_or_sync's all-green behaviour",
+    "Changing the closeout PR decision table pinned by docs/adr/0012",
+    "Changing scripts/shiki_runtime.py or ensure_physical_worktree",
+    "Registering a new ledger type, or adding a field to .shiki/schemas/task.schema.json",
+    "Syncing while the MergeGate policy check is red, for any reason",
+    "Making the repair limit or its stop_guardian escalation unreachable",
+    "Introducing a \"verdict\": \"...\" literal into scripts/shiki_loop.py",
+    "Touching any file outside the declared locks"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "In `scripts/shiki_loop.py`'s `decide_task_action`, narrow the exclusion that today sends every red-check-plus-BEHIND state to `dispatch_repair`. The new `sync_branch` arm must satisfy ALL of these, and each is a separate assertion:\n\n  1. PLACEMENT. It is evaluated INSIDE the `if repairable_failed:` block (`:279-316`) but strictly AFTER `_cca_verdict_stop` (`:298-302`) has returned None. A CCA verdict of `needs_guardian` or `blocked` must still produce its terminal stop with a BEHIND branch \u2014 the measured incident's own verdict was `blocked`, and laundering it into a head-moving sync is the exact impersonation pathway ADR 0010 forbids.\n\n  2. GUARDIAN. It never fires while `POLICY_GATE` is in `failed`, for any reason \u2014 not merely when the policy gate is the ONLY red check. `repairable_failed` excludes POLICY_GATE (`:275`), so `{policy: fail, CCA: fail}` + BEHIND would otherwise sync and destroy a head-bound Guardian approval that had already been posted for the current head. The same rule also refuses to sync through a state where base movement defeated an ADR 0015 contract-approval carry (`shiki_contract_approval.py:193-198` compares base and head task governance fields directly), which would otherwise be silently restored by adopting base wholesale.\n\n  3. BOUND. Gate it on a durable task-file counter `base_sync_attempts` against a new `MAX_BASE_SYNCS`, following the existing `cca_rerun_count`/`MAX_CCA_RERUNS` (`:57`) pattern exactly. `.shiki/schemas/task.schema.json` is `additionalProperties: true` and does not declare `cca_rerun_count` either, so do NOT add the field to the schema \u2014 that file belongs to another task. Once the cap is reached, fall through to today's behaviour unchanged: `dispatch_repair`, then the repair limit, then `stop_guardian`. The escalation at `:304` must stay reachable.\n\n  4. NO ATTEMPT CONSUMED. A sync must not create a repair packet and must not advance `repair_attempts`.\n\n  5. EVIDENCE. `_sync_branch` (`:1429-1525`) appends no ledger today; a sync that now remediates a RED check is a remediation decision on the same footing as `dispatch_repair` and must leave a durable record. Use an EXISTING ledger type \u2014 registering a new one requires `.shiki/schemas/ledger.schema.json` and `validate_shiki.py:1892`'s set-equality binder to agree, and both are outside these locks.\n\n  6. WORKTREE RECONCILIATION. `_sync_branch` pushes from a throwaway detached checkout (`:1471`, `:1498`) and never updates the REGISTERED worktree's local branch ref; `ensure_physical_worktree` reuses an existing path without reconciling it. Today that is harmless because a sync is only followed by a merge. This change makes a sync be followed by a REPAIR, whose push (`:836`) is then a non-fast-forward failing with a misleading message. Fix it IN-FILE \u2014 `scripts/shiki_runtime.py` must not be modified \u2014 and do not use a destructive reset that could discard uncommitted work in the registered worktree.\n\n  7. BASE REF. `_sync_branch`'s `base: str = \"main\"` default (`:1429`) is hard-coded and the call site (`:1875`) passes nothing. This change promotes that path from rare to common, so resolve the base the way the rest of the module now does. Note the shape mismatch: `_default_base_ref` (`:772-795`) returns `origin/<name>` while `_sync_branch` builds `origin/{base}` \u2014 do not produce `origin/origin/main`.\n\n  8. CLOSEOUT UNCHANGED. The closeout arm shares `_merge_or_sync` (`:260`) but its failing-check arm returns `stop_blocked`. `docs/adr/0012` pins that decision table verbatim. Assert the closeout decision table is unchanged so the ADR stays truthful.\n\nTESTS. `tests/test_branch_behind_sync.py:124` `test_behind_but_failing_check_is_not_synced` currently pins the old rule with the comment 'a failing check repairs, never syncs'; invert it and state the new rule and its conditions. Add pure-decision cases for: BEHIND + `needs_guardian` verdict -> stop_guardian; BEHIND + `blocked` -> stop_blocked; BEHIND + policy red + another red check -> NOT sync; BEHIND + pending -> wait_checks (unchanged); the counter at and past `MAX_BASE_SYNCS`; and BEHIND + repairable red under the cap -> sync_branch.\n\n`scripts/test_shiki_goal_loop.sh` MUST gain the end-to-end proof that a sync consumes no repair attempt, modelled on the identical assertion it already makes for the Guardian gate at `:408-417` (`find .shiki/repairs -name 'RP-*.json' | wc -l` before and after, asserted equal). The pure-fixture module cannot observe repair packets, so this is the only surface that can prove it.\n\n`tests/test_loop_branch_plumbing.py` imports `_commit_and_push_implementation` directly (`:22-27`); extend it to prove a repair dispatched AFTER a sync can still push.\n\nDo not introduce a `\"verdict\": \"...\"` string literal into `scripts/shiki_loop.py`: `tests/test_paired_invariants.py:546-548` regex-scans this file's source and set-equality-binds those literals to the code-review verdict vocabulary.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a correct implementation is answered with three identical repair dispatches that change nothing, then `stop_guardian: required checks failed (MergeGate metadata check) and repair attempt limit reached`. The task is fine; the branch is merely stale.\n  Measured 2026-08-05 on PR #288 (task T-20260805T040948888613Z-d4e830c9): the sole failing reason was 'PR must not delete base ledger file .shiki/ledger/L-20260805T052931749888Z-3017e935.json; state_class=append-only-evidence'. That file reached main via PR #287 after the branch forked. Each of the three repair packets diagnosed it as a loop-owned base sync and declined to act; the CCA returned verdict=blocked citing the same cause and quoting all three packets. A single `git merge origin/main` plus a push turned every required check green and the PR merged unchanged.\n  Root cause: the only `sync_branch` emitter is reachable only when every required check is already green (`:101` docstring), while the red-check path returns `dispatch_repair` first (`:279-316`).\n  Why it was written that way: `tests/test_branch_behind_sync.py:124` deliberately pinned 'a failing check repairs, never syncs'. The case where being behind is the CAUSE of the red check was not considered.\n  Failure directions that matter, both measured against the source: syncing while the Guardian gate is red destroys a head-bound approval and can silently restore a defeated contract-approval carry; and an unbounded, unrecorded sync makes the repair limit dead code and trades a terminating stop for a livelock.\n  Reproducible when: the #288 sequence \u2014 BEHIND branch, red metadata check whose sole reason is a base file the branch never had \u2014 is answered by one recorded sync and zero repair packets, while a `needs_guardian` verdict and a red policy gate on a BEHIND branch still stop exactly as today.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && bash scripts/test_shiki_adversarial_state.sh && bash scripts/test_shiki_module_boundaries.sh && python3 scripts/validate_shiki.py --target .",
+  "title": "Sync a BEHIND branch before spending repair attempts that cannot fix it"
+}
