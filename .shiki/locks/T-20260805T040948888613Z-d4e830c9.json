@@ -12,6 +12,6 @@
     "path:scripts/test_shiki_start.sh"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260805T040948888613Z-d4e830c9"
 }
