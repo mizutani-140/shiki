@@ -25,7 +25,8 @@
   },
   "id": "G-20260801T041653272590Z-81f6f71d",
   "ledger_evidence": [
-    "L-20260801T041653273419Z-4a50b294"
+    "L-20260801T041653273419Z-4a50b294",
+    "L-20260805T020728763908Z-87745f5c"
   ],
   "non_goals": [
     "Retrying a well-formed verdict of any value, including repair_required, needs_guardian, blocked or insufficient_evidence.",
@@ -41,6 +42,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260801T041646760027Z-2a4c05db",
-  "status": "planned",
+  "status": "complete",
   "title": "Refuse a degenerate CCA verdict and stop losing a whole run to one bad generation"
 }

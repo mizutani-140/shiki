@@ -9,6 +9,6 @@
     "path:scripts/shiki_installer.py"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260801T041653274543Z-6df3af7e"
 }

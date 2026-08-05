@@ -17,8 +17,8 @@
   "dependencies": [
     "T-20260801T041653274008Z-54d3477c"
   ],
-  "expected_branch": "shiki/t-20260801t041653274543z-6df3af7e-regenerate-an-unusable-cca-verdict-once-inside-t",
-  "expected_pr": 276,
+  "expected_branch": "shiki/t-20260801t041653274543z-6df3af7e-closeout",
+  "expected_pr": 277,
   "github_issue": null,
   "goal_id": "G-20260801T041653272590Z-81f6f71d",
   "id": "T-20260801T041653274543Z-6df3af7e",
@@ -34,7 +34,9 @@
     "L-20260805T014956464788Z-f9e31ecb",
     "L-20260805T015932323157Z-e890daf5",
     "L-20260805T020103871219Z-8512b92c",
-    "L-20260805T020107800714Z-ec1ed23a"
+    "L-20260805T020107800714Z-ec1ed23a",
+    "L-20260805T020728763908Z-87745f5c",
+    "L-20260805T020732128969Z-f830aff7"
   ],
   "locks": [
     "path:.github/workflows/shiki-cca-completion.yml",
@@ -72,7 +74,7 @@
   ],
   "risk_level": "high",
   "scope": "Add `scripts/cca_verdict_usable.py` with a pure classifier `verdict_usability(structured_output)` returning `usable`, `absent`, `unparseable` or `degenerate`, plus the reason. `degenerate` means schema-valid in shape but judging nothing \u2014 an empty checklist or an empty acceptance list. Every other value, INCLUDING a well-formed `repair_required`, `needs_guardian`, `blocked` or `insufficient_evidence`, is `usable`.\n\nIn `.github/workflows/shiki-cca-completion.yml`, insert a classification step between `Run CCA` and `Enforce CCA verdict`. When the classification is `usable`, nothing changes. When it is `absent`, `unparseable` or `degenerate`, run the CCA step once more \u2014 the same prompt, the same schema, the same allowed tools \u2014 and use the second output. Exactly one retry: a second unusable output proceeds to `Enforce CCA verdict`, which fails the job with the reason from the first task, and the retry decision is echoed into the job log so an operator can see it happened.\n\nThe retry must be reachable from `workflow_dispatch` and from `pull_request` alike, and must not change the artifact names, the evidence manifest, or the Guardian blockers comment step.\n\nAdd `tests/test_cca_verdict_usable.py` covering the classifier: absent/empty string; unparseable JSON; a degenerate verdict (empty checklist, empty acceptance, and both); a well-formed `complete`; and \u2014 this is the case that matters most \u2014 a well-formed `repair_required`, `needs_guardian`, `blocked` and `insufficient_evidence` each classified `usable`, so no real answer is ever retried. Add control-plane assertions that the workflow classifies before enforcing, retries at most once, and retries only on the three unusable classes.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the same PR, judged three times in a row, fails three different ways. Each failure costs a full manual `gh run rerun` and the wall-clock of the whole workflow, and the operator has to know that `gh run rerun --failed` is the WRONG command here.\n  Measured on PR #233: a `--failed` re-run reused the previous job's artifact and reproduced the identical stale degenerate verdict; only a full `gh run rerun` regenerated it, after which all five checks passed. So the recovery that looks cheaper is the one that cannot work, and the loop has no way to express the one that does.\n  Root cause: the CCA step's output is consumed exactly once, with no classification between generation and enforcement, so an unusable generation is indistinguishable from a real negative verdict and the only recovery is outside the run.\n  Why retry only the unusable classes: retrying a well-formed `repair_required` or `needs_guardian` until it changes would be judge-shopping. The classifier exists precisely to make that impossible to do by accident \u2014 a real answer of any value is `usable` and is never regenerated.\n  Exact change that reproduces this result: classify the structured output, and regenerate at most once when it is absent, unparseable or degenerate.\n  Reproducible when: a run whose first generation is degenerate produces a usable verdict without operator action, and a run whose first generation is a well-formed negative verdict runs the CCA step exactly once.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Regenerate an unusable CCA verdict once inside the run"
 }
