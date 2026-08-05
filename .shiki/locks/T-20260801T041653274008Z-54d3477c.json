@@ -11,6 +11,6 @@
     "path:tests/test_cca_verdict_nondegenerate.py"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260801T041653274008Z-54d3477c"
 }
