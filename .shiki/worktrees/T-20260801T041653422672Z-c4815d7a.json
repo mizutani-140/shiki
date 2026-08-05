@@ -1,0 +1,16 @@
+{
+  "branch": "shiki/t-20260801t041653422672z-c4815d7a-enforce-a-migration-mode-whose-diff-must-equal-a",
+  "created_at": "2026-08-05T07:45:59+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260801T041653421243Z-2d98487f",
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:tests/test_migration_mode.py",
+    "path:scripts/test_shiki_adversarial_state.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260801t041653422672z-c4815d7a-enforce-",
+  "pr": 291,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260801T041653422672Z-c4815d7a"
+}
