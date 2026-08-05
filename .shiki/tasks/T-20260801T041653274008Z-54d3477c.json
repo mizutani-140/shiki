@@ -15,7 +15,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260801t041653274008z-54d3477c-make-a-verdict-that-judged-nothing-invalid-at-ev",
-  "expected_pr": null,
+  "expected_pr": 274,
   "github_issue": null,
   "goal_id": "G-20260801T041653272590Z-81f6f71d",
   "id": "T-20260801T041653274008Z-54d3477c",
@@ -23,7 +23,11 @@
     "L-20260801T041653274060Z-1f4418d2",
     "L-20260805T003028307524Z-393d3158",
     "L-20260805T003042328908Z-6bd837ea",
-    "L-20260805T003043047909Z-c5f09092"
+    "L-20260805T003043047909Z-c5f09092",
+    "L-20260805T005125163853Z-9004541f",
+    "L-20260805T010622716989Z-dea61fa9",
+    "L-20260805T010804514648Z-0ce97bc0",
+    "L-20260805T010808179072Z-cbf357df"
   ],
   "locks": [
     "path:.shiki/schemas/cca-verdict.schema.json",
@@ -41,13 +45,18 @@
     "Adding retry behaviour (that is the next task)",
     "Touching any file outside the declared locks"
   ],
+  "pre_pr_code_review": {
+    "findings": [],
+    "ledger_id": "L-20260805T010622716989Z-dea61fa9",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "high",
   "scope": "Add `\"minItems\": 1` to the `checklist` and `acceptance` properties of `.shiki/schemas/cca-verdict.schema.json`, and to the SAME two properties of the inline transport schema in `.github/workflows/shiki-cca-completion.yml` (the object written to `$RUNNER_TEMP/cca-transport.schema.json` and passed to `--json-schema`). Both layers matter and for different reasons: the transport schema constrains what the model is allowed to emit at generation time, and the repository schema is what every reader validates against afterwards.\n\nIn `scripts/enforce_cca_verdict.py`, add an explicit non-degeneracy check that runs BEFORE the schema validation and fails with its own precise message naming which array is empty. Schema validation would already reject it, but its message is a generic 'array is too short' that says nothing about what the judge failed to do; the explicit check is what an operator reads on a red X.\n\nUpdate exactly the three suites whose fixtures hardcode an empty checklist, giving each a minimal non-empty checklist that preserves the property the fixture was written to prove \u2014 never by deleting the case:\n  - `scripts/test_shiki_evidence_integrity.sh` lines 56 and 267\n  - `scripts/test_shiki_guardian_policy.sh` line 434\n  - `scripts/test_shiki_control_plane.sh` lines 280, 765 and 1325. Line 280 needs care: it asserts the message `repair_required verdict must include a non-null object`, so its fixture must become non-degenerate in order to still reach that assertion rather than failing earlier on the schema.\n\nAdd `tests/test_cca_verdict_nondegenerate.py` driving `enforce_cca_verdict` and the schema directly: an empty checklist is rejected and the message names `checklist`; an empty acceptance list is rejected and the message names `acceptance`; both empty is rejected; a single-entry checklist with a single-entry acceptance list is accepted; the exact degenerate payload shape observed on PR #233 is rejected; and every existing enforcement (blocking failures, short-circuited evaluations, head-SHA injection) still behaves as it does today on a non-degenerate verdict.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the CCA returns a verdict with zero checklist entries and zero acceptance entries \u2014 it judged nothing \u2014 and the verdict is schema-VALID. On PR #233 it was caught only by a downstream MergeGate rule ('CCA verdict acceptance evidence is empty'). A verdict that judged nothing should never have been representable.\n  Measured: `.shiki/schemas/cca-verdict.schema.json` declares checklist and acceptance as arrays with no `minItems`; the transport schema in the workflow likewise. Both `[]` values validate.\n  Measured blast radius of the fix, so the locks are exact rather than guessed: with minItems on both arrays, `python3 -m unittest discover -s tests` gives 691 tests OK, `validate_shiki` passes, `test_shiki_governance_evidence.sh` passes, and exactly three suites fail \u2014 evidence_integrity, guardian_policy and control_plane \u2014 each on a hardcoded empty-checklist fixture. Those three files are in the locks for that reason and nothing else is.\n  Exact change that reproduces this result: `minItems: 1` on checklist and acceptance in BOTH schemas, an explicit named check in enforce_cca_verdict, and non-degenerate fixtures in those three suites.\n  Reproducible when: the #233 payload is rejected with a message naming the empty array, and all four suites plus validate_shiki are green.\n\nSCOPE CORRECTION (amendment 2026-08-04). The fixture list above is INCOMPLETE: it also includes scripts/test_shiki_control_plane.sh:952, an in-place `cca[\"checklist\"] = []` assignment that is never restored and is invisible to a '\"checklist\": []' grep \u2014 it poisons every later mergegate_check.py call in the same $TARGET block. Seven sites, not six.\n\nADDITIONAL OBLIGATION (amendment 2026-08-04): make the workflow's inline --json-schema transport schema MIRROR .shiki/schemas/cca-verdict.schema.json for the checklist and acceptance item shapes \u2014 the same required field names and types, not merely minItems. Measured: the transport schema declares both items as {type: object, additionalProperties: true}, so nothing constrains the judge at generation time and six distinct shape violations reached production on 2026-08-03/04 (empty task_id; missing acceptance evidence; checklist evidence as an array where a string is required; empty acceptance; null reason where a string or absence is required; 21 checklist entries when docs/agents/checklists.md defines 12). Each cost one to three CCA re-runs per PR. Add a test asserting the two schemas agree on those item shapes, so they cannot drift again.",
-  "status": "running",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_evidence_integrity.sh && bash scripts/test_shiki_guardian_policy.sh && bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_governance_evidence.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Make a verdict that judged nothing invalid at every layer"
 }

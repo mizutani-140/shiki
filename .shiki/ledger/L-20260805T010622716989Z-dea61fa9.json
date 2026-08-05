@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "independent read-only reviewer (claude -p) \u2014 ADR 0011"
+  ],
+  "goal_id": "G-20260801T041653272590Z-81f6f71d",
+  "id": "L-20260805T010622716989Z-dea61fa9",
+  "links": [],
+  "summary": "Pre-PR code-review verdict CLEAN for T-20260801T041653274008Z-54d3477c (independent read-only reviewer, code-review skill)",
+  "task_id": "T-20260801T041653274008Z-54d3477c",
+  "timestamp": "2026-08-05T01:06:22+00:00",
+  "type": "check"
+}

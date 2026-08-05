@@ -1,0 +1,20 @@
+{
+  "branch": "shiki/t-20260801t041653274008z-54d3477c-make-a-verdict-that-judged-nothing-invalid-at-ev",
+  "created_at": "2026-08-05T00:30:42+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260801T041653272590Z-81f6f71d",
+  "locks": [
+    "path:.shiki/schemas/cca-verdict.schema.json",
+    "path:scripts/enforce_cca_verdict.py",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:scripts/test_shiki_evidence_integrity.sh",
+    "path:scripts/test_shiki_guardian_policy.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:tests/test_cca_verdict_nondegenerate.py"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260801t041653274008z-54d3477c-make-a-v",
+  "pr": 274,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260801T041653274008Z-54d3477c"
+}
