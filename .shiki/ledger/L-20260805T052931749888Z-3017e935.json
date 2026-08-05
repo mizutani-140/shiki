@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/plans/P-20260801T041646902921Z-4d58e06c.json",
+    ".shiki/tasks/T-20260801T041653422672Z-c4815d7a.json",
+    ".shiki/tasks/T-20260801T041653423255Z-2798773b.json",
+    ".shiki/tasks/T-20260801T041653423742Z-d5dc4a28.json",
+    ".shiki/tasks/T-20260801T041653424169Z-07860c35.json"
+  ],
+  "goal_id": "G-20260801T041653421243Z-2d98487f",
+  "id": "L-20260805T052931749888Z-3017e935",
+  "summary": "Contract amendment: mandate Path B for the migration mode, unblock the backfill registration (+state.json, +test_shiki_migrations.sh), correct the stale profile counts, and add scripts/shiki_tasks.py to the promotion task's locks",
+  "timestamp": "2026-08-05T05:29:31+00:00",
+  "type": "contract-amended"
+}
