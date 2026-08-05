@@ -27,7 +27,8 @@
   },
   "id": "G-20260805T023333273780Z-cd2e69ec",
   "ledger_evidence": [
-    "L-20260805T023333274692Z-1a26e60c"
+    "L-20260805T023333274692Z-1a26e60c",
+    "L-20260805T032239602544Z-b861263a"
   ],
   "non_goals": [
     "Introducing a repository-wide default-branch abstraction, or touching the sibling sites that already use the correct origin/ form.",
@@ -44,6 +45,6 @@
   ],
   "risk_level": "medium",
   "source_plan": "P-20260805T023333198254Z-38fa603f",
-  "status": "planned",
+  "status": "complete",
   "title": "Resolve the loop's base ref from origin, never from a bare local name"
 }
