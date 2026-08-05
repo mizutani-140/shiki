@@ -223,6 +223,13 @@ class MigrationDecisionTests(unittest.TestCase):
         # does) and confirm the loop's own PR neither enters migration mode nor fails
         # closed on the missing label.
         task_path = shiki_test_support.REPO_ROOT / ".shiki" / "tasks" / "T-20260801T041653422672Z-c4815d7a.json"
+        # test_shiki_init.sh runs this module inside a freshly installed target, and
+        # the installer copies scripts/tests but NOT the platform's .shiki mirror
+        # records — so the task file is absent there. Keep the assertion at full
+        # force where the real task file exists (the platform run) and skip, naming
+        # the absent path, where it does not (the installed-target run).
+        if not task_path.exists():
+            raise unittest.SkipTest(f"platform-only task mirror record absent: {task_path}")
         task = json.loads(task_path.read_text(encoding="utf-8"))
         body = "\n".join(
             ["## Scope", task["scope"], "## Acceptance", *[f"- {c}" for c in task.get("acceptance_checks", [])]]
