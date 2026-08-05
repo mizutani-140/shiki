@@ -18,7 +18,7 @@
     "T-20260801T041653274008Z-54d3477c"
   ],
   "expected_branch": "shiki/t-20260801t041653274543z-6df3af7e-regenerate-an-unusable-cca-verdict-once-inside-t",
-  "expected_pr": null,
+  "expected_pr": 276,
   "github_issue": null,
   "goal_id": "G-20260801T041653272590Z-81f6f71d",
   "id": "T-20260801T041653274543Z-6df3af7e",
@@ -30,7 +30,11 @@
     "L-20260805T013031899680Z-29398772",
     "L-20260805T013433436397Z-471f1ff0",
     "L-20260805T013444272638Z-5db42541",
-    "L-20260805T013444944333Z-6a208f3c"
+    "L-20260805T013444944333Z-6a208f3c",
+    "L-20260805T014956464788Z-f9e31ecb",
+    "L-20260805T015932323157Z-e890daf5",
+    "L-20260805T020103871219Z-8512b92c",
+    "L-20260805T020107800714Z-ec1ed23a"
   ],
   "locks": [
     "path:.github/workflows/shiki-cca-completion.yml",
@@ -49,18 +53,18 @@
   "pre_pr_code_review": {
     "findings": [
       {
-        "detail": "merge-base(main,HEAD)=HEAD=fb411c1 (PR #273), while main=70dc669 (PR #274, task T-\u202654d3477c). The branch is behind main by #274, so the diff against main shows #274's content as removals/deletions: minItems dropped from .shiki/schemas/cca-verdict.schema.json and the inline transport schema; degenerate_judgment_arrays removed from scripts/enforce_cca_verdict.py; tests/test_cca_verdict_nondegenerate.py deleted; test_shiki_control_plane.sh / test_shiki_evidence_integrity.sh / test_shiki_guardian_policy.sh fixtures reverted to empty checklist []; deletion of 8 .shiki/ledger/*, the .shiki/locks/ and .shiki/worktrees/ record for T-\u202654d3477c; and rollback of .shiki/tasks/T-\u202654d3477c.json (status review\u2192ready, expected_pr 274\u2192null, pre_pr_code_review dropped). If merged this reverts #274 (regression + data loss). Correct remedy is a loop-owned `git merge origin/main` base sync so the merge-base advances past #274; then only the additive retry work remains. Do NOT hand-place/delete any mirror files.",
-        "severity": "blocking",
-        "title": "Diff reverts merged task #274 due to stale base \u2014 requires base sync, not code changes"
+        "detail": "The task file's embedded pre_pr_code_review carries a 'blocking' verdict claiming the diff reverts merged PR #274 (stale base at #273). Verified against the live worktree: HEAD is ac7f31b (the #275 merge, which includes #274), and the working changes are purely additive (git diff HEAD: 625 insertions, 3 deletions \u2014 only the task file's status ready\u2192running and ledger_evidence edits). No schema/ledger/test/mirror deletions appear. The demanded base sync has occurred; the earlier blocker no longer applies. Recommend the loop refresh the stale pre_pr_code_review.verdict on the task file.",
+        "severity": "info",
+        "title": "Stale base-drift blocker is resolved \u2014 diff is additive, no #274 revert"
       },
       {
-        "detail": "scripts/cca_verdict_usable.py.verdict_usability is a correct pure classifier (usable/absent/unparseable/degenerate); the workflow classifies before enforcing, retries at most once gated on classification!='usable' (event-agnostic, reachable from pull_request and workflow_dispatch), re-classifies the selected output, and fails closed when the regenerated output is still unusable. Retry reuses the same steps.schema.outputs.json and PR/head fallbacks as Run CCA, so it judges the same PR against #274's mirrored transport schema after a base sync. tests/test_cca_verdict_usable.py and the new control-plane assertions (classify-before-enforce, exactly two action uses, retry gate, guard message) cover the contract well. No correctness bug found in the genuine diff; the only blocker is the base drift above.",
+        "detail": "verdict_usability is pure (no I/O, no input mutation) and its ('checklist','acceptance') present-but-empty degenerate rule matches enforce_cca_verdict.DEGENERATE_JUDGMENT_ARRAYS and the cca-verdict schema. Workflow: Classify (331) between Run CCA (282) and Enforce (416); retry (360) gated solely on classification!='usable' (reachable from pull_request and workflow_dispatch); exactly two claude-code-action uses. The GHA ternary at line 424 is safe from the empty-first-branch pitfall because a usable classification implies a non-empty first output. Enforce writes the selected STRUCTURED_OUTPUT to the single .shiki/gha/cca-verdict.json consumed downstream, and a still-unusable retry fails closed via enforce_cca_verdict's degenerate/parse checks. Tests and control-plane assertions cover the contract, and the new script is registered in the installer TEMPLATE_PATHS.",
         "severity": "info",
-        "title": "Additive task work (classifier + single-retry wiring) is correct"
+        "title": "Classifier and workflow wiring are correct and fail-closed"
       }
     ],
-    "ledger_id": "L-20260805T013031899680Z-29398772",
-    "verdict": "blocking"
+    "ledger_id": "L-20260805T015932323157Z-e890daf5",
+    "verdict": "clean"
   },
   "required_skills": [
     "tdd",
@@ -68,7 +72,7 @@
   ],
   "risk_level": "high",
   "scope": "Add `scripts/cca_verdict_usable.py` with a pure classifier `verdict_usability(structured_output)` returning `usable`, `absent`, `unparseable` or `degenerate`, plus the reason. `degenerate` means schema-valid in shape but judging nothing \u2014 an empty checklist or an empty acceptance list. Every other value, INCLUDING a well-formed `repair_required`, `needs_guardian`, `blocked` or `insufficient_evidence`, is `usable`.\n\nIn `.github/workflows/shiki-cca-completion.yml`, insert a classification step between `Run CCA` and `Enforce CCA verdict`. When the classification is `usable`, nothing changes. When it is `absent`, `unparseable` or `degenerate`, run the CCA step once more \u2014 the same prompt, the same schema, the same allowed tools \u2014 and use the second output. Exactly one retry: a second unusable output proceeds to `Enforce CCA verdict`, which fails the job with the reason from the first task, and the retry decision is echoed into the job log so an operator can see it happened.\n\nThe retry must be reachable from `workflow_dispatch` and from `pull_request` alike, and must not change the artifact names, the evidence manifest, or the Guardian blockers comment step.\n\nAdd `tests/test_cca_verdict_usable.py` covering the classifier: absent/empty string; unparseable JSON; a degenerate verdict (empty checklist, empty acceptance, and both); a well-formed `complete`; and \u2014 this is the case that matters most \u2014 a well-formed `repair_required`, `needs_guardian`, `blocked` and `insufficient_evidence` each classified `usable`, so no real answer is ever retried. Add control-plane assertions that the workflow classifies before enforcing, retries at most once, and retries only on the three unusable classes.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the same PR, judged three times in a row, fails three different ways. Each failure costs a full manual `gh run rerun` and the wall-clock of the whole workflow, and the operator has to know that `gh run rerun --failed` is the WRONG command here.\n  Measured on PR #233: a `--failed` re-run reused the previous job's artifact and reproduced the identical stale degenerate verdict; only a full `gh run rerun` regenerated it, after which all five checks passed. So the recovery that looks cheaper is the one that cannot work, and the loop has no way to express the one that does.\n  Root cause: the CCA step's output is consumed exactly once, with no classification between generation and enforcement, so an unusable generation is indistinguishable from a real negative verdict and the only recovery is outside the run.\n  Why retry only the unusable classes: retrying a well-formed `repair_required` or `needs_guardian` until it changes would be judge-shopping. The classifier exists precisely to make that impossible to do by accident \u2014 a real answer of any value is `usable` and is never regenerated.\n  Exact change that reproduces this result: classify the structured output, and regenerate at most once when it is absent, unparseable or degenerate.\n  Reproducible when: a run whose first generation is degenerate produces a usable verdict without operator action, and a run whose first generation is a well-formed negative verdict runs the CCA step exactly once.",
-  "status": "running",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Regenerate an unusable CCA verdict once inside the run"
 }
