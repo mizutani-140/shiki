@@ -15,7 +15,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260801t041653274008z-54d3477c-closeout",
-  "expected_pr": 274,
+  "expected_pr": 275,
   "github_issue": null,
   "goal_id": "G-20260801T041653272590Z-81f6f71d",
   "id": "T-20260801T041653274008Z-54d3477c",
@@ -27,7 +27,8 @@
     "L-20260805T005125163853Z-9004541f",
     "L-20260805T010622716989Z-dea61fa9",
     "L-20260805T010804514648Z-0ce97bc0",
-    "L-20260805T010808179072Z-cbf357df"
+    "L-20260805T010808179072Z-cbf357df",
+    "L-20260805T012509313990Z-68821b5e"
   ],
   "locks": [
     "path:.shiki/schemas/cca-verdict.schema.json",
