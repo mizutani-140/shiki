@@ -28,7 +28,8 @@
   },
   "id": "G-20260805T040948887161Z-8678e914",
   "ledger_evidence": [
-    "L-20260805T040948888005Z-d9fb95e2"
+    "L-20260805T040948888005Z-d9fb95e2",
+    "L-20260805T072909333851Z-6583920b"
   ],
   "non_goals": [
     "Editing this repository's own .github/CODEOWNERS \u2014 scripts/test_shiki_control_plane.sh:73-75 pins its content; substitution happens on the target write only.",
@@ -45,6 +46,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260805T040948811693Z-b168f414",
-  "status": "planned",
+  "status": "complete",
   "title": "Let a repository owned by anyone else pass its own CODEOWNERS check"
 }

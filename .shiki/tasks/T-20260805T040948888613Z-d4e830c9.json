@@ -13,7 +13,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260805t040948888613z-d4e830c9-wire-the-per-target-codeowners-owner-into-both-e",
+  "expected_branch": "shiki/t-20260805t040948888613z-d4e830c9-closeout",
   "expected_pr": 288,
   "github_issue": null,
   "goal_id": "G-20260805T040948887161Z-8678e914",
@@ -32,7 +32,8 @@
     "L-20260805T063512033721Z-f0525cdf",
     "L-20260805T064125364334Z-15a1fc0c",
     "L-20260805T064217397479Z-994dc3fd",
-    "L-20260805T065014608647Z-d457d052"
+    "L-20260805T065014608647Z-d457d052",
+    "L-20260805T072909333851Z-6583920b"
   ],
   "locks": [
     "path:scripts/shiki_contracts.py",
@@ -69,7 +70,7 @@
   ],
   "risk_level": "high",
   "scope": "Wire the existing `codeowners_required_owner()` resolver (`scripts/shiki_contracts.py:33-54`) into the two places that enforce ownership, and make the installer write a CODEOWNERS naming the TARGET's owner. All three are required: any one alone leaves a foreign target failing.\n\n1. ENFORCEMENT. `scripts/validate_shiki.py:1575,:1577` (inside `validate_codeowners_governance`, `:1554`) and `scripts/shiki_doctor.py:426,:454,:463,:464` must resolve the required owner per target instead of reading the module constant. `validate_codeowners_governance` currently takes no root; give it what it needs to resolve per target, and keep `ROOT` (`:106`) working as it does today for the platform's own run. Keep `CODEOWNERS_REQUIRED_OWNER` as the documented FALLBACK: when the owner cannot be resolved, fall back to it \u2014 never to 'anything passes'.\n\n2. TARGET WRITE. `.github/CODEOWNERS` ships verbatim with `@mizutani-140` on all 18 lines and is in `PROJECT_CONTENT_FILES` (`scripts/shiki_installer.py:126-131`), so `--force` never rewrites it. Substitute the target's owner when WRITING the file into a target. Never edit this repository's own copy: `scripts/test_shiki_control_plane.sh:73-75` pins its literal content, and that file is deliberately outside these locks.\n\n3. FIXTURES. `scripts/test_shiki_doctor.sh` writes `.shiki/repo.json` naming `example/shiki-doctor` AFTER `install-target` (`:57`) and asserts `doctor.codeowners.coverage == pass` (`:85`); `scripts/test_shiki_start.sh` writes `.shiki/repo.json` at `:130`. Install-time substitution cannot satisfy these \u2014 `.shiki/repo.json` is excluded from the install copy (`shiki_installer.py:305-309`) and `install-target` has no `--repo` argument (`shiki_cli.py:97-102`). Update both so they still prove what they prove today under the wired behaviour, without weakening an assertion.\n\nAdd `tests/test_codeowners_wiring.py`. The load-bearing case, which the earlier attempt lacked: build a target whose `.shiki/repo.json` names a DIFFERENT owner and whose installed CODEOWNERS names that owner, and assert it PASSES both `validate_codeowners_governance` AND `doctor.codeowners.coverage`. Asserting the resolver's return value is NOT sufficient. Also cover: a target whose CODEOWNERS names the wrong owner FAILS both; a target with no resolvable owner falls back to the constant and behaves as today; and this repository's own gate and doctor finding are unchanged. Extend `tests/test_install_force_semantics.py` so a foreign-owner target passes the wired gate.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a repository owned by anyone other than this maintainer installs Shiki, and its required `Validate Shiki mirror` check fails on a CODEOWNERS rule it cannot satisfy \u2014 the shipped file names `@mizutani-140` on every line, and `--force` will not rewrite it because it is project content.\n  Measured: `scripts/shiki_contracts.py:33-54` defines `codeowners_required_owner()` with ZERO production consumers (grep finds only `tests/test_install_force_semantics.py:285,291,300`). `scripts/validate_shiki.py:1575,:1577` and `scripts/shiki_doctor.py:426,:454,:463,:464` still read the constant. `.github/CODEOWNERS` carries `@mizutani-140` on all 18 lines and is in `PROJECT_CONTENT_FILES`.\n  Why the resolver exists but is unwired: it was added by a task whose locks did not include `validate_shiki.py` or `shiki_doctor.py`. That task reported the gap as a stop instead of reaching outside its locks \u2014 correct behaviour, and the reason this contract exists with the enforcement sites in scope.\n  Why wiring alone is not enough: a foreign target would resolve its own owner and compare it against a shipped file naming someone else. Substitution at the target write is required in the same change.\n  Why the two shell suites are in the locks: they write `.shiki/repo.json` AFTER install, and that file is excluded from the install copy while `install-target` has no `--repo` argument \u2014 so install-time substitution cannot make them pass.\n  Reproducible when: a target naming a different owner passes both the validator and the doctor finding, and a target with no resolvable owner behaves exactly as today.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_doctor.sh && bash scripts/test_shiki_start.sh && bash scripts/test_shiki_init.sh && bash scripts/test_shiki_control_plane.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Wire the per-target CODEOWNERS owner into both enforcement sites and the target write"
 }
