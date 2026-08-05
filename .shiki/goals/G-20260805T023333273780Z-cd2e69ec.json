@@ -1,0 +1,49 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "All three sites resolve the default branch from origin, and a stale local ref no longer changes the diff the reviewer receives.",
+    "A regression test fails if any of the three reverts to a bare local name.",
+    "The full suite, the goal-loop suite, the module-boundaries suite and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-05T02:33:33+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "Three sites in `scripts/shiki_loop.py` resolve the default branch by a BARE LOCAL NAME, verified on origin/main: line 802 `git rev-list --count main..HEAD` (the ahead-count that decides whether an implementation was pushed), line 1039 `git diff --cached main` (the diff handed to the pre-PR reviewer), and line 1042 `git diff main...HEAD` (its fallback).",
+      "Measured harm 2026-08-03: the coordinator's local `main` was 151 commits behind `origin/main`. `git diff --cached main` produced 2,904,002 bytes across 697 files; the same diff against `origin/main` was 47,899 bytes across 4 files \u2014 a 47x difference on bytes. The reviewer process exited 1, and `_run_pre_pr_code_review` fails closed to `stop_blocked` with 'no PR exists to anchor a repair', which is terminal: there is no repair path and no retry. Fast-forwarding the local ref by hand was the only recovery.",
+      "This is a RECURRENCE, not a new class. The same defect was fixed once in `scripts/shiki_runtime.py`, where `resolve_default_branch_ref` (line 332) already fetches and prefers `origin/<name>`. `scripts/shiki_loop.py` line 30 already imports from `shiki_runtime`, so the correct resolution is one import away and was simply not applied here.",
+      "LOCK-SUFFICIENCY CHECK (2026-08-05). MUST-CHANGE: `scripts/shiki_loop.py` (the three sites plus the stale comment at :1036 and the prompt string at :1001 that both name a bare `main`); `tests/test_loop_code_review.py` \u2014 the existing driver of `_run_pre_pr_code_review`, which must gain a stale-local-`main` regression; `tests/test_repair_delivery.py` \u2014 its harness helper mirrors the :802 ahead-count and would drift.",
+      "DELIBERATELY EXCLUDED: `scripts/shiki_runtime.py` \u2014 `resolve_default_branch_ref` is already correct and importing it unchanged breaks nothing. Lock it only if the function has to move, which this task does not require.",
+      "MUST-NOT-BREAK (verification command, not locks): `tests/test_loop_tdd_evidence.py` monkeypatches `_run_pre_pr_code_review` with the signature `(target, task_id)`, so that signature must not change; `tests/test_worktree_base.py` pins the runtime helper's behaviour; `scripts/test_shiki_module_boundaries.sh` pins the import graph; `scripts/test_shiki_goal_loop.sh` drives the loop end to end.",
+      "OUT OF SCOPE, recorded not fixed: a lower-severity sibling class exists where the literal `\"main\"` is used but already in the correct `origin/` form \u2014 `shiki_loop.py` lines 1271, 1273, 1336, 1398, 1436, 1453, 1545, 1554, 1565, 1728 and `scripts/shiki.py:24`, `scripts/shiki_cli.py:39,163,322`. Widening the scope to a repository-wide default-branch abstraction would pull in five more files and collide with four other backlog items; it is a separate decision.",
+      "Risk is medium and honest: this changes how the loop resolves a git ref, not what any gate enforces. No approval source, schema, workflow or MergeGate rule moves. Under `.shiki/guardian-policy.json` (`applies_to_risk: [high, critical]`) neither the Contract PR nor the implementation PR triggers the Guardian gate, so this goal costs zero operator approvals."
+    ],
+    "source": "Measured 2026-08-03 during a live dispatch; sites re-verified against origin/main 2026-08-05.",
+    "status": "complete"
+  },
+  "id": "G-20260805T023333273780Z-cd2e69ec",
+  "ledger_evidence": [
+    "L-20260805T023333274692Z-1a26e60c"
+  ],
+  "non_goals": [
+    "Introducing a repository-wide default-branch abstraction, or touching the sibling sites that already use the correct origin/ form.",
+    "Changing scripts/shiki_runtime.py.",
+    "Changing the signature of _run_pre_pr_code_review.",
+    "Changing what the pre-PR reviewer judges, or any gate, schema or workflow.",
+    "Adding a retry to the pre-PR reviewer \u2014 that is a separate decision.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "The goal loop's pre-PR reviewer and its ahead-count read the default branch from `origin/<default>` rather than a bare local `main`, so a coordinator whose local ref has fallen behind no longer feeds the reviewer an enormous unrelated diff. Measured: a local `main` 151 commits behind produced a 2.9 MB / 697-file diff where the real change was 4 files / 48 KB, and the reviewer process exited 1 \u2014 a terminal `stop_blocked` with no recourse.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "source_plan": "P-20260805T023333198254Z-38fa603f",
+  "status": "planned",
+  "title": "Resolve the loop's base ref from origin, never from a bare local name"
+}

@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260805T023333273780Z-cd2e69ec.json",
+    ".shiki/plans/P-20260805T023333198254Z-38fa603f.json"
+  ],
+  "goal_id": "G-20260805T023333273780Z-cd2e69ec",
+  "id": "L-20260805T023333274692Z-1a26e60c",
+  "links": [],
+  "summary": "Goal registered from plan: Resolve the loop's base ref from origin, never from a bare local name",
+  "task_id": null,
+  "timestamp": "2026-08-05T02:33:33+00:00",
+  "type": "goal-created"
+}

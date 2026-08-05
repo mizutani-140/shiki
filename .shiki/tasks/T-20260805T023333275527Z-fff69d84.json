@@ -1,0 +1,46 @@
+{
+  "acceptance_checks": [
+    "All three sites (the ahead-count, the reviewer diff and its fallback) resolve the default branch from origin via resolve_default_branch_ref, imported from shiki_runtime and not reimplemented.",
+    "scripts/shiki_runtime.py is unchanged.",
+    "The comment at the reviewer-diff site and the reviewer prompt string no longer name a bare local branch.",
+    "A fetch failure degrades to today's behaviour and never crashes the loop.",
+    "A regression in tests/test_loop_code_review.py builds a real repository whose local default ref lags its remote and asserts the reviewer's diff contains only the task's own change \u2014 asserted by file count or byte size, not by content sampling.",
+    "The regression FAILS if a site is reverted to a bare local name \u2014 proved by the test, not only by passing today.",
+    "tests/test_repair_delivery.py's harness helper matches the line-802 resolution so the two cannot drift.",
+    "_run_pre_pr_code_review keeps the (target, task_id) signature that tests/test_loop_tdd_evidence.py monkeypatches.",
+    "python3 -m unittest discover -s tests, scripts/test_shiki_goal_loop.sh, scripts/test_shiki_module_boundaries.sh and validate_shiki all pass.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260805t023333275527z-fff69d84-resolve-the-loop-s-base-ref-from-origin-at-all-t",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260805T023333273780Z-cd2e69ec",
+  "id": "T-20260805T023333275527Z-fff69d84",
+  "ledger_evidence": [
+    "L-20260805T023333275594Z-3f60e68d"
+  ],
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_loop_code_review.py",
+    "path:tests/test_repair_delivery.py"
+  ],
+  "non_goals": [
+    "Touching the sibling sites that already use the correct origin/ form",
+    "Changing scripts/shiki_runtime.py",
+    "Changing the signature of _run_pre_pr_code_review",
+    "Adding a retry to the pre-PR reviewer",
+    "Changing what the reviewer judges, or any gate/schema/workflow",
+    "Touching any file outside the declared locks"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "scope": "In `scripts/shiki_loop.py`, replace the bare local default-branch name at all three sites with a ref resolved from origin, reusing `resolve_default_branch_ref` from `scripts/shiki_runtime.py` (already imported at line 30 \u2014 import the function, do not copy its logic, and do not modify `shiki_runtime.py`):\n  - line 802 `git rev-list --count main..HEAD` \u2014 the ahead-count that decides whether an implementation reached the task branch;\n  - line 1039 `git diff --cached main` \u2014 the diff handed to the pre-PR reviewer;\n  - line 1042 `git diff main...HEAD` \u2014 its fallback.\nAlso correct the stale comment at line 1036 and the prompt string at line 1001, both of which name a bare `main`.\n\nThe resolution must be the SAME one `shiki_runtime` already performs: best-effort `git fetch origin <name>`, then prefer `origin/<name>` and fall back to the bare name only when the remote-tracking ref cannot be resolved. A fetch failure must not crash the loop \u2014 it degrades to today's behaviour.\n\nDo NOT change the signature of `_run_pre_pr_code_review`: `tests/test_loop_tdd_evidence.py` monkeypatches it as `(target, task_id)`.\n\nAdd a regression to `tests/test_loop_code_review.py` modelled on `tests/test_worktree_base.py`'s `test_cuts_from_remote_tip_when_local_default_lags`: build a real temporary repository whose local default ref LAGS its remote-tracking ref, drive `_run_pre_pr_code_review`, and assert the diff the reviewer receives contains only the task's own change \u2014 not the commits the local ref is missing. Assert the byte size or file count directly, so a regression is loud rather than a subtle content difference. Update `tests/test_repair_delivery.py`'s harness helper, which mirrors the line-802 ahead-count, so the two cannot drift.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: `shiki loop` reports `pre-PR code review did not pass (reviewer exited 1; failing closed); no PR exists to anchor a repair \u2014 diagnose or re-dispatch`. The implementation is correct and the reviewer never judged it: it was handed a diff of the entire repository's recent history. The stop is terminal \u2014 there is no repair path, no retry, and no PR to anchor one.\n  Measured 2026-08-03 on a live dispatch: local `main` 151 commits behind `origin/main`. `git diff --cached main` -> 2,904,002 bytes / 697 files. `git diff --cached origin/main` -> 47,899 bytes / 4 files. Fast-forwarding the local ref by hand made the same task pass on the next attempt with no code change.\n  Root cause: three sites resolve the default branch by a bare local name. Nothing keeps a coordinator's local `main` current \u2014 the loop fetches `origin/main` for its own merges but never updates the local ref, so the gap grows silently with every merge.\n  Why it is a recurrence: `scripts/shiki_runtime.py:332` `resolve_default_branch_ref` already fetches and prefers `origin/<name>`; that fix was applied there and not here, and `shiki_loop.py:30` already imports from that module.\n  Reproducible when: a repository whose local default ref lags its remote produces a reviewer diff containing only the task's own change, and a regression test fails if any site reverts to a bare local name.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && bash scripts/test_shiki_module_boundaries.sh && python3 scripts/validate_shiki.py --target .",
+  "title": "Resolve the loop's base ref from origin at all three sites"
+}
