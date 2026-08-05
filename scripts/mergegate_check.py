@@ -7,7 +7,11 @@ import argparse
 from dataclasses import dataclass
 import json
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
+import types
 from pathlib import Path
 from typing import Any
 
@@ -1218,6 +1222,267 @@ def enforce_amendment(
     # whether or not the DAG file is in this diff (an amendment that only widens a
     # task's locks need not touch the DAG, but one that adds a plan task must).
     _check_frozen_dag_head_invariant(target, goal_id, frozen_tasks, blocking, "amendment")
+
+
+# --- Migration mode (repo-wide mirror migration; a re-run proof) -------------
+#
+# A Migration PR delivers a change that must touch MANY mirror records at once — a
+# repository-wide backfill that no goal-shaped mode can carry, because contract,
+# goal_reconcile and amendment are each scoped to a SINGLE goal's records and
+# reject a foreign task/goal file independently of locks (a repository-wide change
+# has no goal). Migration mode's entire proof obligation is that the PR's .shiki
+# diff EQUALS the output of re-running a migration REGISTERED ON THE BASE BRANCH:
+# apply the declared migration to a copy of the base .shiki snapshot and require the
+# result to equal the PR head's .shiki, file for file and byte for byte.
+#
+# Like contract/amendment it is two-factor: the body marker DECLARES intent and the
+# maintainer-applied label AUTHORIZES the mode (same message as contract when the
+# label is missing). A DIRECTIVE marker is a bare HTML comment on its OWN LINE — the
+# way an operator (and the adversarial fixtures) place it. Two precautions keep a
+# marker that is merely DESCRIBED from self-declaring the mode: the match runs after
+# code spans are stripped (as amendment_decision does), and it is anchored to a full
+# line. Both are load-bearing here, because the goal loop inlines this task's OWN
+# scope AND acceptance_checks verbatim into the implementation PR body it opens
+# (shiki_github.github_pr_body) — and those enumerate the marker in prose. Line
+# anchoring is what stops the bare, mid-sentence mention in an acceptance criterion
+# from blocking this very task's PR on the missing label.
+MIGRATION_MARKER = re.compile(r"^[ \t]*<!--\s*shiki:migration\s*-->[ \t]*$", re.MULTILINE)
+MIGRATION_LABEL = "mergegate:migration"
+# The migration id the PR declares, on its OWN line: ``Migration: <id>``. Anchored
+# to the start of a line so a mention mid-sentence (or a backtick-wrapped example
+# in reproduced task scope, which never begins a line) is not read as a directive.
+_MIGRATION_ID_LINE = re.compile(r"^[ \t]*Migration:[ \t]*(\S+)[ \t]*$", re.MULTILINE)
+
+
+def migration_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
+    """Decide whether a PR runs in migration mode (marker + label).
+
+    The same two-factor shape ``contract_decision`` implements, with the same
+    message when the label is missing: a marker without the maintainer-applied
+    label fails closed so untrusted PR text cannot self-grant the mode. The marker
+    is matched only outside code spans (as ``amendment_decision`` does) so a quoted
+    marker in reproduced task scope is documentation, not a declaration.
+    """
+    body = str(pr.get("body") or "")
+    marker = bool(MIGRATION_MARKER.search(_strip_markdown_code(body)))
+    label = MIGRATION_LABEL in pr_label_names(pr)
+    if marker and not label:
+        return False, (
+            f"migration mode requires the {MIGRATION_LABEL} label (a maintainer-applied "
+            "second factor) in addition to the body marker"
+        )
+    return (marker and label), None
+
+
+def declared_migration_ids(body: str) -> list[str]:
+    """Every id declared on its own ``Migration: <id>`` line in the PR body."""
+    return [match.group(1) for match in _MIGRATION_ID_LINE.finditer(body)]
+
+
+def _git_show_base(target: Path, base_ref: str, repo_path: str) -> str:
+    """Read ``repo_path`` from the base branch via a read-only ``git show``.
+
+    Tries ``origin/<base_ref>`` first — the MergeGate workflow fetches it with
+    ``fetch-depth: 0`` (shiki-mergegate.yml) — then the bare ``<base_ref>`` as a
+    fallback for a local base branch. Raises ``FileNotFoundError`` naming every
+    ref it tried when neither resolves the path."""
+    errors: list[str] = []
+    for ref in (f"origin/{base_ref}", base_ref):
+        result = subprocess.run(
+            ["git", "show", f"{ref}:{repo_path}"],
+            cwd=str(target),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return result.stdout
+        errors.append(f"{ref}: {result.stderr.strip() or 'not found'}")
+    raise FileNotFoundError(f"could not read {repo_path} from the base branch ({'; '.join(errors)})")
+
+
+def resolve_base_migration_registry(target: Path, base_ref: str) -> tuple[Any, ...]:
+    """Resolve the migration registry from the BASE branch's
+    ``scripts/shiki_migrations.py`` — NEVER the PR head's.
+
+    THIS IS THE SECURITY PROPERTY OF MIGRATION MODE. Do NOT simplify this to import
+    the head registry (``from shiki_migrations import migration_registry``): the
+    migration function whose output the PR is measured against MUST come from code
+    the base branch already merged. If it came from the PR head, a PR could define a
+    migration that emits exactly the diff it wants and the re-run comparison would
+    pass — proving nothing. Reading from base means the gate executes trusted code
+    the PR cannot alter.
+
+    The base ``scripts/`` is deliberately read from git rather than a snapshot: the
+    ``--base-shiki`` archive the workflow builds is ``.shiki``-only, and staging
+    base ``scripts/`` would need a new workflow flag and archive step (out of this
+    change's scope). So the base source is read with ``git show`` (using the fetch
+    the MergeGate workflow already performs) and executed in an isolated namespace;
+    its only external dependency (``shiki_process``) resolves from ``scripts/`` on
+    ``sys.path``, infrastructure that carries no migration logic.
+    """
+    source = _git_show_base(target, base_ref, "scripts/shiki_migrations.py")
+    # Execute the base source as a REAL module object registered in sys.modules:
+    # dataclass field resolution (Python 3.12+) looks the class's module up there,
+    # so a plain-dict namespace would fail on the module's ``@dataclass Migration``.
+    # ``shiki_process`` — the module's only external dependency — resolves from
+    # ``scripts/`` on sys.path, infrastructure that carries no migration logic.
+    module = types.ModuleType("shiki_migrations_base")
+    module.__file__ = "<base>/scripts/shiki_migrations.py"
+    sys.modules[module.__name__] = module
+    exec(compile(source, module.__file__, "exec"), module.__dict__)
+    return tuple(module.migration_registry())
+
+
+def _read_shiki_tree(shiki_dir: Path) -> dict[str, bytes]:
+    """Every file under a ``.shiki`` directory, keyed by its repo-relative
+    (``.shiki/...``) path and mapped to its raw bytes. Order-independent."""
+    files: dict[str, bytes] = {}
+    if not shiki_dir.exists():
+        return files
+    for path in shiki_dir.rglob("*"):
+        if path.is_file():
+            rel = ".shiki/" + path.relative_to(shiki_dir).as_posix()
+            files[rel] = path.read_bytes()
+    return files
+
+
+def _base_applied_migration_ids(base_shiki: Path) -> set[str]:
+    """Migration ids recorded ``applied`` in the base ``.shiki/migrations/state.json``.
+    A missing/unreadable/malformed state file yields the empty set (nothing proven
+    applied), so the already-applied block never fires on absent state."""
+    try:
+        state = load_json(base_shiki / "migrations" / "state.json")
+    except (OSError, ValueError):
+        return set()
+    if not isinstance(state, dict) or not isinstance(state.get("applied"), list):
+        return set()
+    return {
+        str(record.get("id"))
+        for record in state["applied"]
+        if isinstance(record, dict) and record.get("id")
+    }
+
+
+def enforce_migration(
+    *,
+    target: Path,
+    pr: dict[str, Any],
+    base_shiki: Path | None,
+    changed_files_status: list[ChangedFile],
+    blocking: list[str],
+    warnings: list[str],
+    base_registry: tuple[Any, ...] | None = None,
+) -> None:
+    """Validate a Migration PR: the .shiki diff must EQUAL the re-run output of a
+    BASE-registered migration. Deny by default.
+
+    ``base_registry`` is injected only by tests to exercise the comparison and
+    precondition logic directly; in production it is None and the registry is
+    resolved from the base branch via ``resolve_base_migration_registry`` (the
+    security property — the migration function is read from base, never the PR
+    head). Every other input — the base snapshot applied against, the already-applied
+    state, the base registry — is reconstructed from the base branch the PR head
+    cannot forge; the PR head is only ever the thing COMPARED.
+    """
+    if base_shiki is None or not base_shiki.exists():
+        blocking.append("migration mode requires a base .shiki snapshot to re-run the declared migration")
+        return
+
+    body = str(pr.get("body") or "")
+    ids = declared_migration_ids(body)
+    if not ids:
+        blocking.append("migration PR body must declare the migration id on its own line as 'Migration: <id>'")
+        return
+    if len(ids) > 1:
+        blocking.append(f"migration PR body must declare exactly one 'Migration:' line; found {sorted(ids)}")
+        return
+    migration_id = ids[0]
+
+    if base_registry is None:
+        base_ref = str(pr.get("baseRefName") or "")
+        if not base_ref:
+            blocking.append("migration mode requires the PR baseRefName to resolve the base branch migration registry")
+            return
+        try:
+            base_registry = resolve_base_migration_registry(target, base_ref)
+        except Exception as error:  # noqa: BLE001 - resolving base code can fail many ways; fail closed with a named reason, never crash the gate
+            blocking.append(f"migration mode could not resolve the base branch migration registry: {error}")
+            return
+
+    by_id = {str(migration.id): migration for migration in base_registry}
+    migration = by_id.get(migration_id)
+    if migration is None:
+        blocking.append(
+            f"migration {migration_id} is not registered in the base branch migration registry; "
+            "a PR cannot define the migration whose output it is measured against"
+        )
+        return
+    if getattr(migration, "destructive", False):
+        blocking.append(f"migration {migration_id} is destructive; migration mode refuses destructive migrations")
+        return
+    if migration_id in _base_applied_migration_ids(base_shiki):
+        blocking.append(
+            f"migration {migration_id} is already recorded as applied in the base .shiki/migrations/state.json"
+        )
+        return
+
+    # Re-run the BASE migration against a COPY of the base snapshot. Both the input
+    # (the base .shiki tree) and the code (the base migration function) come from the
+    # base branch; the PR head influences neither, so it can only ever match or fail
+    # to match the deterministic output.
+    base_files = _read_shiki_tree(base_shiki)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            rerun_root = Path(tmp)
+            shutil.copytree(base_shiki, rerun_root / ".shiki")
+            apply = getattr(migration, "apply", None)
+            if apply is not None:
+                apply(rerun_root, False)
+            rerun_files = _read_shiki_tree(rerun_root / ".shiki")
+    except Exception as error:  # noqa: BLE001 - the base migration runs arbitrary (trusted) code; any failure is a named block, never a gate crash
+        blocking.append(f"re-running migration {migration_id} against the base snapshot failed: {error}")
+        return
+
+    # The change set the re-run PRODUCES: paths whose bytes differ from base, mapped
+    # to the new bytes (None means the migration deleted the file).
+    rerun_changes: dict[str, bytes | None] = {}
+    for rel in set(base_files) | set(rerun_files):
+        if base_files.get(rel) != rerun_files.get(rel):
+            rerun_changes[rel] = rerun_files.get(rel)
+
+    # The change set the PR DELIVERS, read from the diff (head bytes from the working
+    # tree; None means the PR deleted the file). A non-.shiki change is its own
+    # blocking reason and is excluded here so it is not ALSO reported as unproduced.
+    head_changes: dict[str, bytes | None] = {}
+    for entry in changed_files_status:
+        path = normalize_repo_path(entry.path)
+        if not path.startswith(".shiki/"):
+            blocking.append(f"migration must not change file outside .shiki/: {path}")
+            continue
+        head_changes[path] = None if entry.status == "D" else file_bytes(target / path)
+
+    # Require the two change sets to be identical, path for path and byte for byte.
+    # Each mismatch shape is a distinct blocking reason naming the path.
+    for rel in sorted(set(head_changes) | set(rerun_changes)):
+        in_head = rel in head_changes
+        in_rerun = rel in rerun_changes
+        if in_head and not in_rerun:
+            blocking.append(
+                f"migration PR changes {rel}, which re-running migration {migration_id} does not produce"
+            )
+        elif in_rerun and not in_head:
+            blocking.append(
+                f"migration re-run produces {rel}, but the PR head does not include it"
+            )
+        elif head_changes[rel] != rerun_changes[rel]:
+            if head_changes[rel] is None or rerun_changes[rel] is None:
+                blocking.append(
+                    f"migration output for {rel} does not match the PR head (present in one, absent in the other)"
+                )
+            else:
+                blocking.append(
+                    f"migration output for {rel} does not match the re-run byte-for-byte"
+                )
 
 
 POST_MERGE_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:post_merge_reconcile\s*-->")
@@ -2640,6 +2905,7 @@ def main() -> int:
     post_merge_mode = False
     contract_mode = False
     amendment_mode = False
+    migration_mode = False
     # PR numbers proven merged (live PR state gathered by the workflow). Used by
     # post_merge_reconcile to prove its referenced PR merged, and by the bookkeeping
     # closeout classifier to prove the task's implementation PR merged (ADR 0017).
@@ -2668,6 +2934,7 @@ def main() -> int:
         post_merge_mode, post_merge_error = post_merge_reconcile_decision(pr)
         contract_mode, contract_error = contract_decision(pr)
         amendment_mode, amendment_error = amendment_decision(pr)
+        migration_mode, migration_error = migration_decision(pr)
         if reconcile_error:
             blocking.append(reconcile_error)
         if post_merge_error:
@@ -2676,6 +2943,8 @@ def main() -> int:
             blocking.append(contract_error)
         if amendment_error:
             blocking.append(amendment_error)
+        if migration_error:
+            blocking.append(migration_error)
         if reconcile_mode and post_merge_mode:
             blocking.append("a PR cannot be both goal_reconcile and post_merge_reconcile")
         if contract_mode and reconcile_mode:
@@ -2688,6 +2957,14 @@ def main() -> int:
             blocking.append("a PR cannot be both amendment and post_merge_reconcile")
         if amendment_mode and contract_mode:
             blocking.append("a PR cannot be both amendment and contract")
+        if migration_mode and reconcile_mode:
+            blocking.append("a PR cannot be both migration and goal_reconcile")
+        if migration_mode and post_merge_mode:
+            blocking.append("a PR cannot be both migration and post_merge_reconcile")
+        if migration_mode and contract_mode:
+            blocking.append("a PR cannot be both migration and contract")
+        if migration_mode and amendment_mode:
+            blocking.append("a PR cannot be both migration and amendment")
         if args.expected_head_sha:
             pr_head = str(pr.get("headRefOid") or "")
             if not pr_head:
@@ -2714,6 +2991,11 @@ def main() -> int:
             # A post_merge_reconcile PR is task-scoped (reconcile a merged task).
             if not resolved_task_id:
                 blocking.append("post_merge_reconcile PR body does not contain a Shiki task id like T-0001")
+        elif migration_mode:
+            # A Migration PR is repository-wide (a mirror-scoped re-run proof); it
+            # references NEITHER a task nor a goal id — it declares a `Migration: <id>`
+            # line, validated in enforce_migration.
+            pass
         else:
             if not resolved_task_id:
                 blocking.append("PR body does not contain a Shiki task id like T-0001")
@@ -2842,6 +3124,23 @@ def main() -> int:
                     warnings=warnings,
                     expected_repository=args.expected_repository,
                 )
+    elif migration_mode and pr:
+        # Migration mode: a repository-wide mirror change whose sole proof
+        # obligation is that the .shiki diff EQUALS the re-run output of a migration
+        # registered on the BASE branch (see enforce_migration). It carries no
+        # implementation task, CCA verdict, or Guardian gate — the maintainer label
+        # is the authorization and the base-registered re-run is the proof.
+        files_status = parse_changed_files_status(
+            Path(args.changed_files_status), changed_files(Path(args.changed_files))
+        )
+        enforce_migration(
+            target=target,
+            pr=pr,
+            base_shiki=Path(args.base_shiki) if args.base_shiki else None,
+            changed_files_status=files_status,
+            blocking=blocking,
+            warnings=warnings,
+        )
     elif post_merge_mode and pr:
         # post_merge_reconcile is a task-scoped reconcile of a merged task's
         # residual lock / status; a dedicated deny-by-default validator.
