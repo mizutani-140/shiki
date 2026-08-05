@@ -12,9 +12,11 @@
     "No file outside the declared locks is changed."
   ],
   "assigned_runtime": "claude-code",
+  "cca_rerun_count": 1,
+  "closeout_pr": 281,
   "dependencies": [],
-  "expected_branch": "shiki/t-20260805t023333275527z-fff69d84-resolve-the-loop-s-base-ref-from-origin-at-all-t",
-  "expected_pr": 280,
+  "expected_branch": "shiki/t-20260805t023333275527z-fff69d84-closeout",
+  "expected_pr": 281,
   "github_issue": null,
   "goal_id": "G-20260805T023333273780Z-cd2e69ec",
   "id": "T-20260805T023333275527Z-fff69d84",
@@ -26,7 +28,9 @@
     "L-20260805T031155410796Z-2368edd2",
     "L-20260805T031656057215Z-b9fc66b7",
     "L-20260805T031833747970Z-1e491c52",
-    "L-20260805T031837631719Z-184e6a30"
+    "L-20260805T031837631719Z-184e6a30",
+    "L-20260805T032236732737Z-9a59dfd0",
+    "L-20260805T032731132644Z-1804a1da"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
