@@ -423,9 +423,17 @@ def _workflow_findings(target: Path, config: dict[str, Any]) -> list[DoctorFindi
 
 def _codeowners_findings(target: Path) -> list[DoctorFinding]:
     try:
-        from shiki_contracts import CODEOWNERS_CRITICAL_PATHS, CODEOWNERS_PATH, CODEOWNERS_REQUIRED_OWNER
+        from shiki_contracts import (
+            CODEOWNERS_CRITICAL_PATHS,
+            CODEOWNERS_PATH,
+            codeowners_required_owner,
+        )
     except Exception as error:  # pragma: no cover - import contract failure is surfaced as a finding.
         return [_finding("doctor.codeowners.coverage", "fail", "CODEOWNERS governance", f"Could not import CODEOWNERS contract: {error}")]
+    # Resolve the required owner per target (falls back to the documented
+    # CODEOWNERS_REQUIRED_OWNER constant when no owner can be resolved), so a
+    # foreign target is judged against its own owner rather than this maintainer.
+    required_owner = codeowners_required_owner(target)
     path = target / CODEOWNERS_PATH
     if not path.exists():
         return [
@@ -451,7 +459,7 @@ def _codeowners_findings(target: Path) -> list[DoctorFinding]:
         owners = coverage.get(critical_path)
         if not owners:
             missing.append(critical_path)
-        elif CODEOWNERS_REQUIRED_OWNER not in owners:
+        elif required_owner not in owners:
             wrong_owner.append(critical_path)
     ok = not missing and not wrong_owner
     return [
@@ -460,8 +468,8 @@ def _codeowners_findings(target: Path) -> list[DoctorFinding]:
             "pass" if ok else "fail",
             "CODEOWNERS governance",
             "CODEOWNERS covers critical Shiki paths." if ok else "CODEOWNERS coverage is incomplete for critical Shiki paths.",
-            f"Ensure each critical path is owned by {CODEOWNERS_REQUIRED_OWNER}." if not ok else "",
-            {"missing": missing, "wrong_owner": wrong_owner, "required_owner": CODEOWNERS_REQUIRED_OWNER},
+            f"Ensure each critical path is owned by {required_owner}." if not ok else "",
+            {"missing": missing, "wrong_owner": wrong_owner, "required_owner": required_owner},
         )
     ]
 

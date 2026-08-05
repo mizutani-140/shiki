@@ -50,22 +50,31 @@ expect_fail() {
 
 make_target() {
   local target="$1"
-  mkdir -p "$target"
-  python3 scripts/shiki.py install-target "$target" --local-only --no-validate >/tmp/shiki-doctor-install.out
-  git -C "$target" init -b main >/tmp/shiki-doctor-git.out
-  git -C "$target" remote add origin https://github.com/example/shiki-doctor.git
-  cat >"$target/.shiki/repo.json" <<'JSON'
+  # Second argument is the repo slug written to .shiki/repo.json BEFORE
+  # install-target, so the installer resolves the target's own owner and
+  # substitutes it into CODEOWNERS (the wired behaviour a target with a recorded
+  # GitHub identity gets). Pass "" to install with no repo.json — the required
+  # owner then resolves to the documented CODEOWNERS_REQUIRED_OWNER fallback,
+  # exactly as a target that has not recorded its provider yet.
+  local repo="${2-example/shiki-doctor}"
+  mkdir -p "$target/.shiki"
+  if [ -n "$repo" ]; then
+    cat >"$target/.shiki/repo.json" <<JSON
 {
   "provider": "github",
-  "repo": "example/shiki-doctor",
+  "repo": "$repo",
   "host": "github.com",
   "remote_protocol": "https",
   "web_base_url": "https://github.com",
   "api_base_url": "https://api.github.com",
   "ssh_host": "github.com",
-  "canonical_remote_url": "https://github.com/example/shiki-doctor.git"
+  "canonical_remote_url": "https://github.com/$repo.git"
 }
 JSON
+  fi
+  python3 scripts/shiki.py install-target "$target" --local-only --no-validate >/tmp/shiki-doctor-install.out
+  git -C "$target" init -b main >/tmp/shiki-doctor-git.out
+  git -C "$target" remote add origin "https://github.com/${repo:-example/shiki-doctor}.git"
 }
 
 cd "$ROOT"
@@ -88,9 +97,11 @@ test "$(finding_status /tmp/shiki-doctor-valid.json doctor.guardian.approvers)" 
 test "$(finding_status /tmp/shiki-doctor-valid.json doctor.worktrees.unregistered)" = "pass"
 grep '"id": "doctor.contract.validate_shiki"' /tmp/shiki-doctor-valid.json >/dev/null
 
+# Installed with no .shiki/repo.json: the required owner resolves to the
+# documented fallback and the shipped CODEOWNERS names it, so codeowners
+# coverage still passes while the missing provider config is a warn.
 NO_REPO="$TMP_ROOT/no-repo"
-make_target "$NO_REPO"
-rm "$NO_REPO/.shiki/repo.json"
+make_target "$NO_REPO" ""
 python3 scripts/shiki.py doctor --json --target "$NO_REPO" >/tmp/shiki-doctor-no-repo.json
 test "$(finding_status /tmp/shiki-doctor-no-repo.json doctor.provider.repo_json)" = "warn"
 grep "shiki init" /tmp/shiki-doctor-no-repo.json >/dev/null
