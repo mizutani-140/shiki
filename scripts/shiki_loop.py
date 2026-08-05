@@ -27,7 +27,7 @@ from shiki_config import configured_required_checks
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_github import create_github_pr_for_task, github_env, parse_github_number, target_provider_config
 from shiki_process import ShikiError, print_json, read_json, run, shiki_path, target_path, write_json
-from shiki_runtime import dispatch_runner_task, session_lease_state
+from shiki_runtime import dispatch_runner_task, resolve_default_branch_ref, session_lease_state
 from shiki_runtime_adapters import REVIEWER_ADAPTER, get_runner_adapter, parse_code_review_verdict
 from shiki_tasks import (
     append_ledger,
@@ -769,6 +769,32 @@ def _dispatch_repair(
     return {"repair_id": repair_id, "returncode": returncode}
 
 
+def _default_base_ref(target: Path) -> str:
+    """Resolve the default-branch commit-ish to compare a task branch against.
+
+    Reuses ``shiki_runtime.resolve_default_branch_ref``, which runs a best-effort
+    ``git fetch origin <name>`` and then prefers the remote-tracking ref
+    ``origin/<name>`` over the bare local ``<name>``. Nothing keeps a
+    coordinator's local default branch current — the loop fetches ``origin`` for
+    its own merges but never fast-forwards the local ref — so the local branch
+    silently lags the remote after other goals merge. Counting or diffing against
+    that stale local ref hands the ahead-count (and the pre-PR reviewer) the whole
+    already-merged history instead of the task's own change; the refreshed
+    remote-tracking ref is the authority.
+
+    ``resolve_default_branch_ref`` raises ``ShikiError`` only when NEITHER the
+    remote-tracking ref nor the local branch can be resolved — a fetch failure
+    alone degrades to the ref already present. Fall back to the bare default name
+    on any failure (both callers contract "never raises into the loop", matching
+    the T1 fail-closed effector pattern) so resolution reproduces exactly the
+    historical bare-``main`` behaviour of these call sites instead of crashing.
+    """
+    try:
+        return resolve_default_branch_ref(target)
+    except Exception:
+        return "main"
+
+
 def _commit_and_push_implementation(target: Path, task_id: str) -> str:
     """Commit and push the implementer runtime's work to the task branch.
 
@@ -799,7 +825,8 @@ def _commit_and_push_implementation(target: Path, task_id: str) -> str:
         cwd=worktree_path,
         check=False,
     )
-    ahead = run(["git", "rev-list", "--count", "main..HEAD"], cwd=worktree_path, check=False)
+    base = _default_base_ref(target)
+    ahead = run(["git", "rev-list", "--count", f"{base}..HEAD"], cwd=worktree_path, check=False)
     try:
         count = int((ahead.stdout or "0").strip())
     except (TypeError, ValueError):
@@ -998,7 +1025,7 @@ _CODE_REVIEW_PROMPT = (
     "tools to inspect the worktree; you may NOT edit anything. Emit a single JSON "
     'object matching the verdict schema: verdict "clean" when nothing blocking is '
     'found, "blocking" when a blocking issue exists, with a findings array. Do not '
-    "wrap the JSON in prose.\n\n## Task diff (git diff main...HEAD)\n"
+    "wrap the JSON in prose.\n\n## Task diff (git diff of the task branch against the default branch)\n"
 )
 
 
@@ -1033,13 +1060,17 @@ def _run_pre_pr_code_review(target: Path, task_id: str) -> dict[str, Any]:
     # The review runs BEFORE commit/push, so the implementer's work may still be
     # uncommitted (and new test files untracked) in the worktree. Stage everything
     # first (non-destructive — the commit/push step re-stages anyway) so the diff
-    # is complete, then diff the index against main. This shows the FULL task
-    # change set the reviewer must judge, committed or not, tracked or new.
+    # is complete, then diff the index against the default branch resolved from
+    # origin. This shows the FULL task change set the reviewer must judge,
+    # committed or not, tracked or new — and never the already-merged history a
+    # stale local default branch would drag in.
     run(["git", "add", "-A"], cwd=worktree_path, check=False)
-    diff = run(["git", "diff", "--cached", "main"], cwd=worktree_path, check=False)
+    base = _default_base_ref(target)
+    diff = run(["git", "diff", "--cached", base], cwd=worktree_path, check=False)
     if diff.returncode != 0:
-        # Fall back to the committed-only diff (e.g. main is unrelated/missing).
-        diff = run(["git", "diff", "main...HEAD"], cwd=worktree_path, check=False)
+        # Fall back to the committed-only diff (e.g. the default branch is
+        # unrelated/missing so the two-dot diff cannot be computed).
+        diff = run(["git", "diff", f"{base}...HEAD"], cwd=worktree_path, check=False)
         if diff.returncode != 0:
             return {"status": "fail", "reason": "could not compute the task diff for review"}
     prompt = _CODE_REVIEW_PROMPT + (diff.stdout or "")

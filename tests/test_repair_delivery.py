@@ -33,7 +33,7 @@ from shiki_config import configured_required_checks
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_loop import POLICY_GATE, execute_action
 from shiki_process import ensure_control_dirs, shiki_path, write_json
-from shiki_runtime import dispatch_runner_task
+from shiki_runtime import dispatch_runner_task, resolve_default_branch_ref
 from shiki_runtime_adapters import RunnerAdapter
 from shiki_tasks import (
     LOOP_OWNS_DELIVERY_PROHIBITION,
@@ -87,6 +87,10 @@ class RepairEnv:
         _git(self.target, "commit", "-m", "init")
         _git(self.target, "remote", "add", "origin", str(self.remote))
         _git(self.target, "push", "-u", "origin", "main")
+        # Pin origin/HEAD -> origin/main (as a real clone would) so the shared
+        # default-branch resolver names `main` deterministically, independent of
+        # the operator's ~/.shiki/config.json.
+        _git(self.target, "remote", "set-head", "origin", "main")
 
         ensure_control_dirs(self.target)
         self.branch = f"shiki/{TASK.lower()}-slice"
@@ -145,7 +149,12 @@ class RepairEnv:
         return out.returncode == 0
 
     def worktree_commits_beyond_main(self) -> int:
-        out = _git(self.wt, "rev-list", "--count", "main..HEAD", check=False)
+        # Mirror _commit_and_push_implementation's ahead-count exactly: resolve the
+        # default branch from origin (shiki_runtime.resolve_default_branch_ref, the
+        # same call the loop makes) rather than a bare local `main`, so this harness
+        # and the loop cannot drift apart on which base they count against.
+        base = resolve_default_branch_ref(self.target)
+        out = _git(self.wt, "rev-list", "--count", f"{base}..HEAD", check=False)
         try:
             return int((out.stdout or "0").strip())
         except ValueError:
