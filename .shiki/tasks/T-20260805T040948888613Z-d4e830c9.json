@@ -14,7 +14,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260805t040948888613z-d4e830c9-closeout",
-  "expected_pr": 288,
+  "expected_pr": 289,
   "github_issue": null,
   "goal_id": "G-20260805T040948887161Z-8678e914",
   "id": "T-20260805T040948888613Z-d4e830c9",
@@ -33,7 +33,8 @@
     "L-20260805T064125364334Z-15a1fc0c",
     "L-20260805T064217397479Z-994dc3fd",
     "L-20260805T065014608647Z-d457d052",
-    "L-20260805T072909333851Z-6583920b"
+    "L-20260805T072909333851Z-6583920b",
+    "L-20260805T072912817982Z-69e3828e"
   ],
   "locks": [
     "path:scripts/shiki_contracts.py",
