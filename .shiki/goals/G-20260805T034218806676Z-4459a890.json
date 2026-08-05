@@ -1,0 +1,51 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A task that declares locks and has no granted lock record cannot be dispatched, and the refusal names the task and the missing locks.",
+    "A task whose lock record exists and is active dispatches exactly as today.",
+    "A task with an empty locks list dispatches exactly as today.",
+    "`shiki lock acquire` failing is impossible to miss: a conflicted acquire is refused downstream even when its exit code is ignored.",
+    "The full suite and the five dispatch-driving shell suites stay green."
+  ],
+  "created_at": "2026-08-05T03:42:18+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "The write-side hole is exact. `cmd_lock_acquire` (`scripts/shiki_tasks.py:946`) returns 1 at the conflict branch BEFORE `write_json(lock_file, record)` at `:966` and before `task[\"status\"] = status_after_lock_acquire(...)` at `:982`. So a conflicted acquire leaves no record and no status change \u2014 and reports it only through the exit code and a `locks_granted: false` field in its JSON.",
+      "Nothing downstream re-checks. `dispatch_runner_task` (`scripts/shiki_runtime.py:512-530`) validates runtime assignment, `status in {ready, running}`, required tooling, auth, the handoff file, the worktree record and the session lease \u2014 and never reads `.shiki/locks/`. `cmd_task_status` (`scripts/shiki_tasks.py:1164`) writes `status = \"ready\"` with no lock check at all, and `shiki_cli.py:518` exposes `ready` as a free choice.",
+      "Reproduced live 2026-08-04: an operator piped `shiki lock acquire` through `tail -1`, saw the closing brace, and missed `locks_granted: false` with five conflict reasons naming a superseded task. Handoff, status and dispatch all proceeded; the implementation was written, reviewed, merged, and only the closeout surfaced anything \u2014 as an unexplained Guardian requirement, because the ADR 0017 exemption needs the lock to move active -> released and there was no lock to move.",
+      "The merge-side backstop is DELIBERATELY out of scope. Requiring a merged PR to show a lock grant would also add `scripts/mergegate_check.py` and four shell fixture files whose expect-ready fixtures never write a lock record \u2014 and it would retroactively block reopened work: `origin/main` currently holds exactly ONE active lock record for TWELVE non-terminal tasks. Dispatch-side only also removes the `mergegate_check.py` collision with the migration-mode task.",
+      "LOCK-SUFFICIENCY CHECK (2026-08-04). MUST-CHANGE: `scripts/shiki_runtime.py` \u2014 the precondition goes beside the existing status check at `:522-526`, and `dispatchable_task_ids` (`:291-310`) plus the `cmd_runner_execute` status write (`:299`) must agree with it; `scripts/shiki_tasks.py` \u2014 `cmd_lock_acquire` (`:946`) and `cmd_task_status` (`:1164`); `tests/test_lock_lifecycle.py` \u2014 already drives `cmd_dispatch_check` at `:287` and would drift; `tests/test_dispatch_lock_precondition.py` \u2014 new. `shiki_runtime.py` already imports from `shiki_tasks`, so the shared helper introduces no cycle.",
+      "VACUITY CAVEAT, and it must be stated in the code: a task with an EMPTY `locks` list has nothing to grant, so the precondition must return satisfied for it. Treating an empty list as ungranted would block every lock-free task.",
+      "MUST-NOT-BREAK (verification command, not locks): `scripts/test_shiki_runner_claude.sh`, `scripts/test_shiki_daemon_runner.sh`, `scripts/test_shiki_loop_lock_guard.sh`, `scripts/test_shiki_control_plane.sh` and `scripts/test_shiki_goal_loop.sh` all dispatch or drive tasks in fixtures; the audit measured the dispatch-side precondition as breaking none of them, but they gate the change.",
+      "Risk is high because this can refuse a dispatch. A wrong predicate stops all autonomous work, which is worse than the defect it fixes \u2014 so the failure direction matters: an unreadable or missing lock record for a task that DECLARES locks must refuse, and every refusal must name the task and the missing or conflicting locks."
+    ],
+    "source": "Reproduced live on 2026-08-04 and confirmed by reading the dispatch path; lock set computed by the repository-wide audit 2026-08-04.",
+    "status": "complete"
+  },
+  "id": "G-20260805T034218806676Z-4459a890",
+  "ledger_evidence": [
+    "L-20260805T034218807532Z-ed461e2a"
+  ],
+  "non_goals": [
+    "A merge-side lock-grant requirement in mergegate_check.py \u2014 it would retroactively block twelve non-terminal tasks that have no lock record on the default branch.",
+    "Changing what a lock conflict means, or how locks are declared or released.",
+    "Adding a `shiki lock release` command \u2014 a separate gap, recorded not fixed here.",
+    "Auto-acquiring locks as a side effect of dispatch: dispatch must REFUSE, never grant.",
+    "Changing the loop's decision function.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A task can no longer be dispatched, implemented and merged while its lock grant does not exist. Today `shiki lock acquire` returns a non-zero exit and writes NOTHING when the locks conflict, and every downstream step \u2014 handoff, status, dispatch \u2014 proceeds anyway. The only visible symptom is a closeout that unexpectedly demands a Guardian approval, which is three steps removed from the cause.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260805T034218729381Z-43271caf",
+  "status": "planned",
+  "title": "Refuse to dispatch a task whose locks were never granted"
+}

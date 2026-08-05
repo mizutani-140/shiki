@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260805T034218806676Z-4459a890.json",
+    ".shiki/plans/P-20260805T034218729381Z-43271caf.json"
+  ],
+  "goal_id": "G-20260805T034218806676Z-4459a890",
+  "id": "L-20260805T034218807532Z-ed461e2a",
+  "links": [],
+  "summary": "Goal registered from plan: Refuse to dispatch a task whose locks were never granted",
+  "task_id": null,
+  "timestamp": "2026-08-05T03:42:18+00:00",
+  "type": "goal-created"
+}
