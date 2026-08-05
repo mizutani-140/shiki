@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260805T075725959969Z-61d080fb.json",
+    ".shiki/plans/P-20260805T075711997554Z-15a6b498.json"
+  ],
+  "goal_id": "G-20260805T075725959969Z-61d080fb",
+  "id": "L-20260805T075725960933Z-33727027",
+  "links": [],
+  "summary": "Goal registered from plan: Sync a BEHIND branch before spending repair attempts that cannot fix it",
+  "task_id": null,
+  "timestamp": "2026-08-05T07:57:25+00:00",
+  "type": "goal-created"
+}
