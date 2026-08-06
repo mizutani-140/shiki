@@ -17,6 +17,7 @@
     "No file outside the declared locks is changed."
   ],
   "assigned_runtime": "claude-code",
+  "cca_rerun_count": 1,
   "dependencies": [],
   "expected_branch": "shiki/t-20260805t075725961882z-91c2ecac-sync-a-behind-branch-before-spending-repair-atte",
   "expected_pr": 294,
@@ -31,7 +32,8 @@
     "L-20260805T111347074794Z-b682d8a1",
     "L-20260806T003357149682Z-6c643004",
     "L-20260806T003545045667Z-94ae4b6c",
-    "L-20260806T003549622660Z-46d3d61d"
+    "L-20260806T003549622660Z-46d3d61d",
+    "L-20260806T004038217867Z-df62a047"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
