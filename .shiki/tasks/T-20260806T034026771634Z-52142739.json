@@ -12,7 +12,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260806t034026771634z-52142739-carry-the-loop-s-undelivered-ledger-entries-on-t",
+  "expected_branch": "shiki/t-20260806t034026771634z-52142739-closeout",
   "expected_pr": 302,
   "github_issue": null,
   "goal_id": "G-20260806T034026770241Z-4f95b5bf",
@@ -22,7 +22,8 @@
     "L-20260806T060423187125Z-3b23ffab",
     "L-20260806T060736214432Z-b4900f11",
     "L-20260806T060916563138Z-f3643009",
-    "L-20260806T060920658791Z-fef5553e"
+    "L-20260806T060920658791Z-fef5553e",
+    "L-20260806T062802153344Z-3642e32b"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -49,7 +50,7 @@
   ],
   "risk_level": "medium",
   "scope": "The goal loop leaves mirror files it wrote in the COORDINATOR checkout untracked, and never adds them to that checkout's index. When the same paths later arrive through `git merge origin/main` - which is how they come back after the task PR merges - git aborts with 'The following untracked working tree files would be overwritten by merge', and continuing requires backing the files up and deleting them by hand. Measured four times on 2026-08-05/06 while driving this repository's own backlog.\n\nMake the loop stop producing that collision. The delivery mechanism is UNCHANGED: `_sync_state_to_branch` (`scripts/shiki_loop.py:1000`) keeps copying the evidence set onto the task branch exactly as it does today, and NO cross-task or cross-goal carry is introduced.\n\nWHY NO CARRY - this is the load-bearing constraint, and the first implementation attempt was blocked on it by the pre-PR reviewer before a PR existed. `ledger_entry_allowed_for_task` (`scripts/mergegate_check.py:2408-2413`) admits a ledger entry onto a task PR only when `entry.task_id == task_id`, or when the entry has no task_id and `entry.goal_id == goal_id`. The loop's post-merge bookkeeping entries carry the completed task's own task_id, so they can ride only that task's PR - which no longer exists. Carrying one onto another task's branch makes `enforce_untrusted_shiki_mutations` block with 'PR changes ledger ... not listed in current task ledger_evidence' (`:2738`), which would fail EVERY subsequent PR in the repository.\n\nWHAT THE FIX MAY NOT DO: it must not delete or move any ledger, task, lock, runner or worktree record as a way of avoiding the collision - the mirror is append-only evidence. It must not change what `_sync_state_to_branch` copies, its signature (tests/test_loop_tdd_evidence.py:209-224 monkeypatches it) or what `_evidence_relatives_for_task` returns (tests/test_mirror_lock_injection.py asserts on it at :320, :336, :498). It must not touch any gate, schema, workflow or approval source.\n\nTESTS. `tests/test_dispatch_state_sync.py`: after a sync, the coordinator checkout has no untracked file whose path also exists on the default branch. `tests/test_loop_branch_plumbing.py`: reproduce the measured sequence against a real repository - run a task to the point where the loop has written its mirror records, bring the same paths in from the default branch, and assert the merge succeeds rather than aborting; assert it is still true after a second cycle.\n\nREPRODUCIBILITY - what this task removes, and what to change to get the same result.\n  Symptom: `git merge origin/main` in the coordinator checkout aborts with 'The following untracked working tree files would be overwritten by merge', naming ledger, runner and worktree files the loop wrote.\n  Measured four times on 2026-08-05/06. Re-measured file by file: 27 of 28, and 20 of 20, of the colliding files were BYTE-IDENTICAL to origin/main - they had already been delivered through the task branch. The genuinely undelivered entries never collided at all.\n  Root cause: the loop writes into the coordinator checkout's working tree and never stages those writes there, so git treats a delivered-and-returning file as an untracked file it must not overwrite.\n  Why not a carry: MergeGate forbids it - see above; the first attempt was blocked by the reviewer for exactly this reason.\n  Recorded, not fixed: the loop's own final ledger entries for a completed goal remain absent from main. Measured harm: none - the task file on main references only delivered entries, validate_shiki and MergeGate stay green, and GitHub records the merge durably.\n  Reproducible when: the measured sequence completes without a manual back-up-and-delete, twice in a row.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Carry the loop's undelivered ledger entries on the next state sync"
 }

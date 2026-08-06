@@ -7,6 +7,6 @@
     "path:tests/test_loop_branch_plumbing.py"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260806T034026771634Z-52142739"
 }

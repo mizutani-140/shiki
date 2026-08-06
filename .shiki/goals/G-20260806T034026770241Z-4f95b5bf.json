@@ -30,7 +30,8 @@
   },
   "id": "G-20260806T034026770241Z-4f95b5bf",
   "ledger_evidence": [
-    "L-20260806T034026771056Z-1367df8a"
+    "L-20260806T034026771056Z-1367df8a",
+    "L-20260806T062802153344Z-3642e32b"
   ],
   "non_goals": [
     "Reordering the closeout, or changing the decision table docs/adr/0012 pins.",
@@ -47,6 +48,6 @@
   ],
   "risk_level": "medium",
   "source_plan": "P-20260806T034026690262Z-742a3053",
-  "status": "planned",
+  "status": "complete",
   "title": "Deliver the loop's post-merge bookkeeping instead of stranding it"
 }
