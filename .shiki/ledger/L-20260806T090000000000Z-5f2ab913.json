@@ -1,0 +1,12 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/plans/P-20260806T065143332059Z-03d9edee.json",
+    ".shiki/tasks/T-20260806T065143409817Z-dbdae1cf.json"
+  ],
+  "goal_id": "G-20260806T065143407702Z-8e3284ce",
+  "id": "L-20260806T090000000000Z-5f2ab913",
+  "summary": "Contract amendment: commit the coordinator mirror rather than staging it \u2014 staging clears only a fast-forward merge, and the coordinator is always divergent",
+  "timestamp": "2026-08-06T09:00:00+00:00",
+  "type": "contract-amended"
+}
