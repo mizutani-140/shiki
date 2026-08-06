@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260806T065143409817Z-dbdae1cf.json"
+  ],
+  "goal_id": "G-20260806T065143407702Z-8e3284ce",
+  "id": "L-20260806T065143409884Z-6e97cd71",
+  "links": [],
+  "summary": "Task registered from plan: Stage every coordinator mirror write, not only the three sync paths",
+  "task_id": "T-20260806T065143409817Z-dbdae1cf",
+  "timestamp": "2026-08-06T06:51:43+00:00",
+  "type": "task-registered"
+}
