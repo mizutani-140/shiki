@@ -1,0 +1,28 @@
+{
+  "attempt": 1,
+  "created_at": "2026-08-06T00:44:34+00:00",
+  "evidence_required": [
+    "Make the fix in the worktree only; the goal loop commits and pushes it to the task branch so the required checks re-run against the updated PR head."
+  ],
+  "failing_acceptance_criteria": [],
+  "failing_checklist_items": [
+    "required check failed: Validate Shiki mirror"
+  ],
+  "goal_id": "G-20260805T075725959969Z-61d080fb",
+  "minimal_required_changes": [
+    "Fix the failing required checks without broadening scope."
+  ],
+  "pr": 294,
+  "prohibited_changes": [
+    "Do not modify files outside the task locks.",
+    "Do not weaken checks or validators.",
+    "The Shiki goal loop owns commit, push, PR creation (with the required MergeGate PR body) and merge; opening your own commit or PR breaks the loop's create_pr state transition and fails MergeGate."
+  ],
+  "repair_id": "RP-20260806T004434768724Z-67f797a7",
+  "required_skill": "diagnose",
+  "stop_condition": "Stop after this packet is satisfied or after three failed attempts.",
+  "task_id": "T-20260805T075725961882Z-91c2ecac",
+  "verification_commands": [
+    "python3 scripts/validate_shiki.py"
+  ]
+}
