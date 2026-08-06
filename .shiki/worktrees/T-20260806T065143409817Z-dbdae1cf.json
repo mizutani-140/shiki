@@ -1,0 +1,16 @@
+{
+  "branch": "shiki/t-20260806t065143409817z-dbdae1cf-stage-every-coordinator-mirror-write-not-only-th",
+  "created_at": "2026-08-06T07:03:51+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260806T065143407702Z-8e3284ce",
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_closeout.py",
+    "path:tests/test_dispatch_state_sync.py"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260806t065143409817z-dbdae1cf-stage-ev",
+  "pr": 305,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260806T065143409817Z-dbdae1cf"
+}
