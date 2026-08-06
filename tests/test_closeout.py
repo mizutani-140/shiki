@@ -14,10 +14,13 @@ Three defects this suite pins (ADR 0012):
 
   (b) ``execute_action``'s ``goal_complete`` synced with a whole-tree
       ``git checkout origin/main -- .shiki``. That reverts every unrelated
-      in-flight goal's files to main's stale version and drops the loop's own
-      merge/mark_done ledger ids (coordinator-only, never on main) off the
-      completing task. The sync must be scoped to the completing goal's own paths,
-      re-append the reverted merge/mark_done ledger ids, and leave nothing staged.
+      in-flight goal's files to main's stale version. The sync must be scoped to
+      the completing goal's own paths and leave that goal's task files
+      BYTE-IDENTICAL to main (the source of truth for a completed goal) so a later
+      ``git merge origin/main`` fast-forwards with no manual step. The loop's own
+      coordinator-only merge/mark_done ledger FILES stay on disk as durable
+      evidence; the completed task mirrors main's reference set rather than carrying
+      coordinator-only extras that would diverge it from main and block the merge.
 
   (c) The closeout repoint did not reset ``cca_rerun_count``, so a task that
       exhausted its 2 CCA reruns on the impl PR fails closed to ``stop_blocked`` on
@@ -295,8 +298,10 @@ REPORT = "R-20260729T065622764822Z-score0a1"
 
 
 class GoalCompleteMirrorSyncTests(unittest.TestCase):
-    """(b) goal_complete syncs only the completing goal from origin/main, preserving
-    the loop's own merge/mark_done ledger ids and leaving nothing staged."""
+    """(b) goal_complete syncs only the completing goal from origin/main, leaving its
+    task files byte-identical to main (so a later `git merge origin/main` fast-
+    forwards) and staging its .shiki surface at the loop's single covering point
+    (nothing outside .shiki, and never a commit)."""
 
     def _build(self, env: CloseoutEnv) -> None:
         # Base main (== coordinator HEAD): goal A in-flight, its task in review with
@@ -364,25 +369,41 @@ class GoalCompleteMirrorSyncTests(unittest.TestCase):
             self.assertEqual(before, after, "goal B's in-flight task file must be untouched")
             self.assertEqual(load_task(env.target, TB)["status"], "running")
 
-    def test_goal_complete_reappends_loop_ledgers_and_stages_nothing(self):
+    def test_goal_complete_syncs_completing_task_to_main_and_stages_only_shiki(self):
         with tempfile.TemporaryDirectory() as d:
             env = CloseoutEnv(Path(d))
             self._build(env)
+            head_before = _rev_parse(env.target, "HEAD")
 
             result = execute_action(env.target, GOAL_A, {"action": "goal_complete"}, repair_limit=3)
             self.assertEqual(result.get("goal_status"), "complete")
 
+            # The completing task file is BYTE-IDENTICAL to main (the source of truth):
+            # it carries main's reference set ([L_BASE, L_PULL]) and NOT the loop's own
+            # coordinator-only merge/mark_done ids — re-appending those would diverge it
+            # from main and make a later `git merge origin/main` abort. main is
+            # authoritative for a completed goal, so the coordinator mirrors it.
             evidence = load_task(env.target, T1).get("ledger_evidence", [])
-            self.assertIn(L_MERGE, evidence, "the loop's own merge ledger id was dropped by the sync")
-            self.assertIn(L_MARK, evidence, "the loop's own mark_done ledger id was dropped by the sync")
+            self.assertEqual(evidence, [L_BASE, L_PULL], evidence)
+            self.assertNotIn(L_MERGE, evidence)
+            self.assertNotIn(L_MARK, evidence)
+            # The loop's own merge/mark_done ledger FILES stay on disk as evidence
+            # (each names its task + goal); only the task's reference set follows main.
+            self.assertTrue((env.target / f".shiki/ledger/{L_MERGE}.json").is_file())
+            self.assertTrue((env.target / f".shiki/ledger/{L_MARK}.json").is_file())
             # main's authoritative completion synced into the coordinator working tree.
             self.assertEqual(load_goal(env.target, GOAL_A).get("status"), "complete")
             self.assertTrue((env.target / f".shiki/reports/{REPORT}.json").is_file(),
                             "the scorecard report from main must ride along")
-            # No reverted path is left staged: the coordinator carries .shiki
-            # mutations unstaged, exactly as the loop normally leaves them.
+            # The single covering point stages the coordinator's .shiki surface (so a
+            # returning file never aborts `git merge origin/main`): the completing
+            # task IS staged, NOTHING outside .shiki is, and it never commits.
             staged = _git(env.target, "diff", "--cached", "--name-only").stdout.splitlines()
-            self.assertEqual([p for p in staged if p.startswith(".shiki/")], [], staged)
+            self.assertIn(f".shiki/tasks/{T1}.json", staged,
+                          "the completing task must be staged so the merge absorbs it")
+            self.assertEqual([p for p in staged if not p.startswith(".shiki/")], [], staged)
+            self.assertEqual(_rev_parse(env.target, "HEAD"), head_before,
+                             "goal_complete must not advance the coordinator HEAD")
 
 
 class CloseoutCcaRerunResetTests(unittest.TestCase):
@@ -436,6 +457,86 @@ class CloseoutCcaRerunResetTests(unittest.TestCase):
                 repair_attempts=0, repair_limit=3, required_checks=REQUIRED, cca_reruns=2,
             )
             self.assertEqual(stalled["action"], "stop_blocked", stalled)
+
+
+class CloseoutCoordinatorMergeTests(unittest.TestCase):
+    """The measured 2026-08-06 15:46 collision, reproduced end to end.
+
+    After a task runs through its closeout — ``create_closeout_pr`` opens the
+    closeout PR, it merges to main, then ``mark_done`` + ``goal_complete`` write /
+    sync the terminal mirror — the six terminal records (goal, task, lock, two
+    closeout ledgers, the scorecard report) return through ``git merge origin/main``.
+    With staging placed only inside ``_sync_state_to_branch`` those records sat
+    untracked in the coordinator and the merge aborted with "untracked working tree
+    files would be overwritten by merge". ``execute_action``'s single covering point
+    stages the whole ``.shiki`` surface on EVERY effector, so the merge absorbs them.
+    Driven against a REAL repo + bare origin, twice in a row."""
+
+    def _merge_origin_main(self, env: CloseoutEnv):
+        # `git fetch origin` hits the fake GitHub URL and no-ops; the authoritative
+        # origin/main tracking ref is set directly by the closeout simulation below.
+        _git(env.target, "fetch", "origin", check=False)
+        return _git(env.target, "merge", "origin/main", check=False)
+
+    def _seed_single_task_goal_on_main(self, env: CloseoutEnv, goal_id: str, task_id: str) -> None:
+        branch = f"shiki/{task_id.lower()}-slice"
+        env.write(f".shiki/goals/{goal_id}.json", _goal(goal_id))
+        env.write(f".shiki/dag/{goal_id}.json", {"goal_id": goal_id, "nodes": [task_id], "edges": []})
+        env.write(f".shiki/tasks/{task_id}.json", _task(task_id, goal_id, expected_branch=branch))
+        env.write(f".shiki/locks/{task_id}.json", _lock(task_id, goal_id))
+        env.commit_push_main(f"seed {goal_id} for closeout")
+
+    def _run_task_through_closeout(self, env: CloseoutEnv, goal_id: str, task_id: str) -> None:
+        """Drive the REAL closeout effectors and simulate the closeout PR merging,
+        leaving the coordinator carrying the terminal mirror for `git merge`.
+
+        Asserts staging only: nothing outside ``.shiki`` is staged and the
+        coordinator HEAD never moves across the three effectors."""
+        head_before = _rev_parse(env.target, "HEAD")
+        orig = shiki_loop._gh
+        shiki_loop._gh = _FakeGh()
+        try:
+            r1 = execute_action(env.target, goal_id,
+                                {"action": "create_closeout_pr", "task_id": task_id}, repair_limit=3)
+            self.assertEqual(r1.get("action"), "create_closeout_pr", r1)
+            self.assertIs(r1.get("completes_goal"), True, r1)
+            # The closeout PR merges: main fast-forwards to the closeout branch tip.
+            closeout_branch = f"shiki/{task_id.lower()}-closeout"
+            tip = _git(env.remote, "rev-parse", f"refs/heads/{closeout_branch}").stdout.strip()
+            _git(env.remote, "update-ref", "refs/heads/main", tip)
+            _git(env.target, "update-ref", "refs/remotes/origin/main", tip)
+            # The loop then records done + goal completion in the coordinator mirror.
+            r2 = execute_action(env.target, goal_id, {"action": "mark_done", "task_id": task_id}, repair_limit=3)
+            self.assertEqual(r2.get("status"), "done", r2)
+            r3 = execute_action(env.target, goal_id, {"action": "goal_complete", "task_id": task_id}, repair_limit=3)
+            self.assertEqual(r3.get("goal_status"), "complete", r3)
+        finally:
+            shiki_loop._gh = orig
+        staged = _git(env.target, "diff", "--cached", "--name-only").stdout.splitlines()
+        self.assertEqual([p for p in staged if not p.startswith(".shiki/")], [], staged)
+        self.assertEqual(_rev_parse(env.target, "HEAD"), head_before,
+                         "the closeout effectors must not advance the coordinator HEAD")
+
+    def test_merge_origin_main_succeeds_after_closeout_and_again_next_cycle(self):
+        with tempfile.TemporaryDirectory() as d:
+            env = CloseoutEnv(Path(d))
+            # cycle 1: complete a single-task goal through the real closeout effectors.
+            self._seed_single_task_goal_on_main(env, GOAL_A, T1)
+            env.use_github_fetch_url()
+            self._run_task_through_closeout(env, GOAL_A, T1)
+            first = self._merge_origin_main(env)
+            self.assertEqual(first.returncode, 0,
+                             f"first `git merge origin/main` aborted:\n{first.stdout}{first.stderr}")
+            self.assertNotIn("would be overwritten by merge", first.stderr)
+
+            # cycle 2: a genuinely different goal + task must still leave the
+            # coordinator mergeable with no manual step.
+            self._seed_single_task_goal_on_main(env, GOAL_B, TB)
+            self._run_task_through_closeout(env, GOAL_B, TB)
+            second = self._merge_origin_main(env)
+            self.assertEqual(second.returncode, 0,
+                             f"second `git merge origin/main` aborted:\n{second.stdout}{second.stderr}")
+            self.assertNotIn("would be overwritten by merge", second.stderr)
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -1814,50 +1814,27 @@ def _reconcile_registered_worktree_to_origin(target: Path, task_id: str) -> str:
         return f"registered worktree reconciliation error: {str(error)[:120]}"
 
 
-def _loop_own_ledger_ids(target: Path, task: dict[str, Any]) -> list[str]:
-    """This task's loop-authored merge + mark_done ledger ids.
-
-    The ``merge`` effector appends a ``mergegate`` ledger and ``_mark_done`` appends
-    a ``check`` ledger whose summary starts ``Goal loop marked``; both are written to
-    the coordinator task only and are never pushed to main. The ``goal_complete``
-    origin/main sync therefore reverts them off the task file, so they are captured
-    here (before the sync) to be re-appended after it. Order preserved; unreadable or
-    absent ledgers are skipped.
-    """
-    own: list[str] = []
-    for ledger_id in task.get("ledger_evidence") or []:
-        path = target / ".shiki" / "ledger" / f"{ledger_id}.json"
-        if not path.is_file():
-            continue
-        try:
-            entry = read_json(path)
-        except Exception:
-            continue
-        ledger_type = entry.get("type")
-        summary = str(entry.get("summary") or "")
-        if ledger_type == "mergegate" or (ledger_type == "check" and summary.startswith("Goal loop marked")):
-            own.append(ledger_id)
-    return own
-
-
 def _sync_goal_complete_mirror(target: Path, goal_id: str) -> dict[str, Any]:
     """Sync ONLY the completing goal's ``.shiki`` paths from ``origin/main``.
 
     After the closeout PR merged, main is authoritative for this goal (goal=complete
     + scorecard + task=done + lock=released) and the coordinator mirror must catch
-    up — but NOT with a whole-tree ``git checkout origin/main -- .shiki``. That
-    reverts every unrelated in-flight goal's files to main's stale version and drops
-    the loop's own merge/mark_done ledger ids (coordinator-only, never on main) off
-    the completing task. This effector instead:
+    up — but NOT with a whole-tree ``git checkout origin/main -- .shiki``, which would
+    revert every unrelated in-flight goal's files to main's stale version. This
+    effector instead checks out only this goal's own id-named files (goal, dag,
+    tasks, locks, worktrees) and the ledgers/reports those main-side files
+    reference — restricted to paths that actually exist on ``origin/main`` so the
+    checkout cannot error on a not-yet-pushed candidate.
 
-      * captures the loop's own merge/mark_done ledger ids per task (pre-sync);
-      * checks out only this goal's own id-named files (goal, dag, tasks, locks,
-        worktrees) and the ledgers/reports those main-side files reference —
-        restricted to paths that actually exist on ``origin/main`` so the checkout
-        cannot error on a not-yet-pushed candidate;
-      * re-appends the captured merge/mark_done ids the checkout reverted;
-      * unstages every synced path, so the coordinator carries them exactly as the
-        loop normally leaves ``.shiki`` mutations — in the working tree, unstaged.
+    The completing goal's task files are left BYTE-IDENTICAL to main (the source of
+    truth for a completed goal). Earlier this effector re-appended the loop's own
+    coordinator-only merge/mark_done ledger ids the checkout reverted, but that
+    diverged the task file from main and made a later ``git merge origin/main`` abort
+    with "Your local changes ... would be overwritten" — and the merge would drop
+    those ids anyway, so the re-append bought nothing durable. The loop's own
+    merge/mark_done ledger FILES stay on disk (each names its task and goal), so the
+    events remain durable evidence even though the completed task now mirrors main's
+    reference set rather than carrying coordinator-only extras.
 
     Fail-open: on any sync failure the goal is still reflected ``complete`` locally
     so the run reports the durable truth. Never raises into the loop.
@@ -1866,7 +1843,6 @@ def _sync_goal_complete_mirror(target: Path, goal_id: str) -> dict[str, Any]:
 
     coordinator_tasks = tasks_for_goal(target, goal_id)
     task_ids = [str(t.get("id")) for t in coordinator_tasks]
-    own_ledgers = {str(t.get("id")): _loop_own_ledger_ids(target, t) for t in coordinator_tasks}
 
     # One listing of every .shiki path on origin/main: `git checkout <ref> -- <spec>`
     # errors if ANY pathspec is absent from the ref, so candidates are filtered
@@ -1939,26 +1915,12 @@ def _sync_goal_complete_mirror(target: Path, goal_id: str) -> dict[str, Any]:
                 report_refs.append(ref)
     _sync(report_refs)
 
-    # Re-append the loop's own merge/mark_done ledger ids the Pass-1 checkout
-    # reverted off the task files (they are not on main; the ledger files stay on
-    # disk locally, so the references are never dangling).
-    for task_id, ids in own_ledgers.items():
-        if not ids:
-            continue
-        try:
-            task_obj = load_task(target, task_id)
-        except ShikiError:
-            continue
-        evidence = task_obj.setdefault("ledger_evidence", [])
-        added = [ledger_id for ledger_id in ids if ledger_id not in evidence]
-        if added:
-            evidence.extend(added)
-            write_json(shiki_path(target, "tasks", f"{task_id}.json"), task_obj)
-
-    # Leave no reverted path staged: the coordinator carries .shiki mutations
-    # unstaged (the loop writes JSON directly), so unstage what the checkout staged.
-    if synced_paths:
-        run(["git", "reset", "-q", "--", *synced_paths], cwd=target, check=False)
+    # The synced paths (byte-identical to main) are left in the working tree;
+    # execute_action's single covering point (`_stage_coordinator_mirror`) stages
+    # the coordinator's whole .shiki surface — including these — so a returning file
+    # never aborts a later `git merge origin/main`. Because the completing goal's
+    # files now match main exactly, that merge fast-forwards cleanly with no manual
+    # step. Staging only; the coordinator never commits.
 
     mirror_synced = checkout_ok and bool(synced_paths)
     if not mirror_synced:
@@ -1974,7 +1936,47 @@ def _sync_goal_complete_mirror(target: Path, goal_id: str) -> dict[str, Any]:
     return {"mirror_synced": mirror_synced}
 
 
+def _stage_coordinator_mirror(target: Path) -> None:
+    """Stage the coordinator's whole ``.shiki`` working surface — staging only.
+
+    The loop writes ``.shiki`` JSON straight into the coordinator working tree and
+    never commits it there. The moment the same byte-identical file lands on the
+    default branch (a task or closeout PR merges), a later ``git merge origin/main``
+    in the coordinator aborts with "untracked working tree files would be
+    overwritten by merge" and needs a manual back-up-and-delete. Staging — NOT
+    committing — makes each returning path tracked, so the merge absorbs it cleanly.
+
+    Scoped to ``.shiki`` so nothing outside the mirror is ever staged, and
+    ``--ignore-removal`` so this covering point never stages a deletion of an
+    append-only mirror record. Staging never advances HEAD. Never raises into the
+    loop (it runs from a ``finally``).
+    """
+    try:
+        run(["git", "add", "--ignore-removal", "--", ".shiki"], cwd=target, check=False)
+    except Exception:  # noqa: BLE001 — staging must never break the loop
+        pass
+
+
 def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repair_limit: int) -> dict[str, Any]:
+    """Run one effector, then stage the coordinator mirror at the SINGLE point
+    every effector passes through.
+
+    ``_execute_action_body`` has eleven effector branches; several write ``.shiki``
+    records straight into the coordinator (a merge ledger, a ``done`` task, a
+    ``goal_complete`` sync, a closeout's repointed task) and stage nothing. Placing
+    a ``git add`` inside each branch would leave the next new effector uncovered, so
+    staging happens here instead — in a ``finally`` so a normal return, an early
+    return (e.g. ``goal_complete``, ``wait_review``, a ``stop_blocked`` guard) or a
+    future effector is covered by construction. Staging only: HEAD never moves and
+    only ``.shiki`` is touched.
+    """
+    try:
+        return _execute_action_body(target, goal_id, decision, repair_limit=repair_limit)
+    finally:
+        _stage_coordinator_mirror(target)
+
+
+def _execute_action_body(target: Path, goal_id: str, decision: dict[str, Any], *, repair_limit: int) -> dict[str, Any]:
     action = decision["action"]
     task_id = decision.get("task_id")
     result: dict[str, Any] = {"action": action, "task_id": task_id, "reason": decision.get("reason")}
@@ -1985,8 +1987,9 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
             # the scorecard report + completion ledger) to main (ADR 0012). Sync the
             # coordinator mirror to main's authoritative state for THIS goal only —
             # never a whole-tree checkout, which would revert unrelated in-flight
-            # goals' files and drop the loop's own merge/mark_done ledger ids off the
-            # completing task. Do NOT re-run cmd_goal_complete (duplicate scorecard).
+            # goals' files. The completing goal's task files are left byte-identical
+            # to main so a later `git merge origin/main` fast-forwards. Do NOT re-run
+            # cmd_goal_complete (duplicate scorecard).
             result.update(_sync_goal_complete_mirror(target, goal_id))
             result["goal_status"] = "complete"
         return result
