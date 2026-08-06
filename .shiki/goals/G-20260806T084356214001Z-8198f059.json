@@ -1,0 +1,51 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A finished task's lock can be released by an explicit command, and the paths become acquirable by another task.",
+    "An unfinished task's lock is refused, with the task and its status named.",
+    "Nothing releases a lock implicitly.",
+    "The full suite, the control-plane suite, the goal-loop suite and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-06T08:43:56+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "MEASURED. `.shiki/locks/` holds 69 records at `state: released` and 2 at `active`: `T-20260801T041653423255Z-2798773b` (acquired 2026-08-05 07:45, retired by the amendment in PR #300) and `T-20260805T025939375698Z-94a2fa82` (acquired 2026-08-05 03:40, task status `done`). Both tasks are finished; both still hold their declared paths.",
+      "THE ONLY RELEASE PATH, read from source: `scripts/shiki_loop.py:693-694` sets `record['state'] = 'released'` inside the loop's closeout. `grep '\"released\"' scripts/*.py` finds no other writer \u2014 `mergegate_check.py:1617` and `:2109` only READ the state. `scripts/shiki_cli.py:364-370` exposes exactly one lock subcommand, `acquire`. So a task that ends any way other than a loop closeout \u2014 retired, abandoned, superseded, or closed out by hand \u2014 leaks its lock permanently.",
+      "WHY IT MATTERS BEYOND TIDINESS. `has_active_lock_conflict` refuses a new acquisition against an active record, and the dispatch precondition added by T-20260805T034218808409Z-0f0d9640 refuses dispatch without a grant. A leaked lock therefore blocks any FUTURE task that declares an overlapping path, and the refusal names a task that is already finished \u2014 the same three-steps-removed diagnosis that precondition exists to prevent.",
+      "RELEASE MUST BE DELIBERATE, NOT AUTOMATIC. Do not release as a side effect of a status change, a dispatch, or a validation pass: an implicit release would let an in-flight task lose its paths under it. The command is the authority for a release, exactly as `acquire` is for a grant.",
+      "FAILURE DIRECTION. Refusing a legitimate release is cheap \u2014 the operator sees a named reason and can act. Releasing a lock that is still in use is expensive: two runtimes could then hold the same paths. So the command must refuse rather than guess when the task is not finished, and every refusal must name the task and its status.",
+      "LOCK-SUFFICIENCY CHECK (2026-08-06). MUST-CHANGE: `scripts/shiki_tasks.py` (`cmd_lock_acquire` at `:982` is the sibling the new command must mirror \u2014 same record shape, same JSON result contract); `scripts/shiki_cli.py` (`:364-370` \u2014 the `lock` subparser currently has exactly one child); `tests/test_lock_release.py` (new); `scripts/test_shiki_control_plane.sh`, which owns the lock CLI end to end (`:634`, `:677`, `:698`) and is the only surface that can prove the property that matters \u2014 that after a release, a DIFFERENT task can acquire the same paths.",
+      "VERIFIED SAFE: no test greps the `lock` subparser's usage string or its `{acquire}` choice list, so adding a sibling subcommand breaks nothing. `scripts/test_shiki_goal_loop.sh:263` and `scripts/test_shiki_loop_e2e.sh:331` call `lock acquire` and are unaffected.",
+      "OUT OF SCOPE, and it must stay out: releasing the two currently-stuck records. That is a mirror edit on foreign task records, which `enforce_untrusted_shiki_mutations` rejects independently of locks. This task ships the command; using it on those two records is a separate, deliberate act.",
+      "Risk is medium: this adds a command and changes no gate, schema, workflow or approval source. Under `.shiki/guardian-policy.json` (`applies_to_risk: [high, critical]`) neither PR triggers the Guardian gate."
+    ],
+    "source": "Measured 2026-08-06 against this repository's own mirror and CLI.",
+    "status": "complete"
+  },
+  "id": "G-20260806T084356214001Z-8198f059",
+  "ledger_evidence": [
+    "L-20260806T084356214860Z-f4114322"
+  ],
+  "non_goals": [
+    "Releasing the two currently-active lock records \u2014 a separate, deliberate act on foreign mirror records.",
+    "Releasing a lock as a side effect of a status change, a dispatch, a validation pass, or anything else.",
+    "Changing what a lock conflict means, how locks are declared, or how they are acquired.",
+    "Changing the loop's own release at scripts/shiki_loop.py:693-694.",
+    "Changing any gate, schema, workflow or approval source.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A task's lock can be released deliberately. Today the ONLY release is `scripts/shiki_loop.py:693-694`, inside the loop's closeout path, so a task that ends any other way holds its paths forever and no command can free them. Measured on this repository: 69 lock records are `released` and 2 are `active` \u2014 both belonging to tasks that are finished (one `done`, one retired by amendment).",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "source_plan": "P-20260806T084356137490Z-39afc661",
+  "status": "planned",
+  "title": "Give a lock a way out that does not require the loop's closeout"
+}
