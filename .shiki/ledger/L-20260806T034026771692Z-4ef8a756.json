@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260806T034026771634Z-52142739.json"
+  ],
+  "goal_id": "G-20260806T034026770241Z-4f95b5bf",
+  "id": "L-20260806T034026771692Z-4ef8a756",
+  "links": [],
+  "summary": "Task registered from plan: Carry the loop's undelivered ledger entries on the next state sync",
+  "task_id": "T-20260806T034026771634Z-52142739",
+  "timestamp": "2026-08-06T03:40:26+00:00",
+  "type": "task-registered"
+}

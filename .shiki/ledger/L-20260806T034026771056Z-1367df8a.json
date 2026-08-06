@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260806T034026770241Z-4f95b5bf.json",
+    ".shiki/plans/P-20260806T034026690262Z-742a3053.json"
+  ],
+  "goal_id": "G-20260806T034026770241Z-4f95b5bf",
+  "id": "L-20260806T034026771056Z-1367df8a",
+  "links": [],
+  "summary": "Goal registered from plan: Deliver the loop's post-merge bookkeeping instead of stranding it",
+  "task_id": null,
+  "timestamp": "2026-08-06T03:40:26+00:00",
+  "type": "goal-created"
+}
