@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260806T014016270514Z-2d62ec7c.json",
+    ".shiki/plans/P-20260806T014011309806Z-15cf341c.json"
+  ],
+  "goal_id": "G-20260806T014016270514Z-2d62ec7c",
+  "id": "L-20260806T014016271546Z-9540c34e",
+  "links": [],
+  "summary": "Goal registered from plan: Make a gate rejection actionable without ever making it an authority",
+  "task_id": null,
+  "timestamp": "2026-08-06T01:40:16+00:00",
+  "type": "goal-created"
+}
