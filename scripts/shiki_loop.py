@@ -1106,6 +1106,7 @@ def _sync_state_to_branch(target: Path, task_id: str, ledger_id: str | None) -> 
             relatives.append(extra)
     shiki_root = (target / ".shiki").resolve()
     worktree_shiki_root = (worktree_path / ".shiki").resolve()
+    copied: list[str] = []
     for relative in relatives:
         source = (target / relative).resolve()
         destination = (worktree_path / relative).resolve()
@@ -1120,6 +1121,19 @@ def _sync_state_to_branch(target: Path, task_id: str, ledger_id: str | None) -> 
         if source.is_file():
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
+            copied.append(relative)
+    # Stage the coordinator's OWN copies of the evidence just delivered to the
+    # branch. The loop writes .shiki JSON straight into the coordinator working
+    # tree and never stages it; once the same byte-identical file lands on the
+    # default branch (this task's PR merges), a later `git merge origin/main` in
+    # the coordinator aborts with "untracked working tree files would be
+    # overwritten by merge" and has to be resolved by hand. Staging — NOT
+    # committing — makes each path tracked, so the merge absorbs the returning
+    # file cleanly. The coordinator's local branch is never advanced and nothing
+    # is carried onto a foreign branch: these are exactly the paths copied above,
+    # this task's own delivered evidence.
+    if copied:
+        run(["git", "add", "--", *copied], cwd=target, check=False)
     run(["git", "add", ".shiki"], cwd=worktree_path, check=False)
     commit = run(
         ["git", "commit", "-m", f"shiki: link PR evidence to {task_id} (goal loop)"],
