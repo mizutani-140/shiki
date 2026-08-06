@@ -23,6 +23,8 @@ from shiki_loop import (
     _commit_and_push_implementation,
     _create_closeout_pr,
     _evidence_relatives_for_task,
+    _reconcile_registered_worktree_to_origin,
+    _sync_branch,
     _sync_state_to_branch,
 )
 from shiki_process import ensure_control_dirs
@@ -242,6 +244,73 @@ class SyncStateFullEvidenceTests(unittest.TestCase):
                         ".shiki/ledger/L-B.json", ".shiki/runner/EXEC-1.json",
                         ".shiki/reports/R-1.json"):
                 self.assertTrue(env.remote_has(rel), f"{rel} not synced to branch")
+
+
+class RepairAfterSyncPushesTests(unittest.TestCase):
+    """A repair dispatched AFTER a base sync must still push.
+
+    ``_sync_branch`` pushes the base merge from a throwaway detached checkout, so the
+    task's REGISTERED worktree (where a subsequent ``dispatch_repair`` commits) is left
+    at the pre-sync head. ``_reconcile_registered_worktree_to_origin`` fast-forwards it
+    so the repair's ``git push`` is a fast-forward, not a misleading non-fast-forward
+    failure. This drives the REAL effectors against a REAL git repo — no mocks.
+    """
+
+    def _remote_tip(self, env: "_GitEnv") -> str:
+        return subprocess.run(
+            ["git", "rev-parse", env.branch], cwd=str(env.remote),
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+    def test_repair_push_succeeds_after_a_base_sync_advances_the_branch(self):
+        with tempfile.TemporaryDirectory() as d:
+            env = _GitEnv(Path(d))
+            # The registered worktree's branch has real work pushed to origin (H1).
+            (env.wt / "impl.py").write_text("x = 1\n")
+            _git(env.wt, "add", "-A")
+            _git(env.wt, "commit", "-m", "task work")
+            _git(env.wt, "push", "-u", "origin", env.branch)
+            # main advances on a NON-conflicting file after the branch forked, so the
+            # branch is now BEHIND its base (a clean base merge). Push it from a
+            # scratch checkout so the registered worktree's local branch stays at H1.
+            scratch = Path(d) / "scratch"
+            _git(env.target, "worktree", "add", "--detach", str(scratch), "main")
+            (scratch / "base-advance.txt").write_text("base moved\n")
+            _git(scratch, "add", "-A")
+            _git(scratch, "commit", "-m", "base advances beyond the branch")
+            _git(scratch, "push", "origin", "HEAD:main")
+            _git(env.target, "worktree", "remove", "--force", str(scratch))
+
+            task = {"id": TASK, "goal_id": GOAL, "status": "review",
+                    "expected_branch": env.branch, "title": "t", "ledger_evidence": []}
+            _write(env.target / ".shiki" / "tasks" / f"{TASK}.json", task)
+
+            tip_before = self._remote_tip(env)
+            # The real base sync pushes a merge commit to origin/<branch> from a
+            # throwaway detached checkout; the registered worktree stays at H1.
+            result = _sync_branch(env.target, task, base="main")
+            self.assertEqual(result["action"], "sync_branch")
+            self.assertNotEqual(self._remote_tip(env), tip_before)  # branch advanced
+
+            # Reconcile the registered worktree to the synced head (the in-file fix).
+            reconciled = _reconcile_registered_worktree_to_origin(env.target, TASK)
+            self.assertIn("fast-forwarded", reconciled)
+
+            # A repair now writes into the SAME registered worktree and pushes.
+            # Without the reconciliation this push would be a non-fast-forward.
+            (env.wt / "repair.py").write_text("fixed = True\n")
+            status = _commit_and_push_implementation(env.target, TASK)
+            self.assertIn("pushed", status)
+            self.assertTrue(env.remote_has("repair.py"))
+
+    def test_reconcile_is_a_noop_when_no_registered_worktree(self):
+        # The closeout PR branch has no persistent worktree; reconciliation must be a
+        # harmless no-op there rather than raising or reconciling the wrong path.
+        with tempfile.TemporaryDirectory() as d:
+            env = _GitEnv(Path(d))
+            (env.target / ".shiki" / "worktrees" / f"{TASK}.json").unlink()
+            message = _reconcile_registered_worktree_to_origin(env.target, TASK)
+            self.assertIn("no registered worktree", message)
 
 
 if __name__ == "__main__":
