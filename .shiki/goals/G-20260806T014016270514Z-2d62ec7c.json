@@ -36,7 +36,8 @@
   },
   "id": "G-20260806T014016270514Z-2d62ec7c",
   "ledger_evidence": [
-    "L-20260806T014016271546Z-9540c34e"
+    "L-20260806T014016271546Z-9540c34e",
+    "L-20260806T024858147106Z-3d9d1a16"
   ],
   "non_goals": [
     "Writing a rejected verdict to .shiki/gha/cca-verdict.json, or to any path an existing consumer reads as authority.",
@@ -55,6 +56,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260806T014011309806Z-15cf341c",
-  "status": "planned",
+  "status": "complete",
   "title": "Make a gate rejection actionable without ever making it an authority"
 }
