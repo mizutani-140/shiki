@@ -13,8 +13,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260806t065143409817z-dbdae1cf-stage-every-coordinator-mirror-write-not-only-th",
-  "expected_pr": 305,
+  "expected_branch": "shiki/t-20260806t065143409817z-dbdae1cf-closeout",
+  "expected_pr": 306,
   "github_issue": null,
   "goal_id": "G-20260806T065143407702Z-8e3284ce",
   "id": "T-20260806T065143409817Z-dbdae1cf",
@@ -25,7 +25,9 @@
     "L-20260806T081558181451Z-ed3298eb",
     "L-20260806T082023276867Z-ecdd22d6",
     "L-20260806T082211263412Z-ac491be9",
-    "L-20260806T082215452990Z-de704a5c"
+    "L-20260806T082215452990Z-de704a5c",
+    "L-20260806T082752107611Z-1516cc3b",
+    "L-20260806T082755993425Z-8897ef4c"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -59,7 +61,7 @@
   ],
   "risk_level": "medium",
   "scope": "Finish what T-20260806T034026771634Z-52142739 started. It staged the coordinator's copies of the evidence `_sync_state_to_branch` delivers, which closed the collision for three effectors. The closeout effectors write six more mirror records and stage nothing, so the defect persists.\n\nMEASURED 2026-08-06 15:46 JST, with the previous fix already present in the coordinator (it reached main at 15:09 and the coordinator picked it up at 15:27): after the closeout loop completed, `git merge origin/main` still aborted with 'The following untracked working tree files would be overwritten by merge', naming `.shiki/goals/G-...4f95b5bf.json`, `.shiki/locks/T-...52142739.json`, `.shiki/tasks/T-...52142739.json`, two closeout ledgers and `.shiki/reports/R-...18fd8360.json` \u2014 all written at 15:46, after the fix.\n\nCAUSE: `_sync_state_to_branch` has exactly three call sites (`:2063` create_pr, `:2103` dispatch_repair, `:2167` rerun_cca), so staging placed inside it reaches only those. The `merge`, `mark_done`, `goal_complete` and `create_closeout_pr` effectors write the coordinator mirror through their own paths. `_create_closeout_pr` (`:1500`) builds the terminal state in a FRESH worktree cut from origin/main and commits THERE; the coordinator's own copies are written separately and left untracked.\n\nSTAGE ONCE, NOT PER EFFECTOR. `execute_action` has eleven branches (`:1983`-`:2227`); adding a `git add` to each leaves the next new effector uncovered. Stage at a single point that covers the loop's whole `.shiki` working surface in the coordinator, so a future effector is covered by construction. STAGING ONLY \u2014 never commit: the coordinator's local branch must not advance.\n\nMUST NOT: delete or move any mirror record to avoid the collision (the mirror is append-only evidence); stage anything outside `.shiki/`; change `_sync_state_to_branch`'s signature (`tests/test_loop_tdd_evidence.py:209-224` monkeypatches it) or what `_evidence_relatives_for_task` returns (`tests/test_mirror_lock_injection.py` asserts on it at `:320`, `:336`, `:498`); change what the closeout PR contains or the decision table `docs/adr/0012` pins; introduce any cross-task or cross-goal carry.\n\nTESTS. `tests/test_dispatch_state_sync.py` owns the staging property the previous task introduced: widen it from the sync paths to EVERY effector \u2014 after each of `merge`, `mark_done`, `goal_complete` and `create_closeout_pr`, the coordinator has no untracked `.shiki` file. `tests/test_closeout.py` owns the closeout effectors: reproduce the measured sequence against a real repository \u2014 run a task through its closeout, bring the same paths in from the default branch, and assert the merge succeeds rather than aborting; assert it still holds on a second cycle. Assert directly that nothing outside `.shiki/` is staged and that the coordinator's HEAD did not move.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: after a full loop cycle INCLUDING the closeout, `git merge origin/main` in the coordinator aborts with 'untracked working tree files would be overwritten', and continuing needs a manual back-up-and-delete. Unchanged from the previous task's symptom for the closeout-era records.\n  Measured 2026-08-06 15:46 with the previous fix in place: six records, all closeout-era, all written after the fix.\n  Root cause: staging was placed inside `_sync_state_to_branch`, which three of eleven effectors reach.\n  Honest note on the previous task: its acceptance criterion was right and remains the target; its implementation satisfied the scope prose (which named `_sync_state_to_branch`) rather than the criterion, and the CCA returned `complete` after checking the change against the scope without driving the criterion end to end.\n  Exact change that reproduces this result: stage the coordinator's `.shiki` working surface once, at a point every effector passes through.\n  Reproducible when: a full cycle including the closeout leaves the coordinator mergeable with no manual step, twice in a row.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Stage every coordinator mirror write, not only the three sync paths"
 }
