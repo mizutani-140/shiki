@@ -1,0 +1,60 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A rejected CCA verdict leaves a readable record naming the rule and the offending items, on a path no existing consumer reads as authority.",
+    "cca-verdict.json is still written only for a verdict that passed validation.",
+    "A rejection whose cause is transient drives the existing bounded rerun_cca; any other rejection keeps today's terminal stop.",
+    "A code-review verdict of blocking with zero findings is retried once, bounded, and never silently passes.",
+    "No rejection can be converted into progress, an approval, or a merge.",
+    "The workflow is unchanged and the five control-plane strings survive byte-identical.",
+    "The full suite, the control-plane, goal-loop and adversarial-state suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-06T01:40:16+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "OCCURRENCE 1 \u2014 PR #291 first CCA run rejected: 'invalid CCA verdict: complete verdict contains blocking failed checklist items: CCA-06'. Artifact of that run: 8 files, `cca-verdict.json` ABSENT. The succeeding run of the same workflow uploads 16. The loop then resolved 'unresolved' and emitted a terminal `stop_blocked`.",
+      "OCCURRENCE 2 \u2014 PR #292 closeout rejected: 'complete verdict contains failing acceptance criteria: validate_shiki passes on this HEAD'. The CCA had marked exactly one criterion insufficient_evidence and said why: the check was IN_PROGRESS at judge time, which `.github/prompts/cca-completion-check.md` explicitly tells it not to block on. A plain re-run returned complete and the PR merged unchanged.",
+      "OCCURRENCE 3 \u2014 pre-PR code review returned 'BLOCKING ... (0 finding(s))'. Independently verified afterwards: the implementation satisfied all eight of its contract requirements and its full test command was green (unittest Ran 1054 OK, plus three shell suites and validate_shiki, all exit 0). A plain re-run passed and the PR merged with no code change.",
+      "MECHANISM, read from source. `scripts/enforce_cca_verdict.py` `main()` returns `fail(...)` from its `except` BEFORE `output_path.write_text(...)`, so a rejected verdict leaves no file at all. The loop's fail-closed treatment of an unreadable verdict is CORRECT \u2014 the defect is that there is nothing to read.",
+      "REJECTED FIRST DESIGN \u2014 writing the rejected verdict to `.shiki/gha/cca-verdict.json`. That path is what every consumer reads as the CCA's operative authority, and the loop's resolver re-derives none of the rejection rules. A rejected `repair_required` would become an auto-dispatched repair, and a rejected verdict would be read as a judgment it is not. CORRECTED: the rejection goes to a DISTINCT path that no existing consumer reads, and `cca-verdict.json` keeps its today meaning exactly \u2014 written only for a verdict that passed validation.",
+      "REJECTED FIRST DESIGN \u2014 closing the measured 8-vs-16 artifact gap by adding `if: always()` to the steps between Enforce and Upload. The first such step is `CCA Review Bridge`, and it POSTs a GitHub review with `--arg event \"APPROVE\"` \u2014 an approval record that satisfies MergeGate's required-review policy. Running it on a rejected verdict would MINT AN APPROVAL for a PR whose CCA verdict was refused. Its skip-on-failure is correct security behaviour and must not change. The artifact gap is therefore NOT a defect and is explicitly out of scope.",
+      "CONSEQUENCE: `.github/workflows/shiki-cca-completion.yml` stays UNCHANGED and out of the locks. `Upload CCA evidence` already carries `if: always()` and uploads the whole `.shiki/gha` directory, so a new file written there ships with no workflow edit. Its `Post Guardian blockers comment` step guards on `[ ! -f .shiki/gha/cca-verdict.json ]`; because the rejection uses a different path, that guard keeps working unchanged and never posts for a refused verdict. `scripts/test_shiki_control_plane.sh:93-109` also greps seventeen literal strings out of that workflow, so leaving it alone removes a whole class of breakage.",
+      "REJECTED FIRST DESIGN \u2014 relaxing the `insufficient_evidence` rule in the enforcer. Measured consequence: it only moves the red check from the re-runnable `CCA verdict` to `MergeGate policy check`, which the loop treats as the Guardian gate and converts into `stop_guardian`. The non-degeneracy rule is CORRECT and stays exactly as it is; what changes is that its rejection becomes readable and, when the cause is transient, re-runnable.",
+      "NO NEW STATUS VALUE. The item `status` vocabulary is set-equality bound across `scripts/validate_shiki.py`, `.shiki/schemas/cca-verdict.schema.json` and the workflow's inline transport schema. Distinguish 'evidence not yet available at judge time' from 'evidence missing' by classifying the item's `reason` TEXT \u2014 the mechanism `_is_already_blocked_reason` (`enforce_cca_verdict.py:261`) already uses for the short-circuit rule. This keeps the change inside the locked files.",
+      "LOCK-SUFFICIENCY CHECK (2026-08-06, corrected by the sweep). MUST-CHANGE: `scripts/enforce_cca_verdict.py`; `scripts/shiki_loop.py`; `tests/test_cca_verdict_consistency.py` (owns `validate_verdict`); `tests/test_loop_code_review.py` (owns the reviewer path); and `tests/test_loop_verdict_gating.py` \u2014 which the first draft MISSED. It is the only file that drives the loop behaviour this task changes, and it currently PINS the terminal outcomes: `:126-131`, `:133-137` (`assertIn('could not be read', reason)` \u2014 byte-identical to occurrence 1's stop), `:139-144`, and the effector twins at `:476-481`, `:483-489` which assert `assertIsNone(packet)` and an unchanged repair counter. `path:scripts/shiki_loop.py` matches nothing under `tests/`, so editing it without the lock is a `files_outside_locks` block.",
+      "MUST-NOT-BREAK (verification command, not locks): `scripts/test_shiki_control_plane.sh` \u2014 it greps four enforcer rejection strings VERBATIM out of combined output ('missing required property', 'repair_required verdict must include a non-null object', 'blocking evaluation short-circuited', 'CCA verdict is blocked; MergeGate is blocked') and asserts `CCA verdict complete` on the success path. All five must survive byte-identical. It also sets `CCA_VERDICT_FILE` to a temp path, so the new rejection path must be derived from it rather than hard-coded. Also: `tests/test_branch_behind_sync.py` (passes `cca_verdict` but pins only needs_guardian/blocked on a BEHIND branch), `tests/test_workflow_invocation.py`, and `.github/workflows/shiki-cca-completion.yml` unchanged.",
+      "PART C COUNTER SCOPE, stated because the sweep showed both naive choices are wrong: a durable per-task counter wedges the task after a legitimate re-dispatch, and an in-memory one bounds nothing because the loop re-enters on every fresh invocation. The counter must be durable AND reset whenever the implementation is (re-)dispatched, so it bounds retries of the SAME reviewed work and never blocks new work.",
+      "Risk is high: this sits on the CCA evidence path and next to the Guardian gate. The failure directions that matter are (a) a rejected verdict must never be read as an authority by any consumer, and (b) no rejection may be converted into progress, an approval, or a merge. Both must be proved by tests, not by inspection."
+    ],
+    "source": "Three live occurrences measured 2026-08-05/06; mechanism established by downloading the CI artifacts of the failing and succeeding runs; the first draft of this contract was then swept by three adversarial lenses which found TWO security regressions in it, both re-verified by hand.",
+    "status": "complete"
+  },
+  "id": "G-20260806T014016270514Z-2d62ec7c",
+  "ledger_evidence": [
+    "L-20260806T014016271546Z-9540c34e"
+  ],
+  "non_goals": [
+    "Writing a rejected verdict to .shiki/gha/cca-verdict.json, or to any path an existing consumer reads as authority.",
+    "Changing .github/workflows/shiki-cca-completion.yml at all \u2014 in particular NEVER adding a condition that lets CCA Review Bridge run after a rejection: it posts an APPROVE review.",
+    "Closing the 8-vs-16 artifact gap; the skipped steps are skipped correctly.",
+    "Relaxing the non-degeneracy rules, or which verdicts are valid.",
+    "Adding a new checklist/acceptance status value, or touching any schema.",
+    "Changing what the CCA is asked to judge, or .github/prompts/cca-completion-check.md.",
+    "Making any rejection mergeable, auto-approved, or auto-repaired.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "When a gate refuses a judgment, it leaves a readable record of WHY \u2014 on a path no consumer treats as authority \u2014 and the loop uses that record to take the bounded re-run it already has, instead of failing closed on nothing. Measured three times on 2026-08-05/06: each stopped the loop terminally, and each cleared on a plain re-run with no code change.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260806T014011309806Z-15cf341c",
+  "status": "planned",
+  "title": "Make a gate rejection actionable without ever making it an authority"
+}
