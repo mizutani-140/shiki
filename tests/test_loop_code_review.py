@@ -499,5 +499,154 @@ class ReviewerDiffBaseTests(unittest.TestCase):
             self.assertEqual(_rev(target, "origin/main"), remote_tip)
 
 
+def _load_task(target: Path) -> dict:
+    return json.loads((target / ".shiki" / "tasks" / f"{TASK}.json").read_text())
+
+
+def _write_task_field(target: Path, **fields) -> None:
+    task = _load_task(target)
+    task.update(fields)
+    (target / ".shiki" / "tasks" / f"{TASK}.json").write_text(json.dumps(task), encoding="utf-8")
+
+
+_DEGENERATE = json.dumps({"verdict": "blocking", "findings": []})
+_WITH_FINDINGS = json.dumps({"verdict": "blocking", "findings": [{"title": "real bug"}]})
+_CLEAN = json.dumps({"verdict": "clean", "findings": []})
+
+
+class DegenerateReviewRetryTests(unittest.TestCase):
+    """A blocking review naming NOTHING is not a judgment: retry once (bounded,
+    durable, reset on re-dispatch), record the raw output, never treat it as clean."""
+
+    def _review(self, env: _Env, verdict_json: str, bindir: Path):
+        _install_stub_reviewer(bindir, verdict_json)
+        old = _with_path(bindir)
+        try:
+            return shiki_loop._run_pre_pr_code_review(env.target, TASK)
+        finally:
+            os.environ["PATH"] = old
+
+    def test_blocking_zero_findings_retries_once_then_stops(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            env = _Env(d)
+            bindir = d / "bin"; bindir.mkdir()
+            # First degenerate verdict -> retry (budget consumed), NOT a stop.
+            first = self._review(env, _DEGENERATE, bindir)
+            self.assertEqual(first["status"], "retry")
+            self.assertEqual(_load_task(env.target)["pre_pr_review_empty_retries"], 1)
+            # Second degenerate verdict -> budget exhausted -> stop (blocking).
+            second = self._review(env, _DEGENERATE, bindir)
+            self.assertEqual(second["status"], "blocking")
+            self.assertNotEqual(second["status"], "retry")
+            # The counter bounds the SAME reviewed work: it did not grow past the bound.
+            self.assertEqual(_load_task(env.target)["pre_pr_review_empty_retries"], 1)
+
+    def test_retry_that_returns_findings_stops_with_them_named(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            env = _Env(d)
+            bindir = d / "bin"; bindir.mkdir()
+            self.assertEqual(self._review(env, _DEGENERATE, bindir)["status"], "retry")
+            # The re-run produced a real finding: stop with it named (not a retry).
+            second = self._review(env, _WITH_FINDINGS, bindir)
+            self.assertEqual(second["status"], "blocking")
+            self.assertEqual(_load_task(env.target)["pre_pr_code_review"]["findings"], [{"title": "real bug"}])
+
+    def test_retry_that_returns_clean_proceeds(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            env = _Env(d)
+            bindir = d / "bin"; bindir.mkdir()
+            self.assertEqual(self._review(env, _DEGENERATE, bindir)["status"], "retry")
+            # The re-run came back clean: proceed exactly as a first-pass clean would.
+            second = self._review(env, _CLEAN, bindir)
+            self.assertEqual(second["status"], "clean")
+            self.assertEqual(_load_task(env.target)["pre_pr_code_review"]["verdict"], "clean")
+
+    def test_degenerate_verdict_is_never_treated_as_clean(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            env = _Env(d)
+            bindir = d / "bin"; bindir.mkdir()
+            first = self._review(env, _DEGENERATE, bindir)
+            self.assertNotEqual(first["status"], "clean")
+            # Exhaust the budget; still never clean.
+            second = self._review(env, _DEGENERATE, bindir)
+            self.assertNotEqual(second["status"], "clean")
+            recorded = _load_task(env.target)["pre_pr_code_review"]
+            self.assertNotEqual(recorded["verdict"], "clean")
+            self.assertTrue(recorded["degenerate"])
+
+    def test_reviewer_raw_output_is_recorded_durably(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            env = _Env(d)
+            bindir = d / "bin"; bindir.mkdir()
+            result = self._review(env, _DEGENERATE, bindir)
+            # A ledger id was returned; an EXEC record it references holds the raw output.
+            ledger_id = result["ledger_id"]
+            ledger = json.loads((env.target / ".shiki" / "ledger" / f"{ledger_id}.json").read_text())
+            self.assertEqual(ledger["type"], "check")
+            exec_refs = [ref for ref in ledger["evidence"] if ".shiki/runner/" in ref]
+            self.assertTrue(exec_refs, ledger)
+            record = json.loads((env.target / exec_refs[0]).read_text())
+            self.assertIn("blocking", record["stdout"])
+
+    def test_counter_resets_on_redispatch_and_persists_otherwise(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            env = _Env(d)
+            # Simulate a consumed budget on the reviewed work.
+            _write_task_field(env.target, pre_pr_review_empty_retries=1)
+
+            # (1) Persists when NOT re-dispatched: a fresh review of the SAME work
+            # does not reset the counter (it stays bounded).
+            bindir = d / "bin"; bindir.mkdir()
+            self._review(env, _DEGENERATE, bindir)
+            self.assertEqual(_load_task(env.target)["pre_pr_review_empty_retries"], 1)
+
+            # (2) Resets on (re-)dispatch: dispatching fresh work clears the budget so
+            # it never wedges newly re-dispatched work.
+            orig = shiki_loop._dispatch
+            shiki_loop._dispatch = lambda *a, **k: 0
+            try:
+                shiki_loop.execute_action(
+                    env.target, GOAL, {"action": "dispatch", "task_id": TASK}, repair_limit=3
+                )
+            finally:
+                shiki_loop._dispatch = orig
+            self.assertEqual(_load_task(env.target)["pre_pr_review_empty_retries"], 0)
+
+
+class DegenerateReviewCreatePrGateTests(unittest.TestCase):
+    """The create_pr effector waits (re-runs the reviewer next pass) on a degenerate
+    verdict with budget, and stops — never opens a PR — once the budget is spent."""
+
+    def _execute(self, env: _Env, verdict_json: str, bindir: Path):
+        _install_stub_reviewer(bindir, verdict_json)
+        old = _with_path(bindir)
+        try:
+            decision = {"action": "create_pr", "task_id": TASK, "reason": "in review with no PR"}
+            return shiki_loop.execute_action(env.target, GOAL, decision, repair_limit=3)
+        finally:
+            os.environ["PATH"] = old
+
+    def test_degenerate_verdict_waits_then_stops_without_opening_a_pr(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            env = _Env(d)
+            bindir = d / "bin"; bindir.mkdir()
+            first = self._execute(env, _DEGENERATE, bindir)
+            self.assertEqual(first["action"], "wait_review")
+            self.assertNotIn("impl_commit", first)
+            self.assertIsNone(_load_task(env.target).get("expected_pr"))
+            # Budget exhausted on the next pass -> stop_blocked, still no PR.
+            second = self._execute(env, _DEGENERATE, bindir)
+            self.assertEqual(second["action"], "stop_blocked")
+            self.assertNotIn("impl_commit", second)
+            self.assertIsNone(_load_task(env.target).get("expected_pr"))
+
+
 if __name__ == "__main__":
     unittest.main()

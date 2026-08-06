@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-08-06T02:01:55+00:00",
+  "goal_id": "G-20260806T014016270514Z-2d62ec7c",
+  "locks": [
+    "path:scripts/enforce_cca_verdict.py",
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_cca_verdict_consistency.py",
+    "path:tests/test_loop_code_review.py",
+    "path:tests/test_loop_verdict_gating.py"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260806T014016272306Z-a0cec6ca"
+}

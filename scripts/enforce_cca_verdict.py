@@ -123,10 +123,74 @@ ALREADY_BLOCKED_CAUSE_MARKERS = (
 # and compared to the normalized own id.
 CCA_REFERENCE_RE = re.compile(r"cca \d+\w*")
 
+# A rejected verdict is NOT written to the operative ``cca-verdict.json`` (every
+# consumer, and the loop's resolver, reads that path as the CCA's authority). It
+# is instead recorded on a SIBLING path derived from ``CCA_VERDICT_FILE`` so a
+# refusal leaves a readable record of WHY, distinguishable from a crash, without
+# ever laundering the refused verdict into an authority. The loop reads this
+# record where it resolves the verdict (``shiki_loop.CCA_REFUSAL_BASENAME`` is
+# kept byte-identical to ``refusal_record_path(cca-verdict.json).name``).
+REFUSAL_RECORD_INFIX = "refusal"
+REFUSAL_RECORD_KIND = "cca-verdict-refusal"
+
+# A refusal is TRANSIENT when its cause is a blocking checklist item or acceptance
+# criterion the judge left ``insufficient_evidence`` because that item's evidence
+# was NOT YET AVAILABLE at judge time -- the CCA is itself one of the required
+# checks that fire concurrently, so a sibling check still in flight cannot be
+# proven yet (observed on PR #291/#292; a plain re-run after the checks settle
+# then reaches ``complete``). It is NOT transient when the evidence is genuinely
+# MISSING, or the item durably ``fail``ed, or the fault is structural (a degenerate
+# array, a schema violation, a short-circuited evaluation). Classification is by
+# the item's ``reason`` TEXT using the SAME normalization ``_is_already_blocked_
+# reason`` uses; it adds no status value and changes no schema. Markers are matched
+# against the reason after lowercasing, stripping apostrophes, and collapsing
+# whitespace, hyphens, and underscores to single spaces.
+TRANSIENT_NOT_YET_MARKERS = (
+    "not yet available",
+    "not yet complete",
+    "not yet completed",
+    "not yet finished",
+    "not yet run",
+    "not yet reported",
+    "not yet posted",
+    "not yet judged",
+    "in progress",  # in-progress / in_progress collapse to this
+    "in flight",
+    "still running",
+    "still in progress",
+    "still pending",
+    "currently running",
+    "concurrent",  # concurrent / concurrently
+    "has not completed",
+    "have not completed",
+    "not completed yet",
+    "yet to complete",
+    "yet to run",
+    "queued",
+    "awaiting completion",
+    "will be available",
+    "once the check",
+    "when the check completes",
+    "check is running",
+    "checks are running",
+    "checks still",
+    "completion race",  # the "CCA completion race" (same-head concurrent checks)
+)
+
 
 def fail(message: str) -> int:
     print(f"ERROR: {message}", file=sys.stderr)
     return 1
+
+
+def refusal_record_path(verdict_file: Path) -> Path:
+    """The sibling path a refused verdict is recorded on, derived from the verdict
+    file. ``cca-verdict.json`` -> ``cca-verdict.refusal.json``: always distinct
+    from ``verdict_file`` (a different stem), so the operative authority path is
+    never overwritten with a refusal."""
+    return verdict_file.with_name(
+        f"{verdict_file.stem}.{REFUSAL_RECORD_INFIX}{verdict_file.suffix}"
+    )
 
 
 def load_verdict() -> dict[str, Any]:
@@ -305,6 +369,151 @@ def short_circuited_evaluations(verdict: dict[str, Any]) -> list[str]:
     return offenders
 
 
+def _reason_is_transient(reason: Any) -> bool:
+    """True when ``reason`` says the item's evidence was not yet available at judge
+    time (a concurrent check still in flight), rather than genuinely missing."""
+    if not isinstance(reason, str):
+        return False
+    normalized = _normalize_reason(reason)
+    return any(marker in normalized for marker in TRANSIENT_NOT_YET_MARKERS)
+
+
+def _offending_blocking_checklist_items(verdict: dict[str, Any]) -> list[tuple[str, str, Any]]:
+    """``(id, status, reason)`` for each blocking checklist item that makes a
+    ``complete`` verdict self-contradictory (same filter as
+    ``blocking_checklist_failures``, carrying status/reason for classification)."""
+    items: list[tuple[str, str, Any]] = []
+    for item in verdict.get("checklist") or []:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "").strip().lower()
+        if item.get("blocking") is True and status in {"fail", "insufficient_evidence"}:
+            items.append((str(item.get("id") or "<unknown>"), status, item.get("reason")))
+    return items
+
+
+def _offending_acceptance_items(verdict: dict[str, Any]) -> list[tuple[str, str, Any]]:
+    """``(criterion, status, reason)`` for each acceptance criterion that makes a
+    ``complete`` verdict self-contradictory (same filter as
+    ``failing_acceptance_criteria``, carrying status/reason for classification)."""
+    items: list[tuple[str, str, Any]] = []
+    for item in verdict.get("acceptance") or []:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "").strip().lower()
+        if status in {"fail", "insufficient_evidence"}:
+            items.append((str(item.get("criterion") or "<unknown>"), status, item.get("reason")))
+    return items
+
+
+def _classify_transient(items: list[tuple[str, str, Any]]) -> tuple[bool, str]:
+    """Transient iff EVERY offending item is ``insufficient_evidence`` whose reason
+    marks its evidence not-yet-available at judge time. A durable ``fail`` or a
+    genuinely-missing-evidence reason on any offending item makes the refusal
+    non-transient (a re-run cannot fix a real failure or absent evidence)."""
+    if not items:
+        return False, "no offending item to classify"
+    for identifier, status, reason in items:
+        if status != "insufficient_evidence":
+            return False, (
+                f"{identifier} is {status}: durable evidence shows a failure, "
+                "not an item whose evidence was merely not yet available at judge time"
+            )
+        if not _reason_is_transient(reason):
+            return False, (
+                f"{identifier} lacks its own durable evidence for a reason that is not a "
+                "not-yet-available race; the evidence is missing, not merely in flight"
+            )
+    return True, (
+        "every offending item is insufficient_evidence whose reason marks its evidence "
+        "not yet available at judge time (the CCA ran while a required check was still in "
+        "flight); a re-run after the concurrent checks settle may reach complete"
+    )
+
+
+def analyze_refusal(verdict: dict[str, Any]) -> tuple[list[str], bool, str]:
+    """Best-effort ``(offending_ids, transient, transient_reason)`` for a rejected
+    verdict, mirroring ``validate_verdict``'s rule ORDER so the offending ids and
+    the transient classification describe the SAME rule that rejected it. Never
+    raises: any internal error yields ``([], False, <reason>)`` so the refusal
+    record is still written."""
+    try:
+        degenerate = degenerate_judgment_arrays(verdict)
+        if degenerate:
+            return (
+                [degenerate[0]],
+                False,
+                "a present-but-empty judgment array is a structural fault, not a not-yet-available race",
+            )
+        try:
+            schema = load_schema(Path(".shiki/schemas/cca-verdict.schema.json"))
+            validate_instance(verdict, schema)
+        except SchemaValidationError:
+            return [], False, "a schema-invalid verdict is malformed, not a not-yet-available race"
+        status = verdict.get("verdict")
+        if status not in VALID_VERDICTS:
+            return [], False, "an invalid verdict value is malformed, not a not-yet-available race"
+        repair_packet = verdict.get("repair_packet")
+        if status == "repair_required" and not isinstance(repair_packet, dict):
+            return [], False, "a repair_required verdict missing its packet is malformed, not a not-yet-available race"
+        if repair_packet is not None:
+            try:
+                repair_schema = load_schema(Path(".shiki/schemas/repair-packet.schema.json"))
+                validate_instance(repair_packet, repair_schema, path="$.repair_packet")
+            except SchemaValidationError:
+                return [], False, "an invalid repair packet is malformed, not a not-yet-available race"
+        if status == "complete":
+            checklist_items = _offending_blocking_checklist_items(verdict)
+            if checklist_items:
+                transient, reason = _classify_transient(checklist_items)
+                return [item[0] for item in checklist_items], transient, reason
+            acceptance_items = _offending_acceptance_items(verdict)
+            if acceptance_items:
+                transient, reason = _classify_transient(acceptance_items)
+                return [item[0] for item in acceptance_items], transient, reason
+        short_circuited = short_circuited_evaluations(verdict)
+        if short_circuited:
+            return (
+                short_circuited,
+                False,
+                "a short-circuited evaluation is a judge defect (an item left unevaluated "
+                "because the verdict was already blocked), not a not-yet-available race",
+            )
+        return [], False, "no offending item identified"
+    except Exception:  # noqa: BLE001 - analysis is best-effort; the record still gets written.
+        return [], False, "the refusal could not be analyzed"
+
+
+def _write_refusal_record(
+    verdict: Any,
+    rule_violated: str,
+    offending_ids: list[str],
+    transient: bool,
+    transient_reason: str,
+) -> Path:
+    """Record a rejected verdict on the sibling path derived from ``CCA_VERDICT_FILE``.
+
+    The record carries the verdict as received, the rule it violated, the offending
+    checklist/acceptance ids, and whether the cause is transient. It is NEVER
+    written to ``cca-verdict.json`` -- that path stays reserved for a verdict that
+    passed validation, so a refused verdict can never become the authority the loop
+    and MergeGate consume.
+    """
+    verdict_file = Path(os.environ.get("CCA_VERDICT_FILE", ".shiki/gha/cca-verdict.json"))
+    record_path = refusal_record_path(verdict_file)
+    record_path.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "kind": REFUSAL_RECORD_KIND,
+        "verdict_as_received": verdict if isinstance(verdict, dict) else None,
+        "rule_violated": rule_violated,
+        "offending_ids": offending_ids,
+        "transient": bool(transient),
+        "transient_reason": transient_reason,
+    }
+    record_path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return record_path
+
+
 def validate_verdict(verdict: dict[str, Any]) -> None:
     degenerate = degenerate_judgment_arrays(verdict)
     if degenerate:
@@ -352,13 +561,40 @@ def validate_verdict(verdict: dict[str, Any]) -> None:
 
 
 def main() -> int:
+    # Load first, apart from validation: a parse failure has no verdict object to
+    # analyze, so its refusal record carries a null verdict and a non-transient
+    # (malformed) classification.
     try:
         verdict = load_verdict()
-        if not isinstance(verdict, dict):
-            return fail("CCA verdict must be a JSON object")
+    except Exception as error:  # noqa: BLE001 - this is a CLI boundary.
+        _write_refusal_record(
+            None,
+            f"the CCA structured output could not be parsed as JSON: {error}",
+            [],
+            False,
+            "an unparseable verdict is malformed, not a not-yet-available race",
+        )
+        return fail(f"invalid CCA verdict: {error}")
+    if not isinstance(verdict, dict):
+        _write_refusal_record(
+            None,
+            "CCA verdict must be a JSON object",
+            [],
+            False,
+            "a non-object verdict is malformed, not a not-yet-available race",
+        )
+        return fail("CCA verdict must be a JSON object")
+
+    try:
         verdict = inject_authoritative_head_sha(verdict)
         validate_verdict(verdict)
     except Exception as error:  # noqa: BLE001 - this is a CLI boundary.
+        # A rejected verdict leaves a readable refusal record on a NON-authority
+        # path (never cca-verdict.json), classified transient/non-transient, then
+        # exits non-zero so the check stays red. cca-verdict.json is written ONLY
+        # below, for a verdict that passed validation.
+        offending_ids, transient, transient_reason = analyze_refusal(verdict)
+        _write_refusal_record(verdict, str(error), offending_ids, transient, transient_reason)
         return fail(f"invalid CCA verdict: {error}")
 
     output_path = Path(os.environ.get("CCA_VERDICT_FILE", ".shiki/gha/cca-verdict.json"))

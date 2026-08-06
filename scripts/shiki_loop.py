@@ -78,9 +78,26 @@ CCA_VERDICT_VALUES = frozenset(
 # so the gate fails closed on it — an unresolvable verdict may be a Guardian stop,
 # and a CCA that crashed before judging is not repairable by an implementer either.
 CCA_VERDICT_UNRESOLVED = "unresolved"
+# Sentinel for a verdict the enforcer REFUSED for a TRANSIENT cause: a blocking
+# item or acceptance criterion the judge left insufficient_evidence because its
+# evidence was not yet available at judge time (the CCA is itself one of the
+# concurrently-running required checks; observed on PR #291/#292). It is NOT a
+# real verdict either — the refused verdict's own value must never be resolved —
+# but unlike the unresolvable case it is re-runnable: the gate drives the bounded
+# rerun_cca path on it rather than a terminal stop. A NON-transient refusal
+# (missing evidence, a durable fail, a structural fault) resolves to
+# CCA_VERDICT_UNRESOLVED and keeps today's terminal stop.
+CCA_VERDICT_TRANSIENT_REFUSAL = "transient_refusal"
 # The CCA workflow uploads `.shiki/gha` as the `shiki-cca-evidence` artifact; the
 # verdict lands at this basename inside it.
 CCA_VERDICT_BASENAME = "cca-verdict.json"
+# A REFUSED verdict is not written to cca-verdict.json (that path is the operative
+# authority every consumer reads); the enforcer writes a refusal record on this
+# sibling basename instead. Kept byte-identical to
+# ``enforce_cca_verdict.refusal_record_path(cca-verdict.json).name`` (a cross-module
+# agreement test pins them together) so the resolver reads exactly what the
+# enforcer wrote, without importing the enforcer into the loop.
+CCA_REFUSAL_BASENAME = "cca-verdict.refusal.json"
 
 # Bound on how many times the loop re-dispatches a `running` task whose session
 # lease proves the session is gone (free/absent). Once the recorded
@@ -88,6 +105,16 @@ CCA_VERDICT_BASENAME = "cca-verdict.json"
 # of spinning: a session that keeps dying is a real failure, not a strand to
 # silently retry forever.
 MAX_DISPATCH_ATTEMPTS = 2
+
+# Bound on how many times the loop re-runs the pre-PR reviewer when it returns a
+# BLOCKING verdict that names ZERO findings — a degenerate verdict that produced
+# nothing usable (Measured 2026-08-05/06: the reviewer blocked with 0 findings on
+# work that met every contract requirement; a plain re-run then passed). The
+# retry budget is a durable per-task counter (`pre_pr_review_empty_retries`) so it
+# bounds across the loop's fresh invocations, and it is RESET on every
+# (re-)dispatch so it bounds retries of the SAME reviewed work and never wedges
+# freshly re-dispatched work.
+MAX_PRE_PR_REVIEW_EMPTY_RETRIES = 1
 
 # Engine action names, in execution priority order for a goal pass.
 ACTION_PRIORITY = (
@@ -103,7 +130,12 @@ ACTION_PRIORITY = (
     "unblock",
 )
 STOP_ACTIONS = {"stop_guardian", "stop_blocked", "stop_lock_blocked"}
-WAIT_ACTIONS = {"wait_checks", "wait_runner", "wait_dependencies", "none"}
+# ``wait_review`` is an execute-time override the create_pr effector emits when the
+# pre-PR reviewer returned a degenerate (blocking, zero-findings) verdict and the
+# retry budget still allows one more attempt: the loop waits and re-runs create_pr
+# next pass (which re-runs the reviewer), rather than stopping or opening a PR on a
+# verdict that named nothing. The decision engine never emits it.
+WAIT_ACTIONS = {"wait_checks", "wait_runner", "wait_dependencies", "wait_review", "none"}
 
 
 def _merge_or_sync(task_id: str, pr_state: dict[str, Any] | None, merge_reason: str) -> dict[str, Any]:
@@ -304,6 +336,28 @@ def decide_task_action(
         # dropped from the repair items, so an autonomous runner is never told to
         # "make the CCA verdict pass" with nothing concrete to fix.
         if CCA_VERDICT_CHECK in repairable_failed and cca_verdict is not None:
+            if cca_verdict == CCA_VERDICT_TRANSIENT_REFUSAL:
+                # The verdict was REFUSED for a transient cause (a blocking item or
+                # acceptance criterion left insufficient_evidence because its evidence
+                # was not yet available at judge time — the CCA is itself one of the
+                # concurrently-running required checks). This is NOT a judgment, so it
+                # must never reach _cca_verdict_stop as if it were one: drive the
+                # bounded rerun_cca path (the same MAX_CCA_RERUNS budget the same-head
+                # completion race uses) so the CCA re-judges after the concurrent
+                # checks settle. Once that budget is exhausted the refusal is no longer
+                # re-runnable, so it degrades to today's terminal fail-closed stop
+                # (the unresolvable reason) — never a repair on a non-judgment.
+                if cca_reruns < MAX_CCA_RERUNS:
+                    return {
+                        "action": "rerun_cca",
+                        "task_id": task_id,
+                        "reason": (
+                            "the CCA verdict was refused for a transient cause (a blocking item "
+                            "was left insufficient_evidence because its evidence was not yet "
+                            "available at judge time); rerun after the concurrent checks settle"
+                        ),
+                    }
+                cca_verdict = CCA_VERDICT_UNRESOLVED
             verdict_stop = _cca_verdict_stop(task_id, cca_verdict)
             if verdict_stop is not None:
                 return verdict_stop
@@ -569,14 +623,28 @@ def _resolve_cca_verdict(target: Path, task: dict[str, Any], pr_state: dict[str,
             if download.returncode != 0:
                 return CCA_VERDICT_UNRESOLVED
             verdict_path = tmp / CCA_VERDICT_BASENAME
-            if not verdict_path.is_file():
+            if verdict_path.is_file():
+                data = json.loads(verdict_path.read_text(encoding="utf-8"))
+                if not isinstance(data, dict):
+                    return CCA_VERDICT_UNRESOLVED
+                verdict = data.get("verdict")
+                if isinstance(verdict, str) and verdict in CCA_VERDICT_VALUES:
+                    return verdict
                 return CCA_VERDICT_UNRESOLVED
-            data = json.loads(verdict_path.read_text(encoding="utf-8"))
-            if not isinstance(data, dict):
+            # No cca-verdict.json means the enforcer REFUSED the verdict (it writes
+            # cca-verdict.json only for a verdict that passed validation) and left a
+            # refusal record on the sibling path instead. Read that record's
+            # transient classification ONLY — never the refused verdict's own value,
+            # which must never be resolved as if it were a judgment. A transient
+            # refusal is re-runnable; anything else (non-transient, or no record at
+            # all) fails closed to the unresolvable case and keeps today's terminal
+            # stop.
+            refusal_path = tmp / CCA_REFUSAL_BASENAME
+            if refusal_path.is_file():
+                refusal = json.loads(refusal_path.read_text(encoding="utf-8"))
+                if isinstance(refusal, dict) and refusal.get("transient") is True:
+                    return CCA_VERDICT_TRANSIENT_REFUSAL
                 return CCA_VERDICT_UNRESOLVED
-            verdict = data.get("verdict")
-            if isinstance(verdict, str) and verdict in CCA_VERDICT_VALUES:
-                return verdict
             return CCA_VERDICT_UNRESOLVED
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
@@ -600,6 +668,21 @@ def repair_attempts_for(target: Path, task_id: str) -> int:
 
 def _save_task(target: Path, task: dict[str, Any]) -> None:
     write_json(shiki_path(target, "tasks", f"{task['id']}.json"), task)
+
+
+def _reset_pre_pr_review_retries(target: Path, task_id: str) -> None:
+    """Clear the pre-PR degenerate-review retry budget on a (re-)dispatch.
+
+    A (re-)dispatch produces fresh reviewed work, so the durable
+    ``pre_pr_review_empty_retries`` counter — which bounds re-runs of the reviewer
+    against the SAME work across the loop's fresh invocations — must not carry over.
+    Without this reset a durable counter would wedge freshly re-dispatched work at
+    the bound; with it, the counter bounds retries of one reviewed change and never
+    blocks new work."""
+    task = load_task(target, task_id)
+    if task.get("pre_pr_review_empty_retries"):
+        task["pre_pr_review_empty_retries"] = 0
+        _save_task(target, task)
 
 
 def _release_lock(target: Path, task_id: str) -> None:
@@ -1066,6 +1149,49 @@ _CODE_REVIEW_PROMPT = (
 )
 
 
+def _record_reviewer_raw_output(target: Path, task_id: str, raw_stdout: str) -> str:
+    """Record the reviewer's raw output as durable, branch-syncable evidence.
+
+    A degenerate (blocking, zero-findings) verdict names nothing usable, so its
+    only diagnosable artifact is what the reviewer actually emitted. Mirror the
+    TDD gate's EXEC pattern — an ``EXEC-*.json`` holding the raw stdout, referenced
+    by a ``type:"check"`` ledger — so a future diagnosis has something concrete to
+    read. Returns the ledger id (the EXEC id is embedded in its evidence ref)."""
+    from shiki_process import shiki_path as _shiki_path
+    from shiki_process import utc_now, write_json
+    from shiki_tasks import next_control_id
+
+    task = load_task(target, task_id)
+    record_id = next_control_id(target, "EXEC")
+    record_file = _shiki_path(target, "runner", f"{record_id}.json")
+    write_json(
+        record_file,
+        {
+            "id": record_id,
+            "task_id": task["id"],
+            "goal_id": task["goal_id"],
+            "command": "independent pre-PR code review (claude -p, read-only) — ADR 0011",
+            "returncode": 0,
+            "stdout": raw_stdout,
+            "stderr": "",
+            "created_at": utc_now(),
+        },
+    )
+    exec_rel = str(record_file.relative_to(target))
+    return append_ledger(
+        target,
+        goal_id=task["goal_id"],
+        task_id=task_id,
+        ledger_type="check",
+        summary=(
+            f"Pre-PR code-review verdict BLOCKING with zero findings for {task_id} "
+            "(degenerate — the reviewer produced no usable judgment); raw reviewer "
+            "output recorded for diagnosis"
+        ),
+        evidence=[exec_rel],
+    )
+
+
 def _run_pre_pr_code_review(target: Path, task_id: str) -> dict[str, Any]:
     """Run the independent read-only code-review verifier over the task diff.
 
@@ -1073,14 +1199,21 @@ def _run_pre_pr_code_review(target: Path, task_id: str) -> dict[str, Any]:
     implementer but in a separate context, confined to read tools (no edit tools),
     bound to a structured verdict. The loop parses that verdict deterministically.
 
-    Returns a dict with ``status`` in {clean, blocking, fail}:
+    Returns a dict with ``status`` in {clean, blocking, retry, fail}:
 
     * ``clean``    — verdict parsed as clean; a type:"check" "code-review" ledger
       is recorded and ``pre_pr_code_review`` is written onto the task so the
       PR-12 ``## Pre-PR code review`` body section renders from it.
-    * ``blocking`` — verdict parsed as blocking. Fail-closed: a blocking pre-PR
-      review CANNOT anchor a repair packet (no PR exists yet at create_pr time by
-      construction), so the caller stops the loop for diagnosis. NOT a repair.
+    * ``blocking`` — verdict parsed as blocking WITH at least one named finding, or
+      a degenerate blocking verdict whose retry budget is exhausted. Fail-closed: a
+      blocking pre-PR review CANNOT anchor a repair packet (no PR exists yet at
+      create_pr time by construction), so the caller stops the loop for diagnosis.
+      NOT a repair.
+    * ``retry``    — verdict parsed as blocking but naming ZERO findings (degenerate:
+      the reviewer produced nothing usable) while the durable retry budget still
+      allows one more attempt. NEVER treated as clean: the caller re-runs the
+      reviewer next pass rather than opening a PR or stopping. The reviewer's raw
+      output is recorded durably first.
     * ``fail``     — dispatch failed, the worktree/diff is unavailable, or the
       verdict could not be parsed. Fail-closed: review-not-done is never silently
       passed.
@@ -1125,9 +1258,61 @@ def _run_pre_pr_code_review(target: Path, task_id: str) -> dict[str, Any]:
         return {"status": "fail", "reason": "reviewer verdict could not be parsed; failing closed"}
 
     if verdict.get("verdict") == "blocking":
+        findings = verdict.get("findings") or []
+        if not findings:
+            # A blocking verdict that names NOTHING is not a usable judgment — it
+            # blocked the PR while pointing at no concrete issue (Measured
+            # 2026-08-05/06 on work that met every contract requirement; a plain
+            # re-run then passed). Record the reviewer's raw output durably so a
+            # future diagnosis has something to read, then RETRY once (bounded by a
+            # durable per-task counter) before stopping. A degenerate verdict is
+            # NEVER treated as clean: the retry re-runs the reviewer, and once the
+            # budget is exhausted the loop stops for diagnosis with the degenerate
+            # verdict named — it never becomes a silent pass.
+            ledger_id = _record_reviewer_raw_output(target, task_id, exec_result.stdout)
+            task = load_task(target, task_id)
+            task.setdefault("ledger_evidence", []).append(ledger_id)
+            retries = int(task.get("pre_pr_review_empty_retries") or 0)
+            if retries < MAX_PRE_PR_REVIEW_EMPTY_RETRIES:
+                task["pre_pr_review_empty_retries"] = retries + 1
+                task["pre_pr_code_review"] = {
+                    "verdict": "blocking",
+                    "findings": [],
+                    "degenerate": True,
+                    "empty_retries": retries + 1,
+                    "ledger_id": ledger_id,
+                }
+                _save_task(target, task)
+                return {
+                    "status": "retry",
+                    "reason": (
+                        "independent pre-PR code review returned a blocking verdict naming zero "
+                        f"findings (attempt {retries + 1}/{MAX_PRE_PR_REVIEW_EMPTY_RETRIES + 1}); "
+                        "the reviewer produced nothing usable — re-running it on the same work"
+                    ),
+                    "ledger_id": ledger_id,
+                    "empty_retries": retries + 1,
+                }
+            task["pre_pr_code_review"] = {
+                "verdict": "blocking",
+                "findings": [],
+                "degenerate": True,
+                "empty_retries": retries,
+                "ledger_id": ledger_id,
+            }
+            _save_task(target, task)
+            return {
+                "status": "blocking",
+                "reason": (
+                    "independent pre-PR code review returned a blocking verdict naming zero "
+                    f"findings after {retries} retr{'y' if retries == 1 else 'ies'}; the reviewer "
+                    "produced nothing usable — diagnose (its raw output is recorded)"
+                ),
+                "ledger_id": ledger_id,
+                "degenerate": True,
+            }
         # Record the blocking verdict as a check ledger for the audit trail, then
         # fail closed. No PR exists yet, so this cannot become a repair packet.
-        findings = verdict.get("findings") or []
         ledger_id = append_ledger(
             target,
             goal_id=load_task(target, task_id)["goal_id"],
@@ -1794,12 +1979,17 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
 
     task = load_task(target, task_id)
     if action == "dispatch":
+        # A (re-)dispatch produces fresh reviewed work, so the pre-PR degenerate-
+        # review retry budget must not carry over onto it (it bounds retries of the
+        # SAME reviewed change, never new work).
+        _reset_pre_pr_review_retries(target, task_id)
         result["returncode"] = _dispatch(target, task)
     elif action == "redispatch":
         # A `running` task whose session lease is gone (free/absent): the session
         # died mid-work and left the task stranded. Reset it to `ready`, record
         # the attempt on the task (a monotonically increasing `dispatch_attempts`
         # the decision reads to enforce the bound), and dispatch a fresh session.
+        _reset_pre_pr_review_retries(target, task_id)
         task["status"] = "ready"
         task["dispatch_attempts"] = int(task.get("dispatch_attempts") or 0) + 1
         _save_task(target, task)
@@ -1814,6 +2004,15 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
         # rather than dispatching a repair. Only a clean verdict proceeds.
         review = _run_pre_pr_code_review(target, task_id)
         result["code_review"] = review.get("status")
+        if review.get("status") == "retry":
+            # The reviewer returned a blocking verdict naming zero findings and the
+            # retry budget still allows another attempt. Wait and re-run create_pr
+            # (hence the reviewer) next pass rather than stopping or opening a PR on
+            # a verdict that named nothing — the reviewed work is unchanged, so a
+            # re-run may produce a usable or clean verdict. NEVER a clean pass.
+            result["action"] = "wait_review"
+            result["reason"] = review.get("reason")
+            return result
         if review.get("status") != "clean":
             result["action"] = "stop_blocked"
             result["reason"] = (
