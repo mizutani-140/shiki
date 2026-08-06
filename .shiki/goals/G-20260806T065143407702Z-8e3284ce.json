@@ -1,0 +1,54 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "After a full loop cycle including the closeout, `git merge origin/main` succeeds in the coordinator checkout with no manual step.",
+    "It still succeeds on a second cycle.",
+    "A newly added effector is covered without further change \u2014 staging happens at one point, not per-effector.",
+    "Nothing outside .shiki/ is staged and nothing is committed in the coordinator.",
+    "The full suite, the goal-loop suite and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-06T06:51:43+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "MEASURED, WITH THE FIX PRESENT. The coordinator carried the merged staging fix (`git add -- *copied` in `_sync_state_to_branch`) from 15:27; the fix reached main at 15:09. At 15:46, after the closeout loop completed, `git merge origin/main` still aborted with 'The following untracked working tree files would be overwritten by merge', naming six records written at 15:46 \u2014 AFTER the fix was in place.",
+      "THE SIX: `.shiki/goals/G-...4f95b5bf.json`, `.shiki/locks/T-...52142739.json`, `.shiki/tasks/T-...52142739.json`, two closeout ledgers, and `.shiki/reports/R-...18fd8360.json`. Every one is a closeout-era write.",
+      "CAUSE, read from source. `_sync_state_to_branch` has exactly three call sites \u2014 `:2063` create_pr, `:2103` dispatch_repair, `:2167` rerun_cca \u2014 so the staging added to it reaches only those. The `merge`, `mark_done`, `goal_complete` and `create_closeout_pr` effectors write the coordinator mirror through their own paths and stage nothing. `_create_closeout_pr` (`:1500`) builds the terminal state in a FRESH worktree cut from origin/main and commits there; the coordinator's own copies of the same records are written separately and left untracked.",
+      "SCOPE OF THE PREVIOUS TASK WAS RIGHT, ITS COVERAGE WAS NOT. Its acceptance criterion was 'after a loop cycle that writes mirror records, git merge origin/main succeeds' \u2014 the criterion is correct and remains the target. The implementation satisfied the letter of its scope prose (which named `_sync_state_to_branch`) and not the criterion. The CCA returned `complete` after verifying the change matched the scope; it did not drive the criterion end to end. That gap is recorded here, not repaired here.",
+      "DESIGN. Do not scatter a `git add` into each effector: `execute_action` has eleven branches (`:1983`-`:2227`) and any new one would silently reintroduce the defect. Stage once, at a single point that covers every effector \u2014 the loop's own `.shiki` working surface in the coordinator \u2014 so a future effector is covered by construction. STAGING ONLY, never committing: the coordinator's local branch must not advance.",
+      "MUST NOT: delete or move any mirror record to avoid the collision (the mirror is append-only evidence); stage anything outside `.shiki/`; change `_sync_state_to_branch`'s signature (`tests/test_loop_tdd_evidence.py:209-224` monkeypatches it) or what `_evidence_relatives_for_task` returns (`tests/test_mirror_lock_injection.py` asserts on it at `:320`, `:336`, `:498`); change what the closeout PR contains or the decision table `docs/adr/0012` pins.",
+      "LOCK-SUFFICIENCY CHECK (2026-08-06). MUST-CHANGE: `scripts/shiki_loop.py`; `tests/test_closeout.py` (47 references \u2014 owns the closeout effectors, where the six uncovered records are written); `tests/test_dispatch_state_sync.py` (owns the staging property the previous task introduced, and its assertion must widen from the sync paths to every effector).",
+      "MUST-NOT-BREAK (verification command, not locks): `tests/test_loop_branch_plumbing.py`, `tests/test_mirror_lock_injection.py`, `tests/test_loop_tdd_evidence.py`, `tests/test_loop_engine.py`, and `scripts/test_shiki_goal_loop.sh`, which drives the loop end to end including the closeout.",
+      "Risk is medium: this changes only which paths the loop stages in its own coordinator checkout. No gate, schema, workflow, approval source or delivered artifact moves. Under `.shiki/guardian-policy.json` (`applies_to_risk: [high, critical]`) neither PR triggers the Guardian gate."
+    ],
+    "source": "Measured 2026-08-06 15:46 JST, immediately after PR #303 (the previous task's closeout) merged, in the coordinator checkout running the merged fix.",
+    "status": "complete"
+  },
+  "id": "G-20260806T065143407702Z-8e3284ce",
+  "ledger_evidence": [
+    "L-20260806T065143409167Z-f6e5cb9e"
+  ],
+  "non_goals": [
+    "Deleting or moving any mirror record to avoid the collision.",
+    "Staging or committing anything outside .shiki/.",
+    "Committing in the coordinator \u2014 the local branch must not advance.",
+    "Changing _sync_state_to_branch's signature or what _evidence_relatives_for_task returns.",
+    "Changing what the closeout PR contains, or the decision table docs/adr/0012 pins.",
+    "Introducing any cross-task or cross-goal carry.",
+    "Repairing the CCA's end-to-end verification gap \u2014 recorded, not fixed here.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "The acceptance criterion of T-20260806T034026771634Z-52142739 \u2014 that after a loop cycle `git merge origin/main` succeeds in the coordinator checkout without a manual back-up-and-delete \u2014 actually holds. It does not today: that task staged only what `_sync_state_to_branch` copies, and the closeout effectors write six more mirror records that still collide. Measured immediately after its own closeout merged.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "source_plan": "P-20260806T065143332059Z-03d9edee",
+  "status": "planned",
+  "title": "Stage every coordinator mirror write, not only the three sync paths"
+}
