@@ -246,6 +246,78 @@ class SyncStateFullEvidenceTests(unittest.TestCase):
                 self.assertTrue(env.remote_has(rel), f"{rel} not synced to branch")
 
 
+class CoordinatorMergeAfterSyncTests(unittest.TestCase):
+    """The measured collision, reproduced against a REAL repository.
+
+    The loop writes its mirror records straight into the COORDINATOR working tree
+    and never stages them there. After the task PR merges, those same paths return
+    through ``git merge origin/main`` — and git aborts with "The following
+    untracked working tree files would be overwritten by merge", because a
+    delivered-and-returning file is sitting untracked in the coordinator. The sync
+    must stage the coordinator's own copies (no commit, no cross-task/cross-goal
+    carry) so the merge absorbs them. Measured four times on 2026-08-05/06.
+    """
+
+    def _merge_origin_main(self, env: "_GitEnv"):
+        _git(env.target, "fetch", "origin")
+        return subprocess.run(
+            ["git", "merge", "origin/main"],
+            cwd=str(env.target), capture_output=True, text=True,
+        )
+
+    def _cycle(self, env: "_GitEnv", *, task_id, branch, wt, ledger_id):
+        # (1) the loop writes THIS task's mirror records into the coordinator
+        #     working tree, unstaged — exactly as the loop leaves them.
+        _write(env.target / ".shiki" / "ledger" / f"{ledger_id}.json",
+               {"id": ledger_id, "type": "check", "goal_id": GOAL, "task_id": task_id,
+                "evidence": [f".shiki/runner/{ledger_id}-EXEC.json"]})
+        _write(env.target / ".shiki" / "runner" / f"{ledger_id}-EXEC.json",
+               {"id": f"{ledger_id}-EXEC"})
+        _write(env.target / ".shiki" / "worktrees" / f"{task_id}.json",
+               {"path": str(wt), "branch": branch})
+        _write(env.target / ".shiki" / "tasks" / f"{task_id}.json",
+               {"id": task_id, "goal_id": GOAL, "status": "review",
+                "expected_branch": branch, "ledger_evidence": [ledger_id]})
+        # establish upstream for the branch (the loop's commit+push step does this).
+        (wt / f"impl-{ledger_id}.txt").write_text("impl")
+        _git(wt, "add", "-A")
+        _git(wt, "commit", "-m", f"impl {ledger_id}")
+        _git(wt, "push", "-u", "origin", branch)
+        # (2) the loop syncs the evidence onto the branch (and stages the
+        #     coordinator's own copies — the fix under test).
+        _sync_state_to_branch(env.target, task_id, ledger_id)
+        # (3) the task PR merges: origin/main fast-forwards to the branch tip, so
+        #     the delivered mirror files now live on the default branch too.
+        _git(env.remote, "update-ref", "refs/heads/main", f"refs/heads/{branch}")
+        # (4) the operator brings the default branch back into the coordinator.
+        return self._merge_origin_main(env)
+
+    def test_merge_origin_main_succeeds_after_sync_and_again_next_cycle(self):
+        with tempfile.TemporaryDirectory() as d:
+            env = _GitEnv(Path(d))
+            first = self._cycle(env, task_id=TASK, branch=env.branch, wt=env.wt,
+                                ledger_id="L-CYCLE1")
+            self.assertEqual(
+                first.returncode, 0,
+                f"first `git merge origin/main` aborted:\n{first.stdout}{first.stderr}",
+            )
+            self.assertNotIn("would be overwritten by merge", first.stderr)
+
+            # Second cycle: a fresh branch + worktree cut from the now-advanced main.
+            task2 = "T-20260617T031753971551Z-cycle0002"
+            branch2 = "shiki/test-task-2"
+            wt2 = Path(d) / "wt2"
+            _git(env.target, "worktree", "add", "-b", branch2, str(wt2), "origin/main")
+            _git(wt2, "config", "user.email", "t@t")
+            _git(wt2, "config", "user.name", "t")
+            second = self._cycle(env, task_id=task2, branch=branch2, wt=wt2,
+                                 ledger_id="L-CYCLE2")
+            self.assertEqual(
+                second.returncode, 0,
+                f"second `git merge origin/main` aborted:\n{second.stdout}{second.stderr}",
+            )
+
+
 class RepairAfterSyncPushesTests(unittest.TestCase):
     """A repair dispatched AFTER a base sync must still push.
 

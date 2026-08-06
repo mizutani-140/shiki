@@ -24,13 +24,14 @@ The suite is dependency free: standard-library ``unittest`` only.
 from __future__ import annotations
 
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
-from shiki_loop import _evidence_relatives_for_task
+from shiki_loop import _evidence_relatives_for_task, _sync_state_to_branch
 from shiki_runtime import sync_contract_into_worktree
 
 TASK = "T-20260729T065622770911Z-a8db8b69"
@@ -266,6 +267,150 @@ class EvidenceOwnershipBoundTests(unittest.TestCase):
             rel = set(_evidence_relatives_for_task(target, task))
             self.assertIn(".shiki/runner/EXEC-own.json", rel)
             self.assertNotIn(".shiki/runner/EXEC-ft.json", rel)
+
+
+def _git(cwd: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True, text=True)
+
+
+class CoordinatorStagingAfterSyncTests(unittest.TestCase):
+    """After a state sync the coordinator must leave NO mirror file untracked
+    whose path also exists on the default branch.
+
+    The loop writes .shiki JSON straight into the coordinator working tree and
+    never stages it there. Once the same byte-identical file lands on the default
+    branch (this task's PR merges), an untracked-vs-incoming collision makes a
+    later ``git merge origin/main`` abort. The sync stages the coordinator's own
+    copies — no commit, no cross-task/cross-goal carry — so the merge absorbs the
+    returning files instead of aborting.
+    """
+
+    def _coordinator_with_branch(self, tmp: Path):
+        """A real coordinator checkout with a bare origin and a task-branch
+        worktree, returned as ``(target, remote, branch, wt)``."""
+        remote = tmp / "remote.git"
+        subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+        target = tmp / "repo"
+        target.mkdir()
+        _git(target, "init", "-b", "main")
+        _git(target, "config", "user.email", "t@t")
+        _git(target, "config", "user.name", "t")
+        (target / "README.md").write_text("x")
+        _git(target, "add", "-A")
+        _git(target, "commit", "-m", "init")
+        _git(target, "remote", "add", "origin", str(remote))
+        _git(target, "push", "-u", "origin", "main")
+
+        branch = "shiki/task"
+        wt = tmp / "wt"
+        _git(target, "worktree", "add", "-b", branch, str(wt))
+        _git(wt, "config", "user.email", "t@t")
+        _git(wt, "config", "user.name", "t")
+        return target, remote, branch, wt
+
+    def _seed_own_evidence(self, target: Path, wt: Path, branch: str) -> None:
+        """This task's own evidence, written into the coordinator unstaged, with
+        the branch's upstream established (the loop's commit+push step)."""
+        _write(target / ".shiki" / "ledger" / "L-A.json",
+               {"id": "L-A", "type": "check", "goal_id": GOAL, "task_id": TASK,
+                "evidence": [".shiki/runner/EXEC-1.json"]})
+        _write(target / ".shiki" / "runner" / "EXEC-1.json", {"id": "EXEC-1"})
+        _write(target / ".shiki" / "worktrees" / f"{TASK}.json",
+               {"path": str(wt), "branch": branch})
+        _write(target / ".shiki" / "tasks" / f"{TASK}.json",
+               {"id": TASK, "goal_id": GOAL, "status": "review",
+                "expected_branch": branch, "ledger_evidence": ["L-A"]})
+        (wt / "seed.txt").write_text("seed")
+        _git(wt, "add", "-A")
+        _git(wt, "commit", "-m", "seed")
+        _git(wt, "push", "-u", "origin", branch)
+
+    def test_no_untracked_file_shared_with_default_branch_after_sync(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            target, remote, branch, wt = self._coordinator_with_branch(tmp)
+            self._seed_own_evidence(target, wt, branch)
+
+            _sync_state_to_branch(target, TASK, "L-A")
+
+            # The task PR merges: origin/main fast-forwards to the branch tip, so
+            # the delivered mirror paths now exist on the default branch too.
+            _git(remote, "update-ref", "refs/heads/main", f"refs/heads/{branch}")
+            _git(target, "fetch", "origin")
+
+            default_paths = set(subprocess.run(
+                ["git", "ls-tree", "-r", "--name-only", "origin/main"],
+                cwd=str(target), capture_output=True, text=True, check=True,
+            ).stdout.split())
+            untracked = set(subprocess.run(
+                ["git", "ls-files", "--others", "--exclude-standard"],
+                cwd=str(target), capture_output=True, text=True, check=True,
+            ).stdout.split())
+
+            collisions = untracked & default_paths
+            self.assertEqual(
+                collisions, set(),
+                f"untracked coordinator files collide with the default branch: {sorted(collisions)}",
+            )
+            # And the delivered evidence really is on the default branch (the
+            # scenario is genuine, not vacuously collision-free).
+            self.assertIn(f".shiki/tasks/{TASK}.json", default_paths)
+            self.assertIn(".shiki/ledger/L-A.json", default_paths)
+
+    def test_undelivered_foreign_ledger_is_never_carried_and_does_not_collide(self):
+        """No cross-task / cross-goal carry — and none is needed.
+
+        ``ledger_entry_allowed_for_task`` (mergegate_check.py:2408-2413) admits a
+        ledger onto a task PR only when ``entry.task_id == task_id``, or when the
+        entry has no task_id and its ``goal_id`` matches. A completed task's
+        merge / mark_done bookkeeping ledger carries THAT task's own task_id, so
+        carrying it onto a different task's branch would make
+        ``enforce_untrusted_shiki_mutations`` block with "PR changes ledger … not
+        listed in current task ledger_evidence" and fail every subsequent PR.
+
+        It never has to be carried: an undelivered bookkeeping ledger is not on
+        the default branch, so it never collides on ``git merge origin/main``.
+        Only the delivered-and-returning files collide, and the sync removes those
+        by staging THIS task's own evidence — never a foreign one.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            target, remote, branch, wt = self._coordinator_with_branch(tmp)
+            # A completed OTHER task's post-merge bookkeeping ledger the loop left
+            # untracked in the coordinator — it was never delivered anywhere.
+            _write(target / ".shiki" / "ledger" / "L-FOREIGN.json",
+                   {"id": "L-FOREIGN", "type": "merge", "goal_id": OTHER_GOAL,
+                    "task_id": OTHER_TASK, "evidence": []})
+            self._seed_own_evidence(target, wt, branch)
+
+            _sync_state_to_branch(target, TASK, "L-A")
+
+            # The foreign bookkeeping ledger was NOT carried onto this task's
+            # branch (no cross-goal carry) and was NOT staged in the coordinator —
+            # it is left exactly as the loop wrote it, untracked and on disk.
+            branch_tree = subprocess.run(
+                ["git", "ls-tree", "-r", "--name-only", branch],
+                cwd=str(target), capture_output=True, text=True, check=True,
+            ).stdout
+            self.assertNotIn(".shiki/ledger/L-FOREIGN.json", branch_tree)
+            staged = subprocess.run(
+                ["git", "diff", "--cached", "--name-only"],
+                cwd=str(target), capture_output=True, text=True, check=True,
+            ).stdout.split()
+            self.assertNotIn(".shiki/ledger/L-FOREIGN.json", staged)
+            self.assertIn(".shiki/ledger/L-A.json", staged)  # own evidence IS staged
+
+            # The task PR merges; the foreign ledger is absent from the default
+            # branch, so — being undelivered — it never collides. The merge that
+            # used to abort now succeeds, and the foreign ledger is untouched.
+            _git(remote, "update-ref", "refs/heads/main", f"refs/heads/{branch}")
+            _git(target, "fetch", "origin")
+            merge = subprocess.run(
+                ["git", "merge", "origin/main"],
+                cwd=str(target), capture_output=True, text=True,
+            )
+            self.assertEqual(merge.returncode, 0, f"{merge.stdout}{merge.stderr}")
+            self.assertTrue((target / ".shiki" / "ledger" / "L-FOREIGN.json").exists())
 
 
 if __name__ == "__main__":

@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-08-06T04:33:07+00:00",
+  "goal_id": "G-20260806T034026770241Z-4f95b5bf",
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_dispatch_state_sync.py",
+    "path:tests/test_loop_branch_plumbing.py"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260806T034026771634Z-52142739"
+}
