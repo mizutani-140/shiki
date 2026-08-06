@@ -1,0 +1,12 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/plans/P-20260806T034026690262Z-742a3053.json",
+    ".shiki/tasks/T-20260806T034026771634Z-52142739.json"
+  ],
+  "goal_id": "G-20260806T034026770241Z-4f95b5bf",
+  "id": "L-20260806T060000000000Z-8c31f0ab",
+  "summary": "Contract amendment: narrow the carry task to the measured cause (untracked coordinator mirror copies) and remove the cross-goal ledger carry, which ledger_entry_allowed_for_task forbids",
+  "timestamp": "2026-08-06T06:00:00+00:00",
+  "type": "contract-amended"
+}
