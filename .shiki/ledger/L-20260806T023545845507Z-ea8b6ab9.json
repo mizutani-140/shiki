@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/runner/EXEC-20260806T023545844675Z-5b88a238.json"
+  ],
+  "goal_id": "G-20260806T014016270514Z-2d62ec7c",
+  "id": "L-20260806T023545845507Z-ea8b6ab9",
+  "links": [],
+  "summary": "Runner command exited 0 for T-20260806T014016272306Z-a0cec6ca",
+  "task_id": "T-20260806T014016272306Z-a0cec6ca",
+  "timestamp": "2026-08-06T02:35:45+00:00",
+  "type": "check"
+}
