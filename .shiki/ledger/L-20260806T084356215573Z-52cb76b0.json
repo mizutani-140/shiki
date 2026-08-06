@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260806T084356215508Z-7a7dd694.json"
+  ],
+  "goal_id": "G-20260806T084356214001Z-8198f059",
+  "id": "L-20260806T084356215573Z-52cb76b0",
+  "links": [],
+  "summary": "Task registered from plan: Add shiki lock release, the deliberate counterpart to lock acquire",
+  "task_id": "T-20260806T084356215508Z-7a7dd694",
+  "timestamp": "2026-08-06T08:43:56+00:00",
+  "type": "task-registered"
+}

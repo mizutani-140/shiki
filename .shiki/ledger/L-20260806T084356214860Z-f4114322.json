@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260806T084356214001Z-8198f059.json",
+    ".shiki/plans/P-20260806T084356137490Z-39afc661.json"
+  ],
+  "goal_id": "G-20260806T084356214001Z-8198f059",
+  "id": "L-20260806T084356214860Z-f4114322",
+  "links": [],
+  "summary": "Goal registered from plan: Give a lock a way out that does not require the loop's closeout",
+  "task_id": null,
+  "timestamp": "2026-08-06T08:43:56+00:00",
+  "type": "goal-created"
+}
