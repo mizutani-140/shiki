@@ -31,7 +31,8 @@
   "id": "G-20260806T065143407702Z-8e3284ce",
   "ledger_evidence": [
     "L-20260806T065143409167Z-f6e5cb9e",
-    "L-20260806T082752107611Z-1516cc3b"
+    "L-20260806T082752107611Z-1516cc3b",
+    "L-20260806T095429093418Z-794f82b3"
   ],
   "non_goals": [
     "Deleting or moving any mirror record to avoid the collision.",
