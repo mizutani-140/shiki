@@ -23,15 +23,19 @@ The suite is dependency free: standard-library ``unittest`` only.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 import tempfile
+import types
 import unittest
 from pathlib import Path
 
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
-from shiki_loop import _evidence_relatives_for_task, _sync_state_to_branch
+import shiki_loop
+from shiki_loop import _evidence_relatives_for_task, _sync_state_to_branch, execute_action
+from shiki_process import ShikiError
 from shiki_runtime import sync_contract_into_worktree
 
 TASK = "T-20260729T065622770911Z-a8db8b69"
@@ -411,6 +415,226 @@ class CoordinatorStagingAfterSyncTests(unittest.TestCase):
             )
             self.assertEqual(merge.returncode, 0, f"{merge.stdout}{merge.stderr}")
             self.assertTrue((target / ".shiki" / "ledger" / "L-FOREIGN.json").exists())
+
+
+class _FakeGh:
+    """Stand in for ``shiki_loop._gh`` so ``merge`` / ``create_closeout_pr`` don't
+    hit GitHub: ``pr list`` finds no prior closeout PR, ``pr create`` returns a
+    fresh URL, everything else returns success. Real git (worktree add, commit,
+    push) still runs against the bare origin."""
+
+    def __init__(self, first: int = 100):
+        self.next = first
+
+    def __call__(self, target, args, check=True):
+        args = list(args)
+        if args[:2] == ["pr", "list"]:
+            return types.SimpleNamespace(returncode=0, stdout="[]", stderr="")
+        if args[:2] == ["pr", "create"]:
+            self.next += 1
+            return types.SimpleNamespace(
+                returncode=0, stdout=f"https://github.com/o/r/pull/{self.next}\n", stderr=""
+            )
+        return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+
+@contextlib.contextmanager
+def _patched_gh():
+    orig = shiki_loop._gh
+    shiki_loop._gh = _FakeGh()
+    try:
+        yield
+    finally:
+        shiki_loop._gh = orig
+
+
+def _init_repo_with_origin(tmp: Path):
+    """A real coordinator checkout with a bare origin, returned as ``(target,
+    remote)``. ``origin/main`` is established so the closeout/goal_complete
+    effectors can fetch and check out from it."""
+    remote = tmp / "remote.git"
+    subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+    target = tmp / "repo"
+    target.mkdir()
+    _git(target, "init", "-b", "main")
+    _git(target, "config", "user.email", "t@t")
+    _git(target, "config", "user.name", "t")
+    (target / "README.md").write_text("x\n")
+    _git(target, "add", "-A")
+    _git(target, "commit", "-m", "init")
+    _git(target, "remote", "add", "origin", str(remote))
+    _git(target, "push", "-u", "origin", "main")
+    return target, remote
+
+
+def _use_github_fetch_url(target: Path, remote: Path) -> None:
+    # Mirror the production runtime: a GitHub fetch URL (so `git fetch origin main`
+    # is a harmless no-op) with the bare repo as the push URL (so real pushes work).
+    _git(target, "remote", "set-url", "origin", "https://github.com/o/r.git")
+    _git(target, "remote", "set-url", "--push", "origin", str(remote))
+
+
+def _rev_parse(target: Path, ref: str = "HEAD") -> str:
+    return subprocess.run(
+        ["git", "rev-parse", ref], cwd=str(target), capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+
+def _commit_push_main(target: Path) -> None:
+    _git(target, "add", "-A")
+    _git(target, "commit", "-m", "seed")
+    _git(target, "push", "origin", "main")
+    _git(target, "update-ref", "refs/remotes/origin/main", "HEAD")
+
+
+def _advance_origin_main(target: Path, mutate, *, n: int) -> None:
+    """Build a commit on top of origin/main in a scratch worktree and repoint the
+    coordinator's ``refs/remotes/origin/main`` at it — mirroring a merged closeout
+    PR advancing main without touching the coordinator's HEAD/working tree."""
+    wt = target.parent / f"mainwt-{n}"
+    _git(target, "worktree", "add", "--force", "--detach", str(wt), "origin/main")
+    mutate(wt)
+    _git(wt, "add", "-A")
+    _git(wt, "commit", "-m", "advance origin/main")
+    sha = _rev_parse(wt)
+    _git(target, "update-ref", "refs/remotes/origin/main", sha)
+    _git(target, "worktree", "remove", "--force", str(wt))
+
+
+def _seed_goal(target: Path, *, task_status="review", expected_pr=None) -> None:
+    _write(target / ".shiki" / "goals" / f"{GOAL}.json",
+           {"id": GOAL, "status": "in-progress", "title": "g", "outcome": "o",
+            "risk_level": "low", "ledger_evidence": []})
+    _write(target / ".shiki" / "dag" / f"{GOAL}.json",
+           {"goal_id": GOAL, "nodes": [TASK], "edges": []})
+    _write(target / ".shiki" / "tasks" / f"{TASK}.json",
+           {"id": TASK, "goal_id": GOAL, "status": task_status, "title": "t", "scope": "s",
+            "risk_level": "low", "assigned_runtime": "claude-code",
+            "expected_branch": f"shiki/{TASK.lower()}-slice", "expected_pr": expected_pr,
+            "locks": ["path:.shiki/**"], "required_skills": ["tdd"],
+            "acceptance_checks": ["done"], "ledger_evidence": []})
+    _write(target / ".shiki" / "locks" / f"{TASK}.json",
+           {"task_id": TASK, "goal_id": GOAL, "state": "active", "owner": "shiki-run",
+            "locks": ["path:.shiki/**"]})
+
+
+class EveryEffectorStagesCoordinatorMirrorTests(unittest.TestCase):
+    """Widen the staging property from the three sync paths to EVERY effector.
+
+    The previous fix staged inside ``_sync_state_to_branch``, which only
+    ``create_pr`` / ``dispatch_repair`` / ``rerun_cca`` reach. ``merge``,
+    ``mark_done``, ``goal_complete`` and ``create_closeout_pr`` write the
+    coordinator mirror through their own paths and stage nothing, so their records
+    sit untracked and collide on a later ``git merge origin/main``. ``execute_action``
+    now stages the coordinator's whole ``.shiki`` surface at a SINGLE covering point
+    (a ``finally``), so every effector leaves no untracked ``.shiki`` file, stages
+    nothing outside ``.shiki``, and never advances HEAD."""
+
+    def _untracked_shiki(self, target: Path):
+        out = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard"],
+            cwd=str(target), capture_output=True, text=True, check=True,
+        ).stdout.split()
+        return sorted(p for p in out if p.startswith(".shiki/"))
+
+    def _staged(self, target: Path):
+        return subprocess.run(
+            ["git", "diff", "--cached", "--name-only"],
+            cwd=str(target), capture_output=True, text=True, check=True,
+        ).stdout.split()
+
+    def _assert_staging_only(self, target: Path, head_before: str) -> None:
+        # The covering point: no untracked .shiki left, nothing OUTSIDE .shiki
+        # staged, and HEAD unmoved (staging only, never a commit).
+        self.assertEqual(self._untracked_shiki(target), [])
+        self.assertEqual([p for p in self._staged(target) if not p.startswith(".shiki/")], [])
+        self.assertEqual(_rev_parse(target), head_before, "an effector must not advance the coordinator HEAD")
+
+    def test_merge_effector_leaves_no_untracked_shiki(self):
+        with tempfile.TemporaryDirectory() as d:
+            target, remote = _init_repo_with_origin(Path(d))
+            _seed_goal(target, task_status="review", expected_pr=12)
+            _commit_push_main(target)
+            _use_github_fetch_url(target, remote)
+            head = _rev_parse(target)
+            with _patched_gh():
+                result = execute_action(target, GOAL, {"action": "merge", "task_id": TASK}, repair_limit=3)
+            self.assertEqual(result.get("action"), "merge", result)  # not stop_blocked
+            self._assert_staging_only(target, head)
+
+    def test_mark_done_effector_leaves_no_untracked_shiki(self):
+        # mark_done writes a `done` task + a fresh check ledger and stages NOTHING
+        # of its own — so no-untracked-.shiki here PROVES the coverage comes from
+        # the shared covering point, not effector-local staging (by construction).
+        with tempfile.TemporaryDirectory() as d:
+            target, _ = _init_repo_with_origin(Path(d))
+            _seed_goal(target, task_status="review")  # left uncommitted: all .shiki is untracked
+            head = _rev_parse(target)
+            with _patched_gh():
+                result = execute_action(target, GOAL, {"action": "mark_done", "task_id": TASK}, repair_limit=3)
+            self.assertEqual(result.get("status"), "done", result)
+            self._assert_staging_only(target, head)
+
+    def test_goal_complete_effector_leaves_no_untracked_shiki(self):
+        with tempfile.TemporaryDirectory() as d:
+            target, remote = _init_repo_with_origin(Path(d))
+            _seed_goal(target, task_status="review")
+            _commit_push_main(target)
+
+            def mutate(wt: Path) -> None:
+                _write(wt / ".shiki" / "goals" / f"{GOAL}.json",
+                       {"id": GOAL, "status": "complete", "title": "g", "outcome": "o",
+                        "risk_level": "low", "ledger_evidence": ["L-CMP"]})
+                _write(wt / ".shiki" / "tasks" / f"{TASK}.json",
+                       {"id": TASK, "goal_id": GOAL, "status": "done", "title": "t", "scope": "s",
+                        "risk_level": "low", "assigned_runtime": "claude-code",
+                        "expected_branch": f"shiki/{TASK.lower()}-slice", "expected_pr": 12,
+                        "locks": ["path:.shiki/**"], "required_skills": ["tdd"],
+                        "acceptance_checks": ["done"], "ledger_evidence": []})
+                _write(wt / ".shiki" / "locks" / f"{TASK}.json",
+                       {"task_id": TASK, "goal_id": GOAL, "state": "released", "owner": "shiki-run",
+                        "locks": ["path:.shiki/**"]})
+                _write(wt / ".shiki" / "reports" / "R-CMP.json",
+                       {"id": "R-CMP", "goal_id": GOAL, "status": "complete", "scorecard": {"goal_id": GOAL}})
+                _write(wt / ".shiki" / "ledger" / "L-CMP.json",
+                       {"id": "L-CMP", "goal_id": GOAL, "type": "completion", "summary": "done",
+                        "evidence": [".shiki/reports/R-CMP.json"]})
+            _advance_origin_main(target, mutate, n=1)
+            _use_github_fetch_url(target, remote)
+            head = _rev_parse(target)
+            with _patched_gh():
+                result = execute_action(target, GOAL, {"action": "goal_complete"}, repair_limit=3)
+            self.assertEqual(result.get("goal_status"), "complete", result)
+            self._assert_staging_only(target, head)
+
+    def test_create_closeout_pr_effector_leaves_no_untracked_shiki(self):
+        with tempfile.TemporaryDirectory() as d:
+            target, remote = _init_repo_with_origin(Path(d))
+            _seed_goal(target, task_status="review", expected_pr=12)
+            _commit_push_main(target)
+            _use_github_fetch_url(target, remote)
+            head = _rev_parse(target)
+            with _patched_gh():
+                result = execute_action(
+                    target, GOAL, {"action": "create_closeout_pr", "task_id": TASK}, repair_limit=3)
+            self.assertEqual(result.get("action"), "create_closeout_pr", result)
+            self._assert_staging_only(target, head)
+
+    def test_unhandled_effector_is_covered_by_construction(self):
+        # The covering point runs in a `finally`, so a FUTURE effector needs no
+        # `git add` of its own: even an unhandled action stages the coordinator's
+        # untracked `.shiki` records before the error propagates, and never commits.
+        with tempfile.TemporaryDirectory() as d:
+            target, _ = _init_repo_with_origin(Path(d))
+            _seed_goal(target, task_status="review")
+            _write(target / ".shiki" / "ledger" / "L-NEW.json",
+                   {"id": "L-NEW", "goal_id": GOAL, "task_id": TASK, "type": "check", "evidence": []})
+            head = _rev_parse(target)
+            with self.assertRaises(ShikiError):
+                execute_action(target, GOAL, {"action": "totally-unknown", "task_id": TASK}, repair_limit=3)
+            self.assertEqual(self._untracked_shiki(target), [])
+            self.assertIn(".shiki/ledger/L-NEW.json", self._staged(target))
+            self.assertEqual(_rev_parse(target), head)
 
 
 if __name__ == "__main__":
