@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "independent read-only reviewer (claude -p) \u2014 ADR 0011"
+  ],
+  "goal_id": "G-20260805T075725959969Z-61d080fb",
+  "id": "L-20260805T111347074794Z-b682d8a1",
+  "links": [],
+  "summary": "Pre-PR code-review verdict BLOCKING for T-20260805T075725961882Z-91c2ecac (0 finding(s)); loop stops for diagnosis",
+  "task_id": "T-20260805T075725961882Z-91c2ecac",
+  "timestamp": "2026-08-05T11:13:47+00:00",
+  "type": "check"
+}
