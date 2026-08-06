@@ -1,0 +1,86 @@
+{
+  "completion_conditions": [
+    "A ledger the loop writes after its last delivery point is carried by the next branch-state sync.",
+    "A file that was already delivered is never carried twice, and the carry is idempotent.",
+    "The carry never picks up a file belonging to another task's contract or any non-ledger mirror record it was not asked to deliver.",
+    "_evidence_relatives_for_task's output and _sync_state_to_branch's signature are unchanged.",
+    "The full suite, the goal-loop suite and validate_shiki stay green."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "MEASURED. After each goal completed, the coordinator checkout held ledger files absent from main \u2014 e.g. `L-20260805T073358816023Z-baf26752` (type `mergegate`, 'Goal loop merged PR #289 ...') and `L-20260805T073400360295Z-ec8cb045` (type `check`, 'Goal loop marked T-... done: PR already merged'). `git merge origin/main` then aborted with 'The following untracked working tree files would be overwritten by merge', and continuing required backing the files up and deleting them by hand. That happened on 2026-08-05 (twice), and again on 2026-08-06 (twice).",
+      "MECHANISM, read from source. `_sync_state_to_branch` (`scripts/shiki_loop.py:1000`) is the ONLY delivery path, and it is called from exactly three effectors: `:1850` (create_pr), `:1890` (dispatch_repair), `:1954` (rerun_cca). The `merge` and `mark_done` effectors (`:2011-2013`) append ledgers and never sync. By then the task branch is merged, so there is nothing left to sync to.",
+      "SCOPE OF THE HARM, stated honestly. No dangling reference reaches main: the task file on main references only the entries that were delivered, so `validate_shiki` and MergeGate stay green, and GitHub \u2014 source of truth #1 \u2014 records the merge itself durably. What is lost is the mirror's record of the loop's own final actions, and what is PAID is a manual conflict resolution on every subsequent sync. This is a mirror-completeness and operability defect, not an evidence-integrity one, and the contract should not overstate it.",
+      "REJECTED \u2014 reordering the closeout so the entries can ride it. `docs/adr/0012` pins the closeout decision table, and the closeout merge record cannot exist before the closeout is merged. Reordering is a governance change for a bookkeeping problem.",
+      "CHOSEN \u2014 a self-healing carry. Record post-closeout bookkeeping as undelivered, and have the next branch-state sync \u2014 for any task, in any goal \u2014 carry every undelivered loop-authored ledger file. That matches what the manual 'carry ... ledger evidence onto the task branch' commits already in this repository's history do by hand, needs no reordering and no ADR change. The lag is bounded and self-clearing; the final entries of the final goal remain undelivered until the next goal runs, which must be stated rather than hidden.",
+      "LOCK-SUFFICIENCY CHECK (2026-08-06). MUST-CHANGE: `scripts/shiki_loop.py`; `tests/test_dispatch_state_sync.py` (7 references \u2014 owns the sync property); `tests/test_loop_branch_plumbing.py` (12 references \u2014 the heaviest driver, imports the sync internals directly).",
+      "TWO DESIGN CONSTRAINTS THAT KEEP THE LOCK SET AT THREE, both measured. (a) Implement the carry inside `_sync_state_to_branch`, NOT inside `_evidence_relatives_for_task`: `tests/test_mirror_lock_injection.py` calls that function directly at `:320`, `:336`, `:498` and asserts on its output, so changing what it returns would pull that file in. (b) Do not change `_sync_state_to_branch`'s signature: `tests/test_loop_tdd_evidence.py:209-224` monkeypatches it.",
+      "MUST-NOT-BREAK (verification command, not locks): `tests/test_mirror_lock_injection.py`, `tests/test_loop_tdd_evidence.py`, `tests/test_loop_lock_guard.py` (prose reference only), and `scripts/test_shiki_goal_loop.sh` which drives the loop end to end. `scripts/shiki_tasks.py:39` and `scripts/mergegate_check.py:190` mention the sync in COMMENTS describing what rides a branch; they are not code references and must not be edited.",
+      "Risk is medium and honest: this changes which files a state sync commits, not what any gate enforces, and no approval source, schema or workflow moves. Under `.shiki/guardian-policy.json` (`applies_to_risk: [high, critical]`) neither PR triggers the Guardian gate."
+    ],
+    "source": "Observed four times while driving this session's own backlog; sites read from source and the referencing tests measured 2026-08-06.",
+    "status": "complete"
+  },
+  "id": "P-20260806T034026690262Z-742a3053",
+  "ingested_at": "2026-08-06T03:40:26+00:00",
+  "non_goals": [
+    "Reordering the closeout, or changing the decision table docs/adr/0012 pins.",
+    "Changing what _evidence_relatives_for_task returns.",
+    "Changing _sync_state_to_branch's signature.",
+    "Carrying anything other than loop-authored ledger files that were never delivered.",
+    "Changing any gate, schema, workflow or approval source.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "The ledger entries the goal loop writes AFTER its last delivery point \u2014 the closeout merge and the mark-done \u2014 stop accumulating only in the coordinator checkout. Measured four times on 2026-08-05/06: each left the coordinator's mirror diverged from main, and every subsequent `git merge origin/main` aborted with 'untracked working tree files would be overwritten', requiring a manual back-up-and-delete before work could continue.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-CARRY-draft.json",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": "docs/adr/0012-autonomous-loop-closeout-to-main.md",
+    "source": "Operator instruction 2026-08-06 to implement everything remaining to completion. This is the smaller of the two remaining items; the D redesign is separate and larger.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "A ledger written by the merge or mark_done effector is recorded as undelivered.",
+        "The next _sync_state_to_branch, for any task in any goal, carries every undelivered loop-authored ledger file and clears its marker.",
+        "The carry is idempotent: a second sync produces no second diff, and an already-delivered file is never carried twice.",
+        "Nothing outside the loop-authored undelivered set is ever carried \u2014 asserted with a foreign task's records present.",
+        "_evidence_relatives_for_task's output is unchanged \u2014 asserted, because tests/test_mirror_lock_injection.py asserts on it at :320, :336 and :498.",
+        "_sync_state_to_branch's signature is unchanged \u2014 tests/test_loop_tdd_evidence.py:209-224 monkeypatches it.",
+        "A regression in tests/test_loop_branch_plumbing.py reproduces the measured sequence against a real repository and shows the coordinator checkout no longer diverges.",
+        "The residual lag (the final goal's last entries) is stated in a comment, not hidden.",
+        "python3 -m unittest discover -s tests, scripts/test_shiki_goal_loop.sh and validate_shiki all pass.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/shiki_loop.py",
+        "path:tests/test_dispatch_state_sync.py",
+        "path:tests/test_loop_branch_plumbing.py"
+      ],
+      "non_goals": [
+        "Reordering the closeout or changing the decision table docs/adr/0012 pins",
+        "Changing what _evidence_relatives_for_task returns",
+        "Changing _sync_state_to_branch's signature",
+        "Carrying anything other than loop-authored, never-delivered ledger files",
+        "Changing any gate, schema, workflow or approval source",
+        "Editing the comments at scripts/shiki_tasks.py:39 or scripts/mergegate_check.py:190",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "medium",
+      "runtime": "claude-code",
+      "scope": "In `scripts/shiki_loop.py`, stop stranding the ledger entries the loop writes after its last delivery point.\n\nMECHANISM, read from source: `_sync_state_to_branch` (`:1000`) is the ONLY delivery path and is called from exactly three effectors \u2014 `:1850` create_pr, `:1890` dispatch_repair, `:1954` rerun_cca. The `merge` and `mark_done` effectors (`:2011-2013`) append ledgers and never sync, and by then the task branch is merged so there is nothing to sync to.\n\nMake the loop record such an entry as UNDELIVERED when it is written, and make `_sync_state_to_branch` \u2014 on its next run, for ANY task in ANY goal \u2014 carry every undelivered loop-authored ledger file onto that branch and clear the marker. The carry must be idempotent: a file already on the branch is not carried again, and a second sync produces no second diff. It must carry ONLY loop-authored ledger files that were never delivered \u2014 never another task's contract records, and never any other mirror record it was not asked to deliver.\n\nTWO CONSTRAINTS THAT KEEP THIS INSIDE THREE FILES, both measured:\n  (a) Implement the carry INSIDE `_sync_state_to_branch`, not inside `_evidence_relatives_for_task`. `tests/test_mirror_lock_injection.py` calls that function directly at `:320`, `:336` and `:498` and asserts on its output; changing what it returns pulls that file into the locks.\n  (b) Do NOT change `_sync_state_to_branch`'s signature \u2014 `tests/test_loop_tdd_evidence.py:209-224` monkeypatches it.\n\nState the residual lag in a comment rather than hiding it: the final entries of the final goal stay undelivered until some later goal runs a sync. That is bounded and self-clearing, and it is the honest cost of not reordering the closeout.\n\nTESTS. `tests/test_dispatch_state_sync.py` owns the sync property: add that an undelivered entry is carried on the next sync, that the carry is idempotent over two syncs, that an already-delivered file is not carried again, and that nothing outside the loop-authored undelivered set is ever carried. `tests/test_loop_branch_plumbing.py` drives the internals against a real repository: add a regression that reproduces the measured sequence \u2014 a merged closeout leaves an entry undelivered, the next task's sync carries it, and the coordinator checkout no longer diverges from the branch.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: after a goal completes, `git merge origin/main` in the coordinator checkout aborts with 'The following untracked working tree files would be overwritten by merge', naming ledger files the loop wrote. Continuing requires backing them up and deleting them by hand.\n  Measured four times on 2026-08-05/06. Examples: `L-20260805T073358816023Z-baf26752` (type `mergegate`, 'Goal loop merged PR #289 ...') and `L-20260805T073400360295Z-ec8cb045` (type `check`, 'Goal loop marked T-... done: PR already merged'), both present in the coordinator checkout and absent from main.\n  Honest scope: no dangling reference reaches main \u2014 the task file there references only the delivered entries, so `validate_shiki` and MergeGate stay green and GitHub records the merge durably. What is lost is the mirror's record of the loop's own final actions; what is paid is a manual conflict resolution on every later sync.\n  Why not reorder the closeout: `docs/adr/0012` pins its decision table, and a closeout's merge record cannot exist before the closeout is merged.\n  Exact change that reproduces this result: mark post-delivery ledgers undelivered and carry them on the next sync \u2014 which is what the manual 'carry ... ledger evidence onto the task branch' commits already in this repository's history do by hand.\n  Reproducible when: the measured sequence leaves no untracked ledger file in the coordinator checkout after the next task's sync, and a second sync produces no diff.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Carry the loop's undelivered ledger entries on the next state sync"
+    }
+  ],
+  "title": "Deliver the loop's post-merge bookkeeping instead of stranding it"
+}
