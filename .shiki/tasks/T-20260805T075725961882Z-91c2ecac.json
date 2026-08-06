@@ -20,7 +20,7 @@
   "cca_rerun_count": 1,
   "dependencies": [],
   "expected_branch": "shiki/t-20260805t075725961882z-91c2ecac-closeout",
-  "expected_pr": 294,
+  "expected_pr": 295,
   "github_issue": null,
   "goal_id": "G-20260805T075725959969Z-61d080fb",
   "id": "T-20260805T075725961882Z-91c2ecac",
@@ -36,7 +36,8 @@
     "L-20260806T004038217867Z-df62a047",
     "L-20260806T004434770094Z-e03fcbc3",
     "L-20260806T005117393714Z-23412eb4",
-    "L-20260806T005914591317Z-e02aa64a"
+    "L-20260806T005914591317Z-e02aa64a",
+    "L-20260806T005918488611Z-a9e0c37f"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
