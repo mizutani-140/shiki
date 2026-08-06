@@ -38,7 +38,8 @@
   },
   "id": "G-20260805T075725959969Z-61d080fb",
   "ledger_evidence": [
-    "L-20260805T075725960933Z-33727027"
+    "L-20260805T075725960933Z-33727027",
+    "L-20260806T005914591317Z-e02aa64a"
   ],
   "non_goals": [
     "Reordering the decision function, or changing _merge_or_sync's existing all-green behaviour.",
@@ -57,6 +58,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260805T075711997554Z-15a6b498",
-  "status": "planned",
+  "status": "complete",
   "title": "Sync a BEHIND branch before spending repair attempts that cannot fix it"
 }
