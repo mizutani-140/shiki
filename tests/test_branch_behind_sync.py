@@ -7,6 +7,14 @@ into the branch (a plain merge + push — never a rebase or force-push) before
 merging, so an unattended run resolves mechanical staleness on its own and only
 stops for a genuine conflict or a push failure.
 
+The same bounded sync also remediates a BEHIND branch whose RED required check is
+CAUSED by base movement (PR #288: the base gained an append-only-evidence file the
+branch never had, so the metadata check reads it as a deletion). That path is
+guarded — it fires only after the CCA verdict gate (a needs_guardian / blocked
+verdict still stops), never while the policy Guardian gate is red, and only under a
+durable ``base_sync_attempts`` cap — so it never launders an authority decision into
+a head-moving sync and never makes the repair limit dead code.
+
 The decision cases exercise the pure engine with fixtures (no git). The effector
 cases drive the REAL ``_sync_branch`` against a REAL temporary git repository with
 a bare origin, so the merge/abort/push behaviour is proven, not mocked.
@@ -48,7 +56,7 @@ def _task(status: str = "review", *, risk: str = "low", pr: int | None = 7, **ex
     return task
 
 
-def _decide(task, *, checks=None, pr_state=None, attempts=0, limit=3, reruns=0):
+def _decide(task, *, checks=None, pr_state=None, attempts=0, limit=3, reruns=0, cca_verdict=None):
     return decide_task_action(
         task,
         checks=checks,
@@ -57,6 +65,7 @@ def _decide(task, *, checks=None, pr_state=None, attempts=0, limit=3, reruns=0):
         repair_limit=limit,
         required_checks=REQUIRED,
         cca_reruns=reruns,
+        cca_verdict=cca_verdict,
     )
 
 
@@ -120,12 +129,72 @@ class BehindDecisionTests(unittest.TestCase):
         decision = _decide(_task(risk="low"), checks=checks, pr_state=_pr("BEHIND"))
         self.assertEqual(decision["action"], "wait_checks")
 
-    def test_behind_but_failing_check_is_not_synced(self) -> None:
-        # Not otherwise ready: a failing check repairs, never syncs.
+    def test_behind_failing_repairable_check_is_now_synced(self) -> None:
+        # NEW RULE (PR #288): when being BEHIND is the CAUSE of a red required check
+        # — the base moved after the branch forked — a bounded base sync remediates
+        # it. A failing check no longer unconditionally repairs. Conditions, each
+        # asserted separately below: not the policy gate; the CCA verdict is not a
+        # terminal stop; and base_sync_attempts is under MAX_BASE_SYNCS.
         checks = _green()
         checks["Validate Shiki mirror"] = "fail"
         decision = _decide(_task(risk="low"), checks=checks, pr_state=_pr("BEHIND"))
+        self.assertEqual(decision["action"], "sync_branch")
+
+    def test_behind_metadata_red_from_base_drift_syncs_not_repairs(self) -> None:
+        # The measured PR #288 shape: the branch forked, main then gained an
+        # append-only-evidence ledger the branch never had, so the MergeGate metadata
+        # check went red with "PR must not delete base ledger file …". The task is
+        # fine — one recorded sync, not three identical no-op repairs.
+        checks = _green()
+        checks["MergeGate metadata check"] = "fail"
+        decision = _decide(_task(risk="low"), checks=checks, pr_state=_pr("BEHIND"))
+        self.assertEqual(decision["action"], "sync_branch")
+
+    def test_clean_failing_check_still_repairs_never_syncs(self) -> None:
+        # The sync arm is gated on BEHIND: a CLEAN branch with a red repairable check
+        # still dispatches a repair exactly as before.
+        checks = _green()
+        checks["Validate Shiki mirror"] = "fail"
+        decision = _decide(_task(risk="low"), checks=checks, pr_state=_pr("CLEAN"))
+        self.assertEqual(decision["action"], "dispatch_repair")
+
+    def test_behind_needs_guardian_verdict_stops_guardian_not_syncs(self) -> None:
+        # The sync arm is evaluated AFTER _cca_verdict_stop: a needs_guardian verdict
+        # on a BEHIND branch still produces the terminal Guardian stop and is never
+        # laundered into a head-moving sync (ADR 0010). reruns=2 exhausts the CCA
+        # same-head race so the decision reaches the verdict gate.
+        checks = _green()
+        checks["CCA verdict"] = "fail"
+        decision = _decide(
+            _task(risk="high"), checks=checks, pr_state=_pr("BEHIND"),
+            cca_verdict="needs_guardian", reruns=2,
+        )
+        self.assertEqual(decision["action"], "stop_guardian")
+
+    def test_behind_blocked_verdict_stops_blocked_not_syncs(self) -> None:
+        # A blocked verdict on a BEHIND branch still produces the terminal blocked
+        # stop — the measured incident's own verdict was blocked, and syncing it would
+        # be the impersonation pathway ADR 0010 forbids.
+        checks = _green()
+        checks["CCA verdict"] = "fail"
+        decision = _decide(
+            _task(risk="low"), checks=checks, pr_state=_pr("BEHIND"),
+            cca_verdict="blocked", reruns=2,
+        )
+        self.assertEqual(decision["action"], "stop_blocked")
+
+    def test_behind_policy_red_plus_another_red_is_not_synced(self) -> None:
+        # The guard is `not policy_failed`, NOT "only the policy gate is red": a red
+        # policy gate alongside another red check must NOT sync (it would destroy a
+        # head-bound Guardian approval / restore a defeated contract-approval carry).
+        # This test fails if the guard is relaxed to fire whenever policy is not the
+        # sole red check.
+        checks = _green()
+        checks["MergeGate policy check"] = "fail"
+        checks["MergeGate metadata check"] = "fail"
+        decision = _decide(_task(risk="high"), checks=checks, pr_state=_pr("BEHIND"))
         self.assertNotEqual(decision["action"], "sync_branch")
+        self.assertEqual(decision["action"], "dispatch_repair")
 
     def test_behind_but_lone_policy_gate_failing_is_not_synced(self) -> None:
         # The Guardian gate red on its own stops for an authority, never syncs.
@@ -133,6 +202,43 @@ class BehindDecisionTests(unittest.TestCase):
         checks["MergeGate policy check"] = "fail"
         decision = _decide(_task(risk="high"), checks=checks, pr_state=_pr("BEHIND"))
         self.assertEqual(decision["action"], "stop_guardian")
+
+    def test_behind_red_check_under_cap_boundary_syncs(self) -> None:
+        # One below the cap still syncs.
+        checks = _green()
+        checks["Validate Shiki mirror"] = "fail"
+        task = _task(risk="low", base_sync_attempts=shiki_loop.MAX_BASE_SYNCS - 1)
+        decision = _decide(task, checks=checks, pr_state=_pr("BEHIND"))
+        self.assertEqual(decision["action"], "sync_branch")
+
+    def test_behind_red_check_at_cap_reverts_to_dispatch_repair(self) -> None:
+        # At the cap the sync arm is spent: the decision reverts to today's repair
+        # path so the repair limit never becomes dead code.
+        checks = _green()
+        checks["Validate Shiki mirror"] = "fail"
+        task = _task(risk="low", base_sync_attempts=shiki_loop.MAX_BASE_SYNCS)
+        decision = _decide(task, checks=checks, pr_state=_pr("BEHIND"))
+        self.assertEqual(decision["action"], "dispatch_repair")
+
+    def test_behind_red_check_past_cap_at_repair_limit_stops_guardian(self) -> None:
+        # Past the cap AND at the repair limit: the repair-limit Guardian stop stays
+        # reachable (a BEHIND branch never traps the loop below that escalation).
+        checks = _green()
+        checks["Validate Shiki mirror"] = "fail"
+        task = _task(risk="low", base_sync_attempts=shiki_loop.MAX_BASE_SYNCS + 5)
+        decision = _decide(task, checks=checks, pr_state=_pr("BEHIND"), attempts=3, limit=3)
+        self.assertEqual(decision["action"], "stop_guardian")
+
+    def test_behind_closeout_failing_check_still_stops_blocked(self) -> None:
+        # docs/adr/0012 pins the closeout decision table: a bookkeeping closeout has
+        # no implementation to repair OR sync, so a genuine failing check stops for a
+        # recorded authority even when BEHIND. The red-check base-sync arm must NOT
+        # leak into the closeout path — asserted so the ADR stays truthful.
+        task = _task(closeout_pr=9)
+        checks = _green()
+        checks["Validate Shiki mirror"] = "fail"
+        decision = _decide(task, checks=checks, pr_state=_pr("BEHIND"))
+        self.assertEqual(decision["action"], "stop_blocked")
 
 
 def _git(cwd: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess:

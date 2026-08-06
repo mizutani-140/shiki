@@ -480,4 +480,64 @@ python3 "$ROOT/scripts/shiki.py" loop step --target "$TARGET" --goal-id "$BGOAL"
 test "$(json_get_last /tmp/shiki-goal-loop-behind-merge.json action)" = "merge"
 test -f "$GH_STATE/merged-$SYNC_PR"
 
+# A BEHIND branch whose RED required check is CAUSED by base movement (the base
+# gained an append-only-evidence file the branch never had, so the metadata check
+# reads "PR must not delete base ledger file …") is SYNCED, not repaired — the task
+# is fine, the branch is merely stale (PR #288). The sync must create NO repair
+# packet and consume NO repair attempt: assert the RP-*.json count is unchanged
+# across the step, exactly as the needs_guardian gate proves above at :408-417.
+REDSYNC_BRANCH="shiki/behind-red-then-sync-slice"
+REDSYNC_PR=66
+REDSYNC_SCRATCH="$TMP_ROOT/red-sync-scratch"
+git worktree add -b "$REDSYNC_BRANCH" "$REDSYNC_SCRATCH" main >/dev/null 2>&1
+git -C "$REDSYNC_SCRATCH" config user.name "Shiki Test"
+git -C "$REDSYNC_SCRATCH" config user.email "shiki@example.test"
+printf 'red branch work\n' > "$REDSYNC_SCRATCH/red-sync-branch-file.txt"
+git -C "$REDSYNC_SCRATCH" add red-sync-branch-file.txt
+git -C "$REDSYNC_SCRATCH" commit -m "red-sync task branch work" >/dev/null
+git -C "$REDSYNC_SCRATCH" push -u origin "$REDSYNC_BRANCH" >/dev/null 2>&1
+git -C "$REDSYNC_SCRATCH" checkout --detach main >/dev/null 2>&1
+printf 'red base advanced\n' > "$REDSYNC_SCRATCH/red-sync-base-advance.txt"
+git -C "$REDSYNC_SCRATCH" add red-sync-base-advance.txt
+git -C "$REDSYNC_SCRATCH" commit -m "base advances beyond the red-sync branch" >/dev/null
+git update-ref "refs/remotes/origin/main" "$(git -C "$REDSYNC_SCRATCH" rev-parse HEAD)"
+git worktree remove --force "$REDSYNC_SCRATCH"
+REDSYNC_TIP_BEFORE="$(git -C "$ORIGIN_GIT" rev-parse "$REDSYNC_BRANCH")"
+
+python3 "$ROOT/scripts/shiki.py" goal create --target "$TARGET" --title "Behind red gate" --outcome "A behind PR with a base-drift red check syncs, no repair" >/tmp/shiki-goal-loop-redsync-goal.json
+RSGOAL="$(json_get /tmp/shiki-goal-loop-redsync-goal.json goal_id)"
+python3 "$ROOT/scripts/shiki.py" issue plan --target "$TARGET" --goal-id "$RSGOAL" \
+  --title "Behind red slice" --scope "Base moved and the metadata check went red" \
+  --acceptance-check "Synced, not repaired" >/tmp/shiki-goal-loop-redsync-task.json
+RSTASK="$(json_get /tmp/shiki-goal-loop-redsync-task.json task_id)"
+python3 - "$TARGET/.shiki/tasks/$RSTASK.json" "$REDSYNC_BRANCH" "$REDSYNC_PR" <<'PY'
+import json
+import sys
+
+path, branch, pr = sys.argv[1], sys.argv[2], int(sys.argv[3])
+task = json.load(open(path))
+task["status"] = "review"
+task["expected_pr"] = pr
+task["expected_branch"] = branch
+json.dump(task, open(path, "w"), indent=2)
+PY
+# The MergeGate metadata check is red (base-drift) against green siblings; the CCA
+# verdict and policy gates are green, so the decision reaches the base-sync arm.
+cat >"$GH_STATE/checks-$REDSYNC_PR.json" <<'JSON'
+[{"name":"Validate Shiki mirror","bucket":"pass"},{"name":"CCA verdict","bucket":"pass"},{"name":"MergeGate metadata check","bucket":"fail"},{"name":"MergeGate policy check","bucket":"pass"}]
+JSON
+echo "BEHIND" >"$GH_STATE/merge-state-$REDSYNC_PR"
+REDSYNC_PACKETS_BEFORE="$(find "$TARGET/.shiki/repairs" -maxdepth 1 -name 'RP-*.json' -type f 2>/dev/null | wc -l | tr -d ' ')"
+python3 "$ROOT/scripts/shiki.py" loop step --target "$TARGET" --goal-id "$RSGOAL" >/tmp/shiki-goal-loop-redsync.json
+test "$(json_get_last /tmp/shiki-goal-loop-redsync.json action)" = "sync_branch"
+# The sync pushed a real base merge (the branch head advanced), not a repair.
+REDSYNC_TIP_AFTER="$(git -C "$ORIGIN_GIT" rev-parse "$REDSYNC_BRANCH")"
+test "$REDSYNC_TIP_AFTER" != "$REDSYNC_TIP_BEFORE"
+# No repair packet was created and no repair attempt was consumed.
+REDSYNC_PACKETS_AFTER="$(find "$TARGET/.shiki/repairs" -maxdepth 1 -name 'RP-*.json' -type f 2>/dev/null | wc -l | tr -d ' ')"
+test "$REDSYNC_PACKETS_BEFORE" = "$REDSYNC_PACKETS_AFTER"
+# The bounded base-sync counter advanced instead (mirrors cca_rerun_count).
+test "$(json_get "$TARGET/.shiki/tasks/$RSTASK.json" base_sync_attempts)" = "1"
+rm -f "$GH_STATE/merge-state-$REDSYNC_PR" "$GH_STATE/checks-$REDSYNC_PR.json"
+
 echo "shiki goal loop tests passed"

@@ -55,6 +55,14 @@ MERGE_STATE_BEHIND = "BEHIND"
 POLICY_GATE = "MergeGate policy check"
 CCA_VERDICT_CHECK = "CCA verdict"
 MAX_CCA_RERUNS = 2
+# Bound on how many times the loop base-syncs a BEHIND branch whose red required
+# check is caused by base movement (the base moved after the branch forked, so a
+# base file the branch never had reads as "deleted"). Mirrors MAX_CCA_RERUNS: a
+# durable per-task `base_sync_attempts` counter is checked against this, and once
+# it is reached the decision reverts to today's dispatch_repair -> repair limit ->
+# stop_guardian path so the repair limit never becomes dead code and a permanently
+# stale branch cannot livelock on syncs.
+MAX_BASE_SYNCS = 2
 
 # The five CCA verdict values (mirrors ``enforce_cca_verdict.VALID_VERDICTS`` and
 # the ``cca-verdict.schema.json`` enum). When the ``CCA verdict`` required check is
@@ -301,6 +309,35 @@ def decide_task_action(
                 return verdict_stop
             repairable_failed = [name for name in repairable_failed if name != CCA_VERDICT_CHECK]
         failure_desc = ", ".join(repairable_failed) if repairable_failed else f"CCA verdict {cca_verdict}"
+        # A red required check on a branch that is BEHIND its base is often CAUSED by
+        # the base moving after the branch forked — e.g. main gained an
+        # append-only-evidence ledger the branch never had, so the MergeGate metadata
+        # check reports "PR must not delete base ledger file …". The task is fine; the
+        # branch is merely stale. A bounded base sync remediates it — three identical
+        # no-op repairs do not (PR #288). This arm is reached ONLY after the verdict
+        # gate above returned None, so a needs_guardian / blocked / complete /
+        # unresolvable CCA verdict has already produced its terminal stop and is never
+        # laundered into a head-moving sync (ADR 0010). It also never fires while the
+        # policy (Guardian) gate is red — for ANY reason, not only when it is the sole
+        # red check — so a head-bound Guardian approval, or an ADR 0015
+        # contract-approval carry that base movement defeated (the policy gate compares
+        # base and head task governance directly), is never silently restored by
+        # adopting base wholesale. It is bounded by a durable per-task counter so the
+        # repair limit stays reachable and a permanently stale branch cannot livelock.
+        # A sync creates no repair packet and consumes no repair attempt.
+        behind = (pr_state or {}).get("merge_state_status") == MERGE_STATE_BEHIND
+        base_syncs = int(task.get("base_sync_attempts") or 0)
+        if behind and not policy_failed and base_syncs < MAX_BASE_SYNCS:
+            return {
+                "action": "sync_branch",
+                "task_id": task_id,
+                "reason": (
+                    f"branch is BEHIND its base with a red required check ({failure_desc}); "
+                    "the base moved after the branch forked, so sync the base into the "
+                    "branch and re-verify before repairing (bounded base sync "
+                    f"{base_syncs + 1}/{MAX_BASE_SYNCS}, no repair attempt consumed)"
+                ),
+            }
         if repair_attempts >= repair_limit:
             return {
                 "action": "stop_guardian",
@@ -1505,9 +1542,31 @@ def _sync_branch(target: Path, task: dict[str, Any], *, base: str = "main") -> d
                     f"{(push.stderr or '').strip()[-160:]} — push the synced branch manually"
                 ),
             }
+        # A base sync now remediates a RED required check on the same footing as a
+        # dispatch_repair, so it must leave a durable record (a sync followed by a
+        # merge did not need one). Append a `mergegate` ledger — an EXISTING type the
+        # merge effector already uses for merge-gate actions — with the concrete git
+        # evidence. Guarded so a ledger-write failure can never turn an already
+        # completed push into a stop.
+        sync_ledger = None
+        try:
+            sync_ledger = append_ledger(
+                target,
+                goal_id=str(task.get("goal_id") or ""),
+                task_id=task_id,
+                ledger_type="mergegate",
+                summary=(
+                    f"Goal loop synced {branch} with origin/{base} (base moved after the "
+                    "branch forked); the required checks re-run against the new head"
+                ),
+                evidence=[f"git merge origin/{base}", f"git push origin HEAD:{branch}"],
+            )
+        except Exception:  # noqa: BLE001 — a ledger failure must not undo a done push
+            sync_ledger = None
         return {
             "action": "sync_branch",
             "task_id": task_id,
+            "ledger_id": sync_ledger,
             "reason": (
                 f"synced {branch} with origin/{base}; waiting for the required checks to "
                 "re-run against the new head before merging"
@@ -1523,6 +1582,37 @@ def _sync_branch(target: Path, task: dict[str, Any], *, base: str = "main") -> d
         if tmp_parent is not None:
             run(["git", "worktree", "remove", "--force", str(tmp_parent / "wt")], cwd=target, check=False)
             shutil.rmtree(tmp_parent, ignore_errors=True)
+
+
+def _reconcile_registered_worktree_to_origin(target: Path, task_id: str) -> str:
+    """Fast-forward the task's REGISTERED worktree to the pushed (synced) head.
+
+    ``_sync_branch`` pushes the base merge from a THROWAWAY detached checkout, so the
+    task's registered worktree — the checkout a subsequent ``dispatch_repair`` commits
+    into — still has its local branch at the pre-sync head. Without reconciliation the
+    repair's ``git push -u origin <branch>`` is a non-fast-forward and fails with a
+    misleading "push failed" message. Fast-forward ONLY — never a reset — so any
+    uncommitted work in the worktree is preserved and an (impossible after a base
+    merge) non-fast-forward fails loudly instead of being silently discarded. Reads
+    the registered branch from the worktree record and never raises into the loop.
+    """
+    try:
+        record = worktree_record(target, task_id)
+        if not record:
+            return "no registered worktree to reconcile"
+        worktree_path = Path(record["path"]).expanduser().resolve()
+        if not worktree_path.exists() or worktree_path == target.resolve():
+            return "registered worktree unavailable; not reconciled"
+        branch = str(record.get("branch") or "")
+        if not branch:
+            return "registered worktree has no branch; not reconciled"
+        run(["git", "fetch", "origin", branch], cwd=worktree_path, check=False)
+        forward = run(["git", "merge", "--ff-only", f"origin/{branch}"], cwd=worktree_path, check=False)
+        if forward.returncode != 0:
+            return "registered worktree could not fast-forward to the synced head; reconcile manually"
+        return "registered worktree fast-forwarded to the synced head"
+    except Exception as error:  # noqa: BLE001 — reconciliation must never raise into the loop
+        return f"registered worktree reconciliation error: {str(error)[:120]}"
 
 
 def _loop_own_ledger_ids(target: Path, task: dict[str, Any]) -> list[str]:
@@ -1869,10 +1959,32 @@ def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repa
         # it next. Fails closed to stop_blocked inside the effector.
         result.update(_create_closeout_pr(target, goal_id, task_id))
     elif action == "sync_branch":
-        # The PR is otherwise ready to merge but BEHIND its base: merge the base in
-        # and push (never rebase/force-push). On success the loop returns to waiting
-        # for the re-run checks; a conflict or push failure stops with a NAMED reason.
-        result.update(_sync_branch(target, task))
+        # BEHIND its base: merge the base in and push (never rebase/force-push). On
+        # success the loop returns to waiting for the re-run checks; a conflict or push
+        # failure stops with a NAMED reason. Resolve the base the module-standard way
+        # (a refreshed origin/<name>) then hand _sync_branch the bare branch NAME: it
+        # builds `origin/{base}` itself, so passing `origin/main` would produce
+        # `origin/origin/main`. Falls back to the bare name when there is no origin/
+        # prefix (the _default_base_ref offline fallback).
+        base_ref = _default_base_ref(target)
+        base_name = base_ref[len("origin/"):] if base_ref.startswith("origin/") else base_ref
+        result.update(_sync_branch(target, task, base=base_name))
+        if result.get("action") == "sync_branch":
+            # A successful base sync is a bounded remediation. Record the attempt on
+            # the task (mirrors cca_rerun_count / MAX_CCA_RERUNS) so the decision
+            # engine caps re-syncs and the repair limit stays reachable. No repair
+            # packet is created and repair_attempts is untouched — a sync never
+            # consumes a repair attempt.
+            task = load_task(target, task_id)
+            task["base_sync_attempts"] = int(task.get("base_sync_attempts") or 0) + 1
+            _save_task(target, task)
+            result["base_sync_attempts"] = task["base_sync_attempts"]
+            # _sync_branch pushed the new head from a throwaway detached checkout, so
+            # the task's REGISTERED worktree still has its local branch at the pre-sync
+            # head. Because a sync can now be followed by a REPAIR (not only a merge),
+            # fast-forward that worktree so the repair's push is not a non-fast-forward
+            # (never a reset: uncommitted work is preserved).
+            result["worktree_reconcile"] = _reconcile_registered_worktree_to_origin(target, task_id)
     elif action == "merge":
         pr = task.get("expected_pr")
         merge = _gh(target, ["pr", "merge", str(pr), "--merge"], check=False)
