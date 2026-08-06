@@ -32,6 +32,7 @@ import shiki_test_support  # noqa: F401  (path bootstrap)
 import shiki_loop
 from shiki_loop import (
     CCA_VERDICT_CHECK,
+    CCA_VERDICT_TRANSIENT_REFUSAL,
     CCA_VERDICT_UNRESOLVED,
     POLICY_GATE,
     _resolve_cca_verdict,
@@ -300,13 +301,19 @@ class FakeGh:
     seam — the ``shiki-cca-evidence`` artifact download that carries the verdict."""
 
     def __init__(self, env: LoopEnv, *, checks: dict, verdict=None,
-                 serve_run: bool = True, serve_download: bool = True, malformed: bool = False):
+                 serve_run: bool = True, serve_download: bool = True, malformed: bool = False,
+                 refusal: str | None = None):
+        # ``refusal`` (None | "transient" | "non_transient") makes the download serve
+        # a REFUSAL RECORD (cca-verdict.refusal.json) instead of cca-verdict.json —
+        # the exact artifact the enforcer leaves for a rejected verdict (no
+        # cca-verdict.json, a refusal record on the sibling path).
         self.env = env
         self.checks = checks
         self.verdict = verdict
         self.serve_run = serve_run
         self.serve_download = serve_download
         self.malformed = malformed
+        self.refusal = refusal
         self.calls: list[list[str]] = []
 
     def __call__(self, target, args, check=True):
@@ -341,7 +348,22 @@ class FakeGh:
                 return r
             out = Path(target_dir)
             out.mkdir(parents=True, exist_ok=True)
-            if self.malformed:
+            if self.refusal is not None:
+                # A refused verdict: NO cca-verdict.json, a refusal record on the
+                # sibling path carrying the transient classification (and the refused
+                # verdict value, which the resolver must never surface).
+                (out / "cca-verdict.refusal.json").write_text(
+                    json.dumps({
+                        "kind": "cca-verdict-refusal",
+                        "verdict_as_received": {"verdict": "complete", "task_id": TASK, "goal_id": GOAL},
+                        "rule_violated": "complete verdict contains blocking failed checklist items: CCA-06",
+                        "offending_ids": ["CCA-06"],
+                        "transient": self.refusal == "transient",
+                        "transient_reason": "x",
+                    }),
+                    encoding="utf-8",
+                )
+            elif self.malformed:
                 (out / "cca-verdict.json").write_text("{not json", encoding="utf-8")
             elif self.verdict is not None:
                 (out / "cca-verdict.json").write_text(
@@ -420,14 +442,36 @@ class VerdictResolutionTests(unittest.TestCase):
                 shiki_loop._gh = orig
             self.assertEqual(got, CCA_VERDICT_UNRESOLVED)
 
+    def test_transient_refusal_record_resolves_to_the_transient_sentinel(self):
+        # No cca-verdict.json, a refusal record marked transient -> the re-runnable
+        # sentinel, NOT the refused verdict's own value and NOT unresolvable.
+        got = self._resolve(refusal="transient")
+        self.assertEqual(got, CCA_VERDICT_TRANSIENT_REFUSAL)
+
+    def test_non_transient_refusal_record_resolves_to_unresolved(self):
+        # A non-transient refusal keeps today's terminal outcome: unresolvable.
+        got = self._resolve(refusal="non_transient")
+        self.assertEqual(got, CCA_VERDICT_UNRESOLVED)
+
+    def test_refused_verdict_value_is_never_returned_by_the_resolver(self):
+        # The refusal record carries verdict_as_received.verdict == "complete"; the
+        # resolver must NEVER surface it (the whole safety property). Both classes
+        # resolve to a sentinel, never to "complete".
+        for refusal in ("transient", "non_transient"):
+            with self.subTest(refusal=refusal):
+                got = self._resolve(refusal=refusal)
+                self.assertNotEqual(got, "complete")
+                self.assertIn(got, {CCA_VERDICT_TRANSIENT_REFUSAL, CCA_VERDICT_UNRESOLVED})
+
 
 class VerdictGatingEffectorTests(unittest.TestCase):
     """``goal_loop_step`` resolves the verdict and the real effectors act on it."""
 
-    def _run(self, verdict, *, serve_run=True, serve_download=True):
+    def _run(self, verdict=None, *, serve_run=True, serve_download=True, refusal=None, checks=None, reruns=2):
         with tempfile.TemporaryDirectory() as d:
-            env = LoopEnv(Path(d))
-            fake = FakeGh(env, checks=cca_red(), verdict=verdict, serve_run=serve_run, serve_download=serve_download)
+            env = LoopEnv(Path(d), reruns=reruns)
+            fake = FakeGh(env, checks=checks or cca_red(), verdict=verdict, serve_run=serve_run,
+                          serve_download=serve_download, refusal=refusal)
             orig_gh = shiki_loop._gh
             orig_dispatch = shiki_loop._dispatch
             shiki_loop._gh = fake
@@ -487,6 +531,62 @@ class VerdictGatingEffectorTests(unittest.TestCase):
         self.assertIn("could not be read", result["reason"])
         self.assertEqual(before, after)
         self.assertIsNone(packet)
+
+    def test_transient_refusal_reruns_and_creates_no_repair_packet(self):
+        # A refused (transient) verdict with rerun budget remaining re-runs the CCA
+        # and NEVER opens a repair packet nor consumes a repair attempt.
+        result, before, after, packet = self._run(refusal="transient", reruns=0)
+        self.assertEqual(result["action"], "rerun_cca")
+        self.assertEqual(before, after)
+        self.assertIsNone(packet)
+
+    def test_non_transient_refusal_keeps_terminal_stop_and_never_repairs(self):
+        # A refused (non-transient) verdict resolves unresolvable and keeps today's
+        # terminal stop and today's reason — never a repair.
+        result, before, after, packet = self._run(refusal="non_transient")
+        self.assertIn(result["action"], {"stop_blocked", "stop_guardian"})
+        self.assertNotEqual(result["action"], "dispatch_repair")
+        self.assertIn("could not be read", result["reason"])
+        self.assertEqual(before, after)
+        self.assertIsNone(packet)
+
+
+# --------------------------------------------------------------------------- #
+# DEFECT A (refusal) — the transient refusal drives a bounded rerun through the
+# REAL decide_task_action; the refused sentinel never reaches _cca_verdict_stop.
+# --------------------------------------------------------------------------- #
+class TransientRefusalEngineTests(unittest.TestCase):
+    def test_transient_refusal_reruns_within_budget_and_never_repairs(self):
+        # A sibling is also red so the same-head completion-race fast path (which
+        # requires ALL siblings green) does NOT fire and the decision reaches the
+        # verdict gate; the transient-refusal sentinel with budget remaining drives
+        # the bounded rerun_cca — never a repair, never a repair attempt.
+        d = decide(review_task(reruns=0), checks=cca_red(**{"Validate Shiki mirror": "fail"}),
+                   cca_verdict=CCA_VERDICT_TRANSIENT_REFUSAL, reruns=0)
+        self.assertEqual(d["action"], "rerun_cca")
+        self.assertNotIn("failed_checks", d)
+        self.assertIn("transient", d["reason"])
+
+    def test_transient_refusal_with_exhausted_reruns_keeps_todays_terminal_stop(self):
+        d = decide(review_task(reruns=2), checks=cca_red(**{"Validate Shiki mirror": "fail"}),
+                   cca_verdict=CCA_VERDICT_TRANSIENT_REFUSAL, reruns=2)
+        self.assertNotEqual(d["action"], "dispatch_repair")
+        self.assertIn(d["action"], {"stop_blocked", "stop_guardian"})
+        self.assertIn("could not be read", d["reason"])  # today's reason preserved
+
+    def test_transient_sentinel_never_reaches_cca_verdict_stop(self):
+        # Spy on _cca_verdict_stop: on the rerun path it is never called, and it
+        # must never receive the transient sentinel (a refused non-judgment).
+        seen: list = []
+        orig = shiki_loop._cca_verdict_stop
+        shiki_loop._cca_verdict_stop = lambda task_id, value: (seen.append(value), orig(task_id, value))[1]
+        try:
+            d = decide(review_task(reruns=0), checks=cca_red(**{"Validate Shiki mirror": "fail"}),
+                       cca_verdict=CCA_VERDICT_TRANSIENT_REFUSAL, reruns=0)
+        finally:
+            shiki_loop._cca_verdict_stop = orig
+        self.assertEqual(d["action"], "rerun_cca")
+        self.assertNotIn(CCA_VERDICT_TRANSIENT_REFUSAL, seen)
 
 
 # --------------------------------------------------------------------------- #

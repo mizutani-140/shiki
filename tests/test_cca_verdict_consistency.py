@@ -23,8 +23,10 @@ complete-with-failures rejections: reverting either guard in
 from __future__ import annotations
 
 import contextlib
+import io
 import json
 import os
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -32,6 +34,7 @@ import shiki_test_support  # noqa: F401  (path bootstrap)
 
 import enforce_cca_verdict
 import mergegate_check
+import shiki_loop
 import validate_shiki
 from shiki_schema import SchemaValidationError
 
@@ -251,6 +254,238 @@ class TaskSchemaRequiredConsistency(unittest.TestCase):
             "task.schema.json `required` and validate_shiki.TASK_REQUIRED must "
             "list the same required task fields.",
         )
+
+
+@contextlib.contextmanager
+def _enforcer_env(**overrides):
+    """Set the enforcer's env vars for one run, restoring the prior state after.
+
+    ``SHIKI_HEAD_SHA`` is cleared unless overridden so the fixtures' head_sha is
+    used verbatim; ``STRUCTURED_OUTPUT`` / ``CCA_VERDICT_FILE`` come from callers.
+    """
+    keys = ["STRUCTURED_OUTPUT", "CCA_VERDICT_FILE", "SHIKI_HEAD_SHA"]
+    previous = {key: os.environ.get(key) for key in keys}
+    os.environ.pop("SHIKI_HEAD_SHA", None)
+    for key, value in overrides.items():
+        os.environ[key] = value
+    try:
+        yield
+    finally:
+        for key in keys:
+            if previous[key] is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = previous[key]
+
+
+def _run_enforcer(structured_output: str, tmp_dir: Path):
+    """Run ``enforce_cca_verdict.main()`` in-process over ``structured_output``.
+
+    Returns ``(exit_code, combined_output, verdict_file, refusal_file)`` where the
+    two paths are the operative-authority path and its derived refusal-record
+    sibling under ``tmp_dir``.
+    """
+    verdict_file = tmp_dir / "cca-verdict.json"
+    refusal_file = enforce_cca_verdict.refusal_record_path(verdict_file)
+    out, err = io.StringIO(), io.StringIO()
+    with in_repo_root(), _enforcer_env(
+        STRUCTURED_OUTPUT=structured_output, CCA_VERDICT_FILE=str(verdict_file)
+    ), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        code = enforce_cca_verdict.main()
+    return code, out.getvalue() + err.getvalue(), verdict_file, refusal_file
+
+
+def _complete_json(**overrides) -> str:
+    return json.dumps(complete_verdict(**overrides))
+
+
+class RefusalRecordTests(unittest.TestCase):
+    """A rejected verdict leaves a readable refusal record on a NON-authority path;
+    a valid verdict still writes ``cca-verdict.json`` and no refusal record."""
+
+    def test_rejected_verdict_writes_refusal_record_not_cca_verdict_json(self):
+        with tempfile.TemporaryDirectory() as d:
+            code, _, verdict_file, refusal_file = _run_enforcer(
+                _complete_json(
+                    checklist=[
+                        {"id": "CCA-01", "status": "pass", "blocking": True, "evidence": "ok"},
+                        {"id": "CCA-09", "status": "fail", "blocking": True, "reason": "guardian approval not recorded"},
+                    ]
+                ),
+                Path(d),
+            )
+            self.assertEqual(code, 1)  # the check stays red
+            self.assertFalse(verdict_file.exists(), "a refused verdict must never write cca-verdict.json")
+            self.assertTrue(refusal_file.exists(), "a refused verdict must write the refusal record")
+            self.assertNotEqual(refusal_file, verdict_file)
+            self.assertNotEqual(refusal_file.name, "cca-verdict.json")
+
+    def test_refusal_record_names_the_rule_and_offending_ids(self):
+        with tempfile.TemporaryDirectory() as d:
+            _, _, _, refusal_file = _run_enforcer(
+                _complete_json(
+                    checklist=[
+                        {"id": "CCA-01", "status": "pass", "blocking": True, "evidence": "ok"},
+                        {"id": "CCA-09", "status": "fail", "blocking": True, "reason": "guardian approval not recorded"},
+                    ]
+                ),
+                Path(d),
+            )
+            record = json.loads(refusal_file.read_text())
+        self.assertEqual(record["kind"], enforce_cca_verdict.REFUSAL_RECORD_KIND)
+        self.assertIn("blocking failed checklist items", record["rule_violated"])
+        self.assertEqual(record["offending_ids"], ["CCA-09"])
+        # The verdict as received is recorded so a diagnosis can read what the judge emitted.
+        self.assertEqual(record["verdict_as_received"]["verdict"], "complete")
+
+    def test_valid_verdict_writes_cca_verdict_json_and_no_refusal_record(self):
+        with tempfile.TemporaryDirectory() as d:
+            code, output, verdict_file, refusal_file = _run_enforcer(_complete_json(), Path(d))
+            self.assertEqual(code, 0)
+            self.assertTrue(verdict_file.exists())
+            self.assertFalse(refusal_file.exists())
+            self.assertIn("CCA verdict complete", output)
+
+    def test_every_rejection_rule_writes_a_record_and_never_cca_verdict_json(self):
+        # Asserted for every rejection rule (acceptance criterion): the operative
+        # authority path is never minted by a refusal, whatever the rule.
+        rejections = {
+            "degenerate": _complete_json(checklist=[]),
+            "schema": '{"verdict":"complete"}',
+            "invalid_verdict_value": '{"verdict":"approved_by_me","summary":"x","goal_id":"G-1","task_id":"T-1","pr":1,"head_sha":"abc123","can_merge":true,"checklist":[{"id":"CCA-01","status":"pass","blocking":true,"evidence":"ok"}],"acceptance":[{"criterion":"A1","status":"pass","evidence":["ok"]}],"mergegate":{},"confidence":1.0}',
+            "repair_required_no_packet": '{"verdict":"repair_required","summary":"x","goal_id":"G-1","task_id":"T-1","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[{"id":"CCA-01","status":"fail","blocking":true}],"acceptance":[{"criterion":"A1","status":"fail","evidence":["x"]}],"mergegate":{},"confidence":0.5,"repair_packet":null}',
+            "complete_blocking_fail": _complete_json(
+                checklist=[
+                    {"id": "CCA-01", "status": "pass", "blocking": True, "evidence": "ok"},
+                    {"id": "CCA-09", "status": "fail", "blocking": True, "reason": "no approval"},
+                ]
+            ),
+            "complete_acceptance_fail": _complete_json(
+                acceptance=[{"criterion": "A2", "status": "fail", "evidence": ["regressed"]}]
+            ),
+        }
+        for rule, structured in rejections.items():
+            with self.subTest(rule=rule):
+                with tempfile.TemporaryDirectory() as d:
+                    code, _, verdict_file, refusal_file = _run_enforcer(structured, Path(d))
+                    self.assertEqual(code, 1, rule)
+                    self.assertFalse(verdict_file.exists(), f"{rule}: cca-verdict.json was written for a refusal")
+                    self.assertTrue(refusal_file.exists(), f"{rule}: no refusal record was written")
+
+
+class RefusalClassificationTests(unittest.TestCase):
+    """Transient vs non-transient classification, by the item ``reason`` TEXT, for
+    each rule (no new status value, no schema change)."""
+
+    def _analyze(self, verdict):
+        with in_repo_root():
+            return enforce_cca_verdict.analyze_refusal(verdict)
+
+    def test_blocking_insufficient_not_yet_available_is_transient(self):
+        # Measured 1 (PR #291): a blocking checklist item left insufficient_evidence
+        # because the concurrent required checks are still in flight at judge time.
+        ids, transient, _ = self._analyze(
+            complete_verdict(
+                checklist=[
+                    {"id": "CCA-01", "status": "pass", "blocking": True, "evidence": "ok"},
+                    {"id": "CCA-06", "status": "insufficient_evidence", "blocking": True,
+                     "reason": "cannot be proven on the first run: the required workflows fire concurrently and are still in progress at judge time"},
+                ]
+            )
+        )
+        self.assertEqual(ids, ["CCA-06"])
+        self.assertTrue(transient)
+
+    def test_acceptance_insufficient_in_progress_is_transient(self):
+        # Measured 2 (PR #292): an acceptance criterion left insufficient_evidence
+        # because the validate_shiki required check was IN_PROGRESS at judge time.
+        ids, transient, _ = self._analyze(
+            complete_verdict(
+                acceptance=[
+                    {"criterion": "validate_shiki passes on this HEAD", "status": "insufficient_evidence",
+                     "evidence": [], "reason": "the validate_shiki required check was IN_PROGRESS at judge time"},
+                ]
+            )
+        )
+        self.assertEqual(ids, ["validate_shiki passes on this HEAD"])
+        self.assertTrue(transient)
+
+    def test_insufficient_missing_evidence_is_not_transient(self):
+        _, transient, _ = self._analyze(
+            complete_verdict(
+                checklist=[
+                    {"id": "CCA-01", "status": "pass", "blocking": True, "evidence": "ok"},
+                    {"id": "CCA-09", "status": "insufficient_evidence", "blocking": True,
+                     "reason": "the PR body records no verification output for this item"},
+                ]
+            )
+        )
+        self.assertFalse(transient)
+
+    def test_durable_fail_is_not_transient_even_with_a_timing_reason(self):
+        # A durable fail is a real failure a re-run cannot fix, regardless of the
+        # reason wording — status beats reason text.
+        _, transient, _ = self._analyze(
+            complete_verdict(
+                checklist=[
+                    {"id": "CCA-01", "status": "pass", "blocking": True, "evidence": "ok"},
+                    {"id": "CCA-09", "status": "fail", "blocking": True, "reason": "still in progress"},
+                ]
+            )
+        )
+        self.assertFalse(transient)
+
+    def test_structural_faults_are_not_transient(self):
+        for verdict in (
+            complete_verdict(checklist=[]),  # degenerate array
+            {"verdict": "complete"},  # schema-invalid
+            complete_verdict(
+                verdict="blocked",
+                checklist=[
+                    {"id": "CCA-08", "status": "fail", "blocking": True, "reason": "guardian approval required and not recorded"},
+                    {"id": "CCA-05", "status": "insufficient_evidence", "blocking": True, "reason": "already blocked; not evaluated"},
+                ],
+            ),  # short-circuit
+        ):
+            with self.subTest(verdict=verdict.get("verdict")):
+                _, transient, _ = self._analyze(verdict)
+                self.assertFalse(transient)
+
+
+class EnforcerVerbatimStringTests(unittest.TestCase):
+    """The five strings ``test_shiki_control_plane.sh`` greps survive byte-identical
+    through the enforcer (a second guard so an edit here is caught in this suite too)."""
+
+    _VALID_COMPLETE = '{"verdict":"complete","summary":"complete","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":true,"checklist":[{"id":"CCA-01","status":"pass","blocking":true,"evidence":"fixture"}],"acceptance":[{"criterion":"A1","status":"pass","evidence":["fixture"]}],"mergegate":{"required_checks":"pass"},"confidence":1.0,"repair_packet":null}'
+    _VALID_BLOCKED = '{"verdict":"blocked","summary":"fully evaluated","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[{"id":"CCA-08","status":"fail","blocking":true,"reason":"guardian approval is required and not recorded"},{"id":"CCA-05","status":"insufficient_evidence","blocking":true,"reason":"the PR body records no TDD command output for this path"}],"acceptance":[{"criterion":"A1","status":"pass","evidence":["fixture"]}],"mergegate":{},"confidence":0.5}'
+    _MISSING_REQUIRED = '{"verdict":"complete"}'
+    _REPAIR_NO_PACKET = '{"verdict":"repair_required","summary":"needs repair","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[{"id":"CCA-01","status":"fail","blocking":true}],"acceptance":[{"criterion":"A1","status":"fail","evidence":["fixture"]}],"mergegate":{},"confidence":0.5,"repair_packet":null}'
+    _SHORT_CIRCUIT = '{"verdict":"blocked","summary":"short circuit","goal_id":"G-0001","task_id":"T-0001","pr":1,"head_sha":"abc123","can_merge":false,"checklist":[{"id":"CCA-08","status":"fail","blocking":true,"reason":"guardian approval is required and not recorded"},{"id":"CCA-05","status":"insufficient_evidence","blocking":true,"reason":"already blocked; not evaluated"}],"acceptance":[{"criterion":"A1","status":"insufficient_evidence","evidence":["n/a"],"reason":"verdict already determined"}],"mergegate":{},"confidence":0.5}'
+
+    def test_five_greps_survive_byte_identical(self):
+        cases = [
+            (self._MISSING_REQUIRED, "missing required property", 1),
+            (self._REPAIR_NO_PACKET, "repair_required verdict must include a non-null object", 1),
+            (self._VALID_COMPLETE, "CCA verdict complete", 0),
+            (self._SHORT_CIRCUIT, "blocking evaluation short-circuited", 1),
+            (self._VALID_BLOCKED, "CCA verdict is blocked; MergeGate is blocked", 1),
+        ]
+        for structured, needle, expected_code in cases:
+            with self.subTest(needle=needle):
+                with tempfile.TemporaryDirectory() as d:
+                    code, output, _, _ = _run_enforcer(structured, Path(d))
+                    self.assertEqual(code, expected_code, needle)
+                    self.assertIn(needle, output)
+
+
+class RefusalPathAgreementTests(unittest.TestCase):
+    """The enforcer's refusal-record basename and the loop's ``CCA_REFUSAL_BASENAME``
+    must agree so the resolver reads exactly what the enforcer wrote."""
+
+    def test_basenames_agree(self):
+        derived = enforce_cca_verdict.refusal_record_path(Path("cca-verdict.json")).name
+        self.assertEqual(derived, shiki_loop.CCA_REFUSAL_BASENAME)
+        self.assertNotEqual(derived, "cca-verdict.json")
 
 
 if __name__ == "__main__":
