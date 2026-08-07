@@ -1,0 +1,13 @@
+{
+  "created_at": "2026-08-07T01:18:55+00:00",
+  "goal_id": "G-20260806T084356214001Z-8198f059",
+  "locks": [
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/shiki_cli.py",
+    "path:tests/test_lock_release.py",
+    "path:scripts/test_shiki_control_plane.sh"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260806T084356215508Z-7a7dd694"
+}

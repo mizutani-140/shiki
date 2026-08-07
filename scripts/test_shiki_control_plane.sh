@@ -760,6 +760,82 @@ PY
 cp /tmp/shiki-lll-lock.json "$TARGET/.shiki/locks/$TASK_ID.json"
 # --- end lock lifecycle regression ------------------------------------------
 
+# --- shiki lock release end to end (T-20260806T084356215508Z-7a7dd694) ------
+# The CLI-level property the unit tests cannot show: after a finished task's
+# lock is released, a DIFFERENT task declaring the SAME paths acquires them.
+# Fully self-contained — every task/lock/ledger created here is removed before
+# the closing validate_shiki so the mirror stays clean.
+E2E_LOCK="path:src/lock-release-e2e/*"
+E2E_A="T-7001"
+E2E_B="T-7002"
+python3 - "$TARGET" "$GOAL_ID" "$E2E_A" "$E2E_B" "$E2E_LOCK" <<'PY'
+import json, pathlib, sys
+target, goal_id, a, b, lock = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+def task(task_id, status):
+    return {
+        "id": task_id, "goal_id": goal_id, "title": "lock release e2e", "scope": "e2e",
+        "non_goals": [], "dependencies": [], "locks": [lock], "assigned_runtime": "claude-code",
+        "risk_level": "low", "acceptance_checks": ["a"], "expected_branch": f"shiki/{task_id.lower()}",
+        "expected_pr": None, "ledger_evidence": [], "status": status,
+    }
+tasks = target / ".shiki" / "tasks"
+(tasks / f"{a}.json").write_text(json.dumps(task(a, "planned"), indent=2, sort_keys=True) + "\n")
+(tasks / f"{b}.json").write_text(json.dumps(task(b, "planned"), indent=2, sort_keys=True) + "\n")
+PY
+
+# A acquires the shared paths.
+python3 "$ROOT/scripts/shiki.py" lock acquire --target "$TARGET" "$E2E_A" >/tmp/e2e-acq-a.json
+grep '"locks_granted": true' /tmp/e2e-acq-a.json >/dev/null
+
+# Release is refused while A is unfinished — the reason names the task and status.
+expect_fail python3 "$ROOT/scripts/shiki.py" lock release --target "$TARGET" "$E2E_A"
+grep "$E2E_A" /tmp/shiki-expected-fail.out >/dev/null
+grep "not finished" /tmp/shiki-expected-fail.out >/dev/null
+
+# While A holds the lock, B (a DIFFERENT task) is refused the shared paths and
+# the refusal names A.
+expect_fail python3 "$ROOT/scripts/shiki.py" lock acquire --target "$TARGET" "$E2E_B"
+grep "Lock conflict" /tmp/shiki-expected-fail.out >/dev/null
+grep "$E2E_A" /tmp/shiki-expected-fail.out >/dev/null
+
+# A finishes; its lock releases and the record records who released it and when.
+python3 - "$TARGET" "$E2E_A" <<'PY'
+import json, pathlib, sys
+path = pathlib.Path(sys.argv[1]) / ".shiki" / "tasks" / f"{sys.argv[2]}.json"
+task = json.loads(path.read_text()); task["status"] = "done"
+path.write_text(json.dumps(task, indent=2, sort_keys=True) + "\n")
+PY
+python3 "$ROOT/scripts/shiki.py" lock release --target "$TARGET" --owner e2e-operator "$E2E_A" >/tmp/e2e-rel.json
+grep '"released": true' /tmp/e2e-rel.json >/dev/null
+python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); assert r["state"]=="released" and r["released_by"]=="e2e-operator" and r.get("released_at"), r' \
+  "$TARGET/.shiki/locks/$E2E_A.json"
+
+# THE PROPERTY: the same paths are now acquirable by the different task B.
+python3 "$ROOT/scripts/shiki.py" lock acquire --target "$TARGET" "$E2E_B" >/tmp/e2e-acq-b.json
+grep '"locks_granted": true' /tmp/e2e-acq-b.json >/dev/null
+python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["state"] == "active"' "$TARGET/.shiki/locks/$E2E_B.json"
+
+# Re-running release on the already-released lock is a no-op success.
+python3 "$ROOT/scripts/shiki.py" lock release --target "$TARGET" "$E2E_A" >/tmp/e2e-rel2.json
+grep '"already_released": true' /tmp/e2e-rel2.json >/dev/null
+
+# Remove every record created above so the closing validate_shiki sees clean
+# state (ledger entries are cross-checked against existing task/goal files).
+E2E_LA="$(json_get /tmp/e2e-acq-a.json ledger_id)"
+E2E_LR="$(json_get /tmp/e2e-rel.json ledger_id)"
+E2E_LB="$(json_get /tmp/e2e-acq-b.json ledger_id)"
+rm -f "$TARGET/.shiki/tasks/$E2E_A.json" "$TARGET/.shiki/tasks/$E2E_B.json" \
+      "$TARGET/.shiki/locks/$E2E_A.json" "$TARGET/.shiki/locks/$E2E_B.json" \
+      "$TARGET/.shiki/ledger/$E2E_LA.json" "$TARGET/.shiki/ledger/$E2E_LR.json" "$TARGET/.shiki/ledger/$E2E_LB.json"
+
+# A validation pass never releases a lock: with the mirror back to its clean
+# pre-block state, the pre-existing active grant survives validate_shiki
+# unchanged (release is an explicit command, never a validator side effect).
+test "$(json_get "$TARGET/.shiki/locks/$TASK_ID.json" state)" = "active"
+python3 "$TARGET/scripts/validate_shiki.py" >/dev/null
+test "$(json_get "$TARGET/.shiki/locks/$TASK_ID.json" state)" = "active"
+# --- end shiki lock release end to end --------------------------------------
+
 python3 "$ROOT/scripts/shiki.py" repair packet \
   --target "$TARGET" \
   --task-id "$TASK_ID" \

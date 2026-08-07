@@ -1029,6 +1029,110 @@ def cmd_lock_acquire(args: argparse.Namespace) -> int:
     return 0
 
 
+# A lock is releasable only when its task has reached a TERMINAL (finished)
+# status. "done" is the only terminal status in the task schema today
+# (retired/abandoned/superseded are described in prose but are not distinct
+# statuses), so this mirrors validate_shiki.TERMINAL_TASK_STATUSES. It is kept as
+# a local constant so shiki_tasks does not import validate_shiki's heavy module
+# graph; tests/test_lock_release.TerminalStatusConsistency binds the two so they
+# cannot drift.
+FINISHED_TASK_STATUSES = frozenset({"done"})
+
+
+def cmd_lock_release(args: argparse.Namespace) -> int:
+    """Release a finished task's declared locks — the deliberate counterpart to
+    ``cmd_lock_acquire``.
+
+    This command is the AUTHORITY for a release, exactly as ``lock acquire`` is
+    for a grant: nothing else may release a lock — not a status change, not a
+    dispatch, not a validation pass. The only other writer of ``state: released``
+    is the goal loop's own closeout (``shiki_loop._release_lock``); an implicit
+    release anywhere else could take an in-flight task's paths out from under it.
+    The leak this closes is a task that ends any way OTHER than the loop closeout
+    (finished outside the loop, or hand-closed) whose still-active lock then
+    blocks every future task declaring an overlapping path — and the refusal
+    names a task that is already finished.
+
+    A lock is releasable only when its task is FINISHED, decided from the task
+    RECORD and never from the caller's say-so: the status must be terminal
+    (``FINISHED_TASK_STATUSES`` — ``done`` today, mirroring
+    ``validate_shiki.TERMINAL_TASK_STATUSES``). Refuse, never guess, when the task
+    is not finished — the reason names the task and its status. Refusing a
+    legitimate release is cheap (the operator reads the reason and acts);
+    releasing a lock still in use is expensive (two runtimes could hold the same
+    paths), so the safe default is to refuse.
+
+    Releasing an already-``released`` lock is a no-op SUCCESS, so the command is
+    safe to re-run. A missing or unreadable lock record is refused with the path
+    named.
+
+    The record is MARKED, never deleted: ``state`` becomes ``released`` and the
+    releaser (``released_by``/``released_at``) is recorded alongside the existing
+    acquisition fields, so the acquire/release pair reads from one record. The
+    JSON result mirrors ``cmd_lock_acquire``'s contract.
+    """
+    target = target_path(args.target)
+    require_github_first_target(target)
+    ensure_control_dirs(target)
+    lock_file = shiki_path(target, "locks", f"{args.task_id}.json")
+    record = load_lock_record(lock_file)
+
+    result = {
+        "task_id": args.task_id,
+        "locks_released": [],
+        "released": False,
+        "blocking_reasons": [],
+    }
+    if record is None:
+        # Missing or unreadable: refuse, naming the path so the operator can look.
+        result["blocking_reasons"] = [f"missing or unreadable lock record at {lock_file}"]
+        print_json(result)
+        return 1
+
+    result["locks_released"] = list(record.get("locks", []))
+    if record.get("state") == "released":
+        # Idempotent: the paths are already free, so re-releasing is a no-op
+        # success regardless of task status — this is what makes the command safe
+        # to re-run. Write nothing and append no ledger.
+        result["released"] = True
+        result["already_released"] = True
+        result["lock_file"] = str(lock_file)
+        print_json(result)
+        return 0
+
+    task = load_task(target, args.task_id)
+    status = task.get("status")
+    if status not in FINISHED_TASK_STATUSES:
+        # Decide "finished" from the record, not the caller: refuse and name the
+        # task and its status. The active grant is left untouched so the task
+        # keeps its paths.
+        result["blocking_reasons"] = [
+            f"task {args.task_id} is not finished (status {status!r}); a lock is "
+            f"releasable only when its task has reached a terminal status "
+            f"{sorted(FINISHED_TASK_STATUSES)}"
+        ]
+        print_json(result)
+        return 1
+
+    record["state"] = "released"
+    record["released_by"] = args.owner
+    record["released_at"] = utc_now()
+    write_json(lock_file, record)
+    ledger_id = append_ledger(
+        target,
+        goal_id=task["goal_id"],
+        task_id=args.task_id,
+        ledger_type="lock",
+        summary=f"Locks released for {args.task_id}",
+        evidence=[str(lock_file.relative_to(target))],
+    )
+    task.setdefault("ledger_evidence", []).append(ledger_id)
+    write_json(shiki_path(target, "tasks", f"{args.task_id}.json"), task)
+    result.update({"released": True, "lock_file": str(lock_file), "ledger_id": ledger_id})
+    print_json(result)
+    return 0
+
+
 def _refresh_amendment_grant(target: Path, task_id: str, blocker: str | None) -> tuple[bool, str | None]:
     """Heal a widened-lock Spec Amendment forward at the dispatch-readiness gate.
 
