@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260807T035659159912Z-f2e1c0b0.json"
+  ],
+  "goal_id": "G-20260807T035659158223Z-af599ebb",
+  "id": "L-20260807T035659159969Z-47c61414",
+  "links": [],
+  "summary": "Task registered from plan: Judge a repair by what the implementer changed, not by whether the head moved",
+  "task_id": "T-20260807T035659159912Z-f2e1c0b0",
+  "timestamp": "2026-08-07T03:56:59+00:00",
+  "type": "task-registered"
+}

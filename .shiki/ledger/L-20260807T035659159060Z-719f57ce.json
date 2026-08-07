@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260807T035659158223Z-af599ebb.json",
+    ".shiki/plans/P-20260807T035659082985Z-9770247b.json"
+  ],
+  "goal_id": "G-20260807T035659158223Z-af599ebb",
+  "id": "L-20260807T035659159060Z-719f57ce",
+  "links": [],
+  "summary": "Goal registered from plan: Stop burning repair attempts on a failure no implementer touched, and tell the repairer why it is red",
+  "task_id": null,
+  "timestamp": "2026-08-07T03:56:59+00:00",
+  "type": "goal-created"
+}
