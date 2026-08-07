@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "RP-20260807T092243885193Z-43f1e425",
+    "test_installed_target_source_does_not_reexport_its_product_adrs failed before installer filter"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T092519234381Z-329f55a6",
+  "links": [],
+  "summary": "Repair attempt 2 TDD RED: installed-target source re-exported 0042 product ADR into fresh fixture",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T09:25:19+00:00",
+  "type": "check"
+}

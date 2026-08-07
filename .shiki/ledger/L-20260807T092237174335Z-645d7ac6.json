@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260807T073307221254Z-2d22d654.json"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T092237174335Z-645d7ac6",
+  "links": [],
+  "summary": "Task T-20260807T073307221254Z-2d22d654 status changed to repair-needed",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T09:22:37+00:00",
+  "type": "check"
+}
