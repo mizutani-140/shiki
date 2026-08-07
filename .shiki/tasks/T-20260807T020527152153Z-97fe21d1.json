@@ -1,0 +1,48 @@
+{
+  "acceptance_checks": [
+    "A ready task whose expected_pr names an already-merged PR decides to cut a fresh implementation, NOT create_closeout_pr.",
+    "The same holds for a planned task.",
+    "A review task with a merged expected_pr still decides create_closeout_pr \u2014 unchanged.",
+    "A review task with closeout_pr set and a merged expected_pr still decides mark_done \u2014 unchanged.",
+    "An unmerged expected_pr on a non-terminal task is untouched.",
+    "The stale pointer is detected from the task record alone \u2014 no amendment marker, ledger scan or PR timestamp is consulted.",
+    "The measured 2026-08-06 sequence is asserted: an amended, re-opened task does not reach create_closeout_pr on its first cycle.",
+    "No closeout assertion in tests/test_closeout.py is weakened.",
+    "mergegate_check.py, shiki_evidence.py and guardian_approval_signal.py are unchanged.",
+    "python3 -m unittest discover -s tests, scripts/test_shiki_goal_loop.sh, scripts/test_shiki_adversarial_state.sh and validate_shiki all pass.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260807t020527152153z-97fe21d1-treat-a-merged-expected-pr-on-a-non-terminal-tas",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260807T020527150479Z-4f8ffc4c",
+  "id": "T-20260807T020527152153Z-97fe21d1",
+  "ledger_evidence": [
+    "L-20260807T020527152212Z-12e258b2"
+  ],
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:tests/test_loop_engine.py",
+    "path:tests/test_closeout.py",
+    "path:tests/test_reopened_task.py"
+  ],
+  "non_goals": [
+    "Inferring re-opening from amendment markers, ledger scans or PR timestamps",
+    "Changing what an amendment may edit, or how amendment mode is entered",
+    "Changing the closeout decision table docs/adr/0012 pins, or the closeout's own expected_pr repoint",
+    "Changing what mergegate_check.py, shiki_evidence.py or guardian_approval_signal.py read from expected_pr",
+    "Making the loop read why a required check failed",
+    "Touching any file outside the declared locks"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "scope": "In `scripts/shiki_loop.py`'s `decide_task_action`, stop reading a previous cycle's PR pointer as this cycle's completed work.\n\nMEASURED 2026-08-06. Amendment PR #308 changed task `T-20260806T065143409817Z-dbdae1cf`'s design from staging the coordinator mirror to committing it \u2014 because staging had been proven not to clear a non-fast-forward merge. The loop was re-dispatched against the amended contract and its ENTIRE history was:\n  cycle 1  dispatch             'task is ready for the implementer runtime'\n  cycle 2  create_closeout_pr   'impl PR merged; push completion to main via a closeout PR'\n`git log -- scripts/shiki_loop.py` showed one commit for that task, from BEFORE the amendment; the closeout (#309) changed only `.shiki` files. The amended contract was never implemented, and the CCA returned `complete`.\n\nCAUSE: `:259-267` treats a merged `expected_pr` as proof the implementation is done \u2014 `if pr_state.get('merged'):` -> `mark_done` when `closeout_pr` is set, else `create_closeout_pr`. The task's `expected_pr` was 309, the CLOSEOUT PR, because the loop repoints `expected_pr` during a closeout. After the amendment re-opened the task, that pointer still described the previous cycle.\n\nTHE RULE: a task whose status is `planned` or `ready` and whose `expected_pr` names an ALREADY-MERGED PR is carrying a stale pointer \u2014 no work has been dispatched for the current cycle. Treat the pointer as absent and cut a fresh implementation. A task in `review` with a merged `expected_pr` is unchanged: that is the normal path into the closeout, and it must keep working exactly as today.\n\nDetect it from the TASK RECORD ALONE \u2014 a non-terminal status plus a merged `expected_pr` cannot both describe the current cycle. Do NOT infer re-opening from an amendment marker, a ledger scan or PR timestamps.\n\nFAILURE DIRECTION, and why this way round: clearing a pointer that was still live at worst re-opens a PR-less cycle and re-implements, which the loop already handles. Reading a stale pointer as done silently ships nothing \u2014 which is what happened, through a CCA that confirmed `complete`.\n\nTESTS. `tests/test_reopened_task.py` (new): a `ready` task with a merged `expected_pr` decides to cut a fresh implementation, not `create_closeout_pr`; the same for `planned`; a `review` task with a merged `expected_pr` still decides `create_closeout_pr`; a `review` task with `closeout_pr` set and a merged `expected_pr` still decides `mark_done`; an UNMERGED `expected_pr` on a non-terminal task is untouched. `tests/test_loop_engine.py` and `tests/test_closeout.py` drive `decide_task_action` through this branch and pin the old behaviour \u2014 update them without weakening any closeout assertion, and add the measured sequence: an amended, re-opened task must not reach `create_closeout_pr` on its first cycle.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a Spec Amendment merges, the loop is re-dispatched, and it produces no implementation at all \u2014 straight to a closeout whose diff contains no source change. The mirror then records a corrected contract that no code satisfies, and the CCA confirms `complete`.\n  Measured 2026-08-06 on PR #308 / task T-20260806T065143409817Z-dbdae1cf, with the two-cycle history above.\n  Root cause: `shiki_loop.py:259-267` reads a merged `expected_pr` as this cycle's completed implementation, and the loop repoints `expected_pr` at the closeout PR, so the pointer survives the re-open pointing at the previous cycle.\n  Confirmed by the fix: clearing `expected_pr` by hand and re-dispatching produced a real implementation on the next run \u2014 279 insertions / 102 deletions across three files, including the change the amendment required.\n  Why it matters more than its size: an amendment is the only sanctioned way to correct a frozen contract. If its implementation can be silently skipped, the mechanism does not work.\n  Reproducible when: a re-opened task with a merged `expected_pr` cuts a fresh implementation, and the ordinary `review` -> closeout path is unchanged.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target .",
+  "title": "Treat a merged expected_pr on a non-terminal task as a stale pointer"
+}

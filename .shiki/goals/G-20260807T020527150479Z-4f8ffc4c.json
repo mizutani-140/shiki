@@ -1,0 +1,51 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A task in planned or ready whose expected_pr names an already-merged PR gets a fresh implementation, not a closeout.",
+    "A task in review whose expected_pr is merged still drives the closeout exactly as today.",
+    "The stale pointer is detected from the task record alone.",
+    "The full suite, the goal-loop suite, the adversarial-state suite and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-07T02:05:27+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "MEASURED. Amendment PR #308 changed task T-20260806T065143409817Z-dbdae1cf's design from 'stage the coordinator mirror' to 'commit it', because staging had been proven not to clear a non-fast-forward merge. The loop was re-dispatched against the amended contract and its entire history was: cycle 1 `dispatch` ('task is ready for the implementer runtime'), cycle 2 `create_closeout_pr` ('impl PR merged; push completion to main via a closeout PR'). `git log -- scripts/shiki_loop.py` showed ONE commit for that task, from BEFORE the amendment. The closeout (#309) changed only `.shiki` files. The amended contract was never implemented, and nothing detected it.",
+      "CAUSE, read from source. `decide_task_action` (`scripts/shiki_loop.py:259-267`) treats a merged `expected_pr` as proof this cycle's implementation is done: `if pr_state.get('merged'):` -> `mark_done` when `closeout_pr` is set, else `create_closeout_pr`. The task's `expected_pr` was 309 \u2014 the loop repoints `expected_pr` at the closeout PR during a closeout \u2014 so after the amendment re-opened the task, the pointer still described the PREVIOUS cycle.",
+      "CONFIRMED BY THE FIX. Clearing `expected_pr` by hand and re-dispatching produced a real implementation on the next run: 279 insertions / 102 deletions across three files, including the `git commit` the amendment required. Nothing else changed.",
+      "WHY IT MATTERS MORE THAN ITS SIZE. An amendment is the only sanctioned way to correct a frozen contract. If the loop can silently skip the implementation of an amended contract, the amendment mechanism does not work \u2014 the mirror records a corrected contract that no code satisfies, and the CCA confirms `complete`. This session used amendments three times; this happened on one of them.",
+      "THE RULE, and its failure direction. A task in `planned` or `ready` whose `expected_pr` names an ALREADY-MERGED PR is carrying a stale pointer from a previous cycle: no work has been dispatched for the current one. Treat it as absent and cut a fresh implementation, rather than reading it as this cycle's completed work. Failing the other way \u2014 clearing a pointer that was still live \u2014 would at worst re-open a PR-less cycle and re-implement, which the loop already handles; reading a stale pointer as done silently ships nothing, which is what happened.",
+      "DO NOT infer re-opening from an amendment marker, a ledger scan, or PR timestamps. The condition is local and self-evident from the task record itself: a non-terminal status plus a merged `expected_pr` cannot both describe the current cycle.",
+      "LOCK-SUFFICIENCY CHECK (2026-08-07). MUST-CHANGE: `scripts/shiki_loop.py` (the decision at `:259-267`); `tests/test_loop_engine.py` and `tests/test_closeout.py`, the two files that drive `decide_task_action` through the merged-`expected_pr` branch and would otherwise pin the old behaviour; `tests/test_reopened_task.py` (new).",
+      "MUST-NOT-BREAK (verification command, not locks): `tests/test_branch_behind_sync.py`, `tests/test_loop_verdict_gating.py`, `tests/test_repair_delivery.py`, `tests/test_session_lease.py`, `tests/test_lock_conflict_stop.py` \u2014 all drive `decide_task_action` but none through a merged `expected_pr` on a non-terminal status; `scripts/test_shiki_goal_loop.sh` and `scripts/test_shiki_adversarial_state.sh`, which drive the loop end to end; and `scripts/mergegate_check.py`, `scripts/shiki_evidence.py`, `scripts/guardian_approval_signal.py`, which READ `expected_pr` and must keep reading it unchanged.",
+      "Risk is medium: this changes one decision inside the loop. No gate, schema, workflow or approval source moves. Under `.shiki/guardian-policy.json` (`applies_to_risk: [high, critical]`) neither PR triggers the Guardian gate."
+    ],
+    "source": "Measured live on 2026-08-06 while driving this repository's own backlog; sites read from source 2026-08-07.",
+    "status": "complete"
+  },
+  "id": "G-20260807T020527150479Z-4f8ffc4c",
+  "ledger_evidence": [
+    "L-20260807T020527151329Z-e2d03f80"
+  ],
+  "non_goals": [
+    "Inferring re-opening from amendment markers, ledger scans or PR timestamps \u2014 the condition is local to the task record.",
+    "Changing what an amendment may edit, or how amendment mode is entered.",
+    "Changing the closeout decision table docs/adr/0012 pins, or the closeout's own expected_pr repoint.",
+    "Changing what mergegate_check.py, shiki_evidence.py or guardian_approval_signal.py read from expected_pr.",
+    "Making the loop read WHY a required check failed \u2014 a separate, larger gap recorded below.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "When a Spec Amendment re-opens a task, the loop implements the amended contract instead of skipping straight to closeout. Measured 2026-08-06: an amendment that changed a task's design merged, the loop was re-dispatched, and it produced NO implementation at all \u2014 cycle 1 dispatch, cycle 2 create_closeout_pr \u2014 because the task's `expected_pr` still pointed at the previous cycle's already-merged PR. The amended contract was silently never implemented, and the CCA returned `complete` on a closeout carrying zero source changes.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "source_plan": "P-20260807T020527072088Z-ccd774ff",
+  "status": "planned",
+  "title": "A re-opened task must not inherit the previous cycle's PR pointer"
+}
