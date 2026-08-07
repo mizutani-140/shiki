@@ -1,0 +1,31 @@
+{
+  "attempt": 2,
+  "created_at": "2026-08-07T09:22:43+00:00",
+  "evidence_required": [
+    "Record installed-target RED, focused GREEN, full regression, and independent read-only code review"
+  ],
+  "failing_acceptance_criteria": [
+    "A fresh-install fixture from an installed target preserves its own product ADR boundary and ships only platform SADRs"
+  ],
+  "failing_checklist_items": [
+    "Installed target Shiki tests recursively copy target-owned numeric ADRs as platform templates"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "mergegate_blocking_reasons": [],
+  "minimal_required_changes": [
+    "Exclude target-owned numeric ADR markdown files from target-install traversal while retaining SADR files, README.md, and template.md"
+  ],
+  "pr": 327,
+  "source_pr": 326,
+  "prohibited_changes": [
+    "Do not change legacy cleanup authorization, product ADR bytes, approval, CCA, MergeGate, locks, runtime, or unrelated template paths"
+  ],
+  "repair_id": "RP-20260807T092243885193Z-43f1e425",
+  "required_skill": "diagnose",
+  "stop_condition": "Stop when an installed target can reinstall into a fixture without copying its numeric product ADRs and all SADRs still ship",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "verification_commands": [
+    "python3 -m unittest discover -s tests -p 'test_sadr_install_migration.py' && python3 -m unittest discover -s tests -p 'test_install_completeness.py'",
+    "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target ."
+  ]
+}

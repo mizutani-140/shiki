@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/327",
+    "RP-20260807T092243885193Z-43f1e425"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T092757733792Z-1f829f86",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/327"
+  ],
+  "summary": "GitHub repair PR #327 created for T-20260807T073307221254Z-2d22d654",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T09:27:57+00:00",
+  "type": "handoff"
+}

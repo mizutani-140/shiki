@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/memories/MEM-20260807T090001578161Z-52455538.json"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T090001578435Z-aec3a5f0",
+  "links": [],
+  "summary": "Memory MEM-20260807T090001578161Z-52455538 captured (raw, area=loop, source=repair)",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T09:00:01+00:00",
+  "type": "memory-transition"
+}

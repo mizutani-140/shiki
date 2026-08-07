@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "RP-20260807T092243885193Z-43f1e425",
+    "independent read-only Codex session 019fdb89-8656-7e90-89a8-a8cf555d810b"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T092519235475Z-d1f36863",
+  "links": [],
+  "summary": "Pre-PR repair attempt 2 code-review verdict CLEAN for T-20260807T073307221254Z-2d22d654",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T09:25:19+00:00",
+  "type": "check"
+}
