@@ -13,8 +13,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260806t065143409817z-dbdae1cf-closeout",
-  "expected_pr": 309,
+  "expected_branch": "shiki/t-20260806t065143409817z-dbdae1cf-stage-every-coordinator-mirror-write-not-only-th",
+  "expected_pr": 310,
   "github_issue": null,
   "goal_id": "G-20260806T065143407702Z-8e3284ce",
   "id": "T-20260806T065143409817Z-dbdae1cf",
@@ -29,7 +29,23 @@
     "L-20260806T082752107611Z-1516cc3b",
     "L-20260806T082755993425Z-8897ef4c",
     "L-20260806T095429093418Z-794f82b3",
-    "L-20260806T095433028820Z-f39a881d"
+    "L-20260806T095433028820Z-f39a881d",
+    "L-20260806T101522103598Z-45fcdd8e",
+    "L-20260806T105420631171Z-aa9195e1",
+    "L-20260806T105734169402Z-29f8aa17",
+    "L-20260806T105922661633Z-c813d99a",
+    "L-20260807T001650645647Z-8546f854",
+    "L-20260807T001846287604Z-95844efe",
+    "L-20260807T001850189122Z-0caf332b",
+    "L-20260807T001940318963Z-3b9ff359",
+    "L-20260807T002828223831Z-fc03af0d",
+    "L-20260807T002919854145Z-aa70b544",
+    "L-20260807T004542925907Z-04fc9b03",
+    "L-20260807T004634515642Z-bd0d8ee5",
+    "L-20260807T005717054285Z-5ef7350d",
+    "L-20260806T092635572066Z-c2ad500f",
+    "L-20260806T095426481068Z-a132a30e",
+    "L-20260806T100007170970Z-4e8d4b6d"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -48,12 +64,22 @@
   "pre_pr_code_review": {
     "findings": [
       {
-        "detail": "_stage_coordinator_mirror stages the entire coordinator .shiki surface (including unrelated in-flight goals' mirror files as staged additions) after every effector. This is correct today because no code path runs `git commit` in the coordinator working tree (verified: commits at shiki_loop.py:944, :1139, :1593, :1635 all run in task/closeout worktrees; the sole execute_action caller at :2298 does not commit). It is exactly the task's intended design (STAGE ONCE / STAGING ONLY). Flagging only that a future coordinator-side commit would inadvertently sweep cross-goal staged state; the invariant is not enforced anywhere. Not blocking.",
+        "detail": "shiki_loop.py:1125-1134 still states \"Staging \u2014 NOT committing \u2014 makes each path tracked\" and \"The coordinator's local branch is never advanced.\" Since execute_action's finally now commits the coordinator mirror on every effector, HEAD does advance and that global claim is now false. Documentation only; the function itself still merely stages, so no functional bug. Non-blocking.",
         "severity": "info",
-        "title": "Non-blocking: staging the whole .shiki surface makes the 'never commit in the coordinator' invariant load-bearing"
+        "title": "Stale comment in _sync_state_to_branch contradicts the new commit behavior"
+      },
+      {
+        "detail": "The plain index commit records the whole index, so the scope guarantee depends on the coordinator index only ever holding .shiki. I confirmed this holds today (only .shiki-scoped adds run with cwd=target; every git push / git add -A runs in a worktree). Already acknowledged in the task's own pre_pr findings; documented, not enforced at the commit site. Non-blocking.",
+        "severity": "info",
+        "title": "'nothing outside .shiki' rests on an unenforced loop-owned-index invariant"
+      },
+      {
+        "detail": "The `git commit --no-verify` runs check=False inside the finally, so a missing user.name/user.email would swallow the failure and revert to the aborting-merge behavior. Irrelevant in production (identity always configured; tests set it). Non-blocking, matches the finding already recorded on the task.",
+        "severity": "info",
+        "title": "Commit silently no-ops if coordinator git identity is unconfigured"
       }
     ],
-    "ledger_id": "L-20260806T082023276867Z-ecdd22d6",
+    "ledger_id": "L-20260807T001650645647Z-8546f854",
     "verdict": "clean"
   },
   "required_skills": [
@@ -62,7 +88,7 @@
   ],
   "risk_level": "medium",
   "scope": "Make the loop's coordinator-side mirror writes survive a later `git merge origin/main` without a manual step. The previous implementation staged them; measurement shows staging is not enough.\n\nMEASURED IN A MINIMAL REPRO, with the colliding path byte-identical to the incoming version:\n  staged + FAST-FORWARD merge          -> succeeds\n  staged + NON-fast-forward merge      -> 'error: Your local changes to the following files would be overwritten by merge'\n  committed + NON-fast-forward merge   -> 'Merge made by the ort strategy', clean\nThe coordinator always carries its own commits, so it is ALWAYS the non-fast-forward case. `git add` only renamed the failure.\n\nCOMMIT the coordinator's `.shiki` writes, do not merely stage them. Keep every other property the previous implementation established: one covering point that every effector in `execute_action` passes through (eleven branches, `:1983`-`:2227`) so a future effector is covered by construction; scoped to `.shiki` so nothing outside the mirror is ever touched; and never staging a deletion, so the append-only mirror cannot be emptied by this path.\n\nTHE REMOVED CONSTRAINT. The previous contract's non-goal 'Committing in the coordinator \u2014 the local branch must not advance' was asserted without measurement and is exactly what made the design unable to satisfy its own criterion. It is REMOVED. The coordinator's branch is a disposable execution surface that is never merged anywhere, so advancing it costs nothing. Commit only the mirror; never commit anything outside `.shiki`.\n\nWHAT REMAINS, AND MUST BE DOCUMENTED RATHER THAN SUPPRESSED: when the coordinator's copy and the incoming version genuinely DIFFER, the merge produces a normal `CONFLICT (add/add)` instead of a hard refusal. That is correct \u2014 the two sides really do disagree, and main is the source of truth. Do not add a merge driver, a strategy option, or any automatic resolution: state the behaviour in a comment and leave the resolution to the operator. Measured today: 27 of 28 and 20 of 20 real collisions were byte-identical, so this path is the exception, not the rule.\n\nTEST CONTRACT, CORRECTED \u2014 this is why the previous implementation passed while its criterion was false. Its tests built temporary repositories that were NOT divergent, so they only ever exercised the fast-forward path. EVERY merge assertion must now build a repository whose coordinator branch carries its own commit, so the merge is NON-fast-forward. Assert: after a full cycle including the closeout, the non-fast-forward merge succeeds with no manual step; it still succeeds on a second cycle; a genuinely differing file produces a normal conflict and NOT a refusal; nothing outside `.shiki` is committed; and no mirror record is deleted.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: `git merge origin/main` in the coordinator still aborts after a loop cycle, now with 'Your local changes to the following files would be overwritten by merge' instead of the untracked variant.\n  Measured in a minimal repro (three repositories, identical content, fast-forward vs divergent): staging clears only the fast-forward case; committing clears the divergent case too.\n  Root cause: a non-goal in the previous contract \u2014 'the local branch must not advance' \u2014 asserted without measurement.\n  Reproducible when: a divergent coordinator merges origin/main with no manual step, twice in a row, and a genuinely differing file yields a conflict rather than a refusal.",
-  "status": "done",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Stage every coordinator mirror write, not only the three sync paths"
 }

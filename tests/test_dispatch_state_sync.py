@@ -285,8 +285,9 @@ class CoordinatorStagingAfterSyncTests(unittest.TestCase):
     never stages it there. Once the same byte-identical file lands on the default
     branch (this task's PR merges), an untracked-vs-incoming collision makes a
     later ``git merge origin/main`` abort. The sync stages the coordinator's own
-    copies — no commit, no cross-task/cross-goal carry — so the merge absorbs the
-    returning files instead of aborting.
+    copies (no cross-task/cross-goal carry); the loop's covering point then COMMITS
+    them, so that — non-fast-forward — merge absorbs the returning files cleanly
+    instead of aborting.
     """
 
     def _coordinator_with_branch(self, tmp: Path):
@@ -404,16 +405,32 @@ class CoordinatorStagingAfterSyncTests(unittest.TestCase):
             self.assertNotIn(".shiki/ledger/L-FOREIGN.json", staged)
             self.assertIn(".shiki/ledger/L-A.json", staged)  # own evidence IS staged
 
-            # The task PR merges; the foreign ledger is absent from the default
-            # branch, so — being undelivered — it never collides. The merge that
-            # used to abort now succeeds, and the foreign ledger is untouched.
+            # In the real loop, execute_action's covering point then COMMITS the
+            # coordinator's whole .shiki surface (including the untracked L-FOREIGN),
+            # so the coordinator carries its own commit and the returning merge is
+            # NON-fast-forward — the case that used to abort. Reproduce that commit so
+            # this merge assertion is divergent, not vacuously fast-forward.
+            shiki_loop._commit_coordinator_mirror(target)
+
+            # The task PR merges: origin/main advances to the branch tip.
             _git(remote, "update-ref", "refs/heads/main", f"refs/heads/{branch}")
             _git(target, "fetch", "origin")
+            # Genuinely divergent (non-fast-forward): neither ref is an ancestor of
+            # the other — the coordinator committed L-FOREIGN, the branch never had it.
+            self.assertNotEqual(subprocess.run(
+                ["git", "merge-base", "--is-ancestor", "origin/main", "HEAD"], cwd=str(target)).returncode, 0)
+            self.assertNotEqual(subprocess.run(
+                ["git", "merge-base", "--is-ancestor", "HEAD", "origin/main"], cwd=str(target)).returncode, 0)
+            # The foreign ledger is absent from the default branch, so — being
+            # undelivered — it never collides; the delivered evidence is byte-identical
+            # on both sides. The merge that used to abort now succeeds cleanly, and the
+            # foreign ledger is untouched.
             merge = subprocess.run(
                 ["git", "merge", "origin/main"],
                 cwd=str(target), capture_output=True, text=True,
             )
             self.assertEqual(merge.returncode, 0, f"{merge.stdout}{merge.stderr}")
+            self.assertNotIn("would be overwritten by merge", merge.stderr)
             self.assertTrue((target / ".shiki" / "ledger" / "L-FOREIGN.json").exists())
 
 
@@ -518,17 +535,22 @@ def _seed_goal(target: Path, *, task_status="review", expected_pr=None) -> None:
             "locks": ["path:.shiki/**"]})
 
 
-class EveryEffectorStagesCoordinatorMirrorTests(unittest.TestCase):
-    """Widen the staging property from the three sync paths to EVERY effector.
+class EveryEffectorCommitsCoordinatorMirrorTests(unittest.TestCase):
+    """Widen the property from the three sync paths to EVERY effector, and COMMIT
+    the coordinator mirror rather than merely staging it.
 
-    The previous fix staged inside ``_sync_state_to_branch``, which only
-    ``create_pr`` / ``dispatch_repair`` / ``rerun_cca`` reach. ``merge``,
-    ``mark_done``, ``goal_complete`` and ``create_closeout_pr`` write the
-    coordinator mirror through their own paths and stage nothing, so their records
-    sit untracked and collide on a later ``git merge origin/main``. ``execute_action``
-    now stages the coordinator's whole ``.shiki`` surface at a SINGLE covering point
-    (a ``finally``), so every effector leaves no untracked ``.shiki`` file, stages
-    nothing outside ``.shiki``, and never advances HEAD."""
+    The first fix staged inside ``_sync_state_to_branch`` (only ``create_pr`` /
+    ``dispatch_repair`` / ``rerun_cca`` reach it); the second widened staging to a
+    SINGLE covering point in ``execute_action``'s ``finally``. But MEASUREMENT showed
+    staging clears only a FAST-FORWARD ``git merge origin/main``: the coordinator
+    always carries its own commits, so its merge is always NON-fast-forward, where a
+    merely-staged returning path still aborts — now with "Your local changes to the
+    following files would be overwritten by merge". The covering point therefore
+    COMMITS the coordinator's whole ``.shiki`` surface. HEAD advances (the coordinator
+    branch is a disposable execution surface, never merged anywhere, so advancing it
+    costs nothing — the previous contract's unmeasured "the local branch must not
+    advance" non-goal is removed), nothing outside ``.shiki`` is committed, and no
+    mirror record is deleted."""
 
     def _untracked_shiki(self, target: Path):
         out = subprocess.run(
@@ -537,20 +559,32 @@ class EveryEffectorStagesCoordinatorMirrorTests(unittest.TestCase):
         ).stdout.split()
         return sorted(p for p in out if p.startswith(".shiki/"))
 
-    def _staged(self, target: Path):
-        return subprocess.run(
-            ["git", "diff", "--cached", "--name-only"],
+    def _committed(self, target: Path, before: str):
+        """(status, path) for every change committed between ``before`` and HEAD."""
+        out = subprocess.run(
+            ["git", "diff", "--name-status", before, "HEAD"],
             cwd=str(target), capture_output=True, text=True, check=True,
-        ).stdout.split()
+        ).stdout.splitlines()
+        return [(line.split("\t")[0], line.split("\t")[-1]) for line in out if line.strip()]
 
-    def _assert_staging_only(self, target: Path, head_before: str) -> None:
-        # The covering point: no untracked .shiki left, nothing OUTSIDE .shiki
-        # staged, and HEAD unmoved (staging only, never a commit).
-        self.assertEqual(self._untracked_shiki(target), [])
-        self.assertEqual([p for p in self._staged(target) if not p.startswith(".shiki/")], [])
-        self.assertEqual(_rev_parse(target), head_before, "an effector must not advance the coordinator HEAD")
+    def _assert_committed_mirror_only(self, target: Path, head_before: str) -> None:
+        # The covering point COMMITS (not merely stages): HEAD advances, the commit
+        # touches ONLY .shiki, deletes no append-only record, and leaves no untracked
+        # .shiki behind.
+        self.assertNotEqual(
+            _rev_parse(target), head_before,
+            "the covering point must COMMIT the coordinator mirror (HEAD advances)",
+        )
+        rows = self._committed(target, head_before)
+        self.assertTrue(rows, "the covering point committed nothing")
+        self.assertEqual([p for s, p in rows if not p.startswith(".shiki/")], [],
+                         "nothing outside .shiki may be committed")
+        self.assertEqual([p for s, p in rows if s.startswith("D")], [],
+                         "the append-only mirror commit must delete no record")
+        self.assertEqual(self._untracked_shiki(target), [],
+                         "no .shiki file may be left untracked after the covering point")
 
-    def test_merge_effector_leaves_no_untracked_shiki(self):
+    def test_merge_effector_commits_coordinator_mirror(self):
         with tempfile.TemporaryDirectory() as d:
             target, remote = _init_repo_with_origin(Path(d))
             _seed_goal(target, task_status="review", expected_pr=12)
@@ -560,12 +594,12 @@ class EveryEffectorStagesCoordinatorMirrorTests(unittest.TestCase):
             with _patched_gh():
                 result = execute_action(target, GOAL, {"action": "merge", "task_id": TASK}, repair_limit=3)
             self.assertEqual(result.get("action"), "merge", result)  # not stop_blocked
-            self._assert_staging_only(target, head)
+            self._assert_committed_mirror_only(target, head)
 
-    def test_mark_done_effector_leaves_no_untracked_shiki(self):
+    def test_mark_done_effector_commits_coordinator_mirror(self):
         # mark_done writes a `done` task + a fresh check ledger and stages NOTHING
-        # of its own — so no-untracked-.shiki here PROVES the coverage comes from
-        # the shared covering point, not effector-local staging (by construction).
+        # of its own — so a committed .shiki here PROVES the coverage comes from the
+        # shared covering point, not effector-local staging (by construction).
         with tempfile.TemporaryDirectory() as d:
             target, _ = _init_repo_with_origin(Path(d))
             _seed_goal(target, task_status="review")  # left uncommitted: all .shiki is untracked
@@ -573,9 +607,9 @@ class EveryEffectorStagesCoordinatorMirrorTests(unittest.TestCase):
             with _patched_gh():
                 result = execute_action(target, GOAL, {"action": "mark_done", "task_id": TASK}, repair_limit=3)
             self.assertEqual(result.get("status"), "done", result)
-            self._assert_staging_only(target, head)
+            self._assert_committed_mirror_only(target, head)
 
-    def test_goal_complete_effector_leaves_no_untracked_shiki(self):
+    def test_goal_complete_effector_commits_coordinator_mirror(self):
         with tempfile.TemporaryDirectory() as d:
             target, remote = _init_repo_with_origin(Path(d))
             _seed_goal(target, task_status="review")
@@ -605,9 +639,9 @@ class EveryEffectorStagesCoordinatorMirrorTests(unittest.TestCase):
             with _patched_gh():
                 result = execute_action(target, GOAL, {"action": "goal_complete"}, repair_limit=3)
             self.assertEqual(result.get("goal_status"), "complete", result)
-            self._assert_staging_only(target, head)
+            self._assert_committed_mirror_only(target, head)
 
-    def test_create_closeout_pr_effector_leaves_no_untracked_shiki(self):
+    def test_create_closeout_pr_effector_commits_coordinator_mirror(self):
         with tempfile.TemporaryDirectory() as d:
             target, remote = _init_repo_with_origin(Path(d))
             _seed_goal(target, task_status="review", expected_pr=12)
@@ -618,12 +652,12 @@ class EveryEffectorStagesCoordinatorMirrorTests(unittest.TestCase):
                 result = execute_action(
                     target, GOAL, {"action": "create_closeout_pr", "task_id": TASK}, repair_limit=3)
             self.assertEqual(result.get("action"), "create_closeout_pr", result)
-            self._assert_staging_only(target, head)
+            self._assert_committed_mirror_only(target, head)
 
     def test_unhandled_effector_is_covered_by_construction(self):
         # The covering point runs in a `finally`, so a FUTURE effector needs no
-        # `git add` of its own: even an unhandled action stages the coordinator's
-        # untracked `.shiki` records before the error propagates, and never commits.
+        # `git add`/`git commit` of its own: even an unhandled action COMMITS the
+        # coordinator's untracked `.shiki` records before the error propagates.
         with tempfile.TemporaryDirectory() as d:
             target, _ = _init_repo_with_origin(Path(d))
             _seed_goal(target, task_status="review")
@@ -632,9 +666,30 @@ class EveryEffectorStagesCoordinatorMirrorTests(unittest.TestCase):
             head = _rev_parse(target)
             with self.assertRaises(ShikiError):
                 execute_action(target, GOAL, {"action": "totally-unknown", "task_id": TASK}, repair_limit=3)
-            self.assertEqual(self._untracked_shiki(target), [])
-            self.assertIn(".shiki/ledger/L-NEW.json", self._staged(target))
-            self.assertEqual(_rev_parse(target), head)
+            self._assert_committed_mirror_only(target, head)
+            self.assertIn(".shiki/ledger/L-NEW.json", [p for s, p in self._committed(target, head)])
+
+    def test_covering_point_never_deletes_a_mirror_record(self):
+        # A tracked (already committed) mirror record removed from the working tree
+        # must NOT be recorded as a deletion by the covering point: `git add
+        # --ignore-removal` never stages the removal and the plain index commit keeps
+        # the append-only file — a `git commit -- .shiki` would instead re-read the
+        # working tree and record the removal, emptying the append-only mirror.
+        with tempfile.TemporaryDirectory() as d:
+            target, _ = _init_repo_with_origin(Path(d))
+            _seed_goal(target, task_status="review")
+            keep = target / ".shiki" / "ledger" / "L-KEEP.json"
+            _write(keep, {"id": "L-KEEP", "goal_id": GOAL, "task_id": TASK, "type": "check", "evidence": []})
+            _commit_push_main(target)  # L-KEEP is now tracked on HEAD
+            keep.unlink()  # the working tree loses the append-only record
+            with _patched_gh():
+                execute_action(target, GOAL, {"action": "mark_done", "task_id": TASK}, repair_limit=3)
+            tree = subprocess.run(
+                ["git", "ls-tree", "-r", "--name-only", "HEAD"],
+                cwd=str(target), capture_output=True, text=True, check=True,
+            ).stdout
+            self.assertIn(".shiki/ledger/L-KEEP.json", tree,
+                          "the covering point must never delete a mirror record")
 
 
 if __name__ == "__main__":

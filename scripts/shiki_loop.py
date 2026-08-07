@@ -1916,11 +1916,11 @@ def _sync_goal_complete_mirror(target: Path, goal_id: str) -> dict[str, Any]:
     _sync(report_refs)
 
     # The synced paths (byte-identical to main) are left in the working tree;
-    # execute_action's single covering point (`_stage_coordinator_mirror`) stages
+    # execute_action's single covering point (`_commit_coordinator_mirror`) commits
     # the coordinator's whole .shiki surface — including these — so a returning file
-    # never aborts a later `git merge origin/main`. Because the completing goal's
-    # files now match main exactly, that merge fast-forwards cleanly with no manual
-    # step. Staging only; the coordinator never commits.
+    # never aborts a later `git merge origin/main`. That merge is non-fast-forward
+    # (the coordinator carries its own commits), but because the completing goal's
+    # files now match main exactly it resolves cleanly with no manual step.
 
     mirror_synced = checkout_ok and bool(synced_paths)
     if not mirror_synced:
@@ -1936,44 +1936,89 @@ def _sync_goal_complete_mirror(target: Path, goal_id: str) -> dict[str, Any]:
     return {"mirror_synced": mirror_synced}
 
 
-def _stage_coordinator_mirror(target: Path) -> None:
-    """Stage the coordinator's whole ``.shiki`` working surface — staging only.
+def _commit_coordinator_mirror(target: Path) -> None:
+    """Commit the coordinator's whole ``.shiki`` working surface — a real commit,
+    not a bare stage.
 
     The loop writes ``.shiki`` JSON straight into the coordinator working tree and
-    never commits it there. The moment the same byte-identical file lands on the
-    default branch (a task or closeout PR merges), a later ``git merge origin/main``
-    in the coordinator aborts with "untracked working tree files would be
-    overwritten by merge" and needs a manual back-up-and-delete. Staging — NOT
-    committing — makes each returning path tracked, so the merge absorbs it cleanly.
+    never commits it there. The moment the same file lands on the default branch (a
+    task or closeout PR merges), a later ``git merge origin/main`` collides on that
+    returning path. MEASURED, with the colliding path byte-identical to the incoming
+    version:
 
-    Scoped to ``.shiki`` so nothing outside the mirror is ever staged, and
-    ``--ignore-removal`` so this covering point never stages a deletion of an
-    append-only mirror record. Staging never advances HEAD. Never raises into the
-    loop (it runs from a ``finally``).
+        staged   + fast-forward merge      -> succeeds
+        staged   + non-fast-forward merge  -> "Your local changes to the following
+                                              files would be overwritten by merge"
+        committed + non-fast-forward merge -> clean ("Merge made by the ort strategy")
+
+    The coordinator always carries its OWN commits, so its merge is ALWAYS the
+    non-fast-forward case; ``git add`` only renamed the abort (untracked ->
+    "local changes would be overwritten"). Committing absorbs it. The coordinator
+    branch is a disposable execution surface that is never merged anywhere, so
+    advancing HEAD costs nothing (the previous contract's unmeasured "the local
+    branch must not advance" non-goal is removed — it was exactly what made the
+    staged design unable to satisfy its own criterion).
+
+    Only ``.shiki`` is staged, and this is a PLAIN index commit (not
+    ``git commit -- .shiki``, which would re-read the working tree and record a
+    removal — breaking the append-only mirror). A plain index commit records the
+    WHOLE index, so "nothing outside ``.shiki`` is committed" rests on the coordinator
+    checkout being loop-owned: the loop is its only writer and only ever stages
+    ``.shiki`` (the ``_sync_state_to_branch`` and ``_sync_goal_complete_mirror`` adds
+    are ``.shiki``-scoped; every implementer/worktree commit runs in a SEPARATE
+    worktree index). Strict pathspec-scoping and no-deletion cannot both come from a
+    single ``git commit``, so append-only is chosen and the scope rests on that
+    invariant. ``--ignore-removal`` additionally guarantees this covering point never
+    STAGES a deletion, so the append-only mirror cannot be emptied by this path.
+
+    What remains, documented rather than suppressed: when the coordinator's copy and
+    the incoming version genuinely DIFFER, the later ``git merge origin/main``
+    produces a normal ``CONFLICT (add/add)`` instead of a hard refusal. That is
+    correct — the two sides really disagree and main is the source of truth — so the
+    resolution is left to the operator; no merge driver, strategy option, or
+    automatic resolution is added. Measured, 27 of 28 and 20 of 20 real collisions
+    were byte-identical, so a conflict is the exception, not the rule. Never raises
+    into the loop (it runs from a ``finally``).
     """
     try:
         run(["git", "add", "--ignore-removal", "--", ".shiki"], cwd=target, check=False)
-    except Exception:  # noqa: BLE001 — staging must never break the loop
+        # Commit only when the covering add actually staged mirror writes; otherwise
+        # there is nothing to absorb and the commit would no-op. ``--no-verify`` skips
+        # the coordinator's commit hooks: this is disposable bookkeeping on a branch
+        # that is never pushed or merged, not a contribution that should trip lint /
+        # test hooks (and a failing hook must never wedge this ``finally``).
+        staged = run(["git", "diff", "--cached", "--name-only"], cwd=target, check=False)
+        if (staged.stdout or "").strip():
+            run(
+                ["git", "commit", "--no-verify", "-m", "shiki: sync coordinator mirror (goal loop)"],
+                cwd=target,
+                check=False,
+            )
+    except Exception:  # noqa: BLE001 — committing must never break the loop
         pass
 
 
 def execute_action(target: Path, goal_id: str, decision: dict[str, Any], *, repair_limit: int) -> dict[str, Any]:
-    """Run one effector, then stage the coordinator mirror at the SINGLE point
+    """Run one effector, then commit the coordinator mirror at the SINGLE point
     every effector passes through.
 
     ``_execute_action_body`` has eleven effector branches; several write ``.shiki``
     records straight into the coordinator (a merge ledger, a ``done`` task, a
-    ``goal_complete`` sync, a closeout's repointed task) and stage nothing. Placing
-    a ``git add`` inside each branch would leave the next new effector uncovered, so
-    staging happens here instead — in a ``finally`` so a normal return, an early
-    return (e.g. ``goal_complete``, ``wait_review``, a ``stop_blocked`` guard) or a
-    future effector is covered by construction. Staging only: HEAD never moves and
-    only ``.shiki`` is touched.
+    ``goal_complete`` sync, a closeout's repointed task). Placing the commit inside
+    each branch would leave the next new effector uncovered, so it happens here
+    instead — in a ``finally`` so a normal return, an early return (e.g.
+    ``goal_complete``, ``wait_review``, a ``stop_blocked`` guard) or a future effector
+    is covered by construction. It COMMITS the coordinator's ``.shiki`` surface (not
+    merely stages it): the coordinator always carries its own commits, so a later
+    ``git merge origin/main`` is always non-fast-forward, and a merely-staged
+    returning file aborts that merge — committing absorbs it. HEAD may advance (the
+    coordinator branch is disposable, never merged anywhere) and only ``.shiki`` is
+    committed.
     """
     try:
         return _execute_action_body(target, goal_id, decision, repair_limit=repair_limit)
     finally:
-        _stage_coordinator_mirror(target)
+        _commit_coordinator_mirror(target)
 
 
 def _execute_action_body(target: Path, goal_id: str, decision: dict[str, Any], *, repair_limit: int) -> dict[str, Any]:
@@ -1988,7 +2033,9 @@ def _execute_action_body(target: Path, goal_id: str, decision: dict[str, Any], *
             # coordinator mirror to main's authoritative state for THIS goal only —
             # never a whole-tree checkout, which would revert unrelated in-flight
             # goals' files. The completing goal's task files are left byte-identical
-            # to main so a later `git merge origin/main` fast-forwards. Do NOT re-run
+            # to main so a later `git merge origin/main` resolves cleanly (a non-fast-
+            # forward merge — the coordinator carries its own mirror commits — but a
+            # clean one because the goal's files already match main). Do NOT re-run
             # cmd_goal_complete (duplicate scorecard).
             result.update(_sync_goal_complete_mirror(target, goal_id))
             result["goal_status"] = "complete"

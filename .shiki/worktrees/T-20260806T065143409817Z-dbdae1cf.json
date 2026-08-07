@@ -9,7 +9,7 @@
     "path:tests/test_dispatch_state_sync.py"
   ],
   "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260806t065143409817z-dbdae1cf-stage-ev",
-  "pr": 305,
+  "pr": 310,
   "runtime": "claude-code",
   "state": "active",
   "task_id": "T-20260806T065143409817Z-dbdae1cf"
