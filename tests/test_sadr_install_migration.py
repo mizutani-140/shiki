@@ -7,6 +7,8 @@ import hashlib
 import io
 import json
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -127,6 +129,28 @@ class FreshSadrInstallTests(unittest.TestCase):
             relative = path.relative_to(self.target).as_posix()
             self.assertEqual(stamp["digests"][relative], _sha256(path))
         self.assertEqual(find_adr_reference_violations(self.target), [])
+
+        installed_reference_tests = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "unittest",
+                "discover",
+                "-s",
+                "tests",
+                "-p",
+                "test_adr_references.py",
+            ],
+            cwd=self.target,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(
+            installed_reference_tests.returncode,
+            0,
+            installed_reference_tests.stdout + installed_reference_tests.stderr,
+        )
 
 
 class LegacySadrUpgradeTests(unittest.TestCase):
