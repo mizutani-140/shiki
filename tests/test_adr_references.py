@@ -180,17 +180,23 @@ class RealRepoAdrReferences(unittest.TestCase):
         self.assertIn(("SADR", "0016"), index)
         self.assertIn(("SADR", "0017"), index)
 
-    def test_platform_tree_has_only_sadr_0001_through_0019(self) -> None:
+    def test_platform_tree_has_all_sadrs_and_no_legacy_platform_paths(self) -> None:
         adr_dir = REPO_ROOT / "docs" / "adr"
         sadrs = sorted(adr_dir.glob("SADR-[0-9][0-9][0-9][0-9]-*.md"))
         self.assertEqual(
             {path.name.split("-", 2)[1] for path in sadrs},
             {f"{number:04d}" for number in range(1, 20)},
         )
+        legacy_platform_paths = [
+            adr_dir / path.name.removeprefix("SADR-")
+            for path in sadrs
+            if int(path.name.split("-", 2)[1]) <= 18
+        ]
         self.assertEqual(
-            list(adr_dir.glob("[0-9][0-9][0-9][0-9]-*.md")),
+            [path for path in legacy_platform_paths if path.exists()],
             [],
-            "the Shiki platform tree must not retain legacy numeric SADR paths",
+            "the tree must not retain exact legacy Shiki platform ADR paths; "
+            "unrelated numeric target ADRs are valid",
         )
 
 

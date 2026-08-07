@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "independent read-only Codex session 019fdb77-6c1c-75f3-90c0-1ee1caf9dd29",
+    "RP-20260807T090001575268Z-d912decd"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T090537097653Z-fd4b9d75",
+  "links": [],
+  "summary": "Pre-PR repair code-review verdict CLEAN for T-20260807T073307221254Z-2d22d654 after recorded boundary clarification",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T09:05:37+00:00",
+  "type": "check"
+}

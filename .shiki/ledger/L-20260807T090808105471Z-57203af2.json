@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "cd /Users/kio.mizutani/CubeShare && python3 -m unittest discover -s tests -p test_adr_references.py (exit 1, 11 tests, 1 failure)",
+    "RP-20260807T090001575268Z-d912decd"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T090808105471Z-57203af2",
+  "links": [],
+  "summary": "Repair TDD RED reproduced: installed CubeShare ADR reference suite exited 1 because seven legitimate numeric product ADRs were rejected as legacy platform paths",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T09:08:08+00:00",
+  "type": "check"
+}
