@@ -29,7 +29,8 @@
   },
   "id": "G-20260806T084356214001Z-8198f059",
   "ledger_evidence": [
-    "L-20260806T084356214860Z-f4114322"
+    "L-20260806T084356214860Z-f4114322",
+    "L-20260807T015051517789Z-98192d2d"
   ],
   "non_goals": [
     "Releasing the two currently-active lock records \u2014 a separate, deliberate act on foreign mirror records.",
@@ -46,6 +47,6 @@
   ],
   "risk_level": "medium",
   "source_plan": "P-20260806T084356137490Z-39afc661",
-  "status": "planned",
+  "status": "complete",
   "title": "Give a lock a way out that does not require the loop's closeout"
 }
