@@ -29,7 +29,8 @@
   },
   "id": "G-20260807T020527150479Z-4f8ffc4c",
   "ledger_evidence": [
-    "L-20260807T020527151329Z-e2d03f80"
+    "L-20260807T020527151329Z-e2d03f80",
+    "L-20260807T025423163450Z-eaf33491"
   ],
   "non_goals": [
     "Inferring re-opening from amendment markers, ledger scans or PR timestamps \u2014 the condition is local to the task record.",
@@ -46,6 +47,6 @@
   ],
   "risk_level": "medium",
   "source_plan": "P-20260807T020527072088Z-ccd774ff",
-  "status": "planned",
+  "status": "complete",
   "title": "A re-opened task must not inherit the previous cycle's PR pointer"
 }
