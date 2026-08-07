@@ -1,0 +1,17 @@
+{
+  "branch": "shiki/t-20260806t084356215508z-7a7dd694-add-shiki-lock-release-the-deliberate-counterpar",
+  "created_at": "2026-08-07T01:19:03+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260806T084356214001Z-8198f059",
+  "locks": [
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/shiki_cli.py",
+    "path:tests/test_lock_release.py",
+    "path:scripts/test_shiki_control_plane.sh"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260806t084356215508z-7a7dd694-add-shik",
+  "pr": 312,
+  "runtime": "claude-code",
+  "state": "active",
+  "task_id": "T-20260806T084356215508Z-7a7dd694"
+}
