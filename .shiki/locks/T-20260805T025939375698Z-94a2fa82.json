@@ -5,6 +5,8 @@
     "path:tests/test_paired_invariants.py"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "released_at": "2026-08-07T07:52:27+00:00",
+  "released_by": "codex-front",
+  "state": "released",
   "task_id": "T-20260805T025939375698Z-94a2fa82"
 }

@@ -13,7 +13,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260805t025939375698z-94a2fa82-add-a-set-equality-binder-for-every-paired-invar",
-  "expected_pr": 284,
+  "expected_pr": null,
   "github_issue": null,
   "goal_id": "G-20260805T025939374293Z-96ec6ced",
   "id": "T-20260805T025939375698Z-94a2fa82",
@@ -28,7 +28,10 @@
     "L-20260805T043859773850Z-d97073d4",
     "L-20260805T043903485209Z-dd9cccf5",
     "L-20260805T043953744289Z-f4f2ccb3",
-    "L-20260805T044225163921Z-b4750a78"
+    "L-20260805T044225163921Z-b4750a78",
+    "L-20260807T075227529801Z-6c97bbc8",
+    "L-20260807T075227612709Z-9371d9bc",
+    "L-20260807T075227693451Z-abe727ae"
   ],
   "locks": [
     "path:tests/test_paired_invariants.py"
