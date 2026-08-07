@@ -32,7 +32,8 @@
   },
   "id": "G-20260807T035659158223Z-af599ebb",
   "ledger_evidence": [
-    "L-20260807T035659159060Z-719f57ce"
+    "L-20260807T035659159060Z-719f57ce",
+    "L-20260807T053141876612Z-0d09a7e6"
   ],
   "non_goals": [
     "Classifying blocking reasons as implementer-fixable or not \u2014 the sweep proved the proposed predicate wrong in both directions.",
@@ -50,6 +51,6 @@
   ],
   "risk_level": "medium",
   "source_plan": "P-20260807T035659082985Z-9770247b",
-  "status": "planned",
+  "status": "complete",
   "title": "Stop burning repair attempts on a failure no implementer touched, and tell the repairer why it is red"
 }

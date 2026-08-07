@@ -8,6 +8,6 @@
     "path:tests/test_repair_reasons.py"
   ],
   "owner": "shiki-run",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260807T035659160500Z-ba479979"
 }
