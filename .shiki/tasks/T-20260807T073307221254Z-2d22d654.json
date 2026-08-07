@@ -44,7 +44,13 @@
     "L-20260807T082800000000Z-c0de0019",
     "L-20260807T082914000000Z-7dd00019",
     "L-20260807T084338313646Z-e5d08ec0",
-    "L-20260807T085822270754Z-d0de6862"
+    "L-20260807T085822270754Z-d0de6862",
+    "L-20260807T090001576471Z-05192e81",
+    "L-20260807T090317201023Z-bb2e314b",
+    "L-20260807T090537097653Z-fd4b9d75",
+    "L-20260807T090723572259Z-d3456e0c",
+    "L-20260807T090808105471Z-57203af2",
+    "L-20260807T090808106441Z-0ef0e938"
   ],
   "locks": [
     "path:.codex/**",
@@ -70,7 +76,9 @@
   "pre_pr_code_review": {
     "exception": "default Claude reviewer unavailable (not logged in)",
     "findings": [],
-    "ledger_id": "L-20260807T083753556762Z-d3e8a418",
+    "ledger_id": "L-20260807T090537097653Z-fd4b9d75",
+    "repaired_finding_ledger": "L-20260807T090317201023Z-bb2e314b",
+    "review_session": "019fdb77-6c1c-75f3-90c0-1ee1caf9dd29",
     "reviewer_runtime": "codex-read-only",
     "verdict": "clean"
   },

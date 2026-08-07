@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "python3 -m unittest discover -s tests -p test_sadr_install_migration.py (5 tests OK)",
+    "python3 -m unittest discover -s tests -p test_adr_references.py (11 tests OK)",
+    "RP-20260807T090001575268Z-d912decd"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T090808106441Z-0ef0e938",
+  "links": [],
+  "summary": "Repair TDD GREEN: focused migration and ADR reference suites passed after exact-path fix",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T09:08:08+00:00",
+  "type": "check"
+}

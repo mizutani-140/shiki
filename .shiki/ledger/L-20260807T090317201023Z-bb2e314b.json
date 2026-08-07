@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "independent read-only Codex session 019fdb75-1ad2-7f90-8a6b-2e7e2793aaa7"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T090317201023Z-bb2e314b",
+  "links": [],
+  "summary": "Pre-PR repair review BLOCKING for T-20260807T073307221254Z-2d22d654; boundary clarification required",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T09:03:17+00:00",
+  "type": "check"
+}
