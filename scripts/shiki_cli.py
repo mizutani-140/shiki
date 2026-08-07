@@ -18,7 +18,7 @@ from shiki_memory import cmd_memory_capture, cmd_memory_distill, cmd_memory_inve
 from shiki_migrations import cmd_migrate
 from shiki_process import ShikiError
 from shiki_runtime import cmd_daemon_enqueue_plan, cmd_daemon_run, cmd_runner_claude, cmd_runner_codex, cmd_runner_execute, cmd_runner_next, cmd_smoke_live
-from shiki_tasks import cmd_contract_open, cmd_dispatch_check, cmd_goal_complete, cmd_goal_create, cmd_handoff_repair, cmd_handoff_task, cmd_issue_plan, cmd_lock_acquire, cmd_plan_guide, cmd_plan_ingest, cmd_repair_packet, cmd_run, cmd_task_status, cmd_worktree_allocate
+from shiki_tasks import cmd_contract_open, cmd_dispatch_check, cmd_goal_complete, cmd_goal_create, cmd_handoff_repair, cmd_handoff_task, cmd_issue_plan, cmd_lock_acquire, cmd_lock_release, cmd_plan_guide, cmd_plan_ingest, cmd_repair_packet, cmd_run, cmd_task_status, cmd_worktree_allocate
 
 
 def add_provider_arguments(command: argparse.ArgumentParser) -> None:
@@ -368,6 +368,11 @@ def build_parser() -> argparse.ArgumentParser:
     lock_acquire.add_argument("--owner", default="shiki-cli")
     lock_acquire.add_argument("task_id")
     lock_acquire.set_defaults(func=cmd_lock_acquire)
+    lock_release = lock_subcommands.add_parser("release", help="Release a finished task's declared locks")
+    lock_release.add_argument("--target", default=".", help="Target repository path")
+    lock_release.add_argument("--owner", default="shiki-cli")
+    lock_release.add_argument("task_id")
+    lock_release.set_defaults(func=cmd_lock_release)
 
     dispatch = subcommands.add_parser("dispatch", help="Run dispatch readiness checks")
     dispatch_subcommands = dispatch.add_subparsers(dest="dispatch_command", required=True)
