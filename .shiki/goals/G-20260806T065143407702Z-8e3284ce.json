@@ -32,7 +32,8 @@
   "ledger_evidence": [
     "L-20260806T065143409167Z-f6e5cb9e",
     "L-20260806T082752107611Z-1516cc3b",
-    "L-20260806T095429093418Z-794f82b3"
+    "L-20260806T095429093418Z-794f82b3",
+    "L-20260807T010700365979Z-6c9a6d95"
   ],
   "non_goals": [
     "Deleting or moving any mirror record to avoid the collision.",
@@ -51,6 +52,6 @@
   ],
   "risk_level": "medium",
   "source_plan": "P-20260806T065143332059Z-03d9edee",
-  "status": "ready",
+  "status": "complete",
   "title": "Stage every coordinator mirror write, not only the three sync paths"
 }
