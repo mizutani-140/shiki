@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "Reproduced: installing numeric Shiki platform ADRs beside CubeShare product ADRs 0013-0018 makes live ADR citations ambiguous and full validation red",
+    "Root cause: platform and target shared the same numeric decision namespace; upgrade had no exact ownership proof for deleting former platform paths",
+    "Bounded repair: separate SADR namespace plus pre-write exact install-stamp path-and-digest authorization; do not rewrite product ADRs or historical .shiki evidence",
+    "Verification: fresh install, stamped upgrade, all failure-atomicity cases, 1147 unit tests, control-plane suite, adversarial suite, and validate_shiki pass"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T084338313646Z-e5d08ec0",
+  "links": [],
+  "summary": "Diagnosis complete (skill: diagnose) for ADR/SADR collision in T-20260807T073307221254Z-2d22d654",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T08:43:38+00:00",
+  "type": "check"
+}
