@@ -28,7 +28,8 @@
   },
   "id": "G-20260807T073307219752Z-1ee1ed68",
   "ledger_evidence": [
-    "L-20260807T073307220560Z-fc2d907a"
+    "L-20260807T073307220560Z-fc2d907a",
+    "L-20260807T101534260758Z-ab0aa3e4"
   ],
   "non_goals": [
     "Renumbering or rewriting target product ADRs.",
@@ -50,6 +51,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260807T073304061131Z-9dfd1fc8",
-  "status": "planned",
+  "status": "complete",
   "title": "Separate Shiki platform decisions from target ADRs with a SADR namespace"
 }

@@ -1,0 +1,52 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-08-07T10:15:34+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260807T073307221254Z-2d22d654.json"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "R-20260807T101534241293Z-cfd5044f",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "high"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 6894000,
+    "generated_at": "2026-08-07T10:15:34+00:00",
+    "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+    "lock_amendments": {
+      "total": 1
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 3
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard",
+      "repairs.by_area is not derivable from ledger events; reported empty"
+    ],
+    "window": {
+      "from": "2026-08-07T07:33:07+00:00",
+      "to": "2026-08-07T09:28:01+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "Autonomous loop closeout: push goal completion to main (SADR-0012)."
+}
