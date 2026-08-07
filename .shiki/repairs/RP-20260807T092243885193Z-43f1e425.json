@@ -15,7 +15,8 @@
   "minimal_required_changes": [
     "Exclude target-owned numeric ADR markdown files from target-install traversal while retaining SADR files, README.md, and template.md"
   ],
-  "pr": 326,
+  "pr": 327,
+  "source_pr": 326,
   "prohibited_changes": [
     "Do not change legacy cleanup authorization, product ADR bytes, approval, CCA, MergeGate, locks, runtime, or unrelated template paths"
   ],

@@ -27,7 +27,7 @@
   ],
   "dependencies": [],
   "expected_branch": "shiki/t-20260807t073307221254z-2d22d654-introduce-sadr-and-migrate-installs-without-touc",
-  "expected_pr": null,
+  "expected_pr": 327,
   "github_issue": 322,
   "goal_id": "G-20260807T073307219752Z-1ee1ed68",
   "id": "T-20260807T073307221254Z-2d22d654",
@@ -59,7 +59,9 @@
     "L-20260807T092519234381Z-329f55a6",
     "L-20260807T092519235095Z-b1a927dc",
     "L-20260807T092519235475Z-d1f36863",
-    "L-20260807T092706813450Z-2d0e6342"
+    "L-20260807T092706813450Z-2d0e6342",
+    "L-20260807T092757733792Z-1f829f86",
+    "L-20260807T092801435464Z-1832e1b2"
   ],
   "locks": [
     "path:.codex/**",
@@ -97,7 +99,7 @@
   ],
   "risk_level": "high",
   "scope": "Rename Shiki platform decision records to SADR-0001 through SADR-0018; add SADR-0019; update current citations, packaging metadata, documentation, workflows, prompts, repo-local skill guidance, and the reference validator for separate ADR/SADR namespaces; add an installer preflight that inventories legacy numeric Shiki ADR paths and authorizes deletion only from matching existing install-stamp path digests before any write; then apply authorized cleanup, install SADRs, refresh the stamp, and prove fresh-install plus CubeShare-shaped collision-upgrade behavior with TDD.",
-  "status": "repair-needed",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Introduce SADR and migrate installs without touching product ADRs"
 }
