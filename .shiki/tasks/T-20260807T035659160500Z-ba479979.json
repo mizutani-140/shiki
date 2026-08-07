@@ -17,7 +17,7 @@
     "T-20260807T035659159912Z-f2e1c0b0"
   ],
   "expected_branch": "shiki/t-20260807t035659160500z-ba479979-closeout",
-  "expected_pr": 320,
+  "expected_pr": 321,
   "github_issue": null,
   "goal_id": "G-20260807T035659158223Z-af599ebb",
   "id": "T-20260807T035659160500Z-ba479979",
@@ -29,7 +29,8 @@
     "L-20260807T052423891861Z-4a10b0d1",
     "L-20260807T052649383809Z-0c0048c2",
     "L-20260807T052653899184Z-8103dabf",
-    "L-20260807T053141876612Z-0d09a7e6"
+    "L-20260807T053141876612Z-0d09a7e6",
+    "L-20260807T053145980808Z-709d28a4"
   ],
   "locks": [
     "path:.github/workflows/shiki-mergegate.yml",
