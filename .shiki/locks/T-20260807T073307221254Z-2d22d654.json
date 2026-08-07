@@ -16,6 +16,8 @@
     "path:tests/**"
   ],
   "owner": "codex-front",
-  "state": "active",
+  "released_at": "2026-08-07T10:04:18+00:00",
+  "released_by": "shiki-cli",
+  "state": "released",
   "task_id": "T-20260807T073307221254Z-2d22d654"
 }

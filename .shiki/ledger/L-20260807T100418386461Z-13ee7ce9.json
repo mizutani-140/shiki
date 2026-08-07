@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260807T100418295896Z-140aad5f.json"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T100418386461Z-13ee7ce9",
+  "links": [],
+  "summary": "SADR namespace separation shipped in PRs #325, #326, and #327; exact-head GitHub gates passed and target installation was validated.",
+  "task_id": null,
+  "timestamp": "2026-08-07T10:04:18+00:00",
+  "type": "completion"
+}
