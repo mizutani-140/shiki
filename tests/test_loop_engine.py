@@ -1,4 +1,4 @@
-"""Goal loop decision engine contract (G-D, ADR 0008/0009).
+"""Goal loop decision engine contract (G-D, SADR-0008/SADR-0009).
 
 Every decision branch of the pure engine is covered by state fixtures: no
 filesystem, git, or GitHub access happens in these tests.
@@ -64,7 +64,7 @@ class TaskDecisionTests(unittest.TestCase):
         self.assertEqual(decide(task("review"), pr_state=None)["action"], "create_pr")
 
     def test_merged_impl_pr_opens_closeout(self) -> None:
-        # ADR 0012: a merged impl PR (no closeout_pr yet) routes to a closeout PR
+        # SADR-0012: a merged impl PR (no closeout_pr yet) routes to a closeout PR
         # that pushes completion to main — NOT a local-only mark_done.
         decision = decide(task("review"), pr_state={"merged": True}, checks=green())
         self.assertEqual(decision["action"], "create_closeout_pr")
@@ -186,7 +186,7 @@ class TaskDecisionTests(unittest.TestCase):
     def test_green_high_risk_merges_via_policy_guardian_gate(self) -> None:
         # The MergeGate policy check (a required check) is the Guardian gate; when
         # green, Guardian approval was recorded (human or external AI), so the
-        # loop may merge high/critical autonomously (ADR 0010).
+        # loop may merge high/critical autonomously (SADR-0010).
         decision = decide(task("review", risk="high"), pr_state={"merged": False}, checks=green())
         self.assertEqual(decision["action"], "merge")
 

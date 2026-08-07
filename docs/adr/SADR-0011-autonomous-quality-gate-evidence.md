@@ -1,4 +1,4 @@
-# ADR 0011: Autonomous Quality-Gate Evidence — Deterministic Facts And An Independent Verifier
+# SADR-0011: Autonomous Quality-Gate Evidence — Deterministic Facts And An Independent Verifier
 
 ## Status
 
@@ -6,7 +6,7 @@ Proposed
 
 ## Context
 
-The Shiki 0.2.0 autonomous post-freeze loop (ADR 0008/0009, PRD #119 G-D) must
+The Shiki 0.2.0 autonomous post-freeze loop (SADR-0008/SADR-0009, PRD #119 G-D) must
 take a ready task to an auto-merged PR with no human action. A live run on
 2026-06-17 proved the loop self-implements (a headless `claude -p` runner wrote
 a correct, passing test) and the Memory Loop capture fires, but it cannot reach

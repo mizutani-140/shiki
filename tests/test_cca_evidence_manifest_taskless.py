@@ -1,6 +1,6 @@
 """Task-less CCA evidence manifest: an empty verdict.task_id is schema-valid.
 
-Regression coverage for the contract-mode (ADR 0015) defect where the CCA
+Regression coverage for the contract-mode (SADR-0015) defect where the CCA
 evidence manifest schema wrapped the verdict more strictly than the document it
 wraps. ``.shiki/schemas/cca-verdict.schema.json`` declares ``task_id`` as
 ``{"type": "string"}`` with no length floor, but the manifest schema required

@@ -503,7 +503,7 @@ for evidence_path in [
 
 
 # Guards T-0036: protected task, goal, ledger, lock, and repair evidence cannot be forged.
-# ADR 0015 Contract immutability on the NORMAL task-PR path (T-20260801…9f3f6f63):
+# SADR-0015 Contract immutability on the NORMAL task-PR path (T-20260801…9f3f6f63):
 # a PR may move only its own task file's bookkeeping (the mutable set); its frozen
 # governance contract is bound to the base snapshot, and its risk_level may never
 # resolve weaker than base. The base snapshot registers the task with the same
@@ -805,7 +805,7 @@ assert not taskless_errors, f"task-less manifest must validate, got {taskless_er
 
 
 # ============================================================================
-# ADR 0017: bookkeeping-closeout Guardian exemption smuggling cases.
+# SADR-0017: bookkeeping-closeout Guardian exemption smuggling cases.
 #
 # A closeout PR carries only a merged task's terminal state (task done, lock
 # released, and — when it completes the goal — goal complete + exactly one
@@ -1131,7 +1131,7 @@ expect_ready(
     )
 )
 
-# Spec Freeze is operator-only (ADR 0009). A new plan that is not the goal's
+# Spec Freeze is operator-only (SADR-0009). A new plan that is not the goal's
 # source_plan is blocked; authoring or amending a spec_freeze block on the goal's
 # OWN source plan is blocked; touching the source plan without altering
 # spec_freeze is unaffected.
@@ -1199,7 +1199,7 @@ expect_ready(mg_plan_touch)
 
 
 # ============================================================================
-# Amendment mode (ADR 0009/0015) is two-factor (marker + mergegate:amendment
+# Amendment mode (SADR-0009/SADR-0015) is two-factor (marker + mergegate:amendment
 # label), exactly like contract/goal_reconcile. NEITHER factor alone relaxes the
 # normal-path prohibitions: the operator-only spec_freeze gate behaves EXACTLY as
 # before unless BOTH factors are present (a maintainer applies the label, not

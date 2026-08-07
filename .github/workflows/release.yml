@@ -3,7 +3,7 @@ name: Shiki Release
 # Tag-triggered release. Pushing a SemVer tag (e.g. v0.1.0) publishes a GitHub
 # Release for that tag. This workflow uses only the built-in GITHUB_TOKEN and
 # requires no additional secrets. See docs/releasing.md and
-# docs/adr/0007-packaging-and-release.md.
+# docs/adr/SADR-0007-packaging-and-release.md.
 
 on:
   push:

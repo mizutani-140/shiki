@@ -72,7 +72,7 @@ case "${1:-}" in
       exit 0
     fi ;;
   -p)
-    # The independent pre-PR reviewer (ADR 0011) carries --json-schema and
+    # The independent pre-PR reviewer (SADR-0011) carries --json-schema and
     # read-only --allowedTools; the implementer carries bypassPermissions.
     # Distinguish them and emit a clean structured verdict for the reviewer so
     # the loop's pre-PR code-review gate passes (a parse failure would fail
@@ -138,7 +138,7 @@ case "${1:-} ${2:-}" in
     touch "$STATE/merged-$NUMBER"
     echo "merged $NUMBER" >> "$STATE/gh-log"
     # Faithfully advance origin/main so the next closeout worktree (cut from
-    # origin/main) sees the merged impl/closeout state (ADR 0012). The branch is a
+    # origin/main) sees the merged impl/closeout state (SADR-0012). The branch is a
     # fast-forward of main (built on it), so move the ref to the branch tip.
     BR="$(cat "$STATE/branch-$NUMBER" 2>/dev/null || echo "")"
     if [[ -n "$BR" ]]; then
@@ -193,7 +193,7 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
   "grill_with_docs": {
     "status": "complete",
     "source": "CONTEXT.md",
-    "decisions": ["Loop drives frozen goals (ADR 0008/0009); completion is pushed to main via a closeout PR (ADR 0012)"]
+    "decisions": ["Loop drives frozen goals (SADR-0008/SADR-0009); completion is pushed to main via a closeout PR (SADR-0012)"]
   },
   "spec_freeze": {
     "status": "frozen",
@@ -219,20 +219,20 @@ python3 "$ROOT/scripts/shiki.py" run --target "$TARGET" --plan "$PLAN_ID" >/tmp/
 GOAL_ID="$(json_get /tmp/shiki-goal-loop-run.json goal_id)"
 
 # The loop drives dispatch -> impl PR -> green checks -> auto-merge -> a closeout
-# PR that pushes task=done + goal=complete to main (ADR 0012) -> auto-merge the
+# PR that pushes task=done + goal=complete to main (SADR-0012) -> auto-merge the
 # closeout -> goal completion, with no operator input. Two merges: impl + closeout.
 python3 "$ROOT/scripts/shiki.py" loop run --target "$TARGET" --goal-id "$GOAL_ID" --max-cycles 14 --interval 0 >/tmp/shiki-goal-loop-result.json
 test "$(json_get_last /tmp/shiki-goal-loop-result.json outcome)" = "complete"
 grep '"status": "complete"' "$TARGET/.shiki/goals/$GOAL_ID.json" >/dev/null
-# The loop opened a closeout PR (ADR 0012): its history records create_closeout_pr.
+# The loop opened a closeout PR (SADR-0012): its history records create_closeout_pr.
 grep '"action": "create_closeout_pr"' /tmp/shiki-goal-loop-result.json >/dev/null
 # Impl PR + closeout PR both auto-merged.
 test "$(grep -c merged "$GH_STATE/gh-log")" = "2"
 
 # High/critical risk merges autonomously when all required checks are green:
 # the "MergeGate policy check" required check IS the Guardian gate (it enforces
-# guardian-policy.json — human approval OR external AI guardian review, ADR
-# 0010), so green checks mean a recorded authority approved. The fake gh returns
+# guardian-policy.json — human approval OR external AI guardian review,
+# SADR-0010), so green checks mean a recorded authority approved. The fake gh returns
 # green checks, simulating that the Guardian gate passed.
 python3 "$ROOT/scripts/shiki.py" goal create --target "$TARGET" --title "Guardian gate" --outcome "High risk merges via policy gate" >/tmp/shiki-goal-loop-guardian-goal.json
 GGOAL="$(json_get /tmp/shiki-goal-loop-guardian-goal.json goal_id)"

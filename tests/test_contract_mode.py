@@ -1,4 +1,4 @@
-"""Contract PR mode (ADR 0015): approve the task contract before dispatch.
+"""Contract PR mode (SADR-0015): approve the task contract before dispatch.
 
 A Contract PR carries a spec-frozen Goal's task contracts — goal, task, and DAG
 registration — to the default branch so a Guardian can approve them before any
@@ -74,7 +74,7 @@ def _seed(root: Path, *, frozen: bool = True, plan_risk: str = PLAN_RISK) -> Non
         json.dumps(
             {
                 "id": PLAN,
-                "title": "ADR 0015 contract approval",
+                "title": "SADR-0015 contract approval",
                 "risk_level": plan_risk,
                 "spec_freeze": {"status": "frozen" if frozen else "draft"},
                 "tasks": [FROZEN_A, FROZEN_B],

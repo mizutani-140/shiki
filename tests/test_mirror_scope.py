@@ -25,7 +25,7 @@ covered, and one gap made a legitimate schema file permanently unmergeable:
       contract — was misclassified as forged runtime evidence and could never
       merge. It now matches the exact runtime filenames.
 
-And Spec Freeze is operator-only (ADR 0009): no PR may author or alter a
+And Spec Freeze is operator-only (SADR-0009): no PR may author or alter a
 ``spec_freeze`` block in ANY mirror state, including its own goal's source plan.
 Goal/task scoping alone stops a PR from writing a FOREIGN plan, but still lets an
 implementation PR grant itself a Spec Freeze, or append amendments, on the plan

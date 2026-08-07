@@ -1,0 +1,21 @@
+{
+  "created_at": "2026-08-07T08:01:07+00:00",
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "locks": [
+    "path:.codex/**",
+    "path:.github/**",
+    "path:.shiki/**",
+    "path:AGENTS.md",
+    "path:CLAUDE.md",
+    "path:CONTEXT.md",
+    "path:CONTRIBUTING.md",
+    "path:SYSTEM_PROMPT.md",
+    "path:docs/**",
+    "path:pyproject.toml",
+    "path:scripts/**",
+    "path:tests/**"
+  ],
+  "owner": "codex-front",
+  "state": "active",
+  "task_id": "T-20260807T073307221254Z-2d22d654"
+}

@@ -80,7 +80,7 @@ if python3 "$ROOT/scripts/shiki.py" plan ingest --target "$TARGET" --plan-file "
   exit 1
 fi
 
-# A grilled but unfrozen plan must be rejected (ADR 0009 Spec Freeze gate).
+# A grilled but unfrozen plan must be rejected (SADR-0009 Spec Freeze gate).
 python3 - "$TMP_ROOT/grilled-plan.json" "$TMP_ROOT/unfrozen.json" <<'PY'
 import json
 import sys

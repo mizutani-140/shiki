@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""External AI Guardian Review adapter contract (ADR 0010 / ADR 0014).
+"""External AI Guardian Review adapter contract (SADR-0010 / SADR-0014).
 
 Deterministic Shiki-side surfaces consumed by the Codex App External AI Guardian
 UI Adapter:
@@ -12,7 +12,7 @@ UI Adapter:
   output and validate any approval artifact against the same approval contract
   the PR-comment path enforces (``shiki_guardian.validate_ai_review_artifact``).
 
-Role boundary (ADR 0010 / ADR 0014): Claude Code implements these DETERMINISTIC
+Role boundary (SADR-0010 / SADR-0014): Claude Code implements these DETERMINISTIC
 contracts only. Codex App is the UI adapter that drives ChatGPT Pro; GPT Pro is
 the external Guardian Authority; GitHub carries the live ``external-ai-guardian-
 review`` artifact; MergeGate verifies. Nothing in this module drives a ChatGPT
@@ -159,7 +159,7 @@ def classify_review_focus(
     docs_only = _is_docs_only(changed_files)
     if docs_only and matched == 0:
         focus.append(
-            "Docs/ADR-only change: confirm the change is genuinely documentation/decision-only, introduces no behavior or contract drift, and stays consistent with the constitution and existing ADRs."
+            "Docs/decision-record-only change: confirm the change is genuinely documentation/decision-only, introduces no behavior or contract drift, and stays consistent with the constitution and existing SADRs and target ADRs."
         )
 
     # Conservative augmentation: unknown (no category and not docs-only), mixed

@@ -1,4 +1,4 @@
-# ADR 0006: Separate Codex Implementation, CCA Completion, And MergeGate Authorization
+# SADR-0006: Separate Codex Implementation, CCA Completion, And MergeGate Authorization
 
 ## Status
 

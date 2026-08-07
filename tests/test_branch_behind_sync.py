@@ -161,7 +161,7 @@ class BehindDecisionTests(unittest.TestCase):
     def test_behind_needs_guardian_verdict_stops_guardian_not_syncs(self) -> None:
         # The sync arm is evaluated AFTER _cca_verdict_stop: a needs_guardian verdict
         # on a BEHIND branch still produces the terminal Guardian stop and is never
-        # laundered into a head-moving sync (ADR 0010). reruns=2 exhausts the CCA
+        # laundered into a head-moving sync (SADR-0010). reruns=2 exhausts the CCA
         # same-head race so the decision reaches the verdict gate.
         checks = _green()
         checks["CCA verdict"] = "fail"
@@ -174,7 +174,7 @@ class BehindDecisionTests(unittest.TestCase):
     def test_behind_blocked_verdict_stops_blocked_not_syncs(self) -> None:
         # A blocked verdict on a BEHIND branch still produces the terminal blocked
         # stop — the measured incident's own verdict was blocked, and syncing it would
-        # be the impersonation pathway ADR 0010 forbids.
+        # be the impersonation pathway SADR-0010 forbids.
         checks = _green()
         checks["CCA verdict"] = "fail"
         decision = _decide(

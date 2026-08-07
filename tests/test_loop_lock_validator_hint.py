@@ -1,6 +1,6 @@
 """validate_shiki loop-lock advisory — derive-at-judgment-time model.
 
-Under the mirror-lock model (ADR 0016 / A-LOCKS) a registered task's stored
+Under the mirror-lock model (SADR-0016 / A-LOCKS) a registered task's stored
 ``locks`` are EXACTLY what the plan declared; nothing is injected. MergeGate
 recomputes the task's id-scoped mirror set at judgment time
 (``mergegate_check._derive_task_mirror_locks``) and unions it into the effective
@@ -8,7 +8,7 @@ locks passed to ``files_outside_locks``. A narrow-lock loop task is therefore th
 intended, fully-covered state, so ``loop_lock_warnings`` must NOT warn about it,
 and its advisory text must not claim a dispatch-time ``.shiki/**`` guarantee — no
 such guarantee (``loop_guaranteed_locks``) ever existed. The advisory hook is kept
-WARN-ONLY; the future mirror-identity rule (ADR 0016 step B / remediation R-02)
+WARN-ONLY; the future mirror-identity rule (SADR-0016 step B / remediation R-02)
 will decide any blocking behaviour.
 """
 
@@ -52,7 +52,7 @@ class LoopLockAdvisoryTests(unittest.TestCase):
 
     def test_no_warning_when_task_declares_shiki_lock(self) -> None:
         # A task may still declare path:.shiki/** as a circularity break; the
-        # advisory neither requires nor forbids it (ADR 0016 step B / R-02).
+        # advisory neither requires nor forbids it (SADR-0016 step B / R-02).
         goals = {GOAL: {"id": GOAL, "status": "ready"}}
         tasks = {GOAL: [_task(runtime="claude-code", locks=["path:.shiki/**"])]}
         self.assertEqual(loop_lock_warnings(goals, tasks), [])

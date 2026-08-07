@@ -607,7 +607,7 @@ def configure_workflow_permissions(
     Sets the default workflow token permission (``read``) and whether GitHub
     Actions may create and approve pull request reviews. The Review Bridge needs
     ``can_approve_pull_request_reviews=true`` to satisfy ``required_review: true``
-    in solo operation after CCA returns ``complete`` (see ADR 0013 and
+    in solo operation after CCA returns ``complete`` (see SADR-0013 and
     ``docs/agents/decision-control.md``).
 
     Mirrors ``protect_branch``'s ``gh api ... -X PUT --input -`` pattern but
@@ -701,7 +701,7 @@ def github_issue_body(task: dict[str, Any]) -> str:
 
 
 def pre_pr_code_review_section(task: dict[str, Any]) -> list[str]:
-    """The PR-12 ``## Pre-PR code review`` body section (ADR 0011).
+    """The PR-12 ``## Pre-PR code review`` body section (SADR-0011).
 
     Rendered from the loop-recorded ``pre_pr_code_review`` block — the verdict of
     the independent read-only reviewer the loop ran before opening the PR. A PR is
@@ -718,7 +718,7 @@ def pre_pr_code_review_section(task: dict[str, Any]) -> list[str]:
         return lines
     verdict = str(review.get("verdict", "unknown"))
     lines.append(f"- Verdict: {verdict}")
-    lines.append("- Independent read-only reviewer (claude -p, read tools only) — ADR 0011")
+    lines.append("- Independent read-only reviewer (claude -p, read tools only) — SADR-0011")
     ledger_id = review.get("ledger_id")
     if ledger_id:
         lines.append(f"- Ledger: {ledger_id}")
@@ -767,7 +767,7 @@ def github_pr_body(task: dict[str, Any]) -> str:
             "## TDD evidence (loop-observed)",
             "- The goal loop ran the task's tests in the worktree and recorded a "
             "type:check ledger (skill tdd, EXEC evidence) before opening this PR "
-            "(ADR 0011); a red run blocks the PR.",
+            "(SADR-0011); a red run blocks the PR.",
             f"- Test command: {_task_test_command_for_body(task)}",
             "",
             "## Evidence",

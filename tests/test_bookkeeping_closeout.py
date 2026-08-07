@@ -1,4 +1,4 @@
-"""The bookkeeping-closeout Guardian exemption (ADR 0017).
+"""The bookkeeping-closeout Guardian exemption (SADR-0017).
 
 After a high/critical task's implementation PR merges under full Guardian
 approval, the autonomous loop opens a *closeout* PR that carries only the task's
@@ -287,7 +287,7 @@ class BookkeepingCloseoutTest(unittest.TestCase):
         # DIFFER — the goal loop performs this rewrite on every closeout by
         # construction. A closeout that moves ONLY the terminal-state fields plus
         # expected_branch must still classify as a bookkeeping closeout. This case is
-        # the point of ADR 0017's whitelist fix: it FAILS if expected_branch is
+        # the point of SADR-0017's whitelist fix: it FAILS if expected_branch is
         # removed from _CLOSEOUT_MUTABLE_TASK_FIELDS, because condition 4 would then
         # reject the branch rewrite before any other condition is reached.
         c = self.new().build(completes=True)
@@ -338,7 +338,7 @@ class BookkeepingCloseoutTest(unittest.TestCase):
         self._assert_disqualified(c)
 
     def test_every_governance_field_change_disqualifies(self) -> None:
-        # Guard against the whitelist drifting wider than the one entry ADR 0017
+        # Guard against the whitelist drifting wider than the one entry SADR-0017
         # adds. Two independent locks:
         #   (a) the mutable set is EXACTLY these five entries — adding a sixth (or
         #       dropping one) fails here directly; and

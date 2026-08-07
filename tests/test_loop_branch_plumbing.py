@@ -413,7 +413,7 @@ class _FakeGh:
 
 
 class CreateCloseoutPrTests(unittest.TestCase):
-    """ADR 0012: the effector pushes the terminal state to main + repoints expected_pr."""
+    """SADR-0012: the effector pushes the terminal state to main + repoints expected_pr."""
 
     def _register_single_task_goal_on_main(self, env):
         target = env.target

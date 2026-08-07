@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Autonomous post-freeze Goal loop (ADR 0008/0009).
+"""Autonomous post-freeze Goal loop (SADR-0008/SADR-0009).
 
 The decision engine (`decide_task_action`, `decide_goal_action`) is pure: it
 maps a task snapshot to exactly one action and never touches the filesystem,
@@ -49,7 +49,7 @@ AUTO_MERGE_RISKS = {"low", "medium"}
 # merge effector, whose existing failure message still covers those cases.
 MERGE_STATE_BEHIND = "BEHIND"
 # The Guardian/policy gate. It enforces guardian-policy.json (human
-# review/label/comment OR an external AI guardian review, ADR 0010) and is the
+# review/label/comment OR an external AI guardian review, SADR-0010) and is the
 # ONLY required check that must never become an auto-repair target: an
 # autonomous runner must never be instructed to "make the Guardian gate pass".
 POLICY_GATE = "MergeGate policy check"
@@ -313,7 +313,7 @@ def decide_task_action(
             # task=done + goal=complete + lock=released are now durable on main.
             return {"action": "mark_done", "task_id": task_id, "reason": "closeout PR merged; completion is on main"}
         # The IMPL PR merged. Do NOT mark done locally — that would complete the
-        # goal only in the coordinator mirror (Gap B / ADR 0012). Drive a closeout
+        # goal only in the coordinator mirror (Gap B / SADR-0012). Drive a closeout
         # PR to push the terminal state to main instead.
         return {"action": "create_closeout_pr", "task_id": task_id, "reason": "impl PR merged; push completion to main via a closeout PR"}
 
@@ -359,7 +359,7 @@ def decide_task_action(
     # A failing Guardian gate must NEVER be laundered into auto-remediation. The
     # policy gate is held apart from genuinely repairable checks: it never enters
     # a repair packet, and when it is the only thing red the loop stops for a
-    # recorded authority. This closes the impersonation pathway ADR 0010 exists
+    # recorded authority. This closes the impersonation pathway SADR-0010 exists
     # to prevent — an autonomous runner is never told to "make the Guardian gate
     # pass" — while still letting high/critical tasks iterate real repairs (the
     # policy gate stays red until approval, which is expected, not a repair item).
@@ -422,9 +422,9 @@ def decide_task_action(
         # no-op repairs do not (PR #288). This arm is reached ONLY after the verdict
         # gate above returned None, so a needs_guardian / blocked / complete /
         # unresolvable CCA verdict has already produced its terminal stop and is never
-        # laundered into a head-moving sync (ADR 0010). It also never fires while the
+        # laundered into a head-moving sync (SADR-0010). It also never fires while the
         # policy (Guardian) gate is red — for ANY reason, not only when it is the sole
-        # red check — so a head-bound Guardian approval, or an ADR 0015
+        # red check — so a head-bound Guardian approval, or a SADR-0015
         # contract-approval carry that base movement defeated (the policy gate compares
         # base and head task governance directly), is never silently restored by
         # adopting base wholesale. It is bounded by a durable per-task counter so the
@@ -482,7 +482,7 @@ def decide_task_action(
         return _merge_or_sync(task_id, pr_state, f"all required checks green and risk {risk} permits auto-merge")
     # High/critical risk requires Guardian approval, but the "MergeGate policy
     # check" required check IS the Guardian gate: it enforces guardian-policy.json
-    # (human review/label/comment OR an external AI guardian review, ADR 0010).
+    # (human review/label/comment OR an external AI guardian review, SADR-0010).
     # When it is green, Guardian approval — by whatever authority — was recorded,
     # so the loop may merge autonomously.
     if "MergeGate policy check" in required_checks:
@@ -1376,7 +1376,7 @@ def _sync_state_to_branch(target: Path, task_id: str, ledger_id: str | None) -> 
 # real guarantee, this is belt-and-suspenders.
 _CODE_REVIEW_PROMPT = (
     "You are an INDEPENDENT pre-PR code reviewer running read-only in a separate "
-    "context (ADR 0011). Review ONLY the diff below for correctness bugs, broken "
+    "context (SADR-0011). Review ONLY the diff below for correctness bugs, broken "
     "contracts, security issues, data loss, and missing tests. You may use read "
     "tools to inspect the worktree; you may NOT edit anything. Emit a single JSON "
     'object matching the verdict schema: verdict "clean" when nothing blocking is '
@@ -1406,7 +1406,7 @@ def _record_reviewer_raw_output(target: Path, task_id: str, raw_stdout: str) -> 
             "id": record_id,
             "task_id": task["id"],
             "goal_id": task["goal_id"],
-            "command": "independent pre-PR code review (claude -p, read-only) — ADR 0011",
+            "command": "independent pre-PR code review (claude -p, read-only) — SADR-0011",
             "returncode": 0,
             "stdout": raw_stdout,
             "stderr": "",
@@ -1431,7 +1431,7 @@ def _record_reviewer_raw_output(target: Path, task_id: str, raw_stdout: str) -> 
 def _run_pre_pr_code_review(target: Path, task_id: str) -> dict[str, Any]:
     """Run the independent read-only code-review verifier over the task diff.
 
-    Loop-owned quality-gate step (ADR 0011): the reviewer is the same model as the
+    Loop-owned quality-gate step (SADR-0011): the reviewer is the same model as the
     implementer but in a separate context, confined to read tools (no edit tools),
     bound to a structured verdict. The loop parses that verdict deterministically.
 
@@ -1555,7 +1555,7 @@ def _run_pre_pr_code_review(target: Path, task_id: str) -> dict[str, Any]:
             task_id=task_id,
             ledger_type="check",
             summary=f"Pre-PR code-review verdict BLOCKING for {task_id} ({len(findings)} finding(s)); loop stops for diagnosis",
-            evidence=["independent read-only reviewer (claude -p) — ADR 0011"],
+            evidence=["independent read-only reviewer (claude -p) — SADR-0011"],
         )
         task = load_task(target, task_id)
         task.setdefault("ledger_evidence", []).append(ledger_id)
@@ -1571,7 +1571,7 @@ def _run_pre_pr_code_review(target: Path, task_id: str) -> dict[str, Any]:
         task_id=task_id,
         ledger_type="check",
         summary=f"Pre-PR code-review verdict CLEAN for {task_id} (independent read-only reviewer, code-review skill)",
-        evidence=["independent read-only reviewer (claude -p) — ADR 0011"],
+        evidence=["independent read-only reviewer (claude -p) — SADR-0011"],
     )
     task = load_task(target, task_id)
     task.setdefault("ledger_evidence", []).append(ledger_id)
@@ -1584,7 +1584,7 @@ def task_test_command(task: dict[str, Any]) -> str:
     Reads the task's ``test_command`` field, falling back to the safe unittest
     discover default when it is absent or blank. ``acceptance_checks`` is
     free-form prose+commands and is deliberately NOT consulted here — it must
-    never be handed to a shell (ADR 0011: a deterministic observable command,
+    never be handed to a shell (SADR-0011: a deterministic observable command,
     not narrative, is what the independent verifier runs).
     """
     # Lazy import keeps the shiki_loop <-> shiki_tasks edge one-directional.
@@ -1599,7 +1599,7 @@ def task_test_command(task: dict[str, Any]) -> str:
 def _run_task_tests_in_worktree(
     target: Path, task_id: str
 ) -> tuple[bool, str | None, str | None, str]:
-    """Loop-observed TDD gate (ADR 0011): run the task's tests in its worktree.
+    """Loop-observed TDD gate (SADR-0011): run the task's tests in its worktree.
 
     The loop — an independent verifier, not the implementer — runs the task's
     structured ``test_command`` in the registered worktree and records the run
@@ -1687,7 +1687,7 @@ def _run_task_tests_in_worktree(
 
 
 def _closeout_pr_body(task: dict[str, Any], goal_id: str, *, completes_goal: bool) -> str:
-    """PR body for an autonomous closeout PR (ADR 0012). Must contain the literal
+    """PR body for an autonomous closeout PR (SADR-0012). Must contain the literal
     Scope/Acceptance/Evidence/MergeGate headings the MergeGate metadata check
     requires plus the task and goal ids."""
     goal_line = "goal `complete` (scorecard)" if completes_goal else "goal stays active (not the last task)"
@@ -1698,7 +1698,7 @@ def _closeout_pr_body(task: dict[str, Any], goal_id: str, *, completes_goal: boo
         f"- Goal: `{goal_id}`\n"
         f"- Risk: `{task.get('risk_level', 'low')}`\n\n"
         f"## Scope\n"
-        f"Autonomous loop closeout (ADR 0012): the implementation PR for this task "
+        f"Autonomous loop closeout (SADR-0012): the implementation PR for this task "
         f"already merged, but the loop's `mark_done` / `goal_complete` write only the "
         f"local mirror. This PR pushes that completion to main — task `done`, lock "
         f"`released`, and {goal_line} — so completion is durable on `main`, not "
@@ -1708,20 +1708,20 @@ def _closeout_pr_body(task: dict[str, Any], goal_id: str, *, completes_goal: boo
         f"(the goal-completion coupling is satisfied on this HEAD).\n\n"
         f"## Pre-PR code review\n- No code changes in this closeout PR; the "
         f"implementation was reviewed in the task's impl PR (the loop's pre-PR "
-        f"code-review gate, ADR 0011) before that PR merged. This PR carries only "
+        f"code-review gate, SADR-0011) before that PR merged. This PR carries only "
         f"`.shiki` completion bookkeeping.\n\n"
         f"## Evidence\n- Opened autonomously by the goal loop after the impl PR merged; "
         f"the self-reference ledger records `/pull/<this PR>`.\n\n"
         f"## MergeGate\n- Normal-mode closeout (no special label); risk inherits the task "
         f"(low/medium auto-merges). The loop-task `path:.shiki/**` lock covers every staged "
         f"`.shiki` file.\n\n"
-        f"\U0001f916 Generated by the Shiki goal loop (ADR 0012)\n"
+        f"\U0001f916 Generated by the Shiki goal loop (SADR-0012)\n"
     )
 
 
 def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, Any]:
     """Open a normal-mode closeout PR pushing task=done + lock=released +
-    (goal=complete iff this task completes the goal) to main — Gap B / ADR 0012.
+    (goal=complete iff this task completes the goal) to main — Gap B / SADR-0012.
 
     The loop's `mark_done`/`goal_complete` otherwise mutate only the coordinator
     mirror, so completion never reaches GitHub (the source of truth). This builds
@@ -1793,7 +1793,7 @@ def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, A
             with contextlib.redirect_stdout(io.StringIO()):
                 cmd_goal_complete(argparse.Namespace(
                     target=str(worktree), goal_id=goal_id,
-                    summary="Autonomous loop closeout: push goal completion to main (ADR 0012)."))
+                    summary="Autonomous loop closeout: push goal completion to main (SADR-0012)."))
             # cmd_goal_complete records the completion ledger on the GOAL only; the
             # task PR's MergeGate requires every PR-changed ledger to be in the
             # TASK's ledger_evidence, so mirror the completion ledger across.
@@ -1812,7 +1812,7 @@ def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, A
             _save_task(worktree, wt_task)
 
         run(["git", "add", "-A"], cwd=worktree, check=False)
-        commit = run(["git", "commit", "-m", f"shiki: closeout {task_id} — push completion to main (goal loop, ADR 0012)"], cwd=worktree, check=False)
+        commit = run(["git", "commit", "-m", f"shiki: closeout {task_id} — push completion to main (goal loop, SADR-0012)"], cwd=worktree, check=False)
         if commit.returncode != 0:
             return {"action": "stop_blocked", "task_id": task_id, "reason": "closeout produced no diff (already reconciled on main?)"}
         push = run(["git", "push", "-u", "origin", branch], cwd=worktree, check=False)
@@ -1823,7 +1823,7 @@ def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, A
         create = _gh(
             target,
             ["pr", "create", "--base", "main", "--head", branch,
-             "--title", f"Closeout {task_id}: push goal completion to main (ADR 0012)",
+             "--title", f"Closeout {task_id}: push goal completion to main (SADR-0012)",
              "--body", _closeout_pr_body(task, goal_id, completes_goal=completes_goal)],
             check=False,
         )
@@ -1841,7 +1841,7 @@ def _create_closeout_pr(target: Path, goal_id: str, task_id: str) -> dict[str, A
             worktree, goal_id=goal_id, task_id=task_id, ledger_type="lock",
             summary=(f"Autonomous closeout PR #{num} (/pull/{num}): task done + lock released"
                      + (" + goal complete (scorecard)" if completes_goal else "")
-                     + " pushed to main by the goal loop (ADR 0012)."),
+                     + " pushed to main by the goal loop (SADR-0012)."),
             evidence=[f".shiki/tasks/{task_id}.json", f".shiki/locks/{task_id}.json"],
             links=[url])
         wt_task = load_task(worktree, task_id)
@@ -2260,7 +2260,7 @@ def _execute_action_body(target: Path, goal_id: str, decision: dict[str, Any], *
     if action in WAIT_ACTIONS or action in STOP_ACTIONS or action == "goal_complete":
         if action == "goal_complete":
             # The completing task's closeout PR already pushed goal=complete (with
-            # the scorecard report + completion ledger) to main (ADR 0012). Sync the
+            # the scorecard report + completion ledger) to main (SADR-0012). Sync the
             # coordinator mirror to main's authoritative state for THIS goal only —
             # never a whole-tree checkout, which would revert unrelated in-flight
             # goals' files. The completing goal's task files are left byte-identical
@@ -2291,7 +2291,7 @@ def _execute_action_body(target: Path, goal_id: str, decision: dict[str, Any], *
         result["dispatch_attempts"] = task["dispatch_attempts"]
         result["returncode"] = _dispatch(target, load_task(target, task_id))
     elif action == "create_pr":
-        # (a) Pre-PR code-review gate (ADR 0011). An INDEPENDENT read-only
+        # (a) Pre-PR code-review gate (SADR-0011). An INDEPENDENT read-only
         # reviewer judges the diff in a separate context BEFORE the PR exists.
         # A blocking verdict OR any dispatch/parse failure fails closed to
         # stop_blocked: a blocking pre-PR review cannot anchor a repair packet
@@ -2315,7 +2315,7 @@ def _execute_action_body(target: Path, goal_id: str, decision: dict[str, Any], *
                 "no PR exists to anchor a repair — diagnose or re-dispatch"
             )
             return result
-        # Loop-owned TDD gate FIRST (ADR 0011): the loop — an independent
+        # Loop-owned TDD gate FIRST (SADR-0011): the loop — an independent
         # verifier, not the implementer — runs the task's tests in the worktree
         # and records a type:check ledger naming skill tdd (EXEC evidence ref)
         # BEFORE any PR exists. Fail-closed: a RED run does NOT open the PR. We
@@ -2474,7 +2474,7 @@ def _execute_action_body(target: Path, goal_id: str, decision: dict[str, Any], *
         # head-movement guard so this evidence commit never masks a no-op repair.
         result["state_sync"] = _sync_state_to_branch(target, task_id, None)
     elif action == "create_closeout_pr":
-        # ADR 0012: the impl PR merged; open a closeout PR that pushes the terminal
+        # SADR-0012: the impl PR merged; open a closeout PR that pushes the terminal
         # state (task=done + lock=released + goal=complete) to main. The effector
         # repoints expected_pr to the closeout PR, so the snapshot/merge path drives
         # it next. Fails closed to stop_blocked inside the effector.
@@ -2525,7 +2525,7 @@ def _execute_action_body(target: Path, goal_id: str, decision: dict[str, Any], *
         task = load_task(target, task_id)
         task.setdefault("ledger_evidence", []).append(ledger_id)
         _save_task(target, task)
-        # ADR 0012: done-marking is DEFERRED. The loop never records `done` locally
+        # SADR-0012: done-marking is DEFERRED. The loop never records `done` locally
         # until it is durable on main. After the IMPL PR merges the task stays
         # `review` and the next decision routes to create_closeout_pr; after the
         # CLOSEOUT PR merges, the `mark_done` action (below) records done + unblocks.

@@ -1,14 +1,14 @@
-# NNNN: <Short Decision Title>
+# <SADR-NNNN or NNNN>: <Short Decision Title>
 
 ## Status
 
-Proposed | Accepted | Superseded by ADR-NNNN
+Proposed | Accepted | Superseded by SADR-NNNN or target ADR NNNN
 
 ## Context
 
 What is the situation, constraint, or force that requires a decision? Reference
-relevant domain terms (`CONTEXT.md`), prior ADRs, and code reality. State the
-problem, not the solution.
+relevant domain terms (`CONTEXT.md`), prior Shiki SADRs or target ADRs, and code
+reality. State the problem, not the solution.
 
 ## Decision
 

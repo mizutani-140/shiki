@@ -1,4 +1,4 @@
-# ADR 0004: Use GitHub First With A Repository-Local Shiki Mirror
+# SADR-0004: Use GitHub First With A Repository-Local Shiki Mirror
 
 ## Status
 

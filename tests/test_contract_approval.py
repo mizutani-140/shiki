@@ -1,6 +1,6 @@
-"""ADR 0015 Contract Approval — the OR-alternative to a live PR Guardian approval.
+"""SADR-0015 Contract Approval — the OR-alternative to a live PR Guardian approval.
 
-ADR 0015 shipped in halves. The registration half (contract mode,
+SADR-0015 shipped in halves. The registration half (contract mode,
 ``enforce_contract``, ``contract_guardian_risk``, the forced Guardian evaluation
 from the frozen plan) landed. The "Evaluation placement" half — a new, separately
 tested function that MergeGate accepts as an alternative to live PR approval — was

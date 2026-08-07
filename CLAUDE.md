@@ -14,13 +14,16 @@ Claude Code must treat `AGENTS.md` as the shared Shiki constitution. This file a
 5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
 <!-- shiki-source-of-truth:end -->
 
+Within `docs/adr/`, Shiki platform decisions use `SADR-NNNN-*.md`; target
+product decisions retain `NNNN-*.md` and the `ADR` namespace.
+
 ## Claude Role
 
 Default to planner, default implementer, reviewer, coordinator, documentation editor, CCA-style completion judge, and final-judgment assistant.
 
 Claude Code is the reasoning layer of the Shiki loop by default: clarify Goals, run `grill-with-docs`, run Context & Impact, select skills, write PRDs, break work into issues, reason about MergeGate, review evidence, identify blockers, and coordinate runner dispatch / GitHub Actions / Guardian handoff.
 
-Claude Code is also the default hands (ADR 0008): implementation, tests, and bounded repair commits for assigned tasks are dispatched as a headless Claude Code session into the task's registered worktree through `shiki runner claude`, authenticated by the operator's Claude subscription.
+Claude Code is also the default hands (SADR-0008): implementation, tests, and bounded repair commits for assigned tasks are dispatched as a headless Claude Code session into the task's registered worktree through `shiki runner claude`, authenticated by the operator's Claude subscription.
 
 Codex Front remains an optional implementer for tasks explicitly assigned to `codex`, through the operator's ChatGPT OAuth/subscription-authenticated Codex App, CLI, IDE extension, or Web session.
 
@@ -57,7 +60,7 @@ Do not silently mutate product source while acting as reviewer, planner, or CCA.
 At the start of a Shiki session:
 
 1. Read `AGENTS.md`.
-2. Read `CONTEXT.md` and relevant ADRs.
+2. Read `CONTEXT.md` and relevant Shiki SADRs and target ADRs.
 3. Read active `.shiki/` Goal/task/ledger state when present.
 4. Read active distilled rules from `.shiki/memories/` (status `distilled`, `active: true`, not revoked or superseded) for applicable guidance; the same rules are injected deterministically into task handoffs as the `## Distilled Rules` section (§3.5).
 5. Read the GitHub Issue or PR when the task is GitHub-backed.
@@ -74,7 +77,7 @@ For Goal Seek and planning:
 - Define the Goal, completion conditions, non-goals, and risk level.
 - Treat `grill-with-docs` as the default planning entry point for non-trivial Goals.
 - Challenge domain terms against `CONTEXT.md`.
-- Challenge hard-to-reverse tradeoffs against ADRs.
+- Challenge hard-to-reverse tradeoffs against SADRs and target ADRs.
 - Explore code instead of asking when code can answer the question.
 - Run Context & Impact before implementation planning.
 - Produce a Task DAG, not an unordered checklist.
@@ -94,7 +97,7 @@ When running `grill-with-docs`:
 - For each question, provide your recommended answer.
 - Resolve dependency decisions before downstream design questions.
 - Update `CONTEXT.md` inline when terminology crystallizes.
-- Offer ADRs only when the decision is hard to reverse, surprising without context, and a real tradeoff.
+- Offer a SADR or target ADR only when the decision is hard to reverse, surprising without context, and a real tradeoff.
 - Convert unresolved questions into HITL blockers rather than allowing Codex to guess.
 
 ## PRD and Issues Standard
@@ -103,7 +106,7 @@ When creating a PRD:
 
 - Use the project's domain glossary vocabulary.
 - Avoid volatile file paths unless they are essential.
-- Include implementation decisions, testing decisions, out-of-scope items, and relevant ADR/domain links.
+- Include implementation decisions, testing decisions, out-of-scope items, and relevant SADR/target-ADR/domain links.
 - Identify deep-module opportunities and testable interfaces.
 
 When creating issues:
@@ -121,7 +124,7 @@ When assigning work to Codex Front, provide a self-contained handoff:
 - Branch/worktree target.
 - Scope and non-goals.
 - Dependencies and locks.
-- Relevant docs, ADRs, modules, and tests.
+- Relevant docs, SADRs, target ADRs, modules, and tests.
 - Required skill invocations.
 - TDD expectations.
 - Pre-PR `code-review` gate expectations.
@@ -152,7 +155,7 @@ When Claude runs as GitHub CCA:
 
 - Treat yourself as a judge, not implementer.
 - Do not write production code.
-- Read `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, relevant ADRs, PRD, task issue, PR body, diff, checks, reviews, labels, and `.shiki/` state.
+- Read `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, relevant SADRs and target ADRs, PRD, task issue, PR body, diff, checks, reviews, labels, and `.shiki/` state.
 - Evaluate every applicable checklist in `docs/agents/checklists.md`.
 - Map each acceptance criterion to durable evidence.
 - Distinguish implementation failure from missing evidence.

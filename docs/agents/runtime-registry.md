@@ -33,7 +33,7 @@ Each runtime descriptor records:
 
 | Runtime | Roles | execution mode | auth mode | Notes |
 | --- | --- | --- | --- | --- |
-| `claude-code` | planner, implementer, runner, reviewer | local_cli | claude_subscription_oauth | Local Claude Code planning, review, and the default implementer/runner runtime (ADR 0008), dispatched with `shiki runner claude`. |
+| `claude-code` | planner, implementer, runner, reviewer | local_cli | claude_subscription_oauth | Local Claude Code planning, review, and the default implementer/runner runtime (SADR-0008), dispatched with `shiki runner claude`. |
 | `claude-code-action` | reviewer | github_action | github_secret | GitHub Actions reviewer using `CLAUDE_CODE_OAUTH_TOKEN`. |
 | `codex` | implementer, runner | local_cli | chatgpt_oauth | Local Codex implementation and runner execution. |
 | `codex-front` | front, implementer | local_cli | chatgpt_oauth | Operator-facing Codex front entrypoint used by `.shiki/config.yaml`. |

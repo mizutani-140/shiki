@@ -3,7 +3,7 @@
 This document defines how Shiki is versioned, released, installed, upgraded, and
 rolled back, and how the platform-runtime boundary differs from the
 target-template boundary. The durable decision record is
-[docs/adr/0007-packaging-and-release.md](adr/0007-packaging-and-release.md).
+[docs/adr/SADR-0007-packaging-and-release.md](adr/SADR-0007-packaging-and-release.md).
 
 Shiki is a GitHub-first agentic engineering control plane. The operational
 source of truth is GitHub (Issues, PRs, Checks, Reviews, merges); the
@@ -67,7 +67,7 @@ Shiki ships as a repository template plus a dependency-free, standard-library
 CLI in `scripts/`. There are no third-party Python runtime dependencies. The CLI
 is intentionally **not** exposed as a `[project.scripts]` console entry point
 because `scripts/shiki.py` is a dependency-free shim and `scripts/` is not
-packaged as an importable distribution (see the ADR for the rationale).
+packaged as an importable distribution (see SADR-0007 for the rationale).
 
 Supported install paths:
 
@@ -102,7 +102,7 @@ Supported install paths:
   importable distribution, `pipx install git+https://…` would not expose a usable
   `shiki` command. Use the script-install path above instead. A `pipx`/PyPI
   install path may be reconsidered only after a future packaging restructure
-  (see [docs/adr/0007-packaging-and-release.md](adr/0007-packaging-and-release.md)).
+  (see [docs/adr/SADR-0007-packaging-and-release.md](adr/SADR-0007-packaging-and-release.md)).
 
 - **Install into a target repository:** use the bootstrap path documented in
   [docs/agents/bootstrap-command.md](agents/bootstrap-command.md) (`bin/shiki`)
@@ -155,6 +155,15 @@ applying any repository-local state migrations:
    [docs/operations.md](operations.md#the-new-convention). If the target has
    pending migrations, `--force` refuses and writes nothing; apply migrations
    (step 2) first, then re-run.
+
+   The SADR namespace upgrade has an additional pre-write gate: each former
+   numeric Shiki decision path is removed only when the existing install stamp
+   contains that exact path and a digest matching its current bytes. The
+   installer aggregates absent/unreadable/malformed-stamp, missing-digest, and
+   digest-mismatch blockers before raising, so refusal leaves the target tree
+   byte-identical. Numeric target ADRs are preserved. A successful forced
+   upgrade installs and stamps `SADR-*` paths and drops the removed legacy paths
+   from the refreshed stamp.
 2. Apply repository-local `.shiki/` state migrations with the migrate command:
 
    ```bash

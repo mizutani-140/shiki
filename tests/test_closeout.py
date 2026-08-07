@@ -2,7 +2,7 @@
 only its first task merges, its goal_complete sync touches only the completing
 goal, and a closeout PR gets a fresh CCA rerun budget.
 
-Three defects this suite pins (ADR 0012):
+Three defects this suite pins (SADR-0012):
 
   (a) ``_create_closeout_pr`` computed ``completes_goal`` from the closeout
       worktree alone. The worktree is cut from ``origin/main``; for a multi-task

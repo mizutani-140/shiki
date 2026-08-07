@@ -38,7 +38,7 @@ TARGET="$TMP_ROOT/target"
 FAKE_BIN="$TMP_ROOT/bin"
 export GH_STATE="$TMP_ROOT/gh-state"
 # The bare origin the loop pushes to. The stub gh's `pr merge` advances its main
-# to the merged PR branch so the loop's closeout step (ADR 0012), which cuts a
+# to the merged PR branch so the loop's closeout step (SADR-0012), which cuts a
 # worktree from origin/main, sees the merged .shiki state — mirroring a real merge.
 export GH_ORIGIN="$TMP_ROOT/origin.git"
 
@@ -214,7 +214,7 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
   "grill_with_docs": {
     "status": "complete",
     "source": "CONTEXT.md",
-    "decisions": ["The loop drives frozen goals (ADR 0008/0009/0011)"]
+    "decisions": ["The loop drives frozen goals (SADR-0008/SADR-0009/SADR-0011)"]
   },
   "spec_freeze": {
     "status": "frozen",
@@ -242,7 +242,7 @@ GOAL_ID="$(json_get /tmp/shiki-loop-e2e-run.json goal_id)"
 python3 "$ROOT/scripts/shiki.py" loop run --target "$TARGET" --goal-id "$GOAL_ID" --max-cycles 12 --interval 0 >/tmp/shiki-loop-e2e-result.json
 test "$(json_get_last /tmp/shiki-loop-e2e-result.json outcome)" = "complete"
 grep '"status": "complete"' "$TARGET/.shiki/goals/$GOAL_ID.json" >/dev/null
-# Two merges now: the impl PR, then the ADR 0012 closeout PR that pushes the
+# Two merges now: the impl PR, then the SADR-0012 closeout PR that pushes the
 # task=done + goal=complete bookkeeping to main.
 test "$(grep -c merged "$GH_STATE/gh-log")" = "2"
 

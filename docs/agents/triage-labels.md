@@ -20,7 +20,7 @@ Target Repositories may customize labels, but the Shiki Template assumes these c
 ## Risk
 
 - `risk:low` - eligible for automation and goal-loop auto-merge after required checks.
-- `risk:medium` - requires normal review; goal-loop auto-merge permitted once all MergeGate evidence is green (ADR 0008).
+- `risk:medium` - requires normal review; goal-loop auto-merge permitted once all MergeGate evidence is green (SADR-0008).
 - `risk:high` - requires Guardian approval before merge.
 - `risk:critical` - no auto-merge; explicit approval and audit evidence required.
 

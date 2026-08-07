@@ -1,4 +1,4 @@
-"""ADR 0018 base-sync carry (guardian_comment_carried) reaches CI.
+"""SADR-0018 base-sync carry (guardian_comment_carried) reaches CI.
 
 The verifier (`shiki_sync_proof.verify_pure_base_sync`) and the evaluator
 (`shiki_guardian.evaluate_guardian_approval`) were correct and complete, but no

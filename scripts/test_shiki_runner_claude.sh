@@ -48,7 +48,7 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
   "grill_with_docs": {
     "status": "complete",
     "source": "CONTEXT.md",
-    "decisions": ["Use Claude Code as the default implementation runtime (ADR 0008)"]
+    "decisions": ["Use Claude Code as the default implementation runtime (SADR-0008)"]
   },
   "spec_freeze": {
     "status": "frozen",

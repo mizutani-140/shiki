@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""ADR 0015 Contract Approval: the pure evaluator MergeGate accepts as an
+"""SADR-0015 Contract Approval: the pure evaluator MergeGate accepts as an
 alternative to a live PR Guardian approval.
 
-ADR 0015 moves Guardian approval for high/critical risk from the implementation
+SADR-0015 moves Guardian approval for high/critical risk from the implementation
 diff to the task contract, *before* dispatch. A spec-frozen Goal registers its
 task contracts to the default branch through a Guardian-approved Contract PR; the
 implementation PRs of that Goal then carry no approval of their own. This module
@@ -16,7 +16,7 @@ carry ``applies``, the ``sources`` recorded when it does (a single
 ``contract_approval`` token, reported in the same array the CCA Guardian signal
 and MergeGate already use), and the ``reasons`` naming every failed condition.
 
-ADR 0015 "Evaluation placement": Contract Approval is evaluated by this new,
+SADR-0015 "Evaluation placement": Contract Approval is evaluated by this new,
 separately tested function; MergeGate accepts *either* live PR approval OR a
 ``applies=True`` Contract Approval. ``evaluate_guardian_approval`` — the most
 security-critical function in the repository — is never modified. A defect here
@@ -46,14 +46,14 @@ from typing import Any
 from mergegate_check import _NORMAL_PATH_GOVERNANCE_FIELDS
 
 # The token recorded in the Guardian ``sources`` array when Contract Approval
-# applies. ADR 0015 is explicit that a ``contract_approval`` entry in the signal's
+# applies. SADR-0015 is explicit that a ``contract_approval`` entry in the signal's
 # existing ``sources`` array satisfies the CCA prompt's current wording.
 CONTRACT_APPROVAL_SOURCE = "contract_approval"
 
 
 @dataclass(frozen=True)
 class ContractApprovalResult:
-    """Outcome of evaluating ADR 0015 Contract Approval for one task PR.
+    """Outcome of evaluating SADR-0015 Contract Approval for one task PR.
 
     ``applies`` is True only when all four conditions hold; ``sources`` then
     carries exactly ``(CONTRACT_APPROVAL_SOURCE,)`` and is empty otherwise.
@@ -75,7 +75,7 @@ def _is_pr_number(value: Any) -> bool:
 
 def _registration_proof_reasons(task_id: str, registration: Any) -> list[str]:
     """Reasons the ``registration`` proof fails to prove the registering PR
-    (ADR 0015 condition 3). Empty list means the proof holds.
+    (SADR-0015 condition 3). Empty list means the proof holds.
 
     The proof must: name a PR number; report ``merged: true``; report that the
     commit which ADDED ``.shiki/tasks/<task_id>.json`` to the base branch belongs
@@ -142,7 +142,7 @@ def evaluate_contract_approval(
     changed_files_status: Any,
     registration: Any,
 ) -> ContractApprovalResult:
-    """Whether this PR carries an ADR 0015 Contract Approval.
+    """Whether this PR carries a SADR-0015 Contract Approval.
 
     The four conditions are evaluated IN ORDER, each failure recorded as a
     distinct reason string:

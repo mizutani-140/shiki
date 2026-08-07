@@ -156,7 +156,7 @@ CLAUDE_ADAPTER = RunnerAdapter(
     auth_remediation="Run `claude auth login` in a terminal or `/login` inside Claude Code before dispatch.",
 )
 
-# The independent pre-PR code-review verifier (ADR 0011). It is the SAME model as
+# The independent pre-PR code-review verifier (SADR-0011). It is the SAME model as
 # the implementer but in a SEPARATE context with HARD read-only confinement — the
 # independence IS the context boundary, exactly as for CCA. It is NEVER the
 # bypassPermissions implementer. A reviewer that cannot mutate the tree cannot

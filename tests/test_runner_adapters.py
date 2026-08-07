@@ -1,4 +1,4 @@
-"""Runtime adapter boundary contract (ADR 0008).
+"""Runtime adapter boundary contract (SADR-0008).
 
 Asserts that every runner adapter binds to a registered runtime with the
 runner role, that the codex and claude-code adapters exist with coherent
