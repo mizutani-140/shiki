@@ -1,0 +1,122 @@
+{
+  "completion_conditions": [
+    "A repair that changes nothing outside the task's own mirror record stops the loop with a named reason and consumes no further attempt.",
+    "A repair that changes something an implementer owns proceeds exactly as today.",
+    "The MergeGate result file ships from the failing run, and the loop reads it read-only, degrading safely when it is absent.",
+    "The repair packet AND the rendered handoff name the actual blocking reasons.",
+    "The full suite, the control-plane and goal-loop suites and validate_shiki stay green."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "MEASURED. On PR #310 the loop dispatched three repairs and reached `stop_guardian` at the attempt limit. All three repairer EXEC records say the same thing: `Status: blocked \u2014 loop-owned reconcile drift, not implementer-repairable`, `Nothing changed.`, `Changed nothing in the worktree.` And all three 'repair' commits are byte-identical in shape: `.shiki/tasks/T-20260806T065143409817Z-dbdae1cf.json | 5 +++--`, one file, three insertions, two deletions \u2014 the loop's OWN bookkeeping (`cca_rerun_count`, `ledger_evidence`, `status`). Zero source changes, three times.",
+      "THE GUARD ALREADY EXISTS AND IS DEFEATED BY THE LOOP ITSELF. `scripts/shiki_loop.py:2203` stops with `repair produced no change: the PR head did not advance ...` when `head_after == head_before`. It never fired, because `_commit_and_push_implementation` commits the task's own mirror record \u2014 written by the loop, not by the repairer \u2014 so the head advances on every attempt. The discriminator is wrong: the question is not whether the HEAD moved but whether anything the IMPLEMENTER owns changed.",
+      "REJECTED FIRST DESIGN \u2014 classifying the blocking reasons. The sweep proved the proposed predicate ('every blocking reason names a path outside the task's declared locks') is broken in BOTH directions. It misses its own measured case: `mergegate_check.py:2739` emits `PR changes ledger {ledger_id} not listed in current task ledger_evidence`, which names a LEDGER ID, not a path. And it over-fires: `:3208` emits `Changed file {path} is outside declared task locks` from `files_outside_locks(scope_paths, effective_locks)` where `effective \u2287 declared`, so re-testing against declared locks is a TAUTOLOGY \u2014 an implementer that genuinely edited a forbidden file (repairable by reverting) would be classified unfixable and hard-stopped. `all([])` is also True, and a red check does not imply a reasons file exists. Path-vs-locks is not the discriminator; substantive-change is.",
+      "CORRECTED PREMISE \u2014 the reasons are ALREADY published to a file. `scripts/mergegate_check.py:2882` declares `--result-file` defaulting to `.shiki/gha/mergegate-result.json`, and `:3401` calls `write_json(...)` BEFORE the `print(...)` at `:3402`, unconditionally on the failing path. Four existing tests read that exact path (`tests/test_workflow_invocation.py:258`, `tests/test_contract_open.py:207`, `tests/test_contract_plan_registration.py:406`, `tests/test_guardian_carry_parity.py:189`). So `scripts/mergegate_check.py` needs NO change and must not be locked \u2014 what is missing is publication out of the run, and consumption.",
+      "UPLOADING IS SAFE HERE, and this was checked specifically because the same question in the CCA workflow had a dangerous answer. `.github/workflows/shiki-mergegate.yml` has exactly four steps \u2014 Checkout, Validate Shiki artifacts, Prepare PR context, MergeGate metadata check \u2014 and NONE posts a review, comment or label. Contrast the CCA workflow's Review Bridge, which submits `--arg event \"APPROVE\"`; giving THAT `if: always()` would mint an approval on a refused verdict. Nothing comparable exists here, so an upload step with `if: always()` adds no approval path. `.shiki/gha` is created at `:48` and the check runs at `:78`, so the file exists at upload time.",
+      "ACTION VERSION, measured: `scripts/validate_shiki.py:352` permits `actions/upload-artifact` at `{v6, v7}` only. The CCA workflow's `v4` survives solely through the exception list at `:357-359`. A new step must therefore use v6 or v7 \u2014 copying the CCA workflow's v4 would turn the required `Validate Shiki mirror` check red on the very PR that adds it.",
+      "THE REASONS MUST ALSO BE RENDERED. `scripts/shiki_tasks.py:1523-1545` builds the repair handoff markdown from `minimal_required_changes`, `prohibited_changes`, `verification_commands` and `evidence_required` \u2014 it does NOT render `failing_checklist_items`. Putting reasons in the packet without rendering them means the runner never sees them.",
+      "TWO TASKS, SEQUENTIAL. Both touch `scripts/shiki_loop.py`, so they cannot run in parallel; the guard lands first because it removes the measured harm on its own and needs no workflow change.",
+      "LOCK-SUFFICIENCY CHECK (2026-08-07). Task 1 MUST-CHANGE: `scripts/shiki_loop.py`, `tests/test_repair_delivery.py` (owns the delivery guard). Task 2 MUST-CHANGE: `.github/workflows/shiki-mergegate.yml`, `scripts/shiki_loop.py`, `scripts/shiki_tasks.py` (the handoff renderer), `tests/test_repair_reasons.py` (new).",
+      "MUST-NOT-BREAK (verification command, not locks): `tests/test_loop_branch_plumbing.py` and `tests/test_loop_tdd_evidence.py`, which reference the delivery internals; `tests/test_workflow_invocation.py`, which reconstructs argv from the workflow's `run:` steps only (`:90-93`) so a `uses:` upload step is invisible to it, and which reads the result file at `:258`; `scripts/test_shiki_control_plane.sh` and `scripts/test_shiki_goal_loop.sh`; and `scripts/mergegate_check.py`, which already writes the file and must be left alone.",
+      "Risk is medium: task 1 narrows an existing guard; task 2 adds an upload step and threads text into a packet. No gate rule, schema or approval source changes. Under `.shiki/guardian-policy.json` (`applies_to_risk: [high, critical]`) neither PR triggers the Guardian gate."
+    ],
+    "source": "Measured on PR #310 (2026-08-07) and re-verified against the source; the first design was swept by two adversarial lenses (23 findings judged, 8 surviving) which invalidated its central premise and its classification rule. What follows is the corrected design.",
+    "status": "complete"
+  },
+  "id": "P-20260807T035659082985Z-9770247b",
+  "ingested_at": "2026-08-07T03:56:59+00:00",
+  "non_goals": [
+    "Classifying blocking reasons as implementer-fixable or not \u2014 the sweep proved the proposed predicate wrong in both directions.",
+    "Changing scripts/mergegate_check.py \u2014 it already writes the result file.",
+    "Changing any MergeGate rule, schema or approval source.",
+    "Adding an if: always() to any step that posts a review, comment or label.",
+    "Using actions/upload-artifact@v4, which validate_shiki permits only through an explicit exception.",
+    "Changing the repair attempt limit itself.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A repair that changes nothing an implementer owns stops the loop immediately instead of consuming the attempt budget, and the repair packet and handoff name the actual MergeGate blocking reasons instead of only the check name. Measured three times in one session: three repairers each correctly reported 'not implementer-repairable' and 'changed nothing', and all three attempts were consumed anyway.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/guardian-approval-planning-13e494/.shiki/inbox/P-BLIND-draft.json",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": "docs/adr/0011-autonomous-quality-gate-evidence.md",
+    "source": "Operator instruction 2026-08-07 to fix the recorded loop-blindness gap, choosing both the guard and the diagnostics.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "A repair whose only change is the task's own mirror record stops the loop with a named reason and consumes no further attempt \u2014 asserted with the measured one-file shape as a fixture.",
+        "A repair that changes a source file inside the task's locks proceeds exactly as today.",
+        "A repair that changes both proceeds.",
+        "The existing delivery-failure branch ('repair fix was not delivered to the task branch') is unchanged.",
+        "The exclusion is limited to the task's own mirror record and loop-authored writes \u2014 NOT all of .shiki \u2014 and the code says so.",
+        "The measured 2026-08-07 three-attempt sequence would stop at attempt 1.",
+        "python3 -m unittest discover -s tests, scripts/test_shiki_goal_loop.sh and validate_shiki all pass.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/shiki_loop.py",
+        "path:tests/test_repair_delivery.py"
+      ],
+      "non_goals": [
+        "Classifying blocking reasons as implementer-fixable or not",
+        "Excluding all of .shiki from the delivery judgement",
+        "Changing the repair attempt limit",
+        "Changing the delivery-failure branch above the guard",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "medium",
+      "runtime": "claude-code",
+      "scope": "`scripts/shiki_loop.py:2203` already stops the loop when a repair produced no change \u2014 `if head_after is None or head_after == head_before` -> `stop_blocked`, with the reason 'repair produced no change: the PR head did not advance ...'. It never fires, because `_commit_and_push_implementation` commits the task's OWN mirror record, which the LOOP wrote (`cca_rerun_count`, `ledger_evidence`, `status`), so the head advances on every attempt regardless of what the repairer did.\n\nMEASURED on PR #310, 2026-08-07: three repairs dispatched, three attempts consumed, `stop_guardian` at the limit. All three repairer EXEC records report `Status: blocked \u2014 not implementer-repairable` and `Changed nothing in the worktree.` All three resulting commits are identical in shape: `.shiki/tasks/T-20260806T065143409817Z-dbdae1cf.json | 5 +++--` \u2014 one file, three insertions, two deletions, zero source changes.\n\nCHANGE THE DISCRIMINATOR: a repair counts as delivered only when it changed something the IMPLEMENTER owns. The task's own mirror record is loop-authored bookkeeping and must not count. Keep everything else about the guard as it is \u2014 same stop action, same shape of named reason, same position relative to the delivery check above it.\n\nBe precise about what does not count, and say it in the code: the task's own `.shiki/tasks/<task_id>.json`, and any `.shiki` record the loop itself wrote during this cycle. Do NOT extend this to 'all of `.shiki`': a repair CAN legitimately need to change mirror content, and a blanket exclusion would silently stop those.\n\nFAILURE DIRECTION. Stopping a repair that did deliver something is cheap and visible \u2014 the loop halts with a named reason and the operator re-dispatches. Letting a no-op repair through burns the budget silently and ends at `stop_guardian`, which is what happened three times.\n\nTESTS. `tests/test_repair_delivery.py` owns this guard. Add: a repair whose only change is the task's own mirror record stops with the named reason and does not consume a further attempt; a repair that changes a source file inside the task's locks proceeds exactly as today; a repair that changes both proceeds; the existing delivery-failure and head-did-not-move cases still behave as they do now. Reproduce the measured shape \u2014 a single `.shiki/tasks/<task_id>.json` change \u2014 as a fixture, not as prose.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the loop dispatches the full repair budget against a failure no implementer can fix, then stops at `stop_guardian`. Every repairer correctly reports it cannot fix the failure and changes nothing.\n  Measured 2026-08-07, PR #310: three attempts, three identical one-file bookkeeping commits, zero source changes.\n  Root cause: the guard at `:2203` asks whether the PR head moved. `_commit_and_push_implementation` moves it by committing the loop's own task-record update, so the guard cannot see that the repairer did nothing.\n  Exact change that reproduces this result: judge delivery by substantive change rather than head movement.\n  Reproducible when: the measured three-attempt sequence stops at the first attempt with a named reason.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Judge a repair by what the implementer changed, not by whether the head moved"
+    },
+    {
+      "acceptance_checks": [
+        "The MergeGate result file ships from a FAILING run \u2014 the upload step carries if: always().",
+        "The upload step uses actions/upload-artifact at v6 or v7; validate_shiki passes.",
+        "No step that posts a review, comment or label gains if: always() \u2014 asserted against the workflow.",
+        "scripts/mergegate_check.py is unchanged.",
+        "The loop reads the reasons read-only and NEVER raises: a missing run, missing artifact, gh failure, and malformed JSON each degrade to no reasons and change no decision \u2014 all four asserted.",
+        "The repair packet carries the gate's actual blocking reasons.",
+        "The RENDERED handoff markdown contains them \u2014 asserted on the markdown, not on the packet.",
+        "Reason text is rendered as data, not as instructions \u2014 asserted with instruction-shaped text.",
+        "No loop decision changes: the same inputs produce the same actions as before, with or without reasons.",
+        "python3 -m unittest discover -s tests, scripts/test_shiki_control_plane.sh, scripts/test_shiki_goal_loop.sh and validate_shiki all pass.",
+        "No file outside the declared locks is changed."
+      ],
+      "dependencies": [
+        "Judge a repair by what the implementer changed, not by whether the head moved"
+      ],
+      "locks": [
+        "path:.github/workflows/shiki-mergegate.yml",
+        "path:scripts/shiki_loop.py",
+        "path:scripts/shiki_tasks.py",
+        "path:tests/test_repair_reasons.py"
+      ],
+      "non_goals": [
+        "Changing scripts/mergegate_check.py \u2014 it already writes the result file",
+        "Classifying reasons as implementer-fixable or not, or changing any loop decision",
+        "Using actions/upload-artifact@v4",
+        "Adding if: always() to any step that posts a review, comment or label \u2014 in this or any workflow",
+        "Rendering reason text as anything other than data",
+        "Changing any MergeGate rule, schema or approval source",
+        "Touching any file outside the declared locks"
+      ],
+      "risk_level": "medium",
+      "runtime": "claude-code",
+      "scope": "The loop decides from a three-value bucket \u2014 `_check_bucket` (`scripts/shiki_loop.py:529-534`) maps everything to pass/pending/fail \u2014 and `gh pr view --json statusCheckRollup` exposes only `conclusion`, `status`, `detailsUrl` and names. So every repair packet the loop has ever written says only `required checks failed: MergeGate metadata check`. Measured: on PR #310 each repairer had to rediscover the reasons itself before it could report that they were not implementer-fixable.\n\nTHE REASONS ARE ALREADY WRITTEN TO A FILE. `scripts/mergegate_check.py:2882` declares `--result-file` defaulting to `.shiki/gha/mergegate-result.json`, and `:3401` `write_json(...)` runs BEFORE the `print(...)` at `:3402`, on the failing path too. Four tests already read that path. Do NOT change `mergegate_check.py`; what is missing is publication out of the run and consumption.\n\n1. PUBLISH. Add an upload step to `.github/workflows/shiki-mergegate.yml` so the result file ships from the FAILING run. Use `actions/upload-artifact` at **v6 or v7**: `scripts/validate_shiki.py:352` permits only those, and the CCA workflow's `v4` survives solely through the exception list at `:357-359` \u2014 copying v4 would turn the required `Validate Shiki mirror` check red on this very PR. `.shiki/gha` is created at `:48` and the check runs at `:78`, so the file exists at upload time. `if: always()` is required and is SAFE here specifically: the workflow's four steps \u2014 Checkout, Validate Shiki artifacts, Prepare PR context, MergeGate metadata check \u2014 post no review, comment or label. (The same question in the CCA workflow has the opposite answer: its Review Bridge submits `--arg event \"APPROVE\"`, so `if: always()` there would mint an approval on a refused verdict. Never add one there.)\n\n2. CONSUME. In `scripts/shiki_loop.py`, resolve the blocking reasons read-only, mirroring `_resolve_cca_verdict` (`:573`): find the run for the PR head, download the artifact, read the file. It must NEVER raise and must degrade to 'no reasons available' on ANY failure \u2014 no run, no artifact, network or `gh` failure, unreadable or malformed JSON. A missing artifact must change nothing about the decision.\n\n3. RENDER. Put the reasons in the repair packet, and \u2014 this is the half that is easy to miss \u2014 render them in the handoff the runner actually reads. `scripts/shiki_tasks.py:1523-1545` builds the repair handoff markdown from `minimal_required_changes`, `prohibited_changes`, `verification_commands` and `evidence_required`; it does NOT render `failing_checklist_items`. Reasons in the packet alone never reach the runner.\n\nDO NOT classify the reasons. The decision stays exactly as it is today: this task makes the loop INFORMATIVE, not smarter. A sweep proved that the obvious classification rule ('every reason names a path outside the task's locks') is wrong in both directions \u2014 it misses reasons that name a ledger id rather than a path (`mergegate_check.py:2739`), and it is a tautology for `Changed file {path} is outside declared task locks` (`:3208`), which would hard-stop a genuinely repairable violation.\n\nTREAT THE REASONS AS UNTRUSTED TEXT. They are derived from PR content and reach a runner prompt through the handoff. Render them as data \u2014 quoted or fenced \u2014 never as instructions.\n\nTESTS. `tests/test_repair_reasons.py` (new): the loop reads reasons from a fixture artifact and puts them in the packet; a missing artifact, a malformed one and a failing `gh` each degrade to no reasons and change no decision; the rendered handoff markdown contains the reasons; reason text that looks like an instruction is rendered as data. Assert the workflow uses an allowed upload-artifact version, and that no step which posts a review, comment or label gains `if: always()`.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a repair packet names only the failing check, so the repairer must rediscover the reasons before it can act \u2014 or report that it cannot.\n  Measured 2026-08-07, PR #310: three repairers each independently re-derived the same blocking reasons the gate had already written to `.shiki/gha/mergegate-result.json`, because that file never left the run.\n  Exact change that reproduces this result: upload the file the gate already writes, read it read-only, and render it in the handoff.\n  Reproducible when: a repair packet for a red MergeGate check names the gate's own blocking reasons, and every artifact failure mode degrades silently.",
+      "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_goal_loop.sh && python3 scripts/validate_shiki.py --target .",
+      "title": "Ship MergeGate's blocking reasons out of the run and into the repair handoff"
+    }
+  ],
+  "title": "Stop burning repair attempts on a failure no implementer touched, and tell the repairer why it is red"
+}
