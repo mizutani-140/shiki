@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "gh run rerun 31139343241 --failed"
+  ],
+  "goal_id": "G-20260806T084356214001Z-8198f059",
+  "id": "L-20260807T015628346350Z-472f29c2",
+  "links": [],
+  "summary": "Goal loop reran CCA for T-20260806T084356215508Z-7a7dd694 after sibling checks settled",
+  "task_id": "T-20260806T084356215508Z-7a7dd694",
+  "timestamp": "2026-08-07T01:56:28+00:00",
+  "type": "check"
+}
