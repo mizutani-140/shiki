@@ -412,6 +412,20 @@ def should_skip(path: Path, *, target_install: bool = False) -> bool:
         manifest = load_manifest(ROOT)
         if relative_text in manifest_install_include(manifest):
             return False
+        # An installed target also contains its own product ADRs under
+        # ``docs/adr/NNNN-*.md``. They are target content, never Shiki template
+        # files, so a target-local CLI must not re-export them when installing
+        # another fixture or repository. Platform decisions use the explicit
+        # ``SADR-NNNN-*.md`` namespace and continue through the normal copy path.
+        if relative_text.startswith("docs/adr/"):
+            name = path.name
+            if (
+                len(name) > 5
+                and name[:4].isdigit()
+                and name[4] == "-"
+                and name.endswith(".md")
+            ):
+                return True
         # Platform-only tests never ship into a target (see TARGET_INSTALL_EXCLUDES).
         if relative_text in TARGET_INSTALL_EXCLUDES:
             return True
