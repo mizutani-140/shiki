@@ -27,7 +27,7 @@
   ],
   "dependencies": [],
   "expected_branch": "shiki/t-20260807t073307221254z-2d22d654-introduce-sadr-and-migrate-installs-without-touc",
-  "expected_pr": 326,
+  "expected_pr": 327,
   "github_issue": 322,
   "goal_id": "G-20260807T073307219752Z-1ee1ed68",
   "id": "T-20260807T073307221254Z-2d22d654",
@@ -53,7 +53,15 @@
     "L-20260807T090808106441Z-0ef0e938",
     "L-20260807T090959552428Z-79391306",
     "L-20260807T091003652174Z-3a4a6aed",
-    "L-20260807T091307168288Z-87cc6c2b"
+    "L-20260807T091307168288Z-87cc6c2b",
+    "L-20260807T092237174335Z-645d7ac6",
+    "L-20260807T092243886044Z-d38d70d2",
+    "L-20260807T092519234381Z-329f55a6",
+    "L-20260807T092519235095Z-b1a927dc",
+    "L-20260807T092519235475Z-d1f36863",
+    "L-20260807T092706813450Z-2d0e6342",
+    "L-20260807T092757733792Z-1f829f86",
+    "L-20260807T092801435464Z-1832e1b2"
   ],
   "locks": [
     "path:.codex/**",
@@ -79,9 +87,8 @@
   "pre_pr_code_review": {
     "exception": "default Claude reviewer unavailable (not logged in)",
     "findings": [],
-    "ledger_id": "L-20260807T090537097653Z-fd4b9d75",
-    "repaired_finding_ledger": "L-20260807T090317201023Z-bb2e314b",
-    "review_session": "019fdb77-6c1c-75f3-90c0-1ee1caf9dd29",
+    "ledger_id": "L-20260807T092519235475Z-d1f36863",
+    "review_session": "019fdb89-8656-7e90-89a8-a8cf555d810b",
     "reviewer_runtime": "codex-read-only",
     "verdict": "clean"
   },

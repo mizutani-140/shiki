@@ -12,6 +12,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
@@ -23,7 +24,10 @@ PRODUCT_NUMBERS = tuple(range(13, 19))
 
 
 def _quiet_install(target: Path, *, force: bool, validate: bool) -> None:
-    with contextlib.redirect_stdout(io.StringIO()):
+    with (
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+    ):
         shiki_installer.install_template(target, force=force, validate=validate)
 
 
@@ -150,6 +154,37 @@ class FreshSadrInstallTests(unittest.TestCase):
             installed_reference_tests.returncode,
             0,
             installed_reference_tests.stdout + installed_reference_tests.stderr,
+        )
+
+    def test_installed_target_source_does_not_reexport_its_product_adrs(self) -> None:
+        platform_root = self.tmp / "installed-target-source"
+        shutil.copytree(
+            shiki_installer.ROOT / "docs" / "adr",
+            platform_root / "docs" / "adr",
+        )
+        (platform_root / ".shiki").mkdir(parents=True)
+        shutil.copy2(
+            shiki_installer.ROOT / ".shiki" / "manifest.json",
+            platform_root / ".shiki" / "manifest.json",
+        )
+        source_product_adr = (
+            platform_root / "docs" / "adr" / "0042-installed-target-product.md"
+        )
+        source_product_adr.write_text(
+            "# Installed target product ADR 0042\n",
+            encoding="utf-8",
+        )
+
+        with mock.patch.object(shiki_installer, "ROOT", platform_root):
+            _quiet_install(self.target, force=False, validate=False)
+
+        self.assertFalse((self.adr_dir / source_product_adr.name).exists())
+        self.assertEqual(
+            {
+                path.name.split("-", 2)[1]
+                for path in self.adr_dir.glob("SADR-[0-9][0-9][0-9][0-9]-*.md")
+            },
+            {f"{number:04d}" for number in range(1, 20)},
         )
 
 

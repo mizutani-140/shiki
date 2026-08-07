@@ -18,7 +18,7 @@
     "path:tests/**"
   ],
   "path": "/private/tmp/shiki-adr-collision.pa0KwY/.worktrees/shiki-t-20260807t073307221254z-2d22d654-introduc",
-  "pr": 326,
+  "pr": 327,
   "runtime": "codex",
   "state": "active",
   "task_id": "T-20260807T073307221254Z-2d22d654"
