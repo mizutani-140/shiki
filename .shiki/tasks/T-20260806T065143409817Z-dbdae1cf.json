@@ -12,9 +12,11 @@
     "No file outside the declared locks is changed."
   ],
   "assigned_runtime": "claude-code",
+  "cca_rerun_count": 1,
+  "closeout_pr": 311,
   "dependencies": [],
-  "expected_branch": "shiki/t-20260806t065143409817z-dbdae1cf-stage-every-coordinator-mirror-write-not-only-th",
-  "expected_pr": 310,
+  "expected_branch": "shiki/t-20260806t065143409817z-dbdae1cf-closeout",
+  "expected_pr": 311,
   "github_issue": null,
   "goal_id": "G-20260806T065143407702Z-8e3284ce",
   "id": "T-20260806T065143409817Z-dbdae1cf",
@@ -45,7 +47,9 @@
     "L-20260807T005717054285Z-5ef7350d",
     "L-20260806T092635572066Z-c2ad500f",
     "L-20260806T095426481068Z-a132a30e",
-    "L-20260806T100007170970Z-4e8d4b6d"
+    "L-20260806T100007170970Z-4e8d4b6d",
+    "L-20260807T010657438895Z-98b4d30a",
+    "L-20260807T011324299920Z-82fb4a3d"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
