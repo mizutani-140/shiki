@@ -1,0 +1,10 @@
+{
+  "command": "codex exec - <.shiki/handoffs/T-20260807T073307221254Z-2d22d654-task.md>",
+  "created_at": "2026-08-07T08:02:28+00:00",
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "EXEC-20260807T080228574334Z-afc9b9df",
+  "returncode": 1,
+  "stderr": "WARNING: proceeding, even though we could not create PATH aliases: Operation not permitted (os error 1)\n2026-08-07T08:02:28.554934Z  WARN codex_state::runtime: failed to open state db at /Users/kio.mizutani/.codex/state_5.sqlite: failed to open state DB at /Users/kio.mizutani/.codex/state_5.sqlite: error returned from database: (code: 8) attempt to write a readonly database\n2026-08-07T08:02:28.556937Z  WARN codex_rollout::state_db: failed to initialize state runtime: failed to initialize state runtime at /Users/kio.mizutani/.codex: failed to open state DB at /Users/kio.mizutani/.codex/state_5.sqlite: error returned from database: (code: 8) attempt to write a readonly database: error returned from database: (code: 8) attempt to write a readonly database: (code: 8) attempt to write a readonly database\nError: failed to initialize in-process app-server client: Operation not permitted (os error 1)\n",
+  "stdout": "",
+  "task_id": "T-20260807T073307221254Z-2d22d654"
+}

@@ -11,6 +11,20 @@
     "python3 -m unittest discover -s tests, control-plane and adversarial shell suites, validate_shiki, and fresh-install/upgrade tests pass locally and in CI on the exact head."
   ],
   "assigned_runtime": "codex",
+  "cca_checklist_profile": [
+    "CCA-01",
+    "CCA-02",
+    "CCA-03",
+    "CCA-04",
+    "CCA-05",
+    "CCA-06",
+    "CCA-07",
+    "CCA-08",
+    "CCA-09",
+    "CCA-10",
+    "CCA-11",
+    "CCA-12"
+  ],
   "dependencies": [],
   "expected_branch": "shiki/t-20260807t073307221254z-2d22d654-introduce-sadr-and-migrate-installs-without-touc",
   "expected_pr": null,
@@ -18,7 +32,10 @@
   "goal_id": "G-20260807T073307219752Z-1ee1ed68",
   "id": "T-20260807T073307221254Z-2d22d654",
   "ledger_evidence": [
-    "L-20260807T073307221361Z-b3c3a718"
+    "L-20260807T073307221361Z-b3c3a718",
+    "L-20260807T080107948254Z-61f24da0",
+    "L-20260807T080228312210Z-07ac626e",
+    "L-20260807T080228575038Z-d574f629"
   ],
   "locks": [
     "path:.codex/**",
@@ -46,23 +63,9 @@
     "tdd",
     "code-review"
   ],
-  "cca_checklist_profile": [
-    "CCA-01",
-    "CCA-02",
-    "CCA-03",
-    "CCA-04",
-    "CCA-05",
-    "CCA-06",
-    "CCA-07",
-    "CCA-08",
-    "CCA-09",
-    "CCA-10",
-    "CCA-11",
-    "CCA-12"
-  ],
   "risk_level": "high",
   "scope": "Rename Shiki platform decision records to SADR-0001 through SADR-0018; add SADR-0019; update current citations, packaging metadata, documentation, workflows, prompts, repo-local skill guidance, and the reference validator for separate ADR/SADR namespaces; add an installer preflight that inventories legacy numeric Shiki ADR paths and authorizes deletion only from matching existing install-stamp path digests before any write; then apply authorized cleanup, install SADRs, refresh the stamp, and prove fresh-install plus CubeShare-shaped collision-upgrade behavior with TDD.",
-  "status": "planned",
+  "status": "repair-needed",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Introduce SADR and migrate installs without touching product ADRs"
 }

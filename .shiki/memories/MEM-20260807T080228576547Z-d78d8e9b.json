@@ -1,0 +1,26 @@
+{
+  "applies_to": [],
+  "area": "runner",
+  "claim": "Runner execution failed with a non-zero return code (1).",
+  "created_at": "2026-08-07T08:02:28+00:00",
+  "evidence": [
+    {
+      "kind": "exec",
+      "path": ".shiki/runner/EXEC-20260807T080228574334Z-afc9b9df.json"
+    }
+  ],
+  "id": "MEM-20260807T080228576547Z-d78d8e9b",
+  "redaction": {
+    "notes": "",
+    "status": "clean"
+  },
+  "schema_version": 1,
+  "source": {
+    "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+    "kind": "runner_fail",
+    "task_id": "T-20260807T073307221254Z-2d22d654"
+  },
+  "status": "raw",
+  "tags": [],
+  "updated_at": "2026-08-07T08:02:28+00:00"
+}

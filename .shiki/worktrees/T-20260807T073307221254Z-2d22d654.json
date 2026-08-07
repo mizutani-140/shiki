@@ -1,0 +1,25 @@
+{
+  "branch": "shiki/t-20260807t073307221254z-2d22d654-introduce-sadr-and-migrate-installs-without-touc",
+  "created_at": "2026-08-07T08:02:28+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "locks": [
+    "path:.codex/**",
+    "path:.github/**",
+    "path:.shiki/**",
+    "path:AGENTS.md",
+    "path:CLAUDE.md",
+    "path:CONTEXT.md",
+    "path:CONTRIBUTING.md",
+    "path:SYSTEM_PROMPT.md",
+    "path:docs/**",
+    "path:pyproject.toml",
+    "path:scripts/**",
+    "path:tests/**"
+  ],
+  "path": "/private/tmp/shiki-adr-collision.pa0KwY/.worktrees/shiki-t-20260807t073307221254z-2d22d654-introduc",
+  "pr": null,
+  "runtime": "codex",
+  "state": "active",
+  "task_id": "T-20260807T073307221254Z-2d22d654"
+}
