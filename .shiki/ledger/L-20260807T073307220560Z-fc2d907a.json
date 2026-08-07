@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260807T073307219752Z-1ee1ed68.json",
+    ".shiki/plans/P-20260807T073304061131Z-9dfd1fc8.json"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T073307220560Z-fc2d907a",
+  "links": [],
+  "summary": "Goal registered from plan: Separate Shiki platform decisions from target ADRs with a SADR namespace",
+  "task_id": null,
+  "timestamp": "2026-08-07T07:33:07+00:00",
+  "type": "goal-created"
+}

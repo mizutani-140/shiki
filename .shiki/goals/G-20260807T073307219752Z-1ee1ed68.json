@@ -1,0 +1,55 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "Shiki platform decisions are docs/adr/SADR-NNNN-<slug>.md and live platform citations resolve through SADR.",
+    "Target repositories keep docs/adr/NNNN-<slug>.md product decisions without ambiguity or forced renumbering.",
+    "Fresh installs and stamped upgrades preserve target ADR bytes and pass validation.",
+    "A legacy Shiki ADR is removed only when its install-stamp path and digest match, otherwise the upgrade stops before the first write.",
+    "Unit, shell, validation, fresh-install, and upgrade suites pass in CI on the exact PR head."
+  ],
+  "created_at": "2026-08-07T07:33:07+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "Use SADR for Shiki platform decisions and retain ADR for target product decisions. Collision-only refusal leaves targets unupgradable; per-target renumbering destroys stable platform identity.",
+      "Rename existing platform records to SADR-0001 through SADR-0018 and record the decision as SADR-0019. Update current citations, resolver code, fixtures, packaging, and operator guidance together.",
+      "Treat frozen .shiki evidence as history and do not mechanically rewrite completed Goal, Plan, Task, Ledger, Report, Handoff, or Runner prose.",
+      "Plan all legacy removals before any write. A present legacy path is deletable only when a readable existing stamp contains the path and its digest equals the current file digest.",
+      "Absent, unreadable, malformed, incomplete, or mismatching ownership evidence fails closed with all blockers and a byte-identical target tree.",
+      "After clean preflight, delete only proven legacy paths, copy SADRs, and refresh the stamp with SADR digests and no removed legacy path.",
+      "Keep namespace, resolver, shipped templates, and atomic cleanup in one vertical slice because no partial branch is independently safe and valid."
+    ],
+    "source": "Architecture review and Requirements Definition for GitHub Goal #322 on 2026-08-07 after a real CubeShare upgrade produced ambiguous ADR references and a red full suite.",
+    "status": "complete"
+  },
+  "id": "G-20260807T073307219752Z-1ee1ed68",
+  "ledger_evidence": [
+    "L-20260807T073307220560Z-fc2d907a"
+  ],
+  "non_goals": [
+    "Renumbering or rewriting target product ADRs.",
+    "Rewriting historical .shiki evidence that accurately records the former namespace.",
+    "Deleting a target-owned file without exact install-stamp ownership evidence.",
+    "Changing Guardian, Contract Approval, lock, CCA, or MergeGate semantics.",
+    "Repairing the separate installer defect that overwrites a target .gitignore during upgrade."
+  ],
+  "outcome": "Shiki platform decisions use a collision-free SADR namespace, while target repositories keep their existing ADR namespace. Fresh installs and stamped upgrades remain deterministic, and an upgrade removes a legacy numeric Shiki ADR only when its recorded install-stamp digest proves that the file is still platform-owned and unchanged.",
+  "required_skills": [
+    "grill-with-docs",
+    "improve-codebase-architecture",
+    "to-prd",
+    "to-issues",
+    "triage",
+    "diagnose",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260807T073304061131Z-9dfd1fc8",
+  "status": "planned",
+  "title": "Separate Shiki platform decisions from target ADRs with a SADR namespace"
+}
