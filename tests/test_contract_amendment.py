@@ -1,4 +1,4 @@
-"""Spec Amendment PR mode (ADR 0009/0015): correct a frozen contract on a
+"""Spec Amendment PR mode (SADR-0009/SADR-0015): correct a frozen contract on a
 protected branch.
 
 When implementation proves a spec-frozen contract wrong — an acceptance criterion

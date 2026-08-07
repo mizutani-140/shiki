@@ -1,7 +1,7 @@
 # Autonomous Loop End-to-End Acceptance Gate
 
 This is the live acceptance-gate plan for PRD 0002 / Goal G-...1de3b322 (the
-ADR 0011 autonomous quality-gate work). It proves the second, non-simulated half
+SADR-0011 autonomous quality-gate work). It proves the second, non-simulated half
 of T5: a real `shiki loop run` on a low-risk task self-drives to **auto-merge +
 goal complete with zero manual pre-clearing**, and the run is captured as durable
 evidence.
@@ -13,7 +13,7 @@ real MergeGate — the things stubs cannot vouch for.
 
 ## Why a separate live gate
 
-ADR 0011's whole point is that autonomous evidence must be **deterministic
+SADR-0011's whole point is that autonomous evidence must be **deterministic
 observable facts + an independent verifier, never the implementer
 self-attesting**. A green stubbed test shows the state machine is shaped right;
 it cannot show that:
@@ -40,8 +40,8 @@ it cannot show that:
 3. `gh auth status` is logged in with merge permission on the repo.
 4. Branch protection + required checks are configured exactly as the goal-loop
    required-check set expects (see `docs/agents/branch-protection-smoke.md`).
-5. The repo `.shiki/policy` permits autonomous low/medium-risk merges (ADR
-   0008/0009); the MergeGate policy check is the recorded-authority gate.
+5. The repo `.shiki/policy` permits autonomous low/medium-risk merges
+   (SADR-0008/SADR-0009); the MergeGate policy check is the recorded-authority gate.
 
 The operator's only actions are: register the task and start the loop. **No
 manual pre-clearing** means after `shiki loop run` starts, the operator does not
@@ -61,7 +61,7 @@ loop-observed TDD step (T2) can run. It must:
 - touch only files inside its declared locks.
 
 Do not hand-write any of the TDD-evidence, code-review, or PR-body sections —
-those are loop-owned state transitions (ADR 0011). If the operator writes them,
+those are loop-owned state transitions (SADR-0011). If the operator writes them,
 the gate is invalid.
 
 ## Procedure
@@ -127,9 +127,9 @@ From start, the loop must self-drive, with no operator input:
 
 ## If the gate fails
 
-Per ADR 0011 / the Repair Loop: do not hand-clear the PR to "make the gate
+Per SADR-0011 / the Repair Loop: do not hand-clear the PR to "make the gate
 pass". Diagnose which transition produced unexpected/missing evidence
 (tdd-evidence, code-review, a required check, MergeGate, CCA), file a bounded
 repair against the responsible task (T2/T3/T4), and re-run the gate. A gate that
 only passes after a human pre-clears evidence is a FAIL — that is exactly the
-self-attestation ADR 0011 forbids.
+self-attestation SADR-0011 forbids.

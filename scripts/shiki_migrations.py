@@ -152,7 +152,7 @@ def _spec_freeze_apply(root: Path, dry_run: bool) -> dict[str, Any]:
     return {
         "summary": f"Backfilled spec_freeze into {len(backfilled)} stored plan(s); {len(skipped)} already frozen.",
         "evidence": [
-            "Plan ingest/run/daemon/smoke require spec_freeze.status=frozen (ADR 0009).",
+            "Plan ingest/run/daemon/smoke require spec_freeze.status=frozen (SADR-0009).",
             f"Backfilled: {', '.join(backfilled) or 'none'}.",
             f"Already frozen: {', '.join(skipped) or 'none'}.",
             "grill_with_docs blocks were preserved unchanged (additive contract).",
@@ -230,7 +230,7 @@ def migration_registry() -> tuple[Migration, ...]:
         Migration(
             id=SPEC_FREEZE_MIGRATION_ID,
             title="Backfill spec_freeze into stored plans",
-            description="Add the additive spec_freeze block (ADR 0009) to stored plans that predate the Spec Freeze contract so they can be re-ingested or re-run.",
+            description="Add the additive spec_freeze block (SADR-0009) to stored plans that predate the Spec Freeze contract so they can be re-ingested or re-run.",
             introduced_in="T-20260612T062731178333Z-36e9bdc7",
             requires=(STATE_CLASSES_MIGRATION_ID,),
             affected_paths=(

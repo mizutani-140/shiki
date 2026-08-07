@@ -19,6 +19,9 @@ only the structured verdict object required by `--json-schema`.
 5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
 <!-- shiki-source-of-truth:end -->
 
+Within `docs/adr/`, Shiki platform decisions use `SADR-NNNN-*.md`; target
+product decisions retain `NNNN-*.md` and the `ADR` namespace.
+
 ## Required Reading
 
 Read only the files needed to judge the PR contract. Prefer this order:
@@ -54,7 +57,7 @@ repository audit in this job.
 - Do not block solely because same-head status checks are still in progress while this CCA job is running; record them as residual risk unless a completed required check has failed.
 - Treat missing required skill evidence as a blocker.
 - Treat unresolved high-risk/critical items as `needs_guardian`.
-- For Guardian approval (CCA-08), read the deterministic `.shiki/gha/guardian-approval.json` (the result of the same authoritative `evaluate_guardian_approval` over `.shiki/guardian-policy.json` that the MergeGate policy check uses). Do not interpret raw PR comments yourself. If `required` is false, CCA-08 is not applicable; if `required` and `approved` are both true, CCA-08 is satisfied by the recorded authority in `sources`/`ai_reviewers`. Read each recorded source as an authority the deterministic signal already established, and do not re-derive it. An external AI guardian review is a valid authority per ADR 0010 — record it as `external_ai_model`, never as a human approver. A `guardian_comment_carried` source means the signal proved, per ADR 0018, that a prior-head Guardian comment approval was carried across a pure base sync (git tree reproduction); read it as a recorded Guardian authority and do not re-run the base-sync proof or re-judge whether the carry applies. If `required` is true and `approved` is false, return `needs_guardian`. Do not count CCA Review Bridge approval or advisory Claude review as Guardian approval.
+- For Guardian approval (CCA-08), read the deterministic `.shiki/gha/guardian-approval.json` (the result of the same authoritative `evaluate_guardian_approval` over `.shiki/guardian-policy.json` that the MergeGate policy check uses). Do not interpret raw PR comments yourself. If `required` is false, CCA-08 is not applicable; if `required` and `approved` are both true, CCA-08 is satisfied by the recorded authority in `sources`/`ai_reviewers`. Read each recorded source as an authority the deterministic signal already established, and do not re-derive it. An external AI guardian review is a valid authority per SADR-0010 — record it as `external_ai_model`, never as a human approver. A `guardian_comment_carried` source means the signal proved, per SADR-0018, that a prior-head Guardian comment approval was carried across a pure base sync (git tree reproduction); read it as a recorded Guardian authority and do not re-run the base-sync proof or re-judge whether the carry applies. If `required` is true and `approved` is false, return `needs_guardian`. Do not count CCA Review Bridge approval or advisory Claude review as Guardian approval.
 - Treat missing task/Goal/PRD links as `insufficient_evidence` or `blocked`.
 - Treat unrelated changes as scope drift.
 - If repair is needed, produce a bounded repair packet for Codex.

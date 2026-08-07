@@ -52,7 +52,7 @@ jobs:
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
           git diff --name-status "origin/${base_ref}...HEAD" > .shiki/gha/changed-files-status.txt
 
-          # Live Guardian-approval evidence. A Contract PR (ADR 0015) forces the
+          # Live Guardian-approval evidence. A Contract PR (SADR-0015) forces the
           # Guardian gate from the Goal's frozen-plan risk in THIS metadata job,
           # independent of any CCA verdict, so the check needs the same live
           # comment/label/timeline evidence shiki-cca-completion.yml gathers.
@@ -67,7 +67,7 @@ jobs:
           # Base .shiki snapshot from origin/<base_ref>, built the SAME way
           # shiki-cca-completion.yml builds it. mergegate_check.py needs it to
           # verify task-field immutability for a post_merge_reconcile PR and to
-          # resolve the ADR 0017 bookkeeping-closeout exemption; without it a
+          # resolve the SADR-0017 bookkeeping-closeout exemption; without it a
           # post_merge_reconcile PR blocks on "requires a base .shiki snapshot".
           # The fetch above already ran — do NOT add a second, or the base fetch
           # would go shallow.
@@ -105,7 +105,7 @@ jobs:
             fi
           fi
 
-          # ADR 0015 Contract Approval carry, built the SAME way shiki-cca-completion.yml
+          # SADR-0015 Contract Approval carry, built the SAME way shiki-cca-completion.yml
           # builds it (from the base-branch adding commit and the MERGED PR behind it)
           # and passed to mergegate_check.py via --contract-approval. The base fetch in
           # "Prepare PR context" already retrieved origin/<base_ref> — reuse it; do NOT
@@ -156,7 +156,7 @@ jobs:
           cat "$approval_file"
           echo "::endgroup::"
 
-          # ADR 0018 base-sync carry (guardian_comment_carried). --base-sync-carry
+          # SADR-0018 base-sync carry (guardian_comment_carried). --base-sync-carry
           # + --default-branch let a Contract PR's frozen-risk Guardian gate in this
           # metadata job carry a stale Guardian comment approval across a proven pure
           # base sync. The proof reads git over origin/<default_branch>; the base

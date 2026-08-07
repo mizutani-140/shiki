@@ -67,8 +67,10 @@ GitHub-first.
 shiki install-target /path/to/target-repo --local-only
 ```
 
-Use `--force` only when you intentionally want to overwrite existing target
-files.
+Use `--force` only when you intentionally want to refresh the target template.
+For the SADR namespace migration, `--force` deletes only exact legacy Shiki
+decision paths whose existing install-stamp digest still matches; any ownership
+blocker stops before the first write. Numeric target ADRs are never candidates.
 
 ## `shiki bootstrap-platform` — publish the Shiki platform repo
 

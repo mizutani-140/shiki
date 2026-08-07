@@ -1,8 +1,8 @@
-# ADR 0005: Use Codex As Front And Claude Code Action As The GitHub Runtime
+# SADR-0005: Use Codex As Front And Claude Code Action As The GitHub Runtime
 
 ## Status
 
-Accepted (implementer default superseded by ADR 0008; the auth model and the
+Accepted (implementer default superseded by SADR-0008; the auth model and the
 Claude Code Action GitHub runtime decision remain in force)
 
 ## Context
@@ -26,4 +26,4 @@ The Shiki template must not include `openai/codex-action` as the default impleme
 - Shiki avoids requiring `OPENAI_API_KEY` for the default workflow.
 - Codex work happens through the user's authenticated Codex front surface, not as a hidden backend Action.
 - Claude Code Action is configured for OAuth-token based subscription usage by default.
-- API-key based automation remains possible only as an explicit target-repo extension with its own ADR.
+- API-key based automation remains possible only as an explicit target-repo extension with its own target ADR.

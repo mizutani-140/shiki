@@ -1,10 +1,10 @@
 """The MergeGate policy job must resolve the implementation-PR merge proof for
-EVERY judged PR, not only ``post_merge_reconcile`` ones (ADR 0017).
+EVERY judged PR, not only ``post_merge_reconcile`` ones (SADR-0017).
 
 ``.github/workflows/shiki-cca-completion.yml`` has two consumers of the merged-PR
 proof: the CCA *signal* (``guardian_approval_signal.py`` in "Prepare CCA context")
-and the authoritative gate (``mergegate_check.py`` in "Enforce MergeGate"). ADR
-0017's bookkeeping-closeout exemption (condition 6) needs the merged implementation
+and the authoritative gate (``mergegate_check.py`` in "Enforce MergeGate").
+SADR-0017's bookkeeping-closeout exemption (condition 6) needs the merged implementation
 PR proven, and a closeout carries NO ``post_merge_reconcile`` marker. The signal
 already resolves ``MERGED_PRS`` unconditionally, but "Enforce MergeGate" used to
 resolve it only inside ``grep -q '<!-- shiki:post_merge_reconcile -->'``. So a

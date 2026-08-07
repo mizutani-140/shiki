@@ -1,4 +1,4 @@
-# ADR 0007: Packaging And Release For Shiki
+# SADR-0007: Packaging And Release For Shiki
 
 ## Status
 
@@ -25,7 +25,7 @@ Constraints from the Shiki constitution (`AGENTS.md`) shape the design:
   not introduce third-party runtime dependencies or break the shim.
 - Releases must run inside the operator's subscription-authenticated toolchain
   and must not require extra secrets beyond the built-in `GITHUB_TOKEN`
-  (consistent with ADR 0005's no-API-key-by-default stance).
+  (consistent with SADR-0005's no-API-key-by-default stance).
 - `.shiki/manifest.json` already encodes the install surface (`install.include`,
   `install.create_directories`, `install.exclude_from_commit`), and it must not
   be mutated as part of this change.
@@ -34,7 +34,7 @@ Constraints from the Shiki constitution (`AGENTS.md`) shape the design:
 
 This is a hard-to-reverse platform decision (it sets the version source of
 truth, the release trigger, and the public install contract), so it is recorded
-as an ADR.
+as a SADR.
 
 ## Decision
 
@@ -104,7 +104,7 @@ as an ADR.
 3. **Publishing to PyPI.** Rejected for now: Shiki is distributed as a
    repository template + git-installable CLI, not a PyPI library; PyPI would add
    credentials/secrets and a different versioning contract. Can be added later as
-   its own ADR if a packaged distribution is needed.
+   its own SADR if a packaged distribution is needed.
 4. **Dynamic version (read `VERSION` via a build backend `dynamic` field).**
    Rejected to keep `pyproject.toml` backend-agnostic and dependency-free; the
    small duplication between `VERSION` and `pyproject.toml` is guarded by the
@@ -123,4 +123,4 @@ as an ADR.
   releasing versions the whole platform but ships only `install.include` to
   targets.
 - Future PyPI distribution or a console entry point are deferred and would each
-  warrant their own ADR.
+  warrant their own SADR.

@@ -129,7 +129,7 @@ cat >"$TMP_ROOT/answers.json" <<'JSON'
 }
 JSON
 
-# Start without explicit Spec Freeze approval must fail (ADR 0009).
+# Start without explicit Spec Freeze approval must fail (SADR-0009).
 python3 - "$TMP_ROOT/answers.json" "$TMP_ROOT/answers-unapproved.json" <<'PY'
 import json
 import sys
@@ -177,7 +177,7 @@ python3 "$TARGET/scripts/validate_shiki.py"
 
 # Protect-enabled start must configure GitHub Actions workflow permissions for
 # the CCA Review Bridge (default=read, can-approve=true) right after branch
-# protection, through cmd_start -> cmd_init (ADR 0013).
+# protection, through cmd_start -> cmd_init (SADR-0013).
 PROTECT_TARGET="$TMP_ROOT/protect-target"
 mkdir -p "$PROTECT_TARGET"
 : >"$SHIKI_FAKE_GH_LOG"

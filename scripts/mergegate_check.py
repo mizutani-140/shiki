@@ -299,7 +299,7 @@ GOAL_RECONCILE_MARKER = re.compile(r"<!--\s*shiki:goal_reconcile\s*-->")
 GOAL_RECONCILE_LABEL = "mergegate:goal_reconcile"
 
 
-# A Contract PR (ADR 0015) declares itself with this exact HTML-comment marker.
+# A Contract PR (SADR-0015) declares itself with this exact HTML-comment marker.
 # It carries a spec-frozen Goal's task contracts (goal, task, and DAG
 # registration) to the default branch so a Guardian can approve them before any
 # implementation is dispatched. Like goal_reconcile, the marker only DECLARES
@@ -307,7 +307,7 @@ GOAL_RECONCILE_LABEL = "mergegate:goal_reconcile"
 CONTRACT_MARKER = re.compile(r"<!--\s*shiki:contract\s*-->")
 # The contract mode's second factor. Only a write-access maintainer/Guardian can
 # apply it, so contract mode cannot be self-granted from the PR body. The CLI
-# that opens a Contract PR must NOT apply this label to its own PR (ADR 0015
+# that opens a Contract PR must NOT apply this label to its own PR (SADR-0015
 # bootstrap note): self-applying it collapses the two factors to one. The CLI
 # mirrors this exact value (scripts/shiki_tasks.py CONTRACT_PR_LABEL); a
 # consistency test binds the two so they cannot drift.
@@ -332,7 +332,7 @@ def contract_decision(pr: dict[str, Any]) -> tuple[bool, str | None]:
     return (marker and label), None
 
 
-# An Amendment PR (Spec Amendment, ADR 0009/0015) declares itself with this exact
+# An Amendment PR (Spec Amendment, SADR-0009/SADR-0015) declares itself with this exact
 # HTML-comment marker. It carries an operator-approved amendment of a spec-frozen
 # Goal's source plan — an append to ``spec_freeze.amendments`` — plus the task
 # files bound to the newly amended plan, so a contract that implementation proved
@@ -592,7 +592,7 @@ def _enforce_frozen_registration(
     goal's spec-frozen plan (each title covered at most once) and whose goal_id is
     this goal; restore the goal's DAG so every node resolves to a frozen-plan task
     anchored to this goal; append a goal-scoped task-registered ledger; and, when
-    ``allow_goal_registration`` is set (contract mode, ADR 0015), add the goal
+    ``allow_goal_registration`` is set (contract mode, SADR-0015), add the goal
     file itself — matched against its frozen plan. Everything else — code, marking
     a task done/cancelled/superseded, modifying an existing task (e.g.
     acceptance_checks), goal-complete reports, locks, repairs, runner records,
@@ -612,7 +612,7 @@ def _enforce_frozen_registration(
     frozen_titles = set(frozen_tasks)
     # The goal's source-plan id, read from the goal at HEAD (the contract PR may
     # register the goal in this same diff, or it may already be on base). Contract
-    # mode (ADR 0015) may carry the Goal's own spec-frozen source plan to the
+    # mode (SADR-0015) may carry the Goal's own spec-frozen source plan to the
     # default branch, because nothing else puts it there and the mode otherwise
     # deadlocks: `_frozen_plan_tasks` blocks with "source_plan not found" when the
     # plan is absent, and the deny-by-default `else` blocks "must not change" when
@@ -699,13 +699,13 @@ def _enforce_frozen_registration(
             if led.get("type") == "task-registered":
                 reconcile_ledger_seen = True
         elif allow_goal_registration and path == goal_file:
-            # Contract mode only (ADR 0015): the Contract PR registers the goal
+            # Contract mode only (SADR-0015): the Contract PR registers the goal
             # for the first time. Validate it against its frozen plan; deny a
             # modify/delete or a risk downgrade that would weaken the Guardian
             # gate this contract exists to force.
             _validate_contract_goal_registration(target, goal_id, entry, blocking, mode)
         elif path.startswith(".shiki/plans/") and path.endswith(".json"):
-            # Contract flow only (ADR 0015): the Contract PR may carry the Goal's
+            # Contract flow only (SADR-0015): the Contract PR may carry the Goal's
             # own spec-frozen source plan to the default branch, gated by the
             # explicit ``allow_source_plan_carry`` opt-in. This is the sole plan
             # mutation any frozen-registration PR may make, and it is deny-by-
@@ -779,7 +779,7 @@ def enforce_contract(
     warnings: list[str],
     allow_source_plan_carry: bool = False,
 ) -> None:
-    """Validate a Contract PR (ADR 0015): register a spec-frozen Goal's task
+    """Validate a Contract PR (SADR-0015): register a spec-frozen Goal's task
     contracts — goal, task, and DAG registration — to the default branch before
     dispatch. A generalization of goal_reconcile that ALSO allows the Contract PR
     to register the goal file itself (first registration), matched against its
@@ -787,7 +787,7 @@ def enforce_contract(
     forced from the Goal's frozen-plan risk in ``main`` (see
     ``contract_guardian_risk``).
 
-    ``allow_source_plan_carry`` opts into the ADR 0015 plan-reachability escape:
+    ``allow_source_plan_carry`` opts into the SADR-0015 plan-reachability escape:
     the Contract PR may ADD the Goal's own spec-frozen source plan (see
     ``_validate_contract_source_plan``). It defaults off so the relaxation is never
     automatic; ``main``'s contract flow enables it because nothing else puts the
@@ -857,9 +857,9 @@ def _validate_contract_source_plan(
     mode: str,
     allow_source_plan: bool,
 ) -> None:
-    """Validate the spec-frozen source plan a Contract PR carries (ADR 0015).
+    """Validate the spec-frozen source plan a Contract PR carries (SADR-0015).
 
-    ADR 0015 has a Contract PR carry only Goal/task/DAG registration and assumes
+    SADR-0015 has a Contract PR carry only Goal/task/DAG registration and assumes
     the Goal's frozen plan already sits on the default branch, but nothing puts it
     there — so a Contract PR for any new Goal deadlocks: ``_frozen_plan_tasks``
     blocks "source_plan not found" when the plan is absent, and the deny-by-default
@@ -946,7 +946,7 @@ def contract_guardian_risk(target: Path, goal_id: str) -> str | None:
 # A task file an amendment MODIFIES freezes these fields to the base snapshot: they
 # are the loop-owned bookkeeping (expected_pr/closeout_pr/expected_branch/
 # ledger_evidence) that an amendment — which re-opens a task for re-dispatch, not
-# a completion — must never rewrite. This is the ADR 0017 mutable set minus
+# a completion — must never rewrite. This is the SADR-0017 mutable set minus
 # ``status`` (which the amendment MAY move, but only to planned/ready below).
 _AMENDMENT_TASK_FROZEN_FIELDS: tuple[str, ...] = (
     "expected_pr",
@@ -1121,7 +1121,7 @@ def enforce_amendment(
     blocking: list[str],
     warnings: list[str],
 ) -> None:
-    """Validate a Spec Amendment PR (ADR 0009/0015): correct a spec-frozen Goal's
+    """Validate a Spec Amendment PR (SADR-0009/SADR-0015): correct a spec-frozen Goal's
     contract on a protected branch. Deny by default.
 
     An amendment PR may change EXACTLY four classes of file, everything else is
@@ -1938,7 +1938,7 @@ def _guardian_risk_labels(
     if task:
         risk = str(task.get("risk_level") or "").strip().lower()
         if bookkeeping_closeout:
-            # ADR 0017: a PROVEN bookkeeping closeout carries no implementation and
+            # SADR-0017: a PROVEN bookkeeping closeout carries no implementation and
             # inherits no new risk, so the TASK's risk is evaluated as if low at this
             # single Guardian decision point. PR labels (an independent
             # maintainer-applied signal) are left untouched, so a maintainer can
@@ -1969,7 +1969,7 @@ def _builtin_guardian_risk_required(risk_labels: list[str]) -> bool:
 # in ``main`` blocks when ``expected_branch != headRefName``.
 # So every real closeout differs from its base on ``expected_branch``, and without
 # this entry condition 4 would reject every closeout before any other condition is
-# reached — the exact defect ADR 0017 exists to remove. That independent head-ref
+# reached — the exact defect SADR-0017 exists to remove. That independent head-ref
 # binding is load-bearing for THIS whitelist entry: a PR cannot set
 # ``expected_branch`` to a branch it is not on, so admitting the field here cannot
 # let a closeout impersonate another branch. Do not weaken that binding.
@@ -2006,7 +2006,7 @@ def is_bookkeeping_closeout(
     changed_files_status: list[ChangedFile],
     merged_pr_numbers: set[int],
 ) -> bool:
-    """Classify whether a PR is a pure bookkeeping closeout (ADR 0017).
+    """Classify whether a PR is a pure bookkeeping closeout (SADR-0017).
 
     A bookkeeping closeout carries ONLY the terminal state that a merged task's
     completion writes to ``main``: the task moves ``review -> done``, its lock
@@ -2025,7 +2025,7 @@ def is_bookkeeping_closeout(
     missing DAG, …) returns False, and the PR inherits the task's real risk exactly
     as before.
 
-    The six ADR 0017 conditions:
+    The six SADR-0017 conditions:
       1. every changed path is under ``.shiki/`` (one byte outside disqualifies);
       2. no path is deleted;
       3. every changed path is inside the task's declared locks unioned with its
@@ -2240,7 +2240,7 @@ def enforce_guardian_policy(
     if not requires_guardian:
         return
 
-    # ADR 0015 Contract Approval OR-branch ("Evaluation placement"). The Guardian
+    # SADR-0015 Contract Approval OR-branch ("Evaluation placement"). The Guardian
     # requirement is satisfied by EITHER a live PR approval (the
     # ``evaluate_guardian_approval`` path below) OR a proven Contract Approval: a
     # normal implementation PR whose task contract was registered to the default
@@ -2253,7 +2253,7 @@ def enforce_guardian_policy(
         warnings.append(
             "Guardian approval satisfied by "
             + ", ".join(contract_approval.sources)
-            + " (ADR 0015 Contract Approval: the task contract was registered and Guardian-approved before dispatch)"
+            + " (SADR-0015 Contract Approval: the task contract was registered and Guardian-approved before dispatch)"
         )
         return
 
@@ -2479,7 +2479,7 @@ def _mirror_record_scoped(data: Any, path: str, *, task_id: str, goal_id: str) -
 
 
 # The governance contract a NORMAL task PR must not rewrite in its OWN task file
-# (ADR 0015 Contract immutability, normal path). When the task file is present in
+# (SADR-0015 Contract immutability, normal path). When the task file is present in
 # the base snapshot the base is authority over these fields, so a head that
 # differs on any of them is blocked. Every OTHER task field may legitimately move
 # between the base registration and the implementation-PR head — the
@@ -2490,7 +2490,7 @@ def _mirror_record_scoped(data: Any, path: str, *, task_id: str, goal_id: str) -
 # would therefore wrongly block real PRs; this is the explicit frozen set instead.
 # It is DISJOINT from ``_CLOSEOUT_MUTABLE_TASK_FIELDS`` (bound by a consistency
 # test) so the frozen contract and the may-move set cannot drift into overlap, and
-# the mutable set stays the single ADR 0017 constant, never re-copied here.
+# the mutable set stays the single SADR-0017 constant, never re-copied here.
 _NORMAL_PATH_GOVERNANCE_FIELDS: tuple[str, ...] = (
     "scope",
     "non_goals",
@@ -2506,7 +2506,7 @@ def resolved_guardian_risk_never_weaker(
     base_task: dict[str, Any] | None, head_task: dict[str, Any]
 ) -> str:
     """The risk level the Guardian gate must use for a normal task PR: NEVER weaker
-    than the base snapshot (ADR 0015). Returns ``max(base_risk, head_risk)`` by the
+    than the base snapshot (SADR-0015). Returns ``max(base_risk, head_risk)`` by the
     canonical risk ordering, so a PR that lowered its own ``risk_level`` cannot
     dissolve its Guardian requirement — the gate still resolves at the base risk.
     With no base task (first registration, or no snapshot) the head risk stands."""
@@ -2524,13 +2524,13 @@ def normal_task_contract_immutability_reasons(
     changed_files_status: list[ChangedFile],
 ) -> list[str]:
     """Blocking reasons when a NORMAL task PR rewrites its OWN task file's frozen
-    governance contract (ADR 0015 Contract immutability, normal path).
+    governance contract (SADR-0015 Contract immutability, normal path).
 
     Fires ONLY when the PR's own task file ``.shiki/tasks/<task_id>.json`` is added
     or modified in the diff — a delete is already blocked by
     ``enforce_untrusted_shiki_mutations`` and carries no contract to compare, and a
     PR that does not touch its own task file is unaffected. Resolution is
-    base-when-present, exactly as ADR 0015 states:
+    base-when-present, exactly as SADR-0015 states:
 
       * base snapshot HAS the task file  -> the base is authority: every field in
         ``_NORMAL_PATH_GOVERNANCE_FIELDS`` must equal the base, and ``risk_level``
@@ -2560,7 +2560,7 @@ def normal_task_contract_immutability_reasons(
         # contract change.
         return [
             f"PR changes its own task file {task_file} but no base .shiki snapshot is available to verify "
-            "its frozen governance contract (ADR 0015 Contract immutability); failing closed"
+            "its frozen governance contract (SADR-0015 Contract immutability); failing closed"
         ]
     base_task_path = base_shiki / "tasks" / f"{task_id}.json"
     try:
@@ -2571,7 +2571,7 @@ def normal_task_contract_immutability_reasons(
         # state, so this is a defensive backstop, not an expected path).
         return [
             f"PR changes its own task file {task_file} but its base snapshot {base_task_path.name} could not be "
-            "read to verify the frozen governance contract (ADR 0015 Contract immutability); failing closed"
+            "read to verify the frozen governance contract (SADR-0015 Contract immutability); failing closed"
         ]
     if not isinstance(base_task, dict):
         # First registration: the task is not on the base branch (base file absent
@@ -2588,7 +2588,7 @@ def normal_task_contract_immutability_reasons(
         if base_task.get(field) != head_task.get(field):
             reasons.append(
                 f"PR must not change frozen governance field {field!r} of its own task {task_id}: it differs "
-                "from the base snapshot (ADR 0015 Contract immutability)"
+                "from the base snapshot (SADR-0015 Contract immutability)"
             )
     # risk_level may never resolve WEAKER than the base snapshot, independent of
     # the field-equality rule above: a self-lowered risk would silently weaken the
@@ -2606,7 +2606,7 @@ def normal_task_contract_immutability_reasons(
 
 
 def load_contract_approval_registration(path: str | None) -> dict[str, Any] | None:
-    """Load the ADR 0015 Contract Approval registration proof from the file named
+    """Load the SADR-0015 Contract Approval registration proof from the file named
     by ``--contract-approval``.
 
     Returns None when the flag is absent, or the file is missing or unreadable, so
@@ -2634,7 +2634,7 @@ def contract_approval_for_pr(
     changed_files_status: list[ChangedFile],
     registration: dict[str, Any] | None,
 ) -> Any:
-    """Evaluate ADR 0015 Contract Approval for a NORMAL task PR (the OR alternative
+    """Evaluate SADR-0015 Contract Approval for a NORMAL task PR (the OR alternative
     to a live Guardian approval).
 
     Returns a ``ContractApprovalResult`` from ``shiki_contract_approval``, or None
@@ -2643,7 +2643,7 @@ def contract_approval_for_pr(
     byte-for-byte what it is today. The evaluator is imported LAZILY — never at
     module load — so ``import mergegate_check`` never hard-requires the
     (optionally-staged) ``shiki_contract_approval`` module; an ImportError
-    degrades to None ("does not apply"), exactly the ADR 0015 failure mode.
+    degrades to None ("does not apply"), exactly the SADR-0015 failure mode.
     """
     if registration is None or not task_id:
         return None
@@ -2775,7 +2775,7 @@ def enforce_untrusted_shiki_mutations(
                     f"PR changes plan {path} that is not goal {goal_id}'s source_plan; state_class={state_class}"
                 )
                 continue
-            # Spec Freeze is operator-only (ADR 0009). No PR may author or alter a
+            # Spec Freeze is operator-only (SADR-0009). No PR may author or alter a
             # spec_freeze block — not even on its own goal's source plan, which
             # goal scoping alone would permit: an implementation PR could grant
             # itself a freeze or append amendments to the plan that governs it.
@@ -2870,7 +2870,7 @@ def main() -> int:
         "--contract-approval",
         default="",
         help=(
-            "Path to the ADR 0015 Contract Approval registration proof (JSON). When present and valid, a "
+            "Path to the SADR-0015 Contract Approval registration proof (JSON). When present and valid, a "
             "normal task PR whose contract was registered and Guardian-approved before dispatch satisfies the "
             "Guardian requirement without a live approval of its own. Absent/missing/unreadable => no effect."
         ),
@@ -2908,14 +2908,14 @@ def main() -> int:
     migration_mode = False
     # PR numbers proven merged (live PR state gathered by the workflow). Used by
     # post_merge_reconcile to prove its referenced PR merged, and by the bookkeeping
-    # closeout classifier to prove the task's implementation PR merged (ADR 0017).
+    # closeout classifier to prove the task's implementation PR merged (SADR-0017).
     merged_prs = {
         int(token.strip())
         for token in str(args.merged_prs or "").split(",")
         if token.strip().isdigit()
     }
     # Whether the (normal single-task) PR is a proven bookkeeping closeout, so the
-    # Guardian gate evaluates it as if the task were low risk (ADR 0017). Stays
+    # Guardian gate evaluates it as if the task were low risk (SADR-0017). Stays
     # False for contract / goal_reconcile / post_merge_reconcile PRs.
     bookkeeping_closeout = False
     manifest: dict[str, Any] | None = None
@@ -2978,7 +2978,7 @@ def main() -> int:
                 blocking.append("goal_reconcile PR body does not contain a Shiki goal id like G-0001")
         elif contract_mode:
             # A Contract PR is goal-scoped (frozen-plan task-contract registration);
-            # it carries no single implementation task id (ADR 0015).
+            # it carries no single implementation task id (SADR-0015).
             if not resolved_goal_id:
                 blocking.append("contract PR body does not contain a Shiki goal id like G-0001")
         elif amendment_mode:
@@ -3025,7 +3025,7 @@ def main() -> int:
             warnings=warnings,
         )
     elif contract_mode and pr:
-        # Contract mode (ADR 0015): a goal-scoped, spec-frozen task-contract
+        # Contract mode (SADR-0015): a goal-scoped, spec-frozen task-contract
         # registration PR. It uses the generalized deny-by-default validator and
         # forces the Guardian gate from the Goal's frozen-plan risk BEFORE any
         # implementation is dispatched. The Guardian gate here is INDEPENDENT of a
@@ -3042,7 +3042,7 @@ def main() -> int:
             blocking=blocking,
             warnings=warnings,
             # The contract flow is the one path that carries a Goal's frozen plan
-            # to the default branch (ADR 0015 plan-reachability gap); enable it.
+            # to the default branch (SADR-0015 plan-reachability gap); enable it.
             allow_source_plan_carry=True,
         )
         if resolved_goal_id:
@@ -3073,7 +3073,7 @@ def main() -> int:
                     default_branch=args.default_branch,
                 )
     elif amendment_mode and pr:
-        # Amendment mode (ADR 0009/0015): a goal-scoped PR that corrects a
+        # Amendment mode (SADR-0009/SADR-0015): a goal-scoped PR that corrects a
         # spec-frozen Goal's contract on a protected branch — an append to the
         # source plan's spec_freeze.amendments plus the task files bound to the
         # amended plan. Deny-by-default validator; Guardian gate forced from the
@@ -3208,7 +3208,7 @@ def main() -> int:
                 blocking.append(f"Changed file {path} is outside declared task locks")
             blocking.extend(active_lock_conflicts(target, resolved_task_id, locks, scope_paths))
 
-            # ADR 0017: a proven bookkeeping closeout (task terminal state only, no
+            # SADR-0017: a proven bookkeeping closeout (task terminal state only, no
             # implementation) is evaluated as if low risk at the Guardian gate
             # below. Computed here (where the head task, base snapshot, diff and
             # merged-PR proof are all in hand); consulted only by
@@ -3237,7 +3237,7 @@ def main() -> int:
                     blocking=blocking,
                     warnings=warnings,
                 )
-                # ADR 0015 Contract immutability on the NORMAL task-PR path: a PR
+                # SADR-0015 Contract immutability on the NORMAL task-PR path: a PR
                 # that changes its own task file may move only bookkeeping — its
                 # frozen governance contract is bound to the base snapshot, and its
                 # risk_level may never resolve weaker than base. Only this branch
@@ -3332,7 +3332,7 @@ def main() -> int:
                 if isinstance(goal, dict) and goal.get("risk_level"):
                     guardian_task = {"risk_level": goal.get("risk_level")}
             elif task is not None and args.base_shiki and resolved_task_id:
-                # Normal path (ADR 0015): resolve the Guardian risk NEVER WEAKER
+                # Normal path (SADR-0015): resolve the Guardian risk NEVER WEAKER
                 # than the base snapshot, so a PR that lowered its own task
                 # risk_level cannot dissolve its Guardian requirement — the gate
                 # still fires at the base risk. This is the independent floor the
@@ -3351,7 +3351,7 @@ def main() -> int:
                 resolved_risk = resolved_guardian_risk_never_weaker(base_task_for_risk, task)
                 if resolved_risk and resolved_risk != str(task.get("risk_level") or ""):
                     guardian_task = {**task, "risk_level": resolved_risk}
-            # ADR 0015 Contract Approval applies ONLY on the normal task path: a
+            # SADR-0015 Contract Approval applies ONLY on the normal task path: a
             # Contract PR (contract mode) is the registration itself and must be
             # approved live, and reconcile PRs carry no implementation task. When
             # the flag is absent, this is None and the Guardian gate is unchanged.

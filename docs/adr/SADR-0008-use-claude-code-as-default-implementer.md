@@ -1,12 +1,12 @@
-# ADR 0008: Use Claude Code As The Default Implementer Runtime
+# SADR-0008: Use Claude Code As The Default Implementer Runtime
 
 ## Status
 
-Proposed (supersedes ADR 0005 for the implementer default; keeps its auth model)
+Proposed (supersedes SADR-0005 for the implementer default; keeps its auth model)
 
 ## Context
 
-ADR 0005 made Codex Front the default implementation runtime, with Claude Code
+SADR-0005 made Codex Front the default implementation runtime, with Claude Code
 restricted to planner and reviewer roles by the runtime registry, and the only
 autonomous implementation adapter was `shiki runner codex`.
 
@@ -18,13 +18,13 @@ Operational reality diverged from this contract:
 - The platform's planning, review, and CCA layers already run on Claude Code,
   and Claude Code's native capabilities (the built-in `/code-review` skill and
   the Workflow multi-agent orchestration tool) have no Codex equivalent.
-- The Goal lifecycle redesign (ADR 0009) requires an autonomous post-freeze
+- The Goal lifecycle redesign (SADR-0009) requires an autonomous post-freeze
   loop driven from the operator's Claude Code session, including bounded
   repair dispatch, which must not depend on a runtime that cannot be invoked
   unattended.
 
 The constitution claims Shiki is runtime-agnostic ("not a Claude-only
-workflow", ADR 0002). Any change to the implementer default must preserve the
+workflow", SADR-0002). Any change to the implementer default must preserve the
 registry-based runtime model rather than hardcoding one vendor.
 
 ## Decision
@@ -39,7 +39,7 @@ We will make `claude-code` the default implementer runtime:
   the task to review or repair-needed.
 - Keep Codex registered as an optional implementer runtime. `shiki runner
   codex`, the Codex handoff templates, and the ChatGPT OAuth auth model from
-  ADR 0005 remain supported for tasks explicitly assigned to `codex`.
+  SADR-0005 remain supported for tasks explicitly assigned to `codex`.
 - Commit to mandating two Claude-native capabilities as loop contract in
   follow-up Goals (status: the code-review gate was delivered by Goal G-B —
   skill registry, checklists item PR-12, default required_skills — while the
@@ -60,7 +60,7 @@ We will make `claude-code` the default implementer runtime:
 
 Out of scope: removing Codex support, changing the CCA runtime (Claude Code
 Action with `CLAUDE_CODE_OAUTH_TOKEN` stays), and API-key based automation
-(still requires its own ADR per ADR 0005).
+(still requires its own target ADR per SADR-0005).
 
 ## Consequences
 
@@ -100,7 +100,7 @@ Action with `CLAUDE_CODE_OAUTH_TOKEN` stays), and API-key based automation
   harness rejection of direct `codex exec` is outside Shiki's control, and the
   plan's mandatory native capabilities cannot run on Codex at all.
 - **Remove Codex entirely**: rejected; it abandons the runtime-agnostic
-  constitution (ADR 0002) for no operational gain and forecloses
+  constitution (SADR-0002) for no operational gain and forecloses
   cross-runtime adversarial review.
 - **GitHub Actions cloud implementation via claude-code-action**: rejected as
   default; durable evidence is automatic but token cost, Node 24 workflow

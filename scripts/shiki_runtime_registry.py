@@ -94,7 +94,7 @@ _RUNTIME_DESCRIPTORS: tuple[RuntimeDescriptor, ...] = (
         required_tools=("claude",),
         supports_local_execution=True,
         supports_handoff=True,
-        description="Local Claude Code planning, review, and default implementation/runner runtime (ADR 0008).",
+        description="Local Claude Code planning, review, and default implementation/runner runtime (SADR-0008).",
     ),
     RuntimeDescriptor(
         name="claude-code-action",

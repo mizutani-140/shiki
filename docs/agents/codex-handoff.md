@@ -2,7 +2,7 @@
 
 Codex Front is an optional implementer and repairer for Shiki source changes,
 used when a task is explicitly assigned to `codex`. The default implementer is
-Claude Code through `shiki runner claude` (ADR 0008); the handoff contract
+Claude Code through `shiki runner claude` (SADR-0008); the handoff contract
 below applies to both runtimes.
 
 Run Codex through the operator-facing Codex App, Codex CLI, Codex IDE extension, or Codex Web signed in with ChatGPT OAuth/subscription auth. Do not assume `openai/codex-action` or `OPENAI_API_KEY` in the default Shiki path.
@@ -46,7 +46,7 @@ Do not claim completion. Produce implementation and evidence for GitHub CCA and 
 
 ## Context
 - Domain terms:
-- Relevant ADRs:
+- Relevant SADRs and target ADRs:
 - Relevant docs:
 - Relevant modules/interfaces/seams:
 - Similar tests/prior art:

@@ -18,6 +18,9 @@ engineering.
 5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
 <!-- shiki-source-of-truth:end -->
 
+Within `docs/adr/`, Shiki platform decisions use `SADR-NNNN-*.md`; target
+product decisions retain `NNNN-*.md` and the `ADR` namespace.
+
 Codex CLI does not register this skill as a custom `/shiki` slash command. When
 the user types `/shiki` in Codex CLI and gets "Unrecognized command", explain
 that this is expected: invoke Shiki in Codex with natural language such as
@@ -69,7 +72,7 @@ start record, plan, and handoff must preserve the selected skills directory.
 
 ## Responsibilities
 
-- Claude Code implements and repairs by default (`shiki runner claude`, ADR 0008); Codex implements and repairs tasks explicitly assigned to `codex`.
+- Claude Code implements and repairs by default (`shiki runner claude`, SADR-0008); Codex implements and repairs tasks explicitly assigned to `codex`.
 - Claude Code Action can act as GitHub-side CCA or reviewer.
 - CCA judges completion.
 - MergeGate authorizes state transitions and merge readiness.

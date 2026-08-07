@@ -1,4 +1,4 @@
-"""Tests for the External AI Guardian Review adapter contract (ADR 0010/0014).
+"""Tests for the External AI Guardian Review adapter contract (SADR-0010/SADR-0014).
 
 Covers the deterministic Shiki-side surfaces consumed by the Codex App External
 AI Guardian UI Adapter: packet schema validation, the PR-type focus classifier,
@@ -53,7 +53,7 @@ def make_packet(**overrides):
         task=task,
         pr_data=pr_data,
         implementer_report={"source": "claude full response", "summary": "implemented per handoff"},
-        relevant_docs=["docs/adr/0010-external-ai-guardian-review.md"],
+        relevant_docs=["docs/adr/SADR-0010-external-ai-guardian-review.md"],
         generated_at="20260101T000000000000Z",
         source_refs=["gh pr view 175", ".shiki/tasks/T-...json"],
     )
@@ -162,7 +162,7 @@ class FocusClassifierTests(unittest.TestCase):
 
     def test_docs_only_is_light_and_not_conservative(self):
         focus = gr.classify_review_focus(["docs/adr/0099-x.md", "README.md"], "", "low")
-        self.assertTrue(any("Docs/ADR-only" in f for f in focus))
+        self.assertTrue(any("Docs/decision-record-only" in f for f in focus))
         self.assertFalse(any("conservative default" in f.lower() for f in focus))
 
     def test_unknown_category_is_conservative(self):

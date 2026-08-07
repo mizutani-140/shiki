@@ -21,7 +21,7 @@ same for its ``.shiki/reports/R-...json``, even though the completion ledger was
 listed in the closeout task's ``ledger_evidence`` and the report was the very
 evidence that ledger cites. The earlier closeout PR #185 carried the identical
 pair but merged only because its task declared ``path:.shiki/**``; the
-lock-narrowing discipline (ADR 0016) replaced that directory glob with named
+lock-narrowing discipline (SADR-0016) replaced that directory glob with named
 files, exposing the gap and making every goal-completing closeout unmergeable.
 """
 

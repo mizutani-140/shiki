@@ -56,7 +56,7 @@ jobs:
           git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
           git diff --name-status "origin/${base_ref}...HEAD" > .shiki/gha/changed-files-status.txt
 
-          # ADR 0017 bookkeeping-closeout exemption inputs, built the SAME way the
+          # SADR-0017 bookkeeping-closeout exemption inputs, built the SAME way the
           # mergegate job builds them below. The Guardian-approval signal must
           # resolve a proven closeout as low risk exactly as the MergeGate policy
           # check does; without these inputs the CCA path could not classify a
@@ -88,7 +88,7 @@ jobs:
             fi
           fi
 
-          # ADR 0015 Contract Approval carry. Build the registration proof the
+          # SADR-0015 Contract Approval carry. Build the registration proof the
           # evaluator (shiki_contract_approval.evaluate_contract_approval) reads via
           # --contract-approval, from evidence neither the PR head nor the PR body
           # can forge. Resolve the task id with the SAME regex used above; find the
@@ -149,10 +149,10 @@ jobs:
           # judge Guardian approval by LLM-reading raw comments; it reads the
           # result of the SAME authoritative evaluate_guardian_approval the
           # MergeGate policy check uses (recognizes label/review/comment OR an
-          # external AI guardian review artifact, ADR 0010). The policy check
+          # external AI guardian review artifact, SADR-0010). The policy check
           # remains the authoritative gate.
           #
-          # ADR 0018 base-sync carry (guardian_comment_carried). --base-sync-carry
+          # SADR-0018 base-sync carry (guardian_comment_carried). --base-sync-carry
           # + --default-branch let the signal carry a stale Guardian comment
           # approval across a proven pure base sync, so it matches the gate rather
           # than under-reporting. The proof reads git history over
@@ -309,9 +309,9 @@ jobs:
             and "approved" is true, CCA-08 is satisfied by the recorded authority
             in "sources"/"ai_reviewers". Read each recorded source as an authority
             the signal already established; do NOT re-derive it. An external AI
-            guardian review is a valid authority per ADR 0010; record it as such,
+            guardian review is a valid authority per SADR-0010; record it as such,
             never as a human approver. A "guardian_comment_carried" source means
-            the signal proved (ADR 0018) that a prior-head Guardian comment
+            the signal proved (SADR-0018) that a prior-head Guardian comment
             approval was carried across a pure base sync; read it as a recorded
             Guardian authority and do NOT re-run the base-sync proof or re-judge
             whether the carry applies. If "required" is true and "approved" is
@@ -394,9 +394,9 @@ jobs:
             and "approved" is true, CCA-08 is satisfied by the recorded authority
             in "sources"/"ai_reviewers". Read each recorded source as an authority
             the signal already established; do NOT re-derive it. An external AI
-            guardian review is a valid authority per ADR 0010; record it as such,
+            guardian review is a valid authority per SADR-0010; record it as such,
             never as a human approver. A "guardian_comment_carried" source means
-            the signal proved (ADR 0018) that a prior-head Guardian comment
+            the signal proved (SADR-0018) that a prior-head Guardian comment
             approval was carried across a pure base sync; read it as a recorded
             Guardian authority and do NOT re-run the base-sync proof or re-judge
             whether the carry applies. If "required" is true and "approved" is
@@ -459,7 +459,7 @@ jobs:
           # SHA drift to detect here (--no-git skips only that drift probe; the
           # base-sync carry proof below still reads git).
           #
-          # ADR 0018 base-sync carry (guardian_comment_carried). --base-sync-carry
+          # SADR-0018 base-sync carry (guardian_comment_carried). --base-sync-carry
           # + --default-branch resolve the carry the SAME way the gate does, so the
           # rendered blockers match MergeGate rather than demanding a fresh approval
           # a base sync already carried. The proof reads git over
@@ -744,7 +744,7 @@ jobs:
           # gh proves it MERGED. Fails closed to "" on any missing or unresolvable
           # input.
           #
-          # This must run for every mode. ADR 0017's bookkeeping-closeout
+          # This must run for every mode. SADR-0017's bookkeeping-closeout
           # exemption (condition 6) needs the implementation PR proven merged, and
           # a closeout carries NO post_merge_reconcile marker; gating this behind
           # the marker left MERGED_PRS empty for closeouts, so the exemption could
@@ -766,7 +766,7 @@ jobs:
             fi
           fi
 
-          # ADR 0015 Contract Approval carry, built the SAME way the CCA context
+          # SADR-0015 Contract Approval carry, built the SAME way the CCA context
           # step builds it (from the base-branch adding commit and the MERGED PR
           # behind it) and passed to mergegate_check.py via --contract-approval. The
           # base fetch in "Refresh live PR state" already retrieved origin/<base_ref>
@@ -817,7 +817,7 @@ jobs:
           cat "$approval_file"
           echo "::endgroup::"
 
-          # ADR 0018 base-sync carry (guardian_comment_carried) passed to the
+          # SADR-0018 base-sync carry (guardian_comment_carried) passed to the
           # authoritative gate. --base-sync-carry + --default-branch let MergeGate
           # carry a stale Guardian comment approval across a proven pure base sync.
           # The proof reads git over origin/<default_branch>; the base fetch in

@@ -1,4 +1,4 @@
-"""Pre-PR independent code-review verifier (PRD 0002 T3, ADR 0011).
+"""Pre-PR independent code-review verifier (PRD 0002 T3, SADR-0011).
 
 Before opening the PR the loop must run an INDEPENDENT read-only reviewer over
 the task's diff (a `claude -p` invocation whose --allowedTools are restricted to

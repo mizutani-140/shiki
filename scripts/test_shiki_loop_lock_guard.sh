@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # loop-lock advisory guard — derive-at-judgment-time mirror-lock model
-# (ADR 0016 / A-LOCKS).
+# (SADR-0016 / A-LOCKS).
 #
 # Asserts, through the real scripts/ modules, that
 # validate_shiki.loop_lock_warnings NO LONGER warns for a narrow-lock

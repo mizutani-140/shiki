@@ -1,4 +1,4 @@
-# ADR 0015: Approve The Task Contract Before Dispatch, Not The Diff After It
+# SADR-0015: Approve The Task Contract Before Dispatch, Not The Diff After It
 
 ## Status
 
@@ -9,7 +9,7 @@ Accepted
 Guardian approval for high/critical risk is expressible only on a pull request.
 Every approval source in `guardian-policy.json` — GitHub review, the
 `guardian:approved` label, the `Guardian approval granted` comment, and the
-`external_ai_guardian_review` artifact (ADR 0010/0014) — is bound to a PR, and
+`external_ai_guardian_review` artifact (SADR-0010/SADR-0014) — is bound to a PR, and
 three of the four require the current head SHA. Approval therefore cannot exist
 before an implementation PR exists.
 
@@ -81,7 +81,7 @@ budget: the default is set well above observed PR sizes so it rarely fires.
 An envelope breach must surface only on the non-repairable policy gate, never on
 the repairable `MergeGate metadata check`. Otherwise the Goal Loop routes it to
 `dispatch_repair` — instructing a runner to make the breach go away — which is
-exactly what this ADR forbids.
+exactly what this SADR forbids.
 
 **Contract immutability.** After registration, an implementation PR must not
 change the governance fields of its own task contract (`scope`, `non_goals`,
@@ -116,7 +116,7 @@ MergeGate. The `mergegate` job depends on the `cca` job, `enforce_cca_verdict`
 fails any verdict that is not `complete`, and the signal the CCA prompt reads is
 computed from `evaluate_guardian_approval` alone. Without the OR-merge at the
 signal, a contract-approved PR still returns `needs_guardian`, the CCA job fails,
-and the MergeGate policy check never runs — the gate this ADR changes would never
+and the MergeGate policy check never runs — the gate this SADR changes would never
 be reached. The CCA *prompt* needs no change: a `contract_approval` entry in the
 signal's existing `sources` array satisfies its current wording.
 
@@ -130,7 +130,7 @@ A high/critical Goal reaches its first governance decision before any code is
 written, and an approved contract lets its implementation PRs merge through the
 same automatic path as low/medium risk. The wasted implement-then-block cycle
 disappears. Guardian review shifts from reading diffs to reading contracts, which
-is both earlier and smaller; the external AI Guardian path (ADR 0010/0014) works
+is both earlier and smaller; the external AI Guardian path (SADR-0010/SADR-0014) works
 on contracts with no change.
 
 We accept that the Guardian authorizes a class of change without seeing its
@@ -146,7 +146,7 @@ that the operator must service when a contract turns out to be wrong; and
 adversarial tests for the new approval path equivalent in rigor to
 `test_shiki_governance_evidence.sh`.
 
-Bootstrap costs, which apply only while this ADR is being implemented. The tasks
+Bootstrap costs, which apply only while this SADR is being implemented. The tasks
 that build Contract Approval merge under the existing rules, so the ones
 dispatched after the pre-dispatch gate lands but before the approval path lands
 need a Guardian-approved Contract PR *and* a live Guardian approval on their
@@ -210,7 +210,7 @@ on nearly every PR and make fallback the normal path. Those numbers classify
 risk; they do not bound authorized work.
 
 **Auto-escalate risk on envelope breach instead of stopping.** Returns the
-workflow to a diff-time Guardian decision — the exact behavior this ADR removes.
+workflow to a diff-time Guardian decision — the exact behavior this SADR removes.
 
 **Resolve governance fields from the base snapshot only.** Rejected against the
 registration flow: implementation PRs add their own contract, so the base has no

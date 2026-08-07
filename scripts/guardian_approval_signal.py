@@ -8,7 +8,7 @@ used by the MergeGate policy check against the live PR comments/events, and
 writes a small JSON signal the CCA reads for CCA-08.
 
 It never approves on its own: it reports whether a recorded authority (human
-label/review/comment OR an external AI guardian review artifact, ADR 0010)
+label/review/comment OR an external AI guardian review artifact, SADR-0010)
 approved the exact current head. The MergeGate policy check remains the
 authoritative gate; this only lets the CCA see the same result deterministically.
 """
@@ -29,7 +29,7 @@ from shiki_guardian import (
     validate_guardian_policy,
 )
 
-# The bookkeeping-closeout exemption (ADR 0017) must resolve risk IDENTICALLY on
+# The bookkeeping-closeout exemption (SADR-0017) must resolve risk IDENTICALLY on
 # this signal path and on the MergeGate policy check. Importing and calling the
 # SAME classifier — never a second copy of its six conditions — is what keeps the
 # two Guardian decision points from diverging. ``parse_changed_files_status``
@@ -152,7 +152,7 @@ def _bookkeeping_closeout_exemption(
     changed_files_status: str,
     merged_prs: str,
 ) -> bool:
-    """Whether this PR is a proven ADR 0017 bookkeeping closeout.
+    """Whether this PR is a proven SADR-0017 bookkeeping closeout.
 
     The entire decision is delegated to the SAME ``is_bookkeeping_closeout``
     classifier the MergeGate policy check calls, over the SAME inputs (the base
@@ -197,10 +197,10 @@ def _contract_approval_result(
     changed_files_status: str,
     contract_approval: str,
 ) -> Any:
-    """Evaluate ADR 0015 Contract Approval for the CCA Guardian signal.
+    """Evaluate SADR-0015 Contract Approval for the CCA Guardian signal.
 
-    The SAME OR that MergeGate applies must reach this deterministic signal: ADR
-    0015 is explicit that without it, a contract-approved PR still returns
+    The SAME OR that MergeGate applies must reach this deterministic signal:
+    SADR-0015 is explicit that without it, a contract-approved PR still returns
     ``needs_guardian``, the CCA job fails, and the MergeGate policy check never
     runs — the gate this change moves would never be reached. This resolves the
     task the SAME way MergeGate does (the first Shiki task id in the PR body),
@@ -248,32 +248,32 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--guardian-timeline", default="")
     parser.add_argument("--expected-repository", default="")
     parser.add_argument("--shiki-root", default=".")
-    # ADR 0017 bookkeeping-closeout exemption inputs. All default to values that
+    # SADR-0017 bookkeeping-closeout exemption inputs. All default to values that
     # grant NO exemption, so an invocation that omits them behaves exactly as
     # before (require Guardian approval from the task's real risk).
     parser.add_argument(
         "--base-shiki",
         default="",
-        help="Path to the base branch's .shiki snapshot; required for the ADR 0017 closeout exemption.",
+        help="Path to the base branch's .shiki snapshot; required for the SADR-0017 closeout exemption.",
     )
     parser.add_argument(
         "--changed-files-status",
         default="",
-        help="git --name-status changed-files file; required for the ADR 0017 closeout exemption.",
+        help="git --name-status changed-files file; required for the SADR-0017 closeout exemption.",
     )
     parser.add_argument(
         "--merged-prs",
         default="",
         help="Comma-separated PR numbers proven merged; the implementation PR must be here for the exemption.",
     )
-    # ADR 0015 Contract Approval input. Defaults to "" (no proof), so an
+    # SADR-0015 Contract Approval input. Defaults to "" (no proof), so an
     # invocation that omits it reports exactly as before (require a live Guardian
     # approval from the task's real risk).
     parser.add_argument(
         "--contract-approval",
         default="",
         help=(
-            "Path to the ADR 0015 Contract Approval registration proof (JSON). When present and valid, a "
+            "Path to the SADR-0015 Contract Approval registration proof (JSON). When present and valid, a "
             "normal task PR whose contract was registered and Guardian-approved before dispatch reports the "
             "Guardian requirement satisfied with a contract_approval source. Absent/missing/unreadable => no effect."
         ),
@@ -316,7 +316,7 @@ def main(argv: list[str] | None = None) -> int:
     pr_body = str(pr.get("body") or "")
     task_risk = _resolve_task_risk_level(args.shiki_root, pr_body)
 
-    # ADR 0017: a PROVEN bookkeeping closeout carries no implementation and
+    # SADR-0017: a PROVEN bookkeeping closeout carries no implementation and
     # inherits no new risk, so at this single Guardian decision point the task's
     # risk is evaluated as if low — IDENTICALLY to the MergeGate policy check,
     # which calls the same is_bookkeeping_closeout classifier over the same inputs.
@@ -374,7 +374,7 @@ def main(argv: list[str] | None = None) -> int:
         # bookkeeping closeout evaluated as if low).
         note = f"Guardian approval not required for risk level {task_risk!r}"
         if exemption:
-            note += " (ADR 0017 bookkeeping-closeout exemption applied)"
+            note += " (SADR-0017 bookkeeping-closeout exemption applied)"
         signal = {
             "required": False,
             "approved": True,
@@ -388,7 +388,7 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.output).write_text(json.dumps(signal, indent=2) + "\n", encoding="utf-8")
         return 0
 
-    # ADR 0015 Contract Approval OR-branch. The Guardian requirement is satisfied
+    # SADR-0015 Contract Approval OR-branch. The Guardian requirement is satisfied
     # by EITHER a live PR approval (below) OR a proven Contract Approval — the SAME
     # OR the MergeGate policy check applies, so the two Guardian decision points
     # never diverge. When it applies, report the requirement satisfied with the
@@ -416,7 +416,7 @@ def main(argv: list[str] | None = None) -> int:
             "bookkeeping_closeout_exemption": exemption,
             "contract_approval": True,
             "note": (
-                "Guardian approval satisfied by Contract Approval (ADR 0015): the task contract was "
+                "Guardian approval satisfied by Contract Approval (SADR-0015): the task contract was "
                 "registered and Guardian-approved before dispatch"
             ),
         }

@@ -1,9 +1,9 @@
-# 0012 — Autonomous loop pushes goal completion to main via a closeout PR
+# SADR-0012 — Autonomous loop pushes goal completion to main via a closeout PR
 
 - Status: accepted
 - Date: 2026-06-18
 - Deciders: operator (mizutani-140), Claude (planner/implementer)
-- Related: ADR 0008 (default implementer + autonomous merge), ADR 0009 (spec freeze), ADR 0011 (autonomous quality-gate evidence), issue #140 (complete the autonomous post-freeze loop), the #140 T5 live self-drive.
+- Related: SADR-0008 (default implementer + autonomous merge), SADR-0009 (spec freeze), SADR-0011 (autonomous quality-gate evidence), issue #140 (complete the autonomous post-freeze loop), the #140 T5 live self-drive.
 
 ## Context
 
@@ -37,7 +37,7 @@ Re-entrancy: `create_closeout_pr` is gated on `not task.closeout_pr`, so it is r
 
 ## Consequences
 
-- The loop reaches **goal complete on main, durably, with zero manual intervention** — closing #140 / ADR 0011's "durable evidence, not local attestation" for the completion step itself.
+- The loop reaches **goal complete on main, durably, with zero manual intervention** — closing #140 / SADR-0011's "durable evidence, not local attestation" for the completion step itself.
 - The autonomous path costs **two PRs per terminal task** (impl + closeout), both auto-merged at low/medium risk; high/critical still stops for Guardian via the unchanged policy gate.
 - **Scope: single-task goals (and the last task of a goal).** A multi-task goal needs a per-task closeout (a goal-scoped PR cannot mutate sibling task files under the task-scope rule); the per-task `closeout_pr` field generalizes to this, but multi-task closeout sequencing is deferred and must be validated by its own live run.
 - A closeout PR whose checks fail does **not** auto-repair; it stops the loop for a recorded authority, preventing an implementation-free PR from entering a futile repair cycle.

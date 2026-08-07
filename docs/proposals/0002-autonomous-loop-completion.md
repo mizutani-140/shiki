@@ -1,11 +1,11 @@
 # PRD 0002: Complete the Autonomous Post-Freeze Loop (finish #119 G-D)
 
 Status: Requirements Definition complete; awaiting Spec Freeze.
-Goal issue: #140. Parent PRD: #119 (Shiki 0.2.0, G-D). Decision: ADR 0011.
+Goal issue: #140. Parent PRD: #119 (Shiki 0.2.0, G-D). Decision: SADR-0011.
 
 ## Problem Statement
 
-The Shiki 0.2.0 autonomous post-freeze loop (ADR 0008/0009, #119 G-D) is not
+The Shiki 0.2.0 autonomous post-freeze loop (SADR-0008/SADR-0009, #119 G-D) is not
 end-to-end functional. A live `shiki loop run` on 2026-06-17 proved the loop
 self-implements (a headless `claude -p` runner wrote a correct, passing test
 with no human action) and the Memory Loop auto-capture fires — but it **cannot
@@ -31,13 +31,13 @@ Empirically verified gaps (file:line):
 ## Solution
 
 Make the loop produce the evidence MergeGate/CCA need — deterministically, and
-via an independent verifier, never by the implementer self-attesting (ADR 0011).
+via an independent verifier, never by the implementer self-attesting (SADR-0011).
 After a successful dispatch and before opening the PR, the loop:
 
 1. **Commits + pushes** the runner's implementation to the task branch.
 2. **Records TDD evidence as an observable fact** — runs the task's tests in the
    worktree and records a `check` ledger of the command and green result
-   (loop-observed green; red-first ordering is not gated — ADR 0011).
+   (loop-observed green; red-first ordering is not gated — SADR-0011).
 3. **Runs an independent code-review verifier** — a read-only `claude -p`
    dispatch (`--allowedTools` restricted to read tools, `--json-schema`
    structured verdict, separate context). The loop parses the verdict
@@ -66,7 +66,7 @@ always syncs `.shiki` evidence to the branch), with a validator/doctor hint.
 
 ## Implementation Decisions (settled in Requirements Definition)
 
-- **Evidence ownership (ADR 0011, Q1):** the loop produces all quality-gate
+- **Evidence ownership (SADR-0011, Q1):** the loop produces all quality-gate
   evidence; the implementer runtime never writes its own skill-evidence ledgers
   or PR-12 section.
 - **Code-review verifier (Q2):** read-only `claude -p` (restricted `--allowedTools`,
@@ -103,11 +103,11 @@ always syncs `.shiki` evidence to the branch), with a validator/doctor hint.
 
 ## Out of Scope
 
-- High/critical-risk auto-merge (remains Guardian-gated, ADR 0010).
+- High/critical-risk auto-merge (remains Guardian-gated, SADR-0010).
 - Changing CCA verdict semantics, the MergeGate required-check set,
   branch-protection contexts, or the Guardian policy.
 - `bypassPermissions` bounding for the implementer (separate concern).
-- Deterministic red→green verification (ADR 0011 future enhancement).
+- Deterministic red→green verification (SADR-0011 future enhancement).
 - Removing Codex support.
 
 ## Further Notes
@@ -122,9 +122,9 @@ always syncs `.shiki` evidence to the branch), with a validator/doctor hint.
   proves the loop self-drives — a deliberate dogfood: the final task verifies the
   loop on a real task.
 - **Risk:** high (core loop/runtime/github modules; architecture gate). Each PR
-  Guardian-reviewed per ADR 0010.
+  Guardian-reviewed per SADR-0010.
 - **CI-08 evidence:** Context & Impact produced from the live verification
-  (gaps at file:line), ADR 0011, and a Workflow parallel exploration sweep
+  (gaps at file:line), SADR-0011, and a Workflow parallel exploration sweep
   (run 2026-06-17).
-- **Decisions:** ADR 0011 (autonomous quality-gate evidence). Domain terms:
+- **Decisions:** SADR-0011 (autonomous quality-gate evidence). Domain terms:
   CCA, MergeGate, Repair Loop, Agent Runtime (CONTEXT.md).

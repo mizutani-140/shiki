@@ -57,7 +57,7 @@ cat >"$TMP_ROOT/plan.json" <<'JSON'
   "grill_with_docs": {
     "status": "complete",
     "source": "CONTEXT.md",
-    "decisions": ["code-review is a mandatory pre-PR implementer gate (ADR 0008)"]
+    "decisions": ["code-review is a mandatory pre-PR implementer gate (SADR-0008)"]
   },
   "spec_freeze": {
     "status": "frozen",

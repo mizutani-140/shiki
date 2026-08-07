@@ -165,7 +165,7 @@ class _LoopGh:
     """A ``shiki_loop._gh`` stand-in whose check status is a real function of the
     PR head: a PR is green iff its branch head in the origin carries the fix
     sentinel. ``pr merge`` faithfully advances origin/main (and the coordinator's
-    origin/main tracking ref) so the ADR-0012 closeout can cut from it."""
+    origin/main tracking ref) so the SADR-0012 closeout can cut from it."""
 
     def __init__(self, env: RepairEnv, required: list[str], failing: str):
         self.env = env

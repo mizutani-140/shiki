@@ -61,7 +61,7 @@ this policy. It verifies that label-only approval, negative text such as
 actors, CCA Review Bridge reviews, advisory Claude reviews, and close-but-not
 exact approval phrases do not satisfy Guardian approval.
 
-## Carried Guardian Approval Across A Proven Base Sync (ADR 0018)
+## Carried Guardian Approval Across A Proven Base Sync (SADR-0018)
 
 Strict branch protection requires a PR to be up to date with its base before it
 merges, and `require_head_sha` binds a Guardian comment approval to a specific head
@@ -98,11 +98,11 @@ each so a future edit cannot drop them silently. The proof reads git history ove
 `origin/<default_branch>` and reuses each job's existing base fetch; a shallow
 (`--depth`) or second base fetch would make the proof unresolvable and silently
 disable the carry, so neither is permitted. CCA reads `guardian_comment_carried` as
-a recorded authority in the deterministic signal and does not re-derive it. See ADR
-0018 for the full decision, the rejected diff/patch-equality and path-disjointness
+a recorded authority in the deterministic signal and does not re-derive it. See
+SADR-0018 for the full decision, the rejected diff/patch-equality and path-disjointness
 alternatives, and the accepted residual.
 
-## External AI Guardian Review (ADR 0010)
+## External AI Guardian Review (SADR-0010)
 
 `external_ai_guardian_review` is a first-class approval source for high/critical
 risk, distinct from any human approval. An external AI reviewer (e.g. GPT-5.5
@@ -125,7 +125,7 @@ The guardian-comment parser ignores a stale or abbreviated-SHA approval comment
 authority; such a comment is only a blocker when it is the sole approval
 attempt.
 
-## External AI Guardian UI Adapter (ADR 0014)
+## External AI Guardian UI Adapter (SADR-0014)
 
 When the external reviewer is reached through a ChatGPT Pro UI, **Codex App is
 the External AI Guardian UI Adapter** — the transport and validation runtime.

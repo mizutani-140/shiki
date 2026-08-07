@@ -301,10 +301,10 @@ WORKFLOW_CONTRACTS = {
 #
 # Required per-job invocation flags: {workflow file: {job id: {script token: flags}}}.
 # The metadata check must pass --base-shiki and --merged-prs so a
-# post_merge_reconcile PR (and the ADR 0017 bookkeeping-closeout exemption) can be
+# post_merge_reconcile PR (and the SADR-0017 bookkeeping-closeout exemption) can be
 # proven; without them mergegate_check.py fails closed on a missing base snapshot.
 #
-# ADR 0018 base-sync carry (guardian_comment_carried): every invocation that judges
+# SADR-0018 base-sync carry (guardian_comment_carried): every invocation that judges
 # Guardian approval must pass --base-sync-carry and --default-branch, or the carry
 # degrades to "does not apply" silently — no error, feature invisible. Four such
 # invocations exist across the two workflows and each is pinned here so a future
@@ -759,7 +759,7 @@ def validate_guardian_policy_contracts(root: Path = ROOT) -> None:
     if policy.advisory_claude_review_counts_as_guardian:
         raise ValidationError(f"{GUARDIAN_POLICY_PATH}: advisory Claude review must not count as Guardian")
     if policy.ai_review_enabled and not policy.ai_review_require_head_sha:
-        raise ValidationError(f"{GUARDIAN_POLICY_PATH}: external_ai_guardian_review must bind to the head SHA (ADR 0010)")
+        raise ValidationError(f"{GUARDIAN_POLICY_PATH}: external_ai_guardian_review must bind to the head SHA (SADR-0010)")
 
     manifest = load_manifest(root)
     files = manifest.get("files")
@@ -2085,7 +2085,7 @@ def loop_lock_warnings(
 ) -> list[str]:
     """WARN-ONLY advisory hook for loop-task mirror-lock coverage.
 
-    Under the derive-at-judgment-time mirror-lock model (ADR 0016 / A-LOCKS) a
+    Under the derive-at-judgment-time mirror-lock model (SADR-0016 / A-LOCKS) a
     registered task's stored ``locks`` are EXACTLY what the plan declared —
     nothing is injected, and no task declares a blanket ``path:.shiki/**``.
     MergeGate recomputes the task's id-scoped mirror set at judgment time
@@ -2099,7 +2099,7 @@ def loop_lock_warnings(
     (``shiki_tasks.loop_guaranteed_locks``). No such guarantee ever existed, and
     the warning would fire on every task registered under the new model, so it is
     removed. This hook is retained WARN-ONLY: the future mirror-identity rule
-    (ADR 0016 step B / remediation R-02) will decide any blocking behaviour, and
+    (SADR-0016 step B / remediation R-02) will decide any blocking behaviour, and
     it must not become an error before R-02 is in force.
     """
     return []

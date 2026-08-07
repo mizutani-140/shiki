@@ -1,11 +1,11 @@
-"""The bookkeeping-closeout Guardian exemption on the CCA *signal* path (ADR 0017).
+"""The bookkeeping-closeout Guardian exemption on the CCA *signal* path (SADR-0017).
 
 ``scripts/guardian_approval_signal.py`` writes ``.shiki/gha/guardian-approval.json``,
 the deterministic Guardian-approval result the CCA judge reads for CCA-08. Before
 this change it resolved risk only from the head task's ``risk_level`` and had no
 base snapshot, no changed-files status and no merged-PR proof, so it could not
 classify a closeout at all: a closeout PR for a high/critical task passed the
-MergeGate *metadata* check (which learned the ADR 0017 exemption) but the CCA
+MergeGate *metadata* check (which learned the SADR-0017 exemption) but the CCA
 signal still returned ``needs_guardian``, leaving the exemption real but
 unreachable (PR #209).
 
@@ -13,7 +13,7 @@ The fix imports the SAME ``mergegate_check.is_bookkeeping_closeout`` classifier
 and feeds it the SAME inputs MergeGate feeds it. These tests prove:
 
 * a proven closeout for a *critical* task yields ``required=false``;
-* each ADR 0017 disqualifier IN ISOLATION re-requires Guardian approval;
+* each SADR-0017 disqualifier IN ISOLATION re-requires Guardian approval;
 * each missing/unbuildable input fails closed to ``required=true``;
 * the emitted JSON records whether the exemption was applied; and
 * a PARITY property — for a representative matrix, the signal's exemption decision

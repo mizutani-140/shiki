@@ -1,4 +1,4 @@
-# ADR 0016: Locks bound product paths; the Shiki mirror is bound by record identity
+# SADR-0016: Locks bound product paths; the Shiki mirror is bound by record identity
 
 ## Status
 
@@ -6,8 +6,8 @@ Proposed
 
 - Date: 2026-07-28
 - Deciders: operator (mizutani-140), Claude (planner)
-- Related: ADR 0004 (GitHub-first with a `.shiki` mirror), ADR 0009 (Spec Freeze),
-  ADR 0012 (autonomous loop closeout to main), ADR 0015 (Contract Approval before
+- Related: SADR-0004 (GitHub-first with a `.shiki` mirror), SADR-0009 (Spec Freeze),
+  SADR-0012 (autonomous loop closeout to main), SADR-0015 (Contract Approval before
   dispatch), remediation goal task R-02, the live PR #179 deadlock.
 
 ## Context
@@ -90,11 +90,11 @@ glob over a shared namespace when the files are nameable at plan time. Test
 files, documentation files and named source modules are nameable; runtime-
 allocated ledger, runner and report ids are not — and those live in `.shiki`,
 which locks no longer govern. Existing frozen contracts are brought into line by
-a one-time Spec Amendment per plan, which must land before ADR 0015's contract
+a one-time Spec Amendment per plan, which must land before SADR-0015's contract
 immutability makes `locks` unwritable from the implementation PR.
 
 **Lock state is resolved from the durable side.** MergeGate resolves the lock
-registry, and ADR 0015's governance fields, from the base `.shiki` snapshot when
+registry, and SADR-0015's governance fields, from the base `.shiki` snapshot when
 present, falling back to head only when absent. The `MergeGate metadata check`
 job is given `--base-shiki`, which it does not receive today. Locks are not
 derived from the live open-pull-request set: a pull request body is untrusted
@@ -108,7 +108,7 @@ blocked-on-lock stop naming the owning task instead of skipping silently, and
 Explicitly out of scope: moving MergeGate's contract resolution off the PR
 checkout wholesale; making the mirror a projection of GitHub state; introducing
 new lock kinds; moving ledger evidence out of the repository; and unwinding
-ADR 0012's closeout pull request. Registration of multi-task goals is ADR 0015's
+SADR-0012's closeout pull request. Registration of multi-task goals is SADR-0015's
 Contract PR and is not re-decided here.
 
 ## Consequences
@@ -127,7 +127,7 @@ byte comparison are retained.
 
 Risks accepted. First, goal-scoped identity is only as strong as `goal_id`,
 which is resolved from the PR body and the head task file; the mitigation is to
-add `goal_id` to ADR 0015's frozen governance field set, and until that lands a
+add `goal_id` to SADR-0015's frozen governance field set, and until that lands a
 task file can name a foreign goal. Second, base-when-present resolution is
 unavailable on fork pull requests, where the head is contributor-controlled;
 fork pull requests already cannot complete a Shiki merge, and this decision does
@@ -139,7 +139,7 @@ goal DAG; those remain writable only by the registration path and the closeout
 path, not by implementation pull requests.
 
 New obligations: one Spec Amendment per frozen plan to rewrite `locks`, ordered
-before ADR 0015 T1; extension of the adversarial suites in
+before SADR-0015 T1; extension of the adversarial suites in
 `scripts/test_shiki_adversarial_state.sh` and
 `scripts/test_shiki_governance_evidence.sh` to cover the eleven newly-scoped
 directories; and updating `scripts/test_shiki_loop_lock_guard.sh`,
@@ -151,32 +151,32 @@ locked directory should be expressible as a lock that does not conflict, and
 whether the loop's transitive sync of ledger `evidence` references can be
 deleted once the Contract PR carries its own source plan.
 
-## Relationship to ADR 0004
+## Relationship to SADR-0004
 
-This ADR **clarifies something ADR 0004 left unspecified**. ADR 0004 decides that
+This SADR **clarifies something SADR-0004 left unspecified**. SADR-0004 decides that
 GitHub is the operational source of truth and that each target repository keeps a
 `.shiki/` mirror. It says nothing about pull requests writing the mirror, does
 not name MergeGate, and does not make the mirror an input to a gate. Nothing in
-ADR 0004's Decision or Consequences is amended, superseded or weakened: the
+SADR-0004's Decision or Consequences is amended, superseded or weakened: the
 mirror still exists, still records the same artifacts, and pull request
-boundaries remain the coordination surface. What this ADR settles is the question
+boundaries remain the coordination surface. What this SADR settles is the question
 0004 never reached — by what authority a pull request may write a mirror record —
 and it answers it the way `.shiki/manifest.json` already declares
 (`pr_mutation: current-task-or-current-goal-only`).
 
-It **amends ADR 0012**, whose Decision item 5 states that "Loop-executed tasks
+It **amends SADR-0012**, whose Decision item 5 states that "Loop-executed tasks
 declare the `path:.shiki/**` lock, which covers every `.shiki` file the closeout
 stages ... so `files_outside_locks` is satisfied without per-file lock
 bookkeeping." That clause is replaced: the closeout's mirror writes are
-authorized by record identity, not by a declared lock. ADR 0012's substantive
+authorized by record identity, not by a declared lock. SADR-0012's substantive
 decision — that completion reaches `main` through a closeout pull request rather
 than local attestation — is preserved unchanged.
 
-It is **complementary to ADR 0015**, not a substitute. ADR 0015 owns contract
+It is **complementary to SADR-0015**, not a substitute. SADR-0015 owns contract
 immutability, the pre-dispatch gate, the Contract PR and the Scope Envelope. This
-ADR owns what a lock means and who may write the mirror. The one ordering
+SADR owns what a lock means and who may write the mirror. The one ordering
 constraint between them is that the lock-narrowing Spec Amendment must precede
-ADR 0015 T1's freezing of the `locks` field.
+SADR-0015 T1's freezing of the `locks` field.
 
 ## Alternatives Considered
 
@@ -186,7 +186,7 @@ its own output — the goal and plan must already be on the default branch befor
 the only writer that can register them may run. Migrating the Guardian signal to
 that store makes every registration PR fail closed to `needs_guardian` at every
 risk level, because the task file is by definition absent from the store, which
-removes the low/medium autonomous path ADR 0008/0009 exists to provide. And it
+removes the low/medium autonomous path SADR-0008/SADR-0009 exists to provide. And it
 leaves schemas, manifest, config, guardian policy, templates, migrations, plans,
 worktrees, runner records, runs and handoffs with no writer at all in a
 repository whose product is `.shiki`. Measured benefit on the frozen backlog:
@@ -199,14 +199,14 @@ depends on authorizes against a `goal_id` the pull request controls, and the
 namespace is not in fact ownership-partitioned — 56 ledger entries carry no
 `task_id`, and one goal DAG is writable by 35 registered tasks. The correct
 expression of its insight is that locks do not govern the mirror at all, which is
-what this ADR decides.
+what this SADR decides.
 
 **Make the mirror a projection written only by a registration writer and a
 post-merge projection job.** Rejected. It requires a bypass actor with write
 access to the protected default branch; it makes its own master invariant
 readable from a manifest that pull requests may edit; it deletes both reconcile
 modes and leaves a corrupted mirror with no in-band repair path, contradicting
-ADR 0004's consequence that mirror conflicts are repaired against GitHub state;
+SADR-0004's consequence that mirror conflicts are repaired against GitHub state;
 and its content-derived ids are rejected by `validate_shiki`'s currently-green id
 pattern.
 

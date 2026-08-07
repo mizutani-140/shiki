@@ -9,7 +9,7 @@
 # installs are therefore NOT supported; the official install path is the script
 # install (`python3 scripts/shiki.py install-global`) or running the shim
 # directly, as documented in docs/releasing.md. See
-# docs/adr/0007-packaging-and-release.md.
+# docs/adr/SADR-0007-packaging-and-release.md.
 #
 # The version below is kept in sync with the canonical ./VERSION file. When
 # bumping the release, update both ./VERSION and the `version` field here.

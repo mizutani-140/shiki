@@ -1,6 +1,6 @@
-"""A Contract PR may carry its Goal's own spec-frozen source plan (ADR 0015 gap).
+"""A Contract PR may carry its Goal's own spec-frozen source plan (SADR-0015 gap).
 
-ADR 0015 has a Contract PR carry "only Goal, task, and DAG registration" and
+SADR-0015 has a Contract PR carry "only Goal, task, and DAG registration" and
 assumes the Goal's spec-frozen source plan already sits on the default branch.
 Nothing puts it there: `shiki contract open` never writes a plan, and MergeGate
 contract mode blocked both halves of the only path that could — "source_plan not

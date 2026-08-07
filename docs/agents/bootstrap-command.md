@@ -189,7 +189,9 @@ shiki install-target /path/to/target-repo --local-only
 ```
 
 Use this only for tests, fixtures, or explicit local-only template inspection.
-Use `--force` only when you intentionally want to overwrite existing target files.
+Use `--force` only when you intentionally want to refresh the target template.
+Legacy numeric Shiki decision cleanup is stamp-and-digest authorized before any
+write; target ADR paths are not cleanup candidates.
 
 ## Slash Command
 

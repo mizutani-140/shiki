@@ -32,7 +32,7 @@ CCA should read all available durable inputs:
 - `AGENTS.md`
 - `CLAUDE.md`
 - `CONTEXT.md`
-- relevant ADRs
+- relevant SADRs and target ADRs
 - parent Goal issue
 - PRD issue or document
 - task issue

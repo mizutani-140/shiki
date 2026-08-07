@@ -25,7 +25,7 @@ The clarification process that turns a user request into a Goal with outcome, no
 _Avoid_: jumping directly into code
 
 **grill-with-docs**:
-A planning skill that challenges a plan against domain language, ADRs, code reality, and concrete edge scenarios. It resolves design-tree questions before PRD/issues. It runs inside Requirements Definition.
+A planning skill that challenges a plan against domain language, Shiki SADRs, target ADRs, code reality, and concrete edge scenarios. It resolves design-tree questions before PRD/issues. It runs inside Requirements Definition.
 _Avoid_: generic brainstorming, silent assumptions
 
 **Requirements Definition**:
@@ -101,7 +101,7 @@ The kind of approver that can grant a controlled transition: operator, repositor
 _Avoid_: treating "human pressed the button" as the only valid authority, recording one authority's approval under another's identity
 
 **Contract Approval**:
-Guardian approval of a high/critical-risk Goal's task contracts before any implementation starts, granted on the Contract PR and binding for every implementation that stays inside its Scope Envelope (ADR 0015). Guardian authorizes the contract, not the diff; whether the authorized work was implemented correctly stays with CCA and review.
+Guardian approval of a high/critical-risk Goal's task contracts before any implementation starts, granted on the Contract PR and binding for every implementation that stays inside its Scope Envelope (SADR-0015). Guardian authorizes the contract, not the diff; whether the authorized work was implemented correctly stays with CCA and review.
 _Avoid_: approving a contract after implementation exists, treating it as diff review, committed approval files
 
 **Contract PR**:
@@ -117,15 +117,15 @@ The Spec Amendment applied to a task contract: when implementation proves the ap
 _Avoid_: silently widening locks or lowering risk from the implementation PR, repairing an envelope breach instead of stopping
 
 **External AI Guardian Review**:
-A first-class Guardian approval authority (ADR 0010) by which an external AI reviewer authorizes autonomous merge of a high/critical-risk PR through a head-SHA-bound `external_ai_guardian_review` artifact, recorded with the AI reviewer's own model identity (reviewer_type=external_ai_model).
+A first-class Guardian approval authority (SADR-0010) by which an external AI reviewer authorizes autonomous merge of a high/critical-risk PR through a head-SHA-bound `external_ai_guardian_review` artifact, recorded with the AI reviewer's own model identity (reviewer_type=external_ai_model).
 _Avoid_: transforming an AI review into an operator approval, committed (forgeable) approval files, head-unbound approval
 
 **External AI Guardian Review Packet**:
-The deterministic review INPUT the External AI Guardian UI Adapter builds for a high/critical-risk PR (task contract, PR diff/checks, implementer report provenance, relevant docs, PR-type review focus areas, and known missing evidence). It is review context only, never approval evidence, and must not be committed by the PR under review (ADR 0014).
+The deterministic review INPUT the External AI Guardian UI Adapter builds for a high/critical-risk PR (task contract, PR diff/checks, implementer report provenance, relevant docs, PR-type review focus areas, and known missing evidence). It is review context only, never approval evidence, and must not be committed by the PR under review (SADR-0014).
 _Avoid_: treating the packet as approval, committing it as trusted PR state, ad hoc GPT repository exploration in place of it
 
 **External AI Guardian UI Adapter**:
-The Codex App-side runtime that transports an External AI Guardian Review: it builds the packet, drives the ChatGPT Pro review UI, extracts the verdict, validates the fenced `external_ai_guardian_review` artifact, relays only the validated approval to GitHub, and routes non-approval verdicts back into Shiki as bounded repair/evidence work (ADR 0014). Claude Code is the implementer/repairer and must not operate this Guardian UI path for its own work.
+The Codex App-side runtime that transports an External AI Guardian Review: it builds the packet, drives the ChatGPT Pro review UI, extracts the verdict, validates the fenced `external_ai_guardian_review` artifact, relays only the validated approval to GitHub, and routes non-approval verdicts back into Shiki as bounded repair/evidence work (SADR-0014). Claude Code is the implementer/repairer and must not operate this Guardian UI path for its own work.
 _Avoid_: Claude Code self-driving its own Guardian approval, treating a ChatGPT transcript as truth without artifact validation, requiring the GitHub connector as the primary context path
 
 **Memory**:

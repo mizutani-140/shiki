@@ -1,4 +1,4 @@
-# ADR 0014: Use Codex App As The External AI Guardian UI Adapter
+# SADR-0014: Use Codex App As The External AI Guardian UI Adapter
 
 ## Status
 
@@ -6,7 +6,7 @@ Proposed
 
 ## Context
 
-ADR 0010 admits `external_ai_guardian_review` as a first-class Guardian
+SADR-0010 admits `external_ai_guardian_review` as a first-class Guardian
 approval authority. The next design problem is how to obtain that external AI
 Guardian review when the reviewer is reached through a ChatGPT Pro UI rather
 than a deterministic GitHub Action or API.
