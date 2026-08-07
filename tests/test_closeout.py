@@ -613,5 +613,76 @@ class CloseoutCoordinatorMergeTests(unittest.TestCase):
                              "a genuine disagreement must be a normal conflict, NOT a hard refusal")
 
 
+class ReopenedTaskDoesNotCloseoutTests(unittest.TestCase):
+    """A Spec Amendment re-opens a task (status -> ready) while its expected_pr —
+    frozen to base — still names the previous cycle's merged closeout PR, and its
+    closeout_pr is unset (the closeout branch pushes only expected_pr, see
+    ``_create_closeout_pr``). The loop must clear the stale pointer as it dispatches,
+    so the fresh implementation's create_pr opens a NEW PR instead of the loop reading
+    the merged pointer as this cycle's completed work and driving a source-free
+    closeout. Measured 2026-08-06 (PR #308 / T-...dbdae1cf)."""
+
+    def _seed_reopened_ready_task(self, env: CloseoutEnv) -> None:
+        branch = f"shiki/{T1.lower()}-slice"
+        env.write(f".shiki/goals/{GOAL_A}.json", _goal(GOAL_A))
+        env.write(f".shiki/dag/{GOAL_A}.json", {"goal_id": GOAL_A, "nodes": [T1], "edges": []})
+        # Re-opened: ready, expected_pr names the merged closeout PR #309, closeout_pr
+        # unset, cca_rerun_count reset — exactly what an amendment leaves behind.
+        env.write(f".shiki/tasks/{T1}.json",
+                  _task(T1, GOAL_A, status="ready", expected_branch=branch, expected_pr=309))
+        env.write(f".shiki/locks/{T1}.json", _lock(T1, GOAL_A))
+        env.commit_push_main("re-opened task: ready, stale merged expected_pr=309")
+        env.use_github_fetch_url()
+
+    def test_first_cycle_decides_dispatch_not_closeout(self):
+        # cycle 1: the pure engine sees a merged pointer on a ready task -> dispatch
+        # + clear_expected_pr, and NEVER create_closeout_pr.
+        with tempfile.TemporaryDirectory() as d:
+            env = CloseoutEnv(Path(d))
+            self._seed_reopened_ready_task(env)
+            decision = decide_task_action(
+                load_task(env.target, T1), checks=None,
+                pr_state={"number": 309, "merged": True},
+                repair_attempts=0, repair_limit=3, required_checks=REQUIRED, cca_reruns=0,
+            )
+            self.assertEqual(decision["action"], "dispatch", decision)
+            self.assertNotEqual(decision["action"], "create_closeout_pr")
+            self.assertTrue(decision.get("clear_expected_pr"), decision)
+
+    def test_dispatch_clears_pointer_and_next_cycle_cuts_fresh_pr(self):
+        with tempfile.TemporaryDirectory() as d:
+            env = CloseoutEnv(Path(d))
+            self._seed_reopened_ready_task(env)
+            decision = decide_task_action(
+                load_task(env.target, T1), checks=None,
+                pr_state={"number": 309, "merged": True},
+                repair_attempts=0, repair_limit=3, required_checks=REQUIRED, cca_reruns=0,
+            )
+
+            # The dispatch effector clears the stale pointer BEFORE running the
+            # implementer (stubbed so no real session runs).
+            orig = shiki_loop._dispatch
+            shiki_loop._dispatch = lambda *a, **k: 0
+            try:
+                result = execute_action(env.target, GOAL_A, decision, repair_limit=3)
+            finally:
+                shiki_loop._dispatch = orig
+            self.assertEqual(result["action"], "dispatch", result)
+            self.assertIsNone(load_task(env.target, T1).get("expected_pr"),
+                              "the stale merged pointer must be cleared before the fresh dispatch")
+
+            # cycle 2 (measured sequence): the dispatched session leaves the task in
+            # `review`; with the pointer gone there is no PR -> create_pr (a fresh
+            # implementation PR), NOT create_closeout_pr.
+            reopened = load_task(env.target, T1)
+            reopened["status"] = "review"
+            fresh = decide_task_action(
+                reopened, checks={}, pr_state=None,
+                repair_attempts=0, repair_limit=3, required_checks=REQUIRED, cca_reruns=0,
+            )
+            self.assertEqual(fresh["action"], "create_pr", fresh)
+            self.assertNotEqual(fresh["action"], "create_closeout_pr")
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

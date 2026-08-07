@@ -187,6 +187,12 @@ def decide_task_action(
     when the ``CCA verdict`` required check is red — otherwise ``None``. It is
     consulted ONLY in the impl-PR repair path, so a pure-engine caller that leaves
     it ``None`` keeps the prior check-conclusion behaviour (DEFECT A).
+
+    ``pr_state`` is consulted for a ``ready`` task too, not only ``review``: a
+    re-opened task carrying a MERGED ``expected_pr`` from a previous cycle is
+    dispatched with ``clear_expected_pr`` set so the effector drops the stale pointer
+    before cutting a fresh implementation (a pure-engine caller that leaves it
+    ``None`` for a ready task keeps the plain dispatch behaviour).
     """
     task_id = str(task.get("id"))
     status = str(task.get("status", ""))
@@ -194,8 +200,40 @@ def decide_task_action(
     if status == "done":
         return {"action": "none", "task_id": task_id, "reason": "task is done"}
     if status in {"planned", "blocked"}:
+        # A `planned` task carrying a stale merged pointer (below) is harmless until it
+        # is dispatched: it reaches `review` — where the pointer would mislead — only
+        # by first becoming `ready`, and the ready branch clears the pointer as it cuts
+        # the fresh implementation. So keep waiting for dependencies; a non-terminal
+        # task is simply never read as done here (it returns before the merge check).
         return {"action": "wait_dependencies", "task_id": task_id, "reason": f"task is {status}"}
     if status == "ready":
+        # A `ready` task normally has no PR yet. One that carries a MERGED expected_pr
+        # is a re-opened task holding a stale pointer from a previous cycle: the loop
+        # repoints expected_pr at a task's closeout PR, and a Spec Amendment can then
+        # re-open the task (status -> ready) while that now-merged pointer survives,
+        # frozen to base by MergeGate. A ready (non-terminal) status and a merged
+        # expected_pr cannot both describe the CURRENT cycle — no PR has been cut for
+        # this cycle's work — so that merged PR is a previous cycle's, never this
+        # cycle's completed implementation. Clear the pointer and cut a fresh
+        # implementation; reading it as done drives a closeout whose diff carries no
+        # source change (the amended contract silently unimplemented, the CCA
+        # confirming `complete`). Detected from the task record alone — the status plus
+        # the pointer's merge state — never an amendment marker, ledger scan or PR
+        # timestamp. The failure is asymmetric: clearing a still-live pointer at worst
+        # re-opens a PR-less cycle the loop already handles, while reading a stale one
+        # silently ships nothing. The `review` path (below) is the normal route INTO
+        # the closeout and is deliberately excluded.
+        if pr_state and pr_state.get("merged"):
+            return {
+                "action": "dispatch",
+                "task_id": task_id,
+                "clear_expected_pr": True,
+                "reason": (
+                    "task is ready but its expected_pr names an already-merged PR from a "
+                    "previous cycle (a re-opened task's stale pointer); clearing it and "
+                    "cutting a fresh implementation"
+                ),
+            }
         return {"action": "dispatch", "task_id": task_id, "reason": "task is ready for the implementer runtime"}
     if status == "running":
         # The status field alone is not proof of a live session: a dispatched
@@ -683,6 +721,23 @@ def _reset_pre_pr_review_retries(target: Path, task_id: str) -> None:
     if task.get("pre_pr_review_empty_retries"):
         task["pre_pr_review_empty_retries"] = 0
         _save_task(target, task)
+
+
+def _clear_stale_expected_pr(target: Path, task_id: str) -> None:
+    """Drop a re-opened task's stale ``expected_pr`` before it is re-dispatched.
+
+    The loop repoints ``expected_pr`` at a task's closeout PR; a Spec Amendment can
+    then re-open the task (status -> ready) while that now-merged pointer survives,
+    frozen to base by MergeGate. ``decide_task_action`` flags such a decision with
+    ``clear_expected_pr``. Clearing the pointer here means the fresh implementation's
+    ``create_pr`` opens a NEW PR rather than the loop reading the merged pointer as
+    this cycle's completed work and driving a source-free closeout (see
+    ``decide_task_action``). Idempotent: a task with no ``expected_pr`` is untouched."""
+    task = load_task(target, task_id)
+    if task.get("expected_pr") is None:
+        return
+    task["expected_pr"] = None
+    _save_task(target, task)
 
 
 def _release_lock(target: Path, task_id: str) -> None:
@@ -2026,6 +2081,15 @@ def _execute_action_body(target: Path, goal_id: str, decision: dict[str, Any], *
     task_id = decision.get("task_id")
     result: dict[str, Any] = {"action": action, "task_id": task_id, "reason": decision.get("reason")}
 
+    # A re-opened task's decision may carry ``clear_expected_pr``: its ``expected_pr``
+    # names a previous cycle's already-merged PR (see ``decide_task_action``). Drop the
+    # stale pointer BEFORE the effector runs so the fresh implementation's ``create_pr``
+    # opens a new PR instead of the loop reading the merged pointer as this cycle's
+    # completed work. Handled here (before the wait/stop early return) so the single
+    # coordinator-mirror commit in ``execute_action`` persists it.
+    if decision.get("clear_expected_pr") and task_id:
+        _clear_stale_expected_pr(target, task_id)
+
     if action in WAIT_ACTIONS or action in STOP_ACTIONS or action == "goal_complete":
         if action == "goal_complete":
             # The completing task's closeout PR already pushed goal=complete (with
@@ -2324,6 +2388,15 @@ def goal_loop_step(target: Path, goal_id: str) -> dict[str, Any]:
             # so it does not need the value.
             if checks.get(CCA_VERDICT_CHECK) == "fail" and not task.get("closeout_pr"):
                 cca_verdict = _resolve_cca_verdict(target, task, pr_state)
+        elif task.get("status") == "ready" and task.get("expected_pr"):
+            # A `ready` task normally has no PR yet. One that DOES carry an expected_pr
+            # is a re-opened task (a Spec Amendment moved it back to ready) whose
+            # pointer may still name the previous cycle's — now merged — PR. Snapshot it
+            # so the pure engine can spot a stale merged pointer and clear it before
+            # cutting a fresh implementation (reading it as done would drive a closeout
+            # with no source change). Only the merge bit is needed; checks are ignored
+            # for a ready task, and a fresh ready task (no expected_pr) makes no call.
+            pr_state, _ = snapshot_pr(target, task)
         elif task.get("status") == "running":
             # Probe the OS lease so a stranded `running` task (session died) is
             # distinguished from a live one instead of waiting on it forever.

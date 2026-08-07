@@ -69,6 +69,30 @@ class TaskDecisionTests(unittest.TestCase):
         decision = decide(task("review"), pr_state={"merged": True}, checks=green())
         self.assertEqual(decision["action"], "create_closeout_pr")
 
+    def test_reopened_ready_task_cuts_fresh_implementation_not_closeout(self) -> None:
+        # Measured 2026-08-06 (PR #308 / T-...dbdae1cf): a Spec Amendment re-opened a
+        # task to `ready` while its expected_pr still named the merged closeout PR.
+        # A non-terminal status + a merged pointer is a STALE pointer from a previous
+        # cycle: the loop must cut a fresh implementation (dispatch + clear the stale
+        # pointer), NEVER read the merged pointer as done and open a source-free
+        # closeout on the first cycle.
+        decision = decide(task("ready"), pr_state={"merged": True})
+        self.assertEqual(decision["action"], "dispatch")
+        self.assertNotEqual(decision["action"], "create_closeout_pr")
+        self.assertTrue(decision.get("clear_expected_pr"))
+
+    def test_reopened_planned_task_waits_not_closeout(self) -> None:
+        # The same holds for a re-opened task still waiting on dependencies.
+        decision = decide(task("planned"), pr_state={"merged": True})
+        self.assertEqual(decision["action"], "wait_dependencies")
+        self.assertNotEqual(decision["action"], "create_closeout_pr")
+
+    def test_ready_with_unmerged_pr_dispatches_without_clearing(self) -> None:
+        # An UNMERGED expected_pr on a non-terminal task is untouched.
+        decision = decide(task("ready"), pr_state={"merged": False})
+        self.assertEqual(decision["action"], "dispatch")
+        self.assertFalse(decision.get("clear_expected_pr"))
+
     def test_merged_closeout_pr_marks_done(self) -> None:
         # Once the closeout PR (expected_pr repointed, closeout_pr set) merges, the
         # completion is durable on main, so the task is marked done.
