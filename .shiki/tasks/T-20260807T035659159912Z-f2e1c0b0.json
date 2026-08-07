@@ -11,8 +11,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260807t035659159912z-f2e1c0b0-judge-a-repair-by-what-the-implementer-changed-n",
-  "expected_pr": 318,
+  "expected_branch": "shiki/t-20260807t035659159912z-f2e1c0b0-closeout",
+  "expected_pr": 319,
   "github_issue": null,
   "goal_id": "G-20260807T035659158223Z-af599ebb",
   "id": "T-20260807T035659159912Z-f2e1c0b0",
@@ -23,7 +23,8 @@
     "L-20260807T044033308134Z-578aa7c6",
     "L-20260807T044300628972Z-e5556cd1",
     "L-20260807T044502315139Z-2c6392df",
-    "L-20260807T044506516677Z-c7d58a9b"
+    "L-20260807T044506516677Z-c7d58a9b",
+    "L-20260807T044959161757Z-ac884484"
   ],
   "locks": [
     "path:scripts/shiki_loop.py",
@@ -47,7 +48,7 @@
   ],
   "risk_level": "medium",
   "scope": "`scripts/shiki_loop.py:2203` already stops the loop when a repair produced no change \u2014 `if head_after is None or head_after == head_before` -> `stop_blocked`, with the reason 'repair produced no change: the PR head did not advance ...'. It never fires, because `_commit_and_push_implementation` commits the task's OWN mirror record, which the LOOP wrote (`cca_rerun_count`, `ledger_evidence`, `status`), so the head advances on every attempt regardless of what the repairer did.\n\nMEASURED on PR #310, 2026-08-07: three repairs dispatched, three attempts consumed, `stop_guardian` at the limit. All three repairer EXEC records report `Status: blocked \u2014 not implementer-repairable` and `Changed nothing in the worktree.` All three resulting commits are identical in shape: `.shiki/tasks/T-20260806T065143409817Z-dbdae1cf.json | 5 +++--` \u2014 one file, three insertions, two deletions, zero source changes.\n\nCHANGE THE DISCRIMINATOR: a repair counts as delivered only when it changed something the IMPLEMENTER owns. The task's own mirror record is loop-authored bookkeeping and must not count. Keep everything else about the guard as it is \u2014 same stop action, same shape of named reason, same position relative to the delivery check above it.\n\nBe precise about what does not count, and say it in the code: the task's own `.shiki/tasks/<task_id>.json`, and any `.shiki` record the loop itself wrote during this cycle. Do NOT extend this to 'all of `.shiki`': a repair CAN legitimately need to change mirror content, and a blanket exclusion would silently stop those.\n\nFAILURE DIRECTION. Stopping a repair that did deliver something is cheap and visible \u2014 the loop halts with a named reason and the operator re-dispatches. Letting a no-op repair through burns the budget silently and ends at `stop_guardian`, which is what happened three times.\n\nTESTS. `tests/test_repair_delivery.py` owns this guard. Add: a repair whose only change is the task's own mirror record stops with the named reason and does not consume a further attempt; a repair that changes a source file inside the task's locks proceeds exactly as today; a repair that changes both proceeds; the existing delivery-failure and head-did-not-move cases still behave as they do now. Reproduce the measured shape \u2014 a single `.shiki/tasks/<task_id>.json` change \u2014 as a fixture, not as prose.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: the loop dispatches the full repair budget against a failure no implementer can fix, then stops at `stop_guardian`. Every repairer correctly reports it cannot fix the failure and changes nothing.\n  Measured 2026-08-07, PR #310: three attempts, three identical one-file bookkeeping commits, zero source changes.\n  Root cause: the guard at `:2203` asks whether the PR head moved. `_commit_and_push_implementation` moves it by committing the loop's own task-record update, so the guard cannot see that the repairer did nothing.\n  Exact change that reproduces this result: judge delivery by substantive change rather than head movement.\n  Reproducible when: the measured three-attempt sequence stops at the first attempt with a named reason.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_goal_loop.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Judge a repair by what the implementer changed, not by whether the head moved"
 }
