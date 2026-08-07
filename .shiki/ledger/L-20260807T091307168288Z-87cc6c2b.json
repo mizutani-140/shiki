@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "RP-20260807T090001575268Z-d912decd",
+    "Shiki MergeGate run 31164767961",
+    "Contract Approval carry from PR #323 applies=true"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T091307168288Z-87cc6c2b",
+  "links": [],
+  "summary": "PR #326 MergeGate blocker repaired: Repair Packet now references current PR #326 and retains source_pr #325",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T09:13:07+00:00",
+  "type": "repair"
+}

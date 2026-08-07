@@ -15,7 +15,8 @@
   "minimal_required_changes": [
     "Make the installed reference test reject only exact former Shiki platform ADR paths and run that installed suite from the fresh-install fixture"
   ],
-  "pr": 325,
+  "pr": 326,
+  "source_pr": 325,
   "prohibited_changes": [
     "Do not change installer deletion semantics, target product ADRs, approval, CCA, MergeGate, locks, runtime, or repair semantics"
   ],
