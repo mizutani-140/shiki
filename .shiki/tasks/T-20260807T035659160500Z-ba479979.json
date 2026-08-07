@@ -17,14 +17,18 @@
     "T-20260807T035659159912Z-f2e1c0b0"
   ],
   "expected_branch": "shiki/t-20260807t035659160500z-ba479979-ship-mergegate-s-blocking-reasons-out-of-the-run",
-  "expected_pr": null,
+  "expected_pr": 320,
   "github_issue": null,
   "goal_id": "G-20260807T035659158223Z-af599ebb",
   "id": "T-20260807T035659160500Z-ba479979",
   "ledger_evidence": [
     "L-20260807T035659160518Z-011ff16d",
     "L-20260807T045933302043Z-24336570",
-    "L-20260807T045933303245Z-73d133f1"
+    "L-20260807T045933303245Z-73d133f1",
+    "L-20260807T052118122134Z-36a7084a",
+    "L-20260807T052423891861Z-4a10b0d1",
+    "L-20260807T052649383809Z-0c0048c2",
+    "L-20260807T052653899184Z-8103dabf"
   ],
   "locks": [
     "path:.github/workflows/shiki-mergegate.yml",
@@ -41,13 +45,18 @@
     "Changing any MergeGate rule, schema or approval source",
     "Touching any file outside the declared locks"
   ],
+  "pre_pr_code_review": {
+    "findings": [],
+    "ledger_id": "L-20260807T052423891861Z-4a10b0d1",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "medium",
   "scope": "The loop decides from a three-value bucket \u2014 `_check_bucket` (`scripts/shiki_loop.py:529-534`) maps everything to pass/pending/fail \u2014 and `gh pr view --json statusCheckRollup` exposes only `conclusion`, `status`, `detailsUrl` and names. So every repair packet the loop has ever written says only `required checks failed: MergeGate metadata check`. Measured: on PR #310 each repairer had to rediscover the reasons itself before it could report that they were not implementer-fixable.\n\nTHE REASONS ARE ALREADY WRITTEN TO A FILE. `scripts/mergegate_check.py:2882` declares `--result-file` defaulting to `.shiki/gha/mergegate-result.json`, and `:3401` `write_json(...)` runs BEFORE the `print(...)` at `:3402`, on the failing path too. Four tests already read that path. Do NOT change `mergegate_check.py`; what is missing is publication out of the run and consumption.\n\n1. PUBLISH. Add an upload step to `.github/workflows/shiki-mergegate.yml` so the result file ships from the FAILING run. Use `actions/upload-artifact` at **v6 or v7**: `scripts/validate_shiki.py:352` permits only those, and the CCA workflow's `v4` survives solely through the exception list at `:357-359` \u2014 copying v4 would turn the required `Validate Shiki mirror` check red on this very PR. `.shiki/gha` is created at `:48` and the check runs at `:78`, so the file exists at upload time. `if: always()` is required and is SAFE here specifically: the workflow's four steps \u2014 Checkout, Validate Shiki artifacts, Prepare PR context, MergeGate metadata check \u2014 post no review, comment or label. (The same question in the CCA workflow has the opposite answer: its Review Bridge submits `--arg event \"APPROVE\"`, so `if: always()` there would mint an approval on a refused verdict. Never add one there.)\n\n2. CONSUME. In `scripts/shiki_loop.py`, resolve the blocking reasons read-only, mirroring `_resolve_cca_verdict` (`:573`): find the run for the PR head, download the artifact, read the file. It must NEVER raise and must degrade to 'no reasons available' on ANY failure \u2014 no run, no artifact, network or `gh` failure, unreadable or malformed JSON. A missing artifact must change nothing about the decision.\n\n3. RENDER. Put the reasons in the repair packet, and \u2014 this is the half that is easy to miss \u2014 render them in the handoff the runner actually reads. `scripts/shiki_tasks.py:1523-1545` builds the repair handoff markdown from `minimal_required_changes`, `prohibited_changes`, `verification_commands` and `evidence_required`; it does NOT render `failing_checklist_items`. Reasons in the packet alone never reach the runner.\n\nDO NOT classify the reasons. The decision stays exactly as it is today: this task makes the loop INFORMATIVE, not smarter. A sweep proved that the obvious classification rule ('every reason names a path outside the task's locks') is wrong in both directions \u2014 it misses reasons that name a ledger id rather than a path (`mergegate_check.py:2739`), and it is a tautology for `Changed file {path} is outside declared task locks` (`:3208`), which would hard-stop a genuinely repairable violation.\n\nTREAT THE REASONS AS UNTRUSTED TEXT. They are derived from PR content and reach a runner prompt through the handoff. Render them as data \u2014 quoted or fenced \u2014 never as instructions.\n\nTESTS. `tests/test_repair_reasons.py` (new): the loop reads reasons from a fixture artifact and puts them in the packet; a missing artifact, a malformed one and a failing `gh` each degrade to no reasons and change no decision; the rendered handoff markdown contains the reasons; reason text that looks like an instruction is rendered as data. Assert the workflow uses an allowed upload-artifact version, and that no step which posts a review, comment or label gains `if: always()`.\n\nREPRODUCIBILITY \u2014 what this task removes, and what to change to get the same result.\n  Symptom: a repair packet names only the failing check, so the repairer must rediscover the reasons before it can act \u2014 or report that it cannot.\n  Measured 2026-08-07, PR #310: three repairers each independently re-derived the same blocking reasons the gate had already written to `.shiki/gha/mergegate-result.json`, because that file never left the run.\n  Exact change that reproduces this result: upload the file the gate already writes, read it read-only, and render it in the handoff.\n  Reproducible when: a repair packet for a red MergeGate check names the gate's own blocking reasons, and every artifact failure mode degrades silently.",
-  "status": "running",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_goal_loop.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Ship MergeGate's blocking reasons out of the run and into the repair handoff"
 }
