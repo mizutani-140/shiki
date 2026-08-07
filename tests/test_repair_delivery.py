@@ -257,6 +257,50 @@ def _fake_repair_dispatch_noop(target, task, *, repair_id=None):
     return 0
 
 
+def _worktree_task_file(target, task_id):
+    from shiki_tasks import worktree_record
+
+    record = worktree_record(target, task_id)
+    return Path(record["path"]) / ".shiki" / "tasks" / f"{task_id}.json"
+
+
+def _fake_repair_dispatch_bookkeeping_only(target, task, *, repair_id=None):
+    """Reproduce the measured PR #310 no-op shape: the ONLY change is the task's own
+    mirror record in the WORKTREE — the loop-authored bookkeeping a real
+    ``sync_contract_into_worktree`` writes (``status`` / ``cca_rerun_count``) — and
+    NO source. ``_commit_and_push_implementation`` ``git add -A``s that lone
+    ``.shiki/tasks/<id>.json`` change, so the PR head advances although the repairer
+    fixed nothing (the exact ``.shiki/tasks/<id>.json | 5 +++--`` measured shape)."""
+    wt_task = _worktree_task_file(target, task["id"])
+    live = json.loads(wt_task.read_text())
+    live["cca_rerun_count"] = int(live.get("cca_rerun_count") or 0) + 1
+    live["status"] = "review"
+    write_json(wt_task, live)
+    # Keep the coordinator status consistent, as the real runner dispatch does.
+    coord = load_task(target, task["id"])
+    coord["status"] = "review"
+    write_json(shiki_path(target, "tasks", f"{task['id']}.json"), coord)
+    return 0
+
+
+def _fake_repair_dispatch_source_and_bookkeeping(target, task, *, repair_id=None):
+    """A repair that changes BOTH a source file inside the locks AND the task's own
+    mirror record in the worktree. Delivery must proceed on the source change; the
+    loop-authored bookkeeping alongside it does not disqualify it."""
+    from shiki_tasks import worktree_record
+
+    wt = Path(worktree_record(target, task["id"])["path"])
+    (wt / FIX_FILE).write_text("fix\n")
+    wt_task = _worktree_task_file(target, task["id"])
+    live = json.loads(wt_task.read_text())
+    live["status"] = "review"
+    write_json(wt_task, live)
+    coord = load_task(target, task["id"])
+    coord["status"] = "review"
+    write_json(shiki_path(target, "tasks", f"{task['id']}.json"), coord)
+    return 0
+
+
 class RepairPacketContractTests(unittest.TestCase):
     """Acceptance #4: the generated repair packet + its rendered handoff carry the
     loop-owned push evidence and the same commit/push prohibition the task handoff
@@ -364,6 +408,100 @@ class RepairPushFailureTests(unittest.TestCase):
             self.assertEqual(env.origin_tip(env.branch), head_before)
             packets = list((env.target / ".shiki" / "repairs").glob("RP-*.json"))
             self.assertEqual(len(packets), 1, packets)
+
+
+class RepairImplementerChangeDiscriminatorTests(unittest.TestCase):
+    """The delivery discriminator is what the IMPLEMENTER changed, not head movement.
+
+    ``_commit_and_push_implementation`` ``git add -A``s the whole worktree, so the
+    runner dispatch's own bookkeeping (the task's mirror record, synced/rewritten
+    each cycle) advances the PR head with zero source. The old guard read that as
+    delivery and burned the whole repair budget to ``stop_guardian`` (PR #310,
+    2026-08-07: three attempts, three ``.shiki/tasks/<id>.json | 5 +++--`` commits).
+    """
+
+    def _dispatch_repair(self, env):
+        return execute_action(
+            env.target, GOAL,
+            {"action": "dispatch_repair", "task_id": TASK,
+             "failed_checks": ["Validate Shiki mirror"]},
+            repair_limit=3,
+        )
+
+    def test_bookkeeping_only_repair_stops_at_this_attempt(self):
+        # Acceptance #1/#6: the ONLY change is the task's own mirror record — the
+        # measured PR #310 shape. The push reports success and the head DID advance,
+        # yet the repair delivered nothing the implementer owns, so the loop stops
+        # HERE with a named reason instead of consuming further silent attempts.
+        with tempfile.TemporaryDirectory() as d:
+            env = RepairEnv(Path(d))
+            head_before = env.origin_tip(env.branch)
+            orig = shiki_loop._dispatch
+            shiki_loop._dispatch = _fake_repair_dispatch_bookkeeping_only
+            try:
+                result = self._dispatch_repair(env)
+            finally:
+                shiki_loop._dispatch = orig
+
+            # The commit/push ran and the head advanced (so the head-movement guard
+            # cannot catch it)...
+            self.assertIn("pushed to the task branch", result.get("impl_commit", ""))
+            self.assertNotEqual(env.origin_tip(env.branch), head_before)
+            # ...but the pushed commit is the measured shape — exactly the task's own
+            # mirror record, zero source — so the discriminator stops the loop, named.
+            self.assertEqual(result["action"], "stop_blocked")
+            self.assertIn("no implementer change", result["reason"])
+            changed = _git(
+                env.wt, "diff", "--name-only", f"{head_before}..HEAD"
+            ).stdout.split()
+            self.assertEqual(changed, [f".shiki/tasks/{TASK}.json"])
+            # Exactly one repair packet — surfaced at THIS attempt, not swallowed
+            # into further attempts that would only end at stop_guardian.
+            packets = list((env.target / ".shiki" / "repairs").glob("RP-*.json"))
+            self.assertEqual(len(packets), 1, packets)
+
+    def test_source_only_repair_proceeds_exactly_as_today(self):
+        # Acceptance #2: a source file inside the locks changed, so delivery proceeds
+        # exactly as a normal repair does today.
+        with tempfile.TemporaryDirectory() as d:
+            env = RepairEnv(Path(d))
+            head_before = env.origin_tip(env.branch)
+            orig = shiki_loop._dispatch
+            shiki_loop._dispatch = _fake_repair_dispatch
+            try:
+                result = self._dispatch_repair(env)
+            finally:
+                shiki_loop._dispatch = orig
+
+            self.assertEqual(result["action"], "dispatch_repair")
+            self.assertIn("pushed to the task branch", result["impl_commit"])
+            self.assertNotEqual(env.origin_tip(env.branch), head_before)
+            self.assertTrue(env.origin_has(env.branch, FIX_FILE))
+
+    def test_source_and_bookkeeping_repair_proceeds(self):
+        # Acceptance #3: a repair that changes BOTH a source file and the task's own
+        # mirror record proceeds — the bookkeeping alongside a real fix is not
+        # disqualifying.
+        with tempfile.TemporaryDirectory() as d:
+            env = RepairEnv(Path(d))
+            head_before = env.origin_tip(env.branch)
+            orig = shiki_loop._dispatch
+            shiki_loop._dispatch = _fake_repair_dispatch_source_and_bookkeeping
+            try:
+                result = self._dispatch_repair(env)
+            finally:
+                shiki_loop._dispatch = orig
+
+            self.assertEqual(result["action"], "dispatch_repair")
+            self.assertIn("pushed to the task branch", result["impl_commit"])
+            self.assertNotEqual(env.origin_tip(env.branch), head_before)
+            self.assertTrue(env.origin_has(env.branch, FIX_FILE))
+            # Both files rode the commit; delivery keyed off the source change.
+            changed = set(
+                _git(env.wt, "diff", "--name-only", f"{head_before}..HEAD").stdout.split()
+            )
+            self.assertIn(FIX_FILE, changed)
+            self.assertIn(f".shiki/tasks/{TASK}.json", changed)
 
 
 class RepairDeliveryIntegrationTests(unittest.TestCase):

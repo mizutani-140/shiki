@@ -1043,6 +1043,76 @@ def _pr_branch_head(target: Path, task_id: str) -> str | None:
     return head or None
 
 
+def _loop_authored_repair_paths(target: Path, task_id: str) -> set[str]:
+    """The ``.shiki`` paths the loop ITSELF (re)writes into the task worktree during
+    a repair cycle — loop-authored bookkeeping, never implementer work.
+
+    ``dispatch_runner_task`` calls ``sync_contract_into_worktree`` before the
+    session, copying the coordinator's CURRENT task, lock and goal records over the
+    worktree's copies; and the task's own mirror record additionally carries the
+    loop's ``status`` / ``cca_rerun_count`` / ``ledger_evidence`` bookkeeping. When
+    ``_commit_and_push_implementation`` then ``git add -A``s the worktree, a change
+    to any of these commits and advances the PR head even though the repairer fixed
+    nothing — the PR #310 repro (a lone ``.shiki/tasks/<id>.json`` commit, zero
+    source).
+
+    Deliberately NARROW: EXACTLY the per-task / per-goal contract-mirror records the
+    loop syncs, NEVER a blanket ``.shiki`` exclusion. A repair may legitimately need
+    to change other mirror content (a sibling record, a fixture, a schema), and such
+    a change MUST still count as delivered.
+    """
+    paths = {
+        f".shiki/tasks/{task_id}.json",
+        f".shiki/locks/{task_id}.json",
+    }
+    goal_id = str(load_task(target, task_id).get("goal_id") or "")
+    if goal_id:
+        paths.add(f".shiki/goals/{goal_id}.json")
+    return paths
+
+
+def _repair_implementer_changes(
+    target: Path, task_id: str, head_before: str | None, head_after: str | None
+) -> list[str] | None:
+    """The files a repair push added that the IMPLEMENTER owns.
+
+    ``_commit_and_push_implementation`` ``git add -A``s the whole task worktree, so
+    a push can advance the PR head carrying NOTHING the repairer changed: the runner
+    dispatch's ``sync_contract_into_worktree`` rewrites the task's own mirror record
+    (and its lock/goal) in the worktree, which commits and moves the head on a no-op
+    repair. Judge delivery by the pushed commit range (``head_before..head_after``)
+    with that loop-authored bookkeeping removed — a repair DELIVERS only when the
+    range still holds something. Head movement alone is NOT proof of delivery (the
+    loop's own bookkeeping always trips it).
+
+    Returns the implementer-owned changed paths (``[]`` means the range held ONLY
+    bookkeeping → a no-op repair the caller stops), or ``None`` when the per-push
+    delta cannot be scoped: no prior pushed head (a first push carries the whole
+    branch — impl + fix — which is real delivery, never bookkeeping-only), no
+    worktree, or a git error. The caller treats ``None`` as "cannot prove a no-op"
+    and proceeds; a real repair always has a pushed head, so ``None`` is the
+    degenerate first-push case, not the failure this guard is built to catch.
+    """
+    if not head_before or not head_after:
+        return None
+    record = worktree_record(target, task_id)
+    if not record:
+        return None
+    worktree_path = Path(record["path"]).expanduser().resolve()
+    if not worktree_path.exists():
+        return None
+    diff = run(
+        ["git", "diff", "--name-only", f"{head_before}..{head_after}"],
+        cwd=worktree_path,
+        check=False,
+    )
+    if diff.returncode != 0:
+        return None
+    bookkeeping = _loop_authored_repair_paths(target, task_id)
+    changed = [line.strip() for line in (diff.stdout or "").splitlines() if line.strip()]
+    return [rel for rel in changed if rel not in bookkeeping]
+
+
 def _evidence_relatives_for_task(target: Path, task: dict[str, Any]) -> list[str]:
     """Every ``.shiki``-relative path that must ride on the task branch.
 
@@ -2271,6 +2341,32 @@ def _execute_action_body(target: Path, goal_id: str, decision: dict[str, Any], *
                 f"{head_before or '(unpushed)'} ({impl}), so its required checks "
                 "cannot re-run and the repair did not fix the failure — diagnose "
                 "or re-dispatch"
+            )
+            return result
+        # CHANGE THE DISCRIMINATOR — head movement alone does NOT prove delivery.
+        # ``_commit_and_push_implementation`` ``git add -A``s the whole worktree, so
+        # the advance above can be pure loop bookkeeping: the runner dispatch's
+        # ``sync_contract_into_worktree`` rewrites the task's own mirror record (and
+        # its lock/goal) in the worktree, which commits and moves the head even when
+        # the repairer changed no source. That is the PR #310 repro — three attempts,
+        # three identical ``.shiki/tasks/<id>.json | 5 +++--`` commits, zero source,
+        # stopping only at ``stop_guardian`` at the limit. A repair DELIVERS only when
+        # it changes something the IMPLEMENTER owns, so judge delivery by the pushed
+        # commit's file set with the loop's own bookkeeping removed (NARROW — the
+        # task's own mirror record and the per-cycle contract-mirror sync, never all
+        # of ``.shiki``). Same stop action / reason shape / position as the guard
+        # above; only the discriminator changes. ``None`` means the per-push delta
+        # could not be scoped (a first push carrying the whole branch, not a no-op)
+        # — proceed; an EMPTY list means the head moved on bookkeeping alone — stop.
+        implementer_changes = _repair_implementer_changes(target, task_id, head_before, head_after)
+        if implementer_changes is not None and not implementer_changes:
+            result["action"] = "stop_blocked"
+            result["reason"] = (
+                "repair produced no implementer change: the PR head advanced past "
+                f"{head_before} ({impl}) only with loop-authored bookkeeping — the "
+                "task's own mirror record — not a fix the implementer owns, so its "
+                "required checks cannot turn green and the repair did not fix the "
+                "failure — diagnose or re-dispatch"
             )
             return result
         # DEFECT B — the repair effector appended a repair ledger (and the runner may
