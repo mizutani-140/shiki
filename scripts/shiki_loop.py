@@ -99,6 +99,19 @@ CCA_VERDICT_BASENAME = "cca-verdict.json"
 # enforcer wrote, without importing the enforcer into the loop.
 CCA_REFUSAL_BASENAME = "cca-verdict.refusal.json"
 
+# The MergeGate metadata check's own blocking reasons. ``mergegate_check.py`` writes
+# them to ``.shiki/gha/mergegate-result.json`` (the ``blocking_reasons`` array),
+# BEFORE it exits non-zero, so the file exists on the FAILING run too. The
+# ``shiki-mergegate.yml`` workflow uploads that file as this artifact so the loop can
+# read WHY the check blocked and name those reasons in the repair packet + handoff,
+# instead of every packet saying only "required checks failed: MergeGate metadata
+# check". These are literals (not imported from ``shiki_evidence``) because that
+# module is out of this change's locks; the workflow YAML references the same
+# strings. Purely informative — the reasons never change a loop decision.
+MERGEGATE_WORKFLOW = "shiki-mergegate.yml"
+MERGEGATE_RESULT_ARTIFACT_NAME = "shiki-mergegate-result"
+MERGEGATE_RESULT_BASENAME = "mergegate-result.json"
+
 # Bound on how many times the loop re-dispatches a `running` task whose session
 # lease proves the session is gone (free/absent). Once the recorded
 # `dispatch_attempts` reaches this bound the loop stops for the operator instead
@@ -692,6 +705,85 @@ def _resolve_cca_verdict(target: Path, task: dict[str, Any], pr_state: dict[str,
         return CCA_VERDICT_UNRESOLVED
 
 
+def _resolve_blocking_reasons(
+    target: Path, task: dict[str, Any], pr_state: dict[str, Any] | None
+) -> list[str]:
+    """Read the MergeGate gate's own blocking reasons from durable CI evidence.
+
+    A red ``MergeGate metadata check`` writes WHY it blocked to
+    ``.shiki/gha/mergegate-result.json`` (the ``blocking_reasons`` array) BEFORE it
+    exits non-zero, and ``shiki-mergegate.yml`` uploads that file as the
+    ``shiki-mergegate-result`` artifact. Find the MergeGate run for the PR head,
+    download the artifact read-only, and return its ``blocking_reasons`` so the
+    repair packet + handoff can name the actual blockers instead of only the failing
+    check.
+
+    Purely INFORMATIVE and read-only: this never mutates GitHub, never raises into
+    the loop, and never changes a decision. ANY inability to read the reasons — no
+    run, no artifact, ``gh``/network failure, an unreadable or malformed file, or a
+    result that names none — degrades to ``[]`` ("no reasons available"). The reasons
+    are UNTRUSTED text (derived from PR content) and are returned verbatim for the
+    caller to render as data, never as instructions.
+    """
+    import shutil
+    import tempfile
+
+    try:
+        head_sha = (pr_state or {}).get("head_sha")
+        runs = _gh(
+            target,
+            ["run", "list", "--workflow", MERGEGATE_WORKFLOW, "--limit", "20",
+             "--json", "databaseId,conclusion,headSha,status"],
+            check=False,
+        )
+        if runs.returncode != 0 or not (runs.stdout or "").strip():
+            return []
+        entries = json.loads(runs.stdout)
+        if not isinstance(entries, list):
+            return []
+        run_id = None
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            # Bind to the PR head when it is known so a stale run for a superseded
+            # head cannot surface reasons that no longer describe the current gate.
+            if head_sha and entry.get("headSha") != head_sha:
+                continue
+            run_id = entry.get("databaseId")
+            if run_id is not None:
+                break
+        if run_id is None:
+            return []
+        tmp = Path(tempfile.mkdtemp(prefix="shiki-mergegate-reasons-"))
+        try:
+            download = _gh(
+                target,
+                ["run", "download", str(run_id), "--name", MERGEGATE_RESULT_ARTIFACT_NAME,
+                 "--dir", str(tmp)],
+                check=False,
+            )
+            if download.returncode != 0:
+                return []
+            result_path = tmp / MERGEGATE_RESULT_BASENAME
+            if not result_path.is_file():
+                return []
+            data = json.loads(result_path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                return []
+            reasons = data.get("blocking_reasons")
+            if not isinstance(reasons, list):
+                return []
+            # Keep only non-empty strings: a malformed entry must not crash rendering,
+            # and an empty result reads as "no reasons available".
+            return [reason for reason in reasons if isinstance(reason, str) and reason.strip()]
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    except Exception:
+        # Read-only resolution never crashes the loop: any error degrades to no
+        # reasons, exactly like a missing artifact — and changes no decision.
+        return []
+
+
 def repair_attempts_for(target: Path, task_id: str) -> int:
     repairs_dir = shiki_path(target, "repairs")
     if not repairs_dir.exists():
@@ -892,6 +984,7 @@ def _dispatch_repair(
     attempt: int,
     *,
     cca_verdict: str | None = None,
+    mergegate_blocking_reasons: list[str] | None = None,
 ) -> dict[str, Any]:
     from shiki_tasks import LOOP_OWNS_DELIVERY_PROHIBITION, cmd_handoff_repair, create_repair_packet
 
@@ -938,6 +1031,10 @@ def _dispatch_repair(
             "to the task branch so the required checks re-run against the updated PR head.",
         ],
         stop_condition="Stop after this packet is satisfied or after three failed attempts.",
+        # The MergeGate gate's OWN blocking reasons (resolved read-only from durable
+        # CI evidence; [] when unavailable). They are untrusted PR-derived text — the
+        # packet stores them verbatim and the handoff renders them as data.
+        mergegate_blocking_reasons=mergegate_blocking_reasons,
     )
     cmd_handoff_repair(argparse.Namespace(target=str(target), repair_id=repair_id))
     returncode = _dispatch(target, load_task(target, task["id"]), repair_id=repair_id)
@@ -2308,6 +2405,7 @@ def _execute_action_body(target: Path, goal_id: str, decision: dict[str, Any], *
                 decision.get("failed_checks", []),
                 attempt,
                 cca_verdict=decision.get("cca_verdict"),
+                mergegate_blocking_reasons=decision.get("mergegate_blocking_reasons"),
             )
         )
         # Deliver the repair to the PR head, exactly as the create_pr branch
@@ -2470,6 +2568,7 @@ def goal_loop_step(target: Path, goal_id: str) -> dict[str, Any]:
     if not tasks:
         raise ShikiError(f"goal {goal_id} has no tasks")
     decisions = []
+    pr_states: dict[str, dict[str, Any] | None] = {}
     for task in tasks:
         pr_state, checks = (None, {})
         lease_state = None
@@ -2497,6 +2596,7 @@ def goal_loop_step(target: Path, goal_id: str) -> dict[str, Any]:
             # Probe the OS lease so a stranded `running` task (session died) is
             # distinguished from a live one instead of waiting on it forever.
             lease_state = session_lease_state(target, str(task.get("id")))
+        pr_states[str(task.get("id"))] = pr_state
         decisions.append(
             decide_task_action(
                 task,
@@ -2511,6 +2611,22 @@ def goal_loop_step(target: Path, goal_id: str) -> dict[str, Any]:
             )
         )
     decision = decide_goal_action(decisions, tasks)
+    # Attach the MergeGate gate's own blocking reasons to a chosen repair dispatch so
+    # the repair packet + handoff name the actual blockers, not just the failing
+    # check. Resolved read-only from durable CI evidence and INFORMATIVE ONLY: it
+    # never raises, degrades to no reasons on any failure, and never alters the
+    # decision the pure engine already made (this runs strictly after decide_*).
+    if decision.get("action") == "dispatch_repair":
+        repair_task_id = str(decision.get("task_id"))
+        repair_task = load_task(target, repair_task_id)
+        repair_pr_state = pr_states.get(repair_task_id)
+        if repair_pr_state is None:
+            # A task that entered the pass already `repair-needed` was not snapshotted
+            # above; snapshot it now so the reasons bind to the current PR head.
+            repair_pr_state, _ = snapshot_pr(target, repair_task)
+        decision["mergegate_blocking_reasons"] = _resolve_blocking_reasons(
+            target, repair_task, repair_pr_state
+        )
     result = execute_action(target, goal_id, decision, repair_limit=repair_limit)
     # Auto-capture (proposal 3.3, source=loop_stop). Captured from the POST-result
     # action so that merge-failure / unblock-failure conversions to a stop are

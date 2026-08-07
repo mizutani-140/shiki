@@ -179,3 +179,21 @@ jobs:
             --contract-approval .shiki/gha/contract-approval.json \
             --base-sync-carry \
             --default-branch "$DEFAULT_BRANCH"
+
+      # Publish the gate's own result file so the goal loop can read WHY a red
+      # MergeGate check blocked (its blocking_reasons) and name those reasons in the
+      # repair packet + handoff, instead of every packet saying only "required checks
+      # failed: MergeGate metadata check". mergegate_check.py writes the file BEFORE it
+      # exits non-zero, so `if: always()` ships it from the FAILING run — the whole
+      # point. `if: always()` is SAFE here specifically: none of this job's steps
+      # (Checkout, Validate Shiki artifacts, Prepare PR context, MergeGate metadata
+      # check) posts a review, comment or label, so shipping on failure cannot mint an
+      # approval. (The CCA workflow's Review Bridge DOES submit an APPROVE review, so
+      # `if: always()` must never be added there.)
+      - name: Upload MergeGate result
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: shiki-mergegate-result
+          path: .shiki/gha/mergegate-result.json
+          if-no-files-found: ignore
