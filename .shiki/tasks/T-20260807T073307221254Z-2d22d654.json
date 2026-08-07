@@ -27,7 +27,7 @@
   ],
   "dependencies": [],
   "expected_branch": "shiki/t-20260807t073307221254z-2d22d654-introduce-sadr-and-migrate-installs-without-touc",
-  "expected_pr": null,
+  "expected_pr": 325,
   "github_issue": 322,
   "goal_id": "G-20260807T073307219752Z-1ee1ed68",
   "id": "T-20260807T073307221254Z-2d22d654",
@@ -37,7 +37,13 @@
     "L-20260807T080228312210Z-07ac626e",
     "L-20260807T080228575038Z-d574f629",
     "L-20260807T080256330734Z-5bf40cb6",
-    "L-20260807T082959241975Z-4175852c"
+    "L-20260807T082959241975Z-4175852c",
+    "L-20260807T083753556762Z-d3e8a418",
+    "L-20260807T083945891348Z-36ad530b",
+    "L-20260807T084138415951Z-d7c3d61f",
+    "L-20260807T082800000000Z-c0de0019",
+    "L-20260807T082914000000Z-7dd00019",
+    "L-20260807T084338313646Z-e5d08ec0"
   ],
   "locks": [
     "path:.codex/**",
@@ -60,6 +66,13 @@
     "Changing approval, CCA, MergeGate, lock, runtime, or repair semantics.",
     "Fixing the separate .gitignore overwrite defect."
   ],
+  "pre_pr_code_review": {
+    "exception": "default Claude reviewer unavailable (not logged in)",
+    "findings": [],
+    "ledger_id": "L-20260807T083753556762Z-d3e8a418",
+    "reviewer_runtime": "codex-read-only",
+    "verdict": "clean"
+  },
   "required_skills": [
     "diagnose",
     "tdd",

@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "Codex session 019fdb5c-b9e2-7c91-9ef9-5d97dd493860: sandbox=read-only, approval=never, ephemeral, structured verdict clean, findings=0",
+    "Reviewer-runtime exception: claude auth status reported loggedIn=false; AGENTS.md permits Codex Front assigned adversarial implementation review",
+    "Independent exact-worktree verification: 1147 unit tests, control-plane suite, adversarial suite, and validate_shiki exited 0",
+    "SADR-0011 independent-context and fail-closed review intent preserved; repository reviewer implementation unchanged"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T083753556762Z-d3e8a418",
+  "links": [],
+  "summary": "Pre-PR code-review verdict CLEAN for T-20260807T073307221254Z-2d22d654 (independent read-only Codex reviewer; Claude reviewer unavailable)",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T08:37:53+00:00",
+  "type": "check"
+}
