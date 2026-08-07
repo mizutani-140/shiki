@@ -196,7 +196,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_command.add_argument("--plan", required=True, help="Plan id like P-0001 or path to a grilled plan JSON")
     run_command.set_defaults(func=cmd_run)
 
-    contract = subcommands.add_parser("contract", help="Open a Contract PR that registers a spec-frozen Goal's task contracts (ADR 0015)")
+    contract = subcommands.add_parser("contract", help="Open a Contract PR that registers a spec-frozen Goal's task contracts (SADR-0015)")
     contract_subcommands = contract.add_subparsers(dest="contract_command", required=True)
     contract_open = contract_subcommands.add_parser("open", help="Register goal/task/DAG contracts from a spec-frozen plan for a Contract PR (no implementation, no label)")
     contract_open.add_argument("--target", default=".", help="Target repository path")

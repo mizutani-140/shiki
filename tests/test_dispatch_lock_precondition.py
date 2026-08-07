@@ -7,7 +7,7 @@ output was piped through ``tail -1`` so ``"locks_granted": false`` scrolled past
 proceeded, because dispatch never read ``.shiki/locks/``. The task was
 implemented, reviewed and merged with no grant; the only signal appeared three
 steps downstream as a closeout that unexpectedly demanded Guardian approval (the
-ADR 0017 bookkeeping exemption needs the lock to move ``active -> released`` and
+SADR-0017 bookkeeping exemption needs the lock to move ``active -> released`` and
 there was no lock to move).
 
 This suite drives the REAL functions:

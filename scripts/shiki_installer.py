@@ -118,6 +118,7 @@ DEFAULT_CODEX_SKILL_PATH = "~/.codex/skills/shiki/SKILL.md"
 # what lets a target carry it without a governance-schema change.
 INSTALL_STAMP_PATH = ".shiki/install-stamp.json"
 INSTALL_STAMP_VERSION = 1
+LEGACY_SHIKI_SADR_MAX = 18
 
 # Under --force the shipped surface splits three ways, so nothing is lost and
 # nothing is silently stale.
@@ -237,9 +238,98 @@ def refuse_pending_migrations(target: Path) -> None:
         )
 
 
+def legacy_shiki_adr_paths() -> tuple[str, ...]:
+    """Former numeric paths for Shiki SADR-0001 through SADR-0018.
+
+    The authoritative slugs come from the current SADR filenames. SADR-0019 is
+    the namespace decision itself and never shipped under a numeric legacy path.
+    """
+    paths: list[str] = []
+    for sadr in sorted((ROOT / "docs" / "adr").glob("SADR-[0-9][0-9][0-9][0-9]-*.md")):
+        number = sadr.name.split("-", 2)[1]
+        if int(number) <= LEGACY_SHIKI_SADR_MAX:
+            paths.append(f"docs/adr/{sadr.name.removeprefix('SADR-')}")
+    return tuple(paths)
+
+
+def preflight_legacy_sadr_cleanup(target: Path, *, force: bool) -> tuple[str, ...]:
+    """Authorize exact legacy Shiki ADR removals before the first write.
+
+    A non-force install never removes existing files. A forced install needs no
+    stamp when no legacy Shiki path is present. When legacy paths do exist, each
+    must be named in a readable install stamp and its current bytes must match
+    the recorded digest.
+    """
+    if not force:
+        return ()
+    present = tuple(
+        relative
+        for relative in legacy_shiki_adr_paths()
+        if (target / relative).exists() or (target / relative).is_symlink()
+    )
+    if not present:
+        return ()
+
+    stamp_path = target / INSTALL_STAMP_PATH
+    try:
+        raw = stamp_path.read_text(encoding="utf-8")
+        stamp = json.loads(raw)
+    except FileNotFoundError:
+        detail = "install stamp is absent"
+        blockers = [f"{relative}: {detail}" for relative in present]
+    except (OSError, UnicodeDecodeError) as error:
+        detail = f"install stamp is unreadable ({error})"
+        blockers = [f"{relative}: {detail}" for relative in present]
+    except json.JSONDecodeError as error:
+        detail = f"install stamp is malformed ({error})"
+        blockers = [f"{relative}: {detail}" for relative in present]
+    else:
+        if not isinstance(stamp, dict):
+            blockers = [
+                f"{relative}: install stamp is malformed (expected an object)"
+                for relative in present
+            ]
+        else:
+            digests = stamp.get("digests")
+            blockers = []
+            if not isinstance(digests, dict):
+                blockers.extend(
+                    f"{relative}: install stamp has no digest for this path"
+                    for relative in present
+                )
+            else:
+                for relative in present:
+                    expected = digests.get(relative)
+                    if not isinstance(expected, str) or not expected:
+                        blockers.append(
+                            f"{relative}: install stamp has no digest for this path"
+                        )
+                        continue
+                    try:
+                        actual = _sha256_file(target / relative)
+                    except OSError as error:
+                        blockers.append(
+                            f"{relative}: legacy path is unreadable ({error})"
+                        )
+                        continue
+                    if actual != expected:
+                        blockers.append(
+                            f"{relative}: digest mismatch (stamp {expected}, current {actual})"
+                        )
+
+    if blockers:
+        joined = "\n".join(f"- {blocker}" for blocker in blockers)
+        raise ShikiError(
+            "legacy Shiki ADR cleanup is not authorized:\n"
+            f"{joined}\nNo files were written."
+        )
+    return present
+
+
 def install_template(target: Path, *, force: bool, validate: bool) -> list[NewFileNote]:
     # Preconditions first: never rewrite the tree of a target that cannot be
     # upgraded cleanly (see refuse_pending_migrations).
+    legacy_cleanup = preflight_legacy_sadr_cleanup(target, force=force)
     refuse_pending_migrations(target)
 
     # Resolve the target's required CODEOWNERS owner once from its
@@ -249,6 +339,10 @@ def install_template(target: Path, *, force: bool, validate: bool) -> list[NewFi
     # owner can be resolved this is the documented fallback and the file is copied
     # verbatim. See ``codeowners_required_owner``.
     codeowners_owner = codeowners_required_owner(target)
+
+    for relative in legacy_cleanup:
+        (target / relative).unlink()
+        info(f"removed stamped legacy Shiki ADR: {target / relative}")
 
     notes: list[NewFileNote] = []
     for relative in TEMPLATE_PATHS:
@@ -647,6 +741,22 @@ def write_install_stamp(target: Path) -> None:
     digests = target_stamp_digests(target)
     existing = read_install_stamp(target)
     if existing is not None:
+        # A non-force install deliberately leaves legacy Shiki ADRs in place.
+        # Preserve only still-matching ownership proof so a later forced
+        # upgrade can authorize cleanup; never carry a missing or stale digest.
+        existing_digests = existing.get("digests")
+        if isinstance(existing_digests, dict):
+            for relative in legacy_shiki_adr_paths():
+                expected = existing_digests.get(relative)
+                path = target / relative
+                if not isinstance(expected, str) or not path.is_file():
+                    continue
+                try:
+                    actual = _sha256_file(path)
+                except OSError:
+                    continue
+                if actual == expected:
+                    digests[relative] = actual
         if _incoming_is_older(commit, existing.get("platform_commit")):
             warn(
                 "kept existing install stamp: incoming install "

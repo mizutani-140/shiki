@@ -32,18 +32,18 @@ Blocking values:
 | ID | Item | Blocking |
 | --- | --- | --- |
 | GD-01 | Plan was challenged against `CONTEXT.md`. | blocking for non-trivial Goals |
-| GD-02 | Relevant ADRs were read or absence was recorded. | blocking for non-trivial Goals |
+| GD-02 | Relevant SADRs and target ADRs were read or absence was recorded. | blocking for non-trivial Goals |
 | GD-03 | Ambiguous terms were resolved or converted to HITL blockers. | blocking |
 | GD-04 | Edge scenarios were considered. | advisory |
 | GD-05 | Code reality was checked when code could answer. | blocking when applicable |
 | GD-06 | New domain terms were added to `CONTEXT.md` when needed. | blocking when applicable |
-| GD-07 | ADR was created or explicitly skipped using the ADR criteria. | blocking when applicable |
+| GD-07 | A SADR or target ADR was created or explicitly skipped using the decision-record criteria. | blocking when applicable |
 
 ## CI — Context & Impact Checklist
 
 | ID | Item | Blocking |
 | --- | --- | --- |
-| CI-01 | Relevant docs and ADRs identified. | blocking |
+| CI-01 | Relevant docs, SADRs, and target ADRs identified. | blocking |
 | CI-02 | Relevant modules, interfaces, seams, callers, and tests identified. | blocking |
 | CI-03 | Dependencies and blocked-by relationships identified. | blocking |
 | CI-04 | Candidate locks identified. | blocking |
@@ -62,7 +62,7 @@ Blocking values:
 | PRD-04 | Implementation decisions are recorded without volatile code detail. | blocking |
 | PRD-05 | Testing decisions are recorded. | blocking |
 | PRD-06 | Out-of-scope items are explicit. | blocking |
-| PRD-07 | Relevant glossary/ADR links are present when applicable. | blocking |
+| PRD-07 | Relevant glossary/SADR/target-ADR links are present when applicable. | blocking |
 
 ## SF — Spec Freeze Checklist
 
@@ -98,7 +98,7 @@ Blocking values:
 | H-02 | Branch/worktree target is present. | blocking |
 | H-03 | Scope and non-goals are present. | blocking |
 | H-04 | Dependencies and locks are present. | blocking |
-| H-05 | Relevant docs, ADRs, modules, and tests are referenced. | blocking |
+| H-05 | Relevant docs, SADRs, target ADRs, modules, and tests are referenced. | blocking |
 | H-06 | Required skills are stated. | blocking |
 | H-07 | TDD expectations are stated. | blocking when behavior work |
 | H-08 | Acceptance criteria are included. | blocking |

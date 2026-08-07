@@ -347,7 +347,7 @@ def load_start_answers(args: argparse.Namespace) -> dict[str, Any]:
         raise ShikiError(
             "Spec Freeze was not approved. Re-run with --approve-spec-freeze, set "
             "approve_spec_freeze: true in the answers file, or answer yes interactively. "
-            "Plans cannot run without an operator-approved spec_freeze (ADR 0009)."
+            "Plans cannot run without an operator-approved spec_freeze (SADR-0009)."
         )
 
     return {

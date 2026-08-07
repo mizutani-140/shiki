@@ -316,7 +316,7 @@ T3: Consult（T1 依存、T2 と並列可）
 - CCA の独立性・core prompt の変更
 - shikijs/shiki（公開 OSS）への作業
 - 過去 Goal の遡及スコアカード（stop イベントは捕捉開始後のみ集計可能）
-- bypassPermissions bounding（別 Goal、ADR 0008 記載のフォローアップ）
+- bypassPermissions bounding（別 Goal、SADR-0008 記載のフォローアップ）
 - 既存ターゲット（Shopify_Create）への適用（別 Goal。memory_transition の
   ledger enum 追加は再インストール/migration で届く）
 
@@ -365,5 +365,5 @@ T3: Consult（T1 依存、T2 と並列可）
 | SF-01 操作者の明示承認 | ⏳ **v2 のレビュー後、承認待ち** |
 | SF-02 スコープ棚卸し | ✅ §4（redaction を含む） |
 | SF-03 freeze の plan + ledger 記録 | ⏳ 承認後に plan JSON へ記録 |
-| SF-04 凍結後の変更は Amendment のみ | ✅ 合意済み（ADR 0009） |
+| SF-04 凍結後の変更は Amendment のみ | ✅ 合意済み（SADR-0009） |
 | SF-05 Assumption Log 運用 | ✅ 合意済み |

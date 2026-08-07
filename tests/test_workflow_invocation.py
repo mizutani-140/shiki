@@ -56,7 +56,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
 MERGEGATE_WF = WORKFLOWS / "shiki-mergegate.yml"
 ORCHESTRATOR_WF = WORKFLOWS / "shiki-orchestrator.yml"
-# ADR 0018 base-sync carry: shiki-cca-completion.yml now has a top-level entry in
+# SADR-0018 base-sync carry: shiki-cca-completion.yml now has a top-level entry in
 # validate_shiki.WORKFLOW_INVOCATION_REQUIRED_FLAGS, so the staged root the contract
 # check runs against must include it or the loop FileNotFoundErrors (see _stage).
 CCA_WF = WORKFLOWS / "shiki-cca-completion.yml"
@@ -124,13 +124,13 @@ _FLAG_VALUES = {
     "--guardian-timeline": ".shiki/gha/live-guardian-timeline.json",
     "--base-shiki": ".shiki/gha/base-shiki/.shiki",
     "--merged-prs": str(IMPL_PR),
-    # ADR 0015 Contract Approval carry: the metadata job now passes
+    # SADR-0015 Contract Approval carry: the metadata job now passes
     # --contract-approval (built earlier in the step). The fixture does not write
     # this file, so mergegate_check degrades to "no proof" (missing file -> None)
     # and the medium-risk reconcile PR is unaffected — but the flag must resolve a
     # value here or argv reconstruction KeyErrors the moment the workflow adds it.
     "--contract-approval": ".shiki/gha/contract-approval.json",
-    # ADR 0018 base-sync carry: the metadata job now also passes --default-branch.
+    # SADR-0018 base-sync carry: the metadata job now also passes --default-branch.
     # A concrete branch name resolves the argv; the carry is inert for this
     # medium-risk reconcile PR (the carry refuses risk != high before any git), so
     # the ready result is unchanged. --base-sync-carry is store_true (below).
@@ -293,7 +293,7 @@ class ValidateWorkflowInvocationContract(unittest.TestCase):
     def _stage(self, tmp: Path) -> Path:
         """A throwaway repo root holding the hardened workflows plus every workflow
         named in the invocation contract so the contract check can run against a
-        mutated copy. shiki-cca-completion.yml is included because ADR 0018 added a
+        mutated copy. shiki-cca-completion.yml is included because SADR-0018 added a
         top-level entry for it to WORKFLOW_INVOCATION_REQUIRED_FLAGS; omitting it
         would FileNotFoundError inside validate_workflow_invocation_contracts."""
         dest = tmp / ".github" / "workflows"

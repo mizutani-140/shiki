@@ -1,4 +1,4 @@
-# ADR 0017: A Bookkeeping Closeout Does Not Inherit Its Task's Risk
+# SADR-0017: A Bookkeeping Closeout Does Not Inherit Its Task's Risk
 
 ## Status
 
@@ -6,7 +6,7 @@ Proposed
 
 ## Context
 
-ADR 0012 made the goal loop push a task's completion to the default branch through a
+SADR-0012 made the goal loop push a task's completion to the default branch through a
 closeout pull request: after the implementation PR merges, the loop opens a second PR
 carrying `task.status = done`, `lock.state = released`, and — when the task completes
 its goal — `goal.status = complete` plus one scorecard report. Nothing else. The
@@ -49,14 +49,14 @@ any assertion the PR makes about itself:
 4. The task file's governance fields (`scope`, `non_goals`, `required_skills`,
    `risk_level`, `locks`, `acceptance_checks`, `test_command`) are byte-identical to
    the base snapshot. Only `status`, `expected_pr`, `closeout_pr`, `ledger_evidence`
-   and `expected_branch` may differ — the ADR 0015 contract-immutability rule,
+   and `expected_branch` may differ — the SADR-0015 contract-immutability rule,
    unchanged.
 
    `expected_branch` is in that set because a closeout is *by construction* on a
    different branch from the implementation it closes, and the loop rewrites the
    field accordingly. It is safe to let it differ because MergeGate independently
    requires `expected_branch` to equal the PR's actual head ref, so a PR cannot set
-   it to anything other than the branch it is really on. The first draft of this ADR
+   it to anything other than the branch it is really on. The first draft of this SADR
    omitted it, which made the exemption unreachable: every real closeout failed
    condition 4 on a field the loop always changes. See PR #209.
 5. The state transitions are exactly the terminal set: task `review` → `done`, lock
@@ -113,12 +113,12 @@ removes, so it is not an independent second factor — it is the approval, renam
 classification must be derived, not asserted.
 
 **Fold the closeout into the implementation PR** so no second PR exists. Rejected under
-ADR 0012, which recorded why: a task file that is already `done` on the implementation
+SADR-0012, which recorded why: a task file that is already `done` on the implementation
 branch short-circuits the loop's review → CCA → merge → done ordering into a local
 goal-completion before any merge happens.
 
 **Have the loop auto-merge closeouts with elevated credentials.** Rejected outright: that
-is a runtime authoring its own approval, which ADR 0010 and the constitution's
+is a runtime authoring its own approval, which SADR-0010 and the constitution's
 approval-record prohibition forbid. It would also be indistinguishable, in the evidence,
 from the forgery those rules exist to prevent.
 

@@ -591,7 +591,7 @@ grep '"id": "doctor.guardian.policy"' /tmp/shiki-guardian-doctor.json >/dev/null
 grep '"id": "doctor.guardian.approvers"' /tmp/shiki-guardian-doctor.json >/dev/null
 
 # --------------------------------------------------------------------------- #
-# ADR 0015 Contract Approval (end-to-end): a contract-approved implementation PR
+# SADR-0015 Contract Approval (end-to-end): a contract-approved implementation PR
 # with NO guardian:approved label and NO approval comment must resolve the
 # Guardian requirement satisfied in BOTH the MergeGate result AND the CCA Guardian
 # signal — and removing any single proof element must put it back to unsatisfied.

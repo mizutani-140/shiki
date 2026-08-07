@@ -1,4 +1,4 @@
-# ADR 0013: Bootstrap Grants GitHub Actions Permission To Create And Approve Pull Requests
+# SADR-0013: Bootstrap Grants GitHub Actions Permission To Create And Approve Pull Requests
 
 ## Status
 
@@ -31,7 +31,7 @@ Granting Actions the ability to approve pull requests is a real, hard-to-reverse
 security tradeoff: it lets repository automation satisfy a human-review gate. In
 a multi-maintainer repo that could let a compromised or buggy workflow
 self-approve changes. So whether bootstrap turns it on by default — and with
-what default token scope — is an ADR-worthy decision, not an implementation
+what default token scope — is a SADR-worthy decision, not an implementation
 detail.
 
 ## Decision
@@ -48,7 +48,7 @@ mirroring `protect_branch`'s `gh api ... -X PUT --input -` pattern.
 Specifically:
 
 - **`can_approve_pull_request_reviews` defaults to `true`.** Shiki's default
-  posture is solo/AFK autonomous operation (ADR 0008/0009/0012), where the CCA
+  posture is solo/AFK autonomous operation (SADR-0008/SADR-0009/SADR-0012), where the CCA
   Review Bridge is the only path that can satisfy `required_review: true` after
   the CCA and Guardian gates have already passed. The default makes a
   freshly-bootstrapped repo able to run the autonomous loop end to end without a

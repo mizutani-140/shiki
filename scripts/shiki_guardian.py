@@ -12,7 +12,7 @@ from typing import Any
 # The carry re-derives its proof from git in-process on every judging invocation;
 # it is never read from an artifact, so there is nothing to go stale or be forged.
 # shiki_sync_proof is the ONLY guardian-family module that runs git, and every one
-# of its invocations is read-only and local (ADR: prove-from-git base sync).
+# of its invocations is read-only and local (SADR: prove-from-git base sync).
 from shiki_sync_proof import verify_pure_base_sync
 
 GUARDIAN_POLICY_PATH = ".shiki/guardian-policy.json"
@@ -45,7 +45,7 @@ class GuardianPolicy:
     solo_maintainer_rationale: str
     github_actions_review_bridge_counts_as_guardian: bool
     advisory_claude_review_counts_as_guardian: bool
-    # external_ai_guardian_review: a first-class authority kind (ADR 0010).
+    # external_ai_guardian_review: a first-class authority kind (SADR-0010).
     # An external AI reviewer (e.g. GPT-5.5 Pro) can authorize autonomous merge,
     # recorded under its OWN model identity — never as a human operator approval.
     ai_review_enabled: bool = False
@@ -763,7 +763,7 @@ def validate_ai_review_artifact(
 
     This is the shared approval contract: both the PR-comment evaluation path
     (``_external_ai_review_source``) and the offline Codex App adapter
-    verify-response path consume it so neither can drift from ADR 0010 / ADR 0014
+    verify-response path consume it so neither can drift from SADR-0010 / SADR-0014
     approval semantics. Missing/under-specified fields fail closed.
     """
     if artifact.get("kind") != "external_ai_guardian_review":

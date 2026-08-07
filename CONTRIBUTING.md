@@ -17,11 +17,11 @@ Goal -> grill-with-docs -> PRD -> Spec Freeze -> Issues -> Task -> PR -> CCA -> 
 1. **Goal** — start from a user-approved Goal with an outcome, completion
    conditions, non-goals, risk level, and success signals.
 2. **grill-with-docs** — for any non-trivial change, challenge the plan against
-   domain language, ADRs, and code reality before writing a PRD.
+   domain language, Shiki SADRs, target ADRs, and code reality before writing a PRD.
 3. **PRD** — capture settled product/engineering intent (`to-prd`).
 4. **Spec Freeze** — the operator explicitly approves the PRD/requirements;
    the plan records a `spec_freeze` block and no plan runs without it
-   (ADR 0009). Post-freeze scope changes require an operator-approved,
+   (SADR-0009). Post-freeze scope changes require an operator-approved,
    recorded Spec Amendment.
 5. **Issues** — decompose into independently grabbable vertical-slice issues
    (`to-issues`), then `triage` them for readiness, risk, runtime, and skills.
@@ -94,7 +94,7 @@ scope to make tests pass.
   entries.
 - Do not hand-edit `.shiki/goals/*.json` or `.shiki/manifest.json` in a task PR.
 - Conversation state is not durable truth. If a decision matters, record it in
-  GitHub, `.shiki/`, `CONTEXT.md`, or an ADR.
+  GitHub, `.shiki/`, `CONTEXT.md`, a Shiki SADR, or a target ADR.
 
 ## Architecture Gate
 
@@ -103,7 +103,7 @@ APIs or contracts, auth/secrets/identity, shared/generated types, infrastructure
 or CI policy, package structure, three or more structural files, more than 100
 net new lines in a core module, three or more new files, or any high-risk label.
 When triggered, run `grill-with-docs` or `improve-codebase-architecture` and
-record durable decisions in an ADR when needed (see `docs/adr/`).
+record durable decisions in a Shiki SADR or target ADR as applicable (see `docs/adr/`).
 
 ## Safety
 

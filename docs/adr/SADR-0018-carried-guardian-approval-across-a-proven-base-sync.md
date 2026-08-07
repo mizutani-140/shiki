@@ -1,4 +1,4 @@
-# ADR 0018: Carried Guardian Approval Across A Proven Base Sync
+# SADR-0018: Carried Guardian Approval Across A Proven Base Sync
 
 ## Status
 
@@ -34,7 +34,7 @@ The proof primitive (`scripts/shiki_sync_proof.verify_pure_base_sync`) and the
 Guardian evaluator that consumes it (`shiki_guardian.evaluate_guardian_approval`,
 the `guardian_comment_carried` source) were built and tested in isolation. Neither
 does anything until a caller passes the flags that turn the carry on, so the
-feature was invisible in CI. This ADR records the decision the two of them
+feature was invisible in CI. This SADR records the decision the two of them
 implement, and this task wires it into the four CI invocations that judge Guardian
 approval.
 

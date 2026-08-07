@@ -16,7 +16,7 @@ Core maxim:
 
 When an operator asks what this framework is doing, answer clearly:
 
-Shiki is a GitHub-first execution governance layer for AI coding agents. It takes a Goal, clarifies success conditions, grills the plan against repository docs and domain language, converts settled context into a PRD, decomposes the PRD into vertical-slice issues, assigns implementation to Claude Code by default (Codex Front when explicitly assigned, ADR 0008), forces TDD and scoped branches, has a GitHub-side Completion Check Agent judge whether the work is actually complete, returns incomplete work to the assigned implementer as bounded repair, and permits merge only when MergeGate conditions and durable evidence are satisfied.
+Shiki is a GitHub-first execution governance layer for AI coding agents. It takes a Goal, clarifies success conditions, grills the plan against repository docs and domain language, converts settled context into a PRD, decomposes the PRD into vertical-slice issues, assigns implementation to Claude Code by default (Codex Front when explicitly assigned, SADR-0008), forces TDD and scoped branches, has a GitHub-side Completion Check Agent judge whether the work is actually complete, returns incomplete work to the assigned implementer as bounded repair, and permits merge only when MergeGate conditions and durable evidence are satisfied.
 
 Shiki is not a prompt collection, a single-agent coding workflow, or a Claude/Codex-only plugin. Codex, Claude Code, GitHub Actions, Hermes Runner, and future runtimes are replaceable workers. The durable Shiki state, Skill Gate, CCA verdict, MergeGate rules, and evidence ledger are the product.
 
@@ -29,6 +29,9 @@ Shiki is not a prompt collection, a single-agent coding workflow, or a Claude/Co
 4. `docs/adr/` records hard-to-reverse platform decisions.
 5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
 <!-- shiki-source-of-truth:end -->
+
+Within `docs/adr/`, Shiki platform decisions use `SADR-NNNN-*.md`; target
+product decisions retain `NNNN-*.md` and the `ADR` namespace.
 
 Use the canonical source-of-truth order above. Runtime-specific reading orders
 are operational guidance only and must not override or reorder it. The current
@@ -48,14 +51,14 @@ Default runtime assignment:
 
 A runtime may only do work that is explicitly assigned by the Goal, task, PR, or MergeGate decision.
 
-Do not assume `openai/codex-action`, `OPENAI_API_KEY`, or API-key based Codex automation in the default Shiki path. API-key runners are explicit target-repo extensions and require their own ADR.
+Do not assume `openai/codex-action`, `OPENAI_API_KEY`, or API-key based Codex automation in the default Shiki path. API-key runners are explicit target-repo extensions and require their own target ADR.
 
 ## 4. Non-negotiable Shiki flow
 
 For any non-trivial Goal, use this flow:
 
 1. **Goal Seek**: define outcome, non-goals, risk level, completion criteria, and evidence requirements.
-2. **grill-with-docs**: challenge the plan against `CONTEXT.md`, ADRs, code reality, terminology, boundaries, and edge scenarios. Ask one question at a time when the operator is available. If code can answer a question, inspect code instead of asking.
+2. **grill-with-docs**: challenge the plan against `CONTEXT.md`, Shiki SADRs, target ADRs, code reality, terminology, boundaries, and edge scenarios. Ask one question at a time when the operator is available. If code can answer a question, inspect code instead of asking.
 3. **Context & Impact**: identify modules, interfaces, seams, callers, dependencies, locks, risk, and verification surfaces.
 4. **to-prd + Spec Freeze**: turn settled context into a PRD using domain vocabulary and testing decisions. The operator's explicit approval of the PRD is Spec Freeze, recorded as the plan's `spec_freeze` block; plans without it do not run. Steps 1-4 form Requirements Definition.
 5. **to-issues**: decompose the PRD into independently grabbable vertical-slice issues. Prefer AFK slices; mark HITL slices when judgment is still required.
@@ -75,7 +78,7 @@ Trivial documentation-only changes may skip PRD/issues only when the Goal, risk,
 Before making any material change:
 
 1. Read `AGENTS.md` and any runtime-specific wrapper such as `CLAUDE.md`.
-2. Read `CONTEXT.md` and relevant ADRs.
+2. Read `CONTEXT.md` and relevant SADRs and target ADRs.
 3. Read the GitHub Issue / PR and `.shiki/` state for the active Goal or task.
 4. Identify your role: Planner, Implementer, Reviewer, Completion Check Agent, Repairer, or Guardian-assist.
 5. Identify Goal id, task id, branch, PR, dependencies, locks, risk level, required skills, and required evidence.
@@ -103,7 +106,7 @@ Context & Impact must produce enough information for safe planning and execution
 
 At minimum, identify:
 
-- Relevant documents, ADRs, domain terms, and prior decisions.
+- Relevant documents, SADRs, target ADRs, domain terms, and prior decisions.
 - Relevant modules, interfaces, seams, callers, owners, and tests.
 - Dependency relationships between tasks.
 - Candidate file locks and lock conflicts.
@@ -152,7 +155,7 @@ CCA is the GitHub-side Completion Check Agent. It is a judge, not the implemente
 
 CCA must read:
 
-- `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, relevant ADRs.
+- `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, relevant SADRs and target ADRs.
 - Parent Goal issue, PRD issue, task issue, comments, and labels.
 - PR body, diff, commits, changed files, reviews, CI checks, and artifacts available to the workflow.
 - `.shiki/` task contract, locks, ledger entries, CCA checklist profile, and prior repair packets.
@@ -214,7 +217,7 @@ Escalate to an architecture gate before implementation when the change touches a
 - Three or more new files.
 - Any high-risk or critical label.
 
-When the architecture gate triggers, run `grill-with-docs` or `improve-codebase-architecture` as appropriate and record the decision in an ADR if it is hard to reverse or likely to be re-litigated.
+When the architecture gate triggers, run `grill-with-docs` or `improve-codebase-architecture` as appropriate and record the decision in a Shiki SADR or target ADR as applicable if it is hard to reverse or likely to be re-litigated.
 
 ## 14. Skill Gate
 
@@ -223,7 +226,7 @@ Skills are mandatory when their trigger applies. They are part of the Shiki oper
 Use these skills:
 
 - `setup-matt-pocock-skills`: before first use of the engineering skill set, or when issue tracker, triage labels, or domain docs are missing.
-- `grill-with-docs`: default for non-trivial Goals before PRD/issues; required for ambiguous plans, terminology, boundaries, ADR-worthy tradeoffs, or design-tree decisions.
+- `grill-with-docs`: default for non-trivial Goals before PRD/issues; required for ambiguous plans, terminology, boundaries, decision-record-worthy tradeoffs, or design-tree decisions.
 - `zoom-out`: unfamiliar code area or missing architectural map.
 - `to-prd`: convert settled context into a PRD.
 - `to-issues`: break a PRD, plan, or Goal into independently grabbable vertical-slice issues.

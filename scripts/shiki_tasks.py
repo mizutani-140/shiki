@@ -23,7 +23,7 @@ from shiki_state import append_ledger_entry, new_control_id
 _ID_SUFFIX = r"(?:[0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})"
 _TASK_ID_RE = re.compile(rf"^T-{_ID_SUFFIX}$")
 
-# Contract PR mode (ADR 0015). The body marker DECLARES intent; the
+# Contract PR mode (SADR-0015). The body marker DECLARES intent; the
 # maintainer-applied label is the independent second factor that AUTHORIZES the
 # mode. `shiki contract open` must never apply the label to its own PR — doing so
 # would collapse the two-factor authorization to one. These mirror the values
@@ -83,7 +83,7 @@ def locks_cover_shiki_state(locks: list[str] | None) -> bool:
             return True
     return False
 
-# Safe default for the loop-observed TDD gate (ADR 0011): the command the goal
+# Safe default for the loop-observed TDD gate (SADR-0011): the command the goal
 # loop exec's in the task worktree before opening the PR. A task may override it
 # with its own structured `test_command`; the loop NEVER exec's the free-form
 # `acceptance_checks` prose.
@@ -226,7 +226,7 @@ def require_grilled_plan(plan: dict[str, Any]) -> None:
     if not isinstance(freeze, dict) or freeze.get("status") != "frozen":
         raise ShikiError(
             "plan must include spec_freeze.status=frozen (operator approval of the PRD/requirements) "
-            "before Shiki can run it; see CONTEXT.md 'Spec Freeze' and ADR 0009"
+            "before Shiki can run it; see CONTEXT.md 'Spec Freeze' and SADR-0009"
         )
     tasks = plan.get("tasks")
     if not isinstance(tasks, list) or not tasks:
@@ -339,7 +339,7 @@ def register_task_from_plan(
         "risk_level": task_plan.get("risk_level", "low"),
         "required_skills": task_plan.get("required_skills") or ["tdd", "code-review"],
         "acceptance_checks": task_plan["acceptance_checks"],
-        # The loop-observed TDD gate (ADR 0011) exec's THIS structured command in
+        # The loop-observed TDD gate (SADR-0011) exec's THIS structured command in
         # the worktree before opening the PR. acceptance_checks is free-form
         # prose+commands and is never exec'd; test_command is the safe, explicit
         # surface (default: the repo's unittest-discover suite).
@@ -696,7 +696,7 @@ def orchestrate_plan(target: Path, plan: dict[str, Any]) -> dict[str, Any]:
 
 def register_contract_from_plan(target: Path, plan: dict[str, Any]) -> dict[str, Any]:
     """Register a spec-frozen plan's Goal, task contracts, and DAG for a Contract
-    PR (ADR 0015).
+    PR (SADR-0015).
 
     Unlike ``orchestrate_plan`` this performs REGISTRATION ONLY: it never acquires
     locks, allocates worktree records, writes a run file, or dispatches. The
@@ -821,7 +821,7 @@ def cmd_plan_guide(args: argparse.Namespace) -> int:
         "prompt": prompt,
         "entry_skill": "grill-with-docs",
         "required_next_steps": [
-            "Run grill-with-docs until terminology, boundaries, risks, and ADR-worthy decisions are settled.",
+            "Run grill-with-docs until terminology, boundaries, risks, and decision-record-worthy choices are settled.",
             "Obtain the operator's explicit approval of the PRD/requirements (Spec Freeze).",
             "Write a machine-readable plan JSON with grill_with_docs.status=complete and spec_freeze.status=frozen.",
             "Run shiki plan ingest --plan-file PLAN.json.",
@@ -874,7 +874,7 @@ def _goals_for_plan(target: Path, plan_id: str) -> list[str]:
 
 
 def cmd_contract_open(args: argparse.Namespace) -> int:
-    """Open a Contract PR (ADR 0015): register a spec-frozen Goal's task contracts.
+    """Open a Contract PR (SADR-0015): register a spec-frozen Goal's task contracts.
 
     Writes ONLY goal/task/DAG registration (plus the ledger evidence those writes
     append) into .shiki so the branch a Contract PR carries has no implementation.
@@ -954,7 +954,7 @@ def cmd_issue_plan(args: argparse.Namespace) -> int:
         "risk_level": args.risk_level,
         "required_skills": args.required_skill or [],
         "acceptance_checks": args.acceptance_check,
-        # Structured loop-observed TDD command (ADR 0011); falls back to the safe
+        # Structured loop-observed TDD command (SADR-0011); falls back to the safe
         # unittest-discover default when the CLI did not supply one.
         "test_command": getattr(args, "test_command", None) or DEFAULT_TEST_COMMAND,
         "expected_branch": branch,

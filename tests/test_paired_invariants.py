@@ -723,7 +723,7 @@ class Pair12ChecklistIds(PairInvariant):
     def defined_ids(self) -> set[str]:
         # Checklist ids are `FAMILY-NN` with a 2+-letter family and exactly two
         # digits (word-bounded). The two-digit bound keeps 4-digit ADR numbers
-        # (`ADR-0015`) out.
+        # (`SADR-0015`) out.
         return set(re.findall(r"\b[A-Z]{2,5}-[0-9]{2}\b", read_text(self.CHECKLISTS)))
 
     def reference_files(self) -> "list[Path]":

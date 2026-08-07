@@ -11,7 +11,7 @@ Core rule:
 | Decision | Owner | When | Required inputs | Output | Enforcement surface |
 | --- | --- | --- | --- | --- | --- |
 | Is the Goal clear enough to plan? | Planner + Guardian when needed | Goal intake | User request, existing docs, risk signals | Goal readiness verdict | Goal checklist, issue template, ledger |
-| Must `grill-with-docs` run? | Planner / Skill Gate | Before PRD or issue split | Ambiguity, domain terms, ADR conflicts, unclear boundaries | Skill invocation or explicit skip rationale | Skill Gate checklist |
+| Must `grill-with-docs` run? | Planner / Skill Gate | Before PRD or issue split | Ambiguity, domain terms, SADR/target-ADR conflicts, unclear boundaries | Skill invocation or explicit skip rationale | Skill Gate checklist |
 | Is a PRD required? | Planner | After Goal context stabilizes | Goal, `grill-with-docs` output, Context & Impact output | PRD required / not required | PRD checklist, CCA evidence check |
 | Can the spec be frozen? | Operator only | End of Requirements Definition, before issue split | PRD/requirements summary, scope inventory (SF-02), open-question list | `spec_freeze` block in the plan + ledger evidence | `require_grilled_plan` (plan ingest/run), SF checklist |
 | Can a frozen spec change? | Operator only (Spec Amendment) | When implementation contradicts the frozen spec | Contested decisions, scoped re-grill result | recorded amendment + re-stamped freeze | SF checklist, ledger evidence |

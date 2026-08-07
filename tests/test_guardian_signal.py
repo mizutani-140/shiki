@@ -1,4 +1,4 @@
-"""Deterministic Guardian-approval signal for the CCA judge (ADR 0010).
+"""Deterministic Guardian-approval signal for the CCA judge (SADR-0010).
 
 The signal must resolve risk the SAME way MergeGate does (by the PR-body task
 id), and must FAIL CLOSED whenever the authoritative task risk cannot be

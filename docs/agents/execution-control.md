@@ -63,7 +63,7 @@ A state transition is valid only when the required evidence for the previous sta
 | Branch name | Orchestrator | Orchestrator | Before implementer dispatch | branch policy | branch ref in task/ledger |
 | Lock reservation | Context & Impact | MergeGate | Before dispatch and before merge | `.shiki/locks/`, labels, PR metadata | lock id, owner, scope |
 | CI profile | Planner | MergeGate | During issue triage, rechecked at PR | labels, `.shiki/policy.yaml`, workflow matrix | required check list |
-| Required status checks | Repo maintainer / Guardian | GitHub branch protection / rulesets | Repository setup, updated via ADR | GitHub settings | branch/ruleset config, ADR |
+| Required status checks | Repo maintainer / Guardian | GitHub branch protection / rulesets | Repository setup, updated via target ADR | GitHub settings | branch/ruleset config, target ADR |
 | CCA judgment | CCA | GitHub required check / MergeGate | Every non-draft PR update | GitHub Action check | structured CCA verdict |
 | Repair assignment | CCA | MergeGate | After failed CCA/CI/review | repair packet, issue/PR comment | repair id and attempt count |
 | Merge readiness | MergeGate | GitHub branch protection / Guardian if needed | After CCA complete | required checks, review rules, rulesets | mergegate check output |

@@ -18,11 +18,11 @@ Shiki is runtime-agnostic. Codex Front, Claude Code, GitHub CCA, Hermes Runner, 
 
 The default runtime split is subscription-authenticated:
 
-- **Claude Code** is the default implementer and runner runtime (ADR 0008): assigned tasks are dispatched into their registered worktree as a headless Claude Code session through `shiki runner claude`, authenticated by the operator's Claude subscription.
+- **Claude Code** is the default implementer and runner runtime (SADR-0008): assigned tasks are dispatched into their registered worktree as a headless Claude Code session through `shiki runner claude`, authenticated by the operator's Claude subscription.
 - **Codex Front** is an optional implementer through Codex App, Codex CLI, Codex IDE extension, or Codex Web signed in with ChatGPT OAuth/subscription auth, dispatched with `shiki runner codex` when a task is explicitly assigned to `codex`.
 - **GitHub CCA** is implemented by Claude Code Action by default, using `CLAUDE_CODE_OAUTH_TOKEN`.
 
-Do not assume `openai/codex-action`, `OPENAI_API_KEY`, or API-key based Codex automation in the default Shiki path. API-key runners are explicit target-repo extensions and require their own ADR.
+Do not assume `openai/codex-action`, `OPENAI_API_KEY`, or API-key based Codex automation in the default Shiki path. API-key runners are explicit target-repo extensions and require their own target ADR.
 
 Shiki is not:
 
@@ -44,10 +44,14 @@ Shiki is not:
 5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
 <!-- shiki-source-of-truth:end -->
 
+Within `docs/adr/`, Shiki platform decisions use
+`SADR-NNNN-*.md`; target product decisions retain `NNNN-*.md` and the `ADR`
+namespace.
+
 Use the canonical source-of-truth order above. Runtime-specific reading orders
 are operational guidance only and must not override or reorder it.
 
-Conversation state is not durable truth. If a decision matters, put it in GitHub, `.shiki/`, `CONTEXT.md`, or an ADR.
+Conversation state is not durable truth. If a decision matters, put it in GitHub, `.shiki/`, `CONTEXT.md`, a Shiki SADR, or a target ADR.
 
 If GitHub and `.shiki/` disagree, surface the conflict and prefer GitHub operational state until the mirror is repaired.
 
@@ -75,8 +79,8 @@ Use the Shiki terms below exactly:
 Every non-trivial change follows this loop:
 
 1. **Goal**: clarify outcome, completion conditions, non-goals, risk level, and success signals.
-2. **grill-with-docs**: challenge the plan against domain docs, ADRs, code reality, terminology, and edge scenarios.
-3. **Context & Impact**: find relevant docs, ADRs, code, dependencies, owners, locks, and verification surfaces.
+2. **grill-with-docs**: challenge the plan against domain docs, Shiki SADRs, target ADRs, code reality, terminology, and edge scenarios.
+3. **Context & Impact**: find relevant docs, SADRs, target ADRs, code, dependencies, owners, locks, and verification surfaces.
 4. **PRD and Spec Freeze**: use `to-prd` when context is settled enough to become durable product/engineering intent. The operator's explicit approval of the PRD is Spec Freeze: the plan records a `spec_freeze` block, and no plan runs without it. Steps 1-4 form Requirements Definition — one continuous operator dialogue. After Spec Freeze, scope changes require an operator-approved Spec Amendment; non-scope-moving interpretations go to the Assumption Log.
 5. **Issues**: use `to-issues` to create independently grabbable vertical-slice issues. Prefer AFK slices over HITL slices where possible.
 6. **Triage**: label issues for readiness, risk, runtime, skills, and MergeGate state.
@@ -102,7 +106,7 @@ Clarifies Goals, runs `grill-with-docs`, writes plans, updates `.shiki/`, propos
 
 ### Implementer
 
-Writes code in a scoped branch or worktree and verifies acceptance checks. Claude Code is the default implementer for source changes and repair commits, dispatched through `shiki runner claude`; Codex Front remains an optional implementer for tasks explicitly assigned to `codex` (ADR 0008). An implementer never authors an approval record (see [Approval Records](#approval-records)): it satisfies acceptance criteria with real work, and reports any criterion it cannot satisfy from the worktree's artifacts as a stop.
+Writes code in a scoped branch or worktree and verifies acceptance checks. Claude Code is the default implementer for source changes and repair commits, dispatched through `shiki runner claude`; Codex Front remains an optional implementer for tasks explicitly assigned to `codex` (SADR-0008). An implementer never authors an approval record (see [Approval Records](#approval-records)): it satisfies acceptance criteria with real work, and reports any criterion it cannot satisfy from the worktree's artifacts as a stop.
 
 ### Completion Check Agent
 
@@ -167,7 +171,7 @@ Every PRD must include:
 - Testing decisions.
 - Out-of-scope items.
 - Further notes.
-- Links to relevant domain terms and ADRs.
+- Links to relevant domain terms, SADRs, and target ADRs.
 
 Every executable task must include:
 
@@ -193,7 +197,7 @@ parallel exploration sweep, with the sweep run recorded as evidence (CI-08).
 
 Context & Impact must identify:
 
-- Relevant documents, domain terms, ADRs, and past decisions.
+- Relevant documents, domain terms, SADRs, target ADRs, and past decisions.
 - Relevant modules, interfaces, seams, callers, owners, and tests.
 - Dependency relationships between tasks.
 - Candidate locks and lock conflicts.
@@ -210,7 +214,7 @@ Use the engineering skills under the configured skills directory when their trig
 | Skill | Required when |
 | --- | --- |
 | `setup-matt-pocock-skills` | First configuring the repo for skills, or when issue tracker, triage labels, or domain docs are missing. |
-| `grill-with-docs` | Default for non-trivial Goals before PRD/issues; always required when plans, terminology, boundaries, tradeoffs, or ADR-worthy decisions are ambiguous. |
+| `grill-with-docs` | Default for non-trivial Goals before PRD/issues; always required when plans, terminology, boundaries, tradeoffs, or decision-record-worthy choices are ambiguous. |
 | `zoom-out` | The agent lacks an architectural map of the relevant code area. |
 | `to-prd` | Settled Goal context must become durable product/engineering intent. |
 | `to-issues` | A Goal, PRD, or plan must become independently grabbable vertical-slice issues. |
@@ -296,7 +300,7 @@ MergeGate must block when any of these are true:
 
 MergeGate may allow progress only when dependency state, locks, checks, CCA, review, risk approval, and evidence completeness all satisfy the task contract.
 
-When every MergeGate condition is satisfied, the goal loop (`shiki loop`) may merge risk low/medium PRs autonomously (ADR 0008/0009). High and critical risk always require Guardian approval before merge.
+When every MergeGate condition is satisfied, the goal loop (`shiki loop`) may merge risk low/medium PRs autonomously (SADR-0008/SADR-0009). High and critical risk always require Guardian approval before merge.
 
 ## Approval Records
 
@@ -348,7 +352,7 @@ Escalate before implementation when a change touches any of:
 - Three or more new files.
 - Any high-risk or critical label.
 
-When the architecture gate triggers, run `grill-with-docs` or `improve-codebase-architecture` as appropriate and record durable decisions in an ADR when needed.
+When the architecture gate triggers, run `grill-with-docs` or `improve-codebase-architecture` as appropriate and record durable decisions in a Shiki SADR or target ADR as applicable.
 
 ## Engineering Discipline
 

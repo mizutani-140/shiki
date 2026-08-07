@@ -4,7 +4,7 @@ These drive the REAL CLI and the REAL mergegate_check.py via subprocess against 
 temporary GitHub-first target. Each test CONSTRUCTS ITS OWN spec-frozen,
 multi-task plan fixture inside that temporary directory (see ``_write_frozen_plan``)
 — no test copies from or writes to ``.shiki/plans/`` or any other real mirror
-path, so the suite adds no approval record to real mirror state (ADR 0015: an
+path, so the suite adds no approval record to real mirror state (SADR-0015: an
 approved contract belongs on a real branch behind a Guardian, never seeded by a
 test).
 

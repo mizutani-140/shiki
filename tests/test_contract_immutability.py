@@ -1,4 +1,4 @@
-"""ADR 0015 Contract immutability on the NORMAL task-PR path.
+"""SADR-0015 Contract immutability on the NORMAL task-PR path.
 
 Every governance gain made on 2026-07-29/31 — contract approval before dispatch,
 the bookkeeping-closeout exemption, the drop from ~3.5 to ~0.3 operator approvals
@@ -15,7 +15,7 @@ task PR's own task file to the base snapshot: when the task file exists on base,
 its governance contract (``_NORMAL_PATH_GOVERNANCE_FIELDS``) is frozen and its
 ``risk_level`` may never resolve WEAKER than base; when it does not, the PR is a
 first registration (head authority); when the own task file changes with no base
-snapshot to check it against, it fails closed. Only the mutable set the ADR 0017
+snapshot to check it against, it fails closed. Only the mutable set the SADR-0017
 closeout classifier already uses (``_CLOSEOUT_MUTABLE_TASK_FIELDS``) — plus
 loop-written bookkeeping like ``pre_pr_code_review`` — may move.
 ``resolved_guardian_risk_never_weaker`` makes the Guardian gate resolve at the
@@ -200,7 +200,7 @@ class ContractImmutabilityTest(unittest.TestCase):
                 self.assertEqual(self.reasons(head), [], f"changing {field} alone must NOT block")
 
     def test_mutable_set_is_the_single_closeout_constant(self) -> None:
-        # The mutable-field set is the SAME constant the ADR 0017 closeout
+        # The mutable-field set is the SAME constant the SADR-0017 closeout
         # classifier uses, not a second copy, and it is DISJOINT from the frozen
         # governance set so the two cannot drift into overlap.
         self.assertEqual(

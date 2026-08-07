@@ -1,4 +1,4 @@
-# ADR 0009: Merge Grill And Planning Into Requirements Definition With Spec Freeze
+# SADR-0009: Merge Grill And Planning Into Requirements Definition With Spec Freeze
 
 ## Status
 
@@ -21,7 +21,7 @@ execution stalled because every downstream step re-opened questions the
 planning phase should have settled.
 
 The Goal lifecycle should have exactly one human gate on the happy path, with
-everything after it autonomous (ADR 0008 provides the implementation runtime
+everything after it autonomous (SADR-0008 provides the implementation runtime
 for this).
 
 ## Decision

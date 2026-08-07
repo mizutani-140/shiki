@@ -742,7 +742,7 @@ assert_contains(installer_text, "scripts/test_shiki_governance_evidence.sh")
 
 
 # ============================================================================
-# ADR 0017: bookkeeping-closeout Guardian exemption smuggling cases.
+# SADR-0017: bookkeeping-closeout Guardian exemption smuggling cases.
 #
 # A closeout PR carries only a merged task's terminal state (task done, lock
 # released, and — when it completes the goal — goal complete + exactly one
@@ -963,7 +963,7 @@ expect_guardian_fallback(build_closeout("close-smuggle-unmerged"), merged="")
 
 
 # ============================================================================
-# Amendment mode (ADR 0009/0015): a Spec Amendment PR cannot lower its OWN
+# Amendment mode (SADR-0009/SADR-0015): a Spec Amendment PR cannot lower its OWN
 # Guardian gate. The gate is forced from the STRONGER of the goal's base-plan and
 # head-plan risk, so an amendment that WEAKENS its own plan (critical -> low)
 # still resolves at the base (critical) risk and blocks for missing approval.

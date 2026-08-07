@@ -1,4 +1,4 @@
-"""End-to-end loop self-drive CONTRACT meta-test (PRD 0002 T5, ADR 0011).
+"""End-to-end loop self-drive CONTRACT meta-test (PRD 0002 T5, SADR-0011).
 
 T1-T4 are merged, so `scripts/test_shiki_loop_e2e.sh` now drives the FULL
 integrated autonomous path and asserts the loop-owned evidence in the implemented

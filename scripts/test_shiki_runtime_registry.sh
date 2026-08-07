@@ -66,7 +66,7 @@ valid_pairs = {
 for role, runtime in valid_pairs.items():
     registry_module.validate_runtime_role_assignment(role, runtime)
 
-# ADR 0008: claude-code is the default implementer/runner; codex stays a
+# SADR-0008: claude-code is the default implementer/runner; codex stays a
 # valid optional implementer.
 registry_module.validate_runtime_role_assignment("runner", "claude-code")
 registry_module.validate_runtime_role_assignment("implementer", "codex-front")

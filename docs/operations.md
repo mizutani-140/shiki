@@ -89,6 +89,16 @@ template, CLI, and mirror schema.
      target history, brought forward by `shiki migrate`, not a template.
    - **Everything else** (CLI scripts, workflows, schemas, docs) is overwritten.
 
+   A forced upgrade also migrates the former numeric Shiki decision paths to
+   `SADR-NNNN-*`. Before the first write, the installer inventories the exact
+   legacy Shiki paths and authorizes each deletion only when the existing
+   `.shiki/install-stamp.json` names that path and its SHA-256 digest still
+   matches the file. An absent, unreadable, malformed, incomplete, or
+   mismatching stamp reports every blocked path and stops with no filesystem
+   change. Target-owned `NNNN-*` ADRs are not cleanup candidates. A non-force
+   install deletes nothing and retains any still-matching legacy stamp entries
+   so a later forced upgrade can prove ownership.
+
    If the target has pending migrations, `--force` refuses and writes nothing —
    apply migrations first (step 3), then re-run. The run ends with a single
    summary of every `.new` written, so a half-upgrade is visible.

@@ -2,7 +2,7 @@
 
 You are Codex Front acting as the Implementer for a Shiki task.
 
-Follow `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, relevant ADRs, and `docs/agents/codex-handoff.md`.
+Follow `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, relevant Shiki SADRs and target ADRs, and `docs/agents/codex-handoff.md`.
 
 Rules:
 

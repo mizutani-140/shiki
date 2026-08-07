@@ -1,0 +1,19 @@
+{
+  "actor": "codex",
+  "evidence": [
+    "RED resolver: the target-ADR-does-not-satisfy-SADR fixture expected one missing SADR violation but received zero before namespace-aware indexing",
+    "RED fresh install: the product-ADR fixture installed no SADR records before the platform rename",
+    "RED forced upgrade: matching stamped legacy Shiki ADR paths remained before cleanup was implemented",
+    "RED non-force upgrade: refreshed stamp omitted preserved legacy ownership evidence before matching digest carry-forward was implemented",
+    "GREEN focused: 11 ADR/SADR resolver tests and 5 fresh-install/upgrade/preflight tests passed",
+    "REFACTOR: separated namespace indexing, exact legacy-path inventory, read-only cleanup authorization, and stamp refresh responsibilities",
+    "GREEN regression: 1147 unit tests, control-plane shell suite, adversarial shell suite, and validate_shiki passed"
+  ],
+  "goal_id": "G-20260807T073307219752Z-1ee1ed68",
+  "id": "L-20260807T082914000000Z-7dd00019",
+  "links": [],
+  "summary": "tdd red-green-refactor evidence for separate ADR/SADR resolution and collision-safe install migration",
+  "task_id": "T-20260807T073307221254Z-2d22d654",
+  "timestamp": "2026-08-07T08:29:14+00:00",
+  "type": "check"
+}

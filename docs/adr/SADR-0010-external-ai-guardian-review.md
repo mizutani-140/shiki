@@ -1,4 +1,4 @@
-# ADR 0010: External AI Guardian Review As A First-Class Approval Authority
+# SADR-0010: External AI Guardian Review As A First-Class Approval Authority
 
 ## Status
 
@@ -8,7 +8,7 @@ Proposed
 
 Shiki is intended to be an autonomous, recursive, self-improving agent
 framework: authority-in-the-loop, not human-in-the-loop. Until now the Guardian
-approval required for high/critical-risk merges (guardian-policy.json, ADR
+approval required for high/critical-risk merges (guardian-policy.json, SADR
 governance) recognized only human authority sources — a GitHub review approval,
 the `guardian:approved` label applied by a configured Guardian, or a comment
 carrying `Guardian approval granted` plus the current head SHA.
@@ -89,7 +89,7 @@ under a human identity.
   autonomous design the operator intends and produced the impersonation
   incident.
 - **Record AI approval as an operator comment**: rejected as forgery of human
-  authority — the exact failure this ADR corrects.
+  authority — the exact failure this SADR corrects.
 - **Deliver the artifact as a committed `.shiki/` file**: rejected; a committed
   approval inside the PR being approved is forgeable by anyone who can push.
 - **A dedicated reviewer bot identity instead of a relayed comment**: deferred;

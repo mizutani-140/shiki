@@ -152,7 +152,7 @@ grep -- "--base-shiki .shiki/gha/base-shiki/.shiki" .github/workflows/shiki-merg
 # shellcheck disable=SC2016
 grep -- '--merged-prs "$MERGED_PRS"' .github/workflows/shiki-mergegate.yml >/dev/null
 
-# ADR 0015 Contract Approval carry (T-20260801T040836632579Z-2cde7018). BOTH the
+# SADR-0015 Contract Approval carry (T-20260801T040836632579Z-2cde7018). BOTH the
 # CCA workflow and the MergeGate metadata workflow must build the registration
 # proof .shiki/gha/contract-approval.json the evaluator reads and pass it through
 # --contract-approval to their consumer, from evidence the PR head/body cannot
@@ -185,7 +185,7 @@ done
 [ "$(grep -c 'git fetch origin' .github/workflows/shiki-cca-completion.yml)" = "2" ]
 [ "$(grep -c 'git fetch origin' .github/workflows/shiki-mergegate.yml)" = "1" ]
 
-# ADR 0018 base-sync carry (guardian_comment_carried) reaches CI
+# SADR-0018 base-sync carry (guardian_comment_carried) reaches CI
 # (T-20260804T095105535495Z-22a51036). Every invocation that judges Guardian
 # approval must pass --base-sync-carry and --default-branch, or the carry degrades
 # to "does not apply" with no error and the feature is invisible. Four such
@@ -1585,7 +1585,7 @@ def noop(case, base):
 
 
 def current_task_changed(case, base):
-    # ADR 0015 Contract immutability (normal task-PR path): a PR may move its own
+    # SADR-0015 Contract immutability (normal task-PR path): a PR may move its own
     # task file's MUTABLE bookkeeping (here closeout_pr, in
     # _CLOSEOUT_MUTABLE_TASK_FIELDS) while its frozen governance contract stays
     # byte-identical to the base snapshot. status is left at 'review' so the change
@@ -1597,7 +1597,7 @@ def current_task_changed(case, base):
 
 
 def current_task_governance_changed(case, base):
-    # ADR 0015 Contract immutability (normal task-PR path): a GOVERNANCE field
+    # SADR-0015 Contract immutability (normal task-PR path): a GOVERNANCE field
     # diverging from the base snapshot is blocked. The base is copied from the case
     # in make_case, so appending to scope in the head alone diverges from base.
     task_path = case / ".shiki" / "tasks" / f"{task_id}.json"

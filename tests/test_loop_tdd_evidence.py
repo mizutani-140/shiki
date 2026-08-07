@@ -1,7 +1,7 @@
-"""Loop-observed TDD evidence + per-task test command (PRD 0002 T2, ADR 0011).
+"""Loop-observed TDD evidence + per-task test command (PRD 0002 T2, SADR-0011).
 
 Before it opens the PR, the goal loop must itself OBSERVE the task's tests pass
-in the worktree — never trust the implementer's self-attestation (ADR 0011:
+in the worktree — never trust the implementer's self-attestation (SADR-0011:
 quality-gate evidence is a deterministic observable fact plus an independent
 verifier, here the loop). The step:
 

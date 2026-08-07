@@ -31,20 +31,23 @@ Goal Seek
 5. Runtime-specific wrappers such as `CLAUDE.md`, `.codex/`, `.claude/`, `.github/prompts/`, and hooks may add stricter instructions but must not weaken the shared constitution.
 <!-- shiki-source-of-truth:end -->
 
+Within `docs/adr/`, Shiki platform decisions use `SADR-NNNN-*.md`; target
+product decisions retain `NNNN-*.md` and the `ADR` namespace.
+
 ## Non-Negotiables
 
 1. **Planning precedes implementation.** Non-trivial Goals start with `grill-with-docs` and Context & Impact.
-2. **Domain language is controlled.** Terms must be checked against `CONTEXT.md`; hard-to-reverse tradeoffs must be checked against ADRs.
+2. **Domain language is controlled.** Terms must be checked against `CONTEXT.md`; hard-to-reverse tradeoffs must be checked against Shiki SADRs and target ADRs.
 3. **PRD precedes issue decomposition.** `to-prd` is used once the context is settled enough to become durable intent.
 4. **Issues are vertical slices.** `to-issues` must produce independently grabbable tracer-bullet tasks, not horizontal layer tickets.
 5. **Triage controls dispatch.** Only `ready-for-agent` / AFK tasks may be assigned to Codex without human input.
-6. **The assigned implementer implements; CCA judges.** Claude Code is the default implementer and repairer (ADR 0008); Codex Front implements tasks explicitly assigned to `codex`. GitHub CCA is the default completion judge.
+6. **The assigned implementer implements; CCA judges.** Claude Code is the default implementer and repairer (SADR-0008); Codex Front implements tasks explicitly assigned to `codex`. GitHub CCA is the default completion judge.
 7. **TDD is default for behavior work.** One failing behavior test, minimal code, pass, repeat. Refactor only after green.
 8. **No implementation is complete until CCA and MergeGate agree.** Green CI is necessary but not sufficient.
 9. **Repair is bounded.** CCA failures become repair packets. Default automatic repair limit is 3 attempts.
 10. **Evidence is durable.** Important decisions and verification must live in GitHub and/or `.shiki/`, not chat memory.
-11. **Spec Freeze gates execution.** No plan runs without an operator-approved `spec_freeze` block (ADR 0009). Post-freeze scope changes require an operator-approved, recorded Spec Amendment; non-scope-moving interpretations are recorded in the Assumption Log.
-12. **Approval records are authored only by their authority.** An implementation runtime must never author, edit, forge, or backfill an operative approval record — a `spec_freeze` block, a Spec Amendment approval, Guardian approval evidence, a CCA `complete` verdict, or any other artifact whose meaning is that an authority approved something. An acceptance criterion that cannot be satisfied from the worktree because the missing artifact is such a record is reported as a stop, never closed by manufacturing it. This does not cover approval-record schemas or clearly-scoped test fixtures that never enter the real `.shiki/` mirror (ADR 0009/0010).
+11. **Spec Freeze gates execution.** No plan runs without an operator-approved `spec_freeze` block (SADR-0009). Post-freeze scope changes require an operator-approved, recorded Spec Amendment; non-scope-moving interpretations are recorded in the Assumption Log.
+12. **Approval records are authored only by their authority.** An implementation runtime must never author, edit, forge, or backfill an operative approval record — a `spec_freeze` block, a Spec Amendment approval, Guardian approval evidence, a CCA `complete` verdict, or any other artifact whose meaning is that an authority approved something. An acceptance criterion that cannot be satisfied from the worktree because the missing artifact is such a record is reported as a stop, never closed by manufacturing it. This does not cover approval-record schemas or clearly-scoped test fixtures that never enter the real `.shiki/` mirror (SADR-0009/SADR-0010).
 
 ## Phase 0 — Repository Setup
 
@@ -95,19 +98,19 @@ Default for non-trivial Goals.
 Process:
 
 - Challenge terms against `CONTEXT.md`.
-- Check ADRs before reopening decisions.
+- Check SADRs and target ADRs before reopening decisions.
 - Inspect code when code can answer a question.
 - Ask one question at a time when the operator is available.
 - Provide a recommended answer with each question.
 - Record resolved terms in `CONTEXT.md`.
-- Create ADRs only for hard-to-reverse, surprising, tradeoff-based decisions.
+- Create SADRs or target ADRs only for hard-to-reverse, surprising, tradeoff-based decisions.
 - Convert unresolved load-bearing questions into HITL blockers.
 
 Outputs:
 
 - Resolved design-tree decisions.
 - Updated glossary terms when needed.
-- ADRs when justified.
+- SADRs or target ADRs when justified.
 - HITL blockers when decisions remain unresolved.
 
 ## Phase 3 — Context & Impact
@@ -117,7 +120,7 @@ exploration sweep and record the run as evidence (CI-08).
 
 Outputs must include:
 
-- Relevant documents and ADRs.
+- Relevant documents, SADRs, and target ADRs.
 - Relevant modules, interfaces, seams, callers, and tests.
 - Candidate locks.
 - Dependencies.
@@ -140,7 +143,7 @@ The PRD must include:
 - Testing decisions.
 - Out of scope.
 - Further notes.
-- Links to relevant Goal, domain terms, and ADRs.
+- Links to relevant Goal, domain terms, SADRs, and target ADRs.
 
 Phase 4 ends with Spec Freeze: the operator explicitly approves the PRD, the
 plan records a `spec_freeze` block (status, approved_by, source), and the SF
@@ -240,7 +243,7 @@ CCA evaluates:
 - Dependencies and locks.
 - Risk and Guardian requirements.
 - Ledger completeness.
-- Documentation and ADR updates.
+- Documentation and SADR/target-ADR updates.
 - Scope drift.
 
 CCA emits one of:
@@ -301,7 +304,7 @@ After all task PRs merge, judge the parent Goal:
 | Evidence failure | Behavior might be done, but proof is missing. | Add checks, PR evidence, ledger entry, or artifacts. |
 | Scope drift | PR changes unrelated behavior. | Revert unrelated changes or split into new Goal. |
 | Dependency block | Upstream task or lock not complete. | Block until dependency resolves. |
-| Architecture block | Decision needs ADR or deep-module discussion. | `grill-with-docs` or `improve-codebase-architecture`. |
+| Architecture block | Decision needs a SADR, target ADR, or deep-module discussion. | `grill-with-docs` or `improve-codebase-architecture`. |
 | Risk block | Security/production/policy change needs human approval. | Guardian decision. |
 
 ## Phase 5.5 — Execution Decision Control
