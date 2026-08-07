@@ -94,7 +94,7 @@
         "No file outside the declared locks is changed."
       ],
       "dependencies": [
-        "T-20260807T035659159912Z-f2e1c0b0"
+        "Judge a repair by what the implementer changed, not by whether the head moved"
       ],
       "locks": [
         "path:.github/workflows/shiki-mergegate.yml",
