@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260807T020527150479Z-4f8ffc4c.json",
+    ".shiki/plans/P-20260807T020527072088Z-ccd774ff.json"
+  ],
+  "goal_id": "G-20260807T020527150479Z-4f8ffc4c",
+  "id": "L-20260807T020527151329Z-e2d03f80",
+  "links": [],
+  "summary": "Goal registered from plan: A re-opened task must not inherit the previous cycle's PR pointer",
+  "task_id": null,
+  "timestamp": "2026-08-07T02:05:27+00:00",
+  "type": "goal-created"
+}
