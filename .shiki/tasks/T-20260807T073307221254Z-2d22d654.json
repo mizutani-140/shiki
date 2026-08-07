@@ -37,8 +37,9 @@
     "L-20260807T080228312210Z-07ac626e",
     "L-20260807T080228575038Z-d574f629",
     "L-20260807T080256330734Z-5bf40cb6",
-    "L-20260807T082800000000Z-c0de0019",
-    "L-20260807T082914000000Z-7dd00019"
+    "L-20260807T082959241975Z-4175852c",
+    "L-20260807T083753556762Z-d3e8a418",
+    "L-20260807T083945891348Z-36ad530b"
   ],
   "locks": [
     "path:.codex/**",
@@ -61,6 +62,13 @@
     "Changing approval, CCA, MergeGate, lock, runtime, or repair semantics.",
     "Fixing the separate .gitignore overwrite defect."
   ],
+  "pre_pr_code_review": {
+    "exception": "default Claude reviewer unavailable (not logged in)",
+    "findings": [],
+    "ledger_id": "L-20260807T083753556762Z-d3e8a418",
+    "reviewer_runtime": "codex-read-only",
+    "verdict": "clean"
+  },
   "required_skills": [
     "diagnose",
     "tdd",
@@ -68,7 +76,7 @@
   ],
   "risk_level": "high",
   "scope": "Rename Shiki platform decision records to SADR-0001 through SADR-0018; add SADR-0019; update current citations, packaging metadata, documentation, workflows, prompts, repo-local skill guidance, and the reference validator for separate ADR/SADR namespaces; add an installer preflight that inventories legacy numeric Shiki ADR paths and authorizes deletion only from matching existing install-stamp path digests before any write; then apply authorized cleanup, install SADRs, refresh the stamp, and prove fresh-install plus CubeShare-shaped collision-upgrade behavior with TDD.",
-  "status": "running",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_adversarial_state.sh && python3 scripts/validate_shiki.py --target .",
   "title": "Introduce SADR and migrate installs without touching product ADRs"
 }
