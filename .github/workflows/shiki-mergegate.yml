@@ -12,6 +12,10 @@ on:
       - unlabeled
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -26,6 +30,7 @@ jobs:
   mergegate:
     name: MergeGate metadata check
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || ((github.event.action != 'labeled' && github.event.action != 'unlabeled') || github.event.label.name == 'guardian:approved' || startsWith(github.event.label.name, 'mergegate:'))
     steps:
       - name: Checkout
         uses: actions/checkout@v5

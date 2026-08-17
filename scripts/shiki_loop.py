@@ -580,7 +580,7 @@ def _gh(target: Path, args: list[str], *, check: bool = True):
 def _check_bucket(value: str) -> str:
     if value in {"pass", "success"}:
         return "pass"
-    if value in {"pending", "queued", "in_progress"}:
+    if value in {"pending", "queued", "in_progress", "cancelled", "skipped", "stale"}:
         return "pending"
     return "fail"
 
