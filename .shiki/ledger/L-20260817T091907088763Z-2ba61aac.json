@@ -1,0 +1,14 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/plans/P-20260817T063752520648Z-230f8707.json",
+    ".shiki/tasks/T-20260817T063758155247Z-0b11207b.json"
+  ],
+  "goal_id": "G-20260817T063758153709Z-0302813a",
+  "id": "L-20260817T091907088763Z-2ba61aac",
+  "links": [],
+  "summary": "Contract amendment: add path:scripts/test_shiki_governance_evidence.sh and path:scripts/test_shiki_adversarial_state.sh to the task's locks so the stale closeout fixtures the fail-closed isCrossRepository guard invalidates can be updated",
+  "task_id": "T-20260817T063758155247Z-0b11207b",
+  "timestamp": "2026-08-17T09:19:07+00:00",
+  "type": "contract-amended"
+}

@@ -47,7 +47,9 @@
   "risk_level": "high",
   "source_file": "/Users/kio.mizutani/shiki/.claude/worktrees/coordinator-main/.shiki/inbox/P-REFLUX1-draft.json",
   "spec_freeze": {
-    "amendments": [],
+    "amendments": [
+      "A1 (operator-approved 2026-08-17, from a measured lock-sufficiency failure): the contract's lock-sufficiency check classified scripts/test_shiki_governance_evidence.sh and scripts/test_shiki_adversarial_state.sh as MUST-NOT-BREAK, but the fail-closed isCrossRepository guard this task adds makes them MUST-CHANGE. Their closeout PR fixtures predate the guard and omit the key, so a real gh pr view snapshot carries it while the fixtures do not; 19 fixture edits between the two files are required and no production line changes. Measured: both suites pass on origin/main and fail in the implementation worktree; a scratch copy with the 19 edits and byte-identical production files reaches EXIT=0 on both, plus test_shiki_init.sh which runs the shipped governance_evidence suite inside a fresh target. As written the contract was unbuildable \u2014 acceptance #12 requires every scripts/test_shiki_*.sh to pass while #13 forbids changing anything outside the locks, and the only lock-legal alternative was to weaken the guard, which is a stated non-goal and is pinned by tests/test_paired_invariants.py. This amendment adds exactly those two paths to the task's locks and changes nothing else."
+    ],
     "approved_by": "mizutani-140",
     "prd": "docs/adr/SADR-0017-bookkeeping-closeouts-do-not-inherit-risk.md",
     "source": "Operator approved the five-task reflux DAG on 2026-08-17 ('\u63a8\u5968\u5185\u5bb9\u3067\u627f\u8a8d\u3059\u308b'), then instructed P1 first once the platform repo was measured PUBLIC, then approved authoring this contract ('Go'). NOTE, added after that approval and flagged to the operator before any Contract PR: the port is NOT as-is \u2014 measurement found an `and pr` short-circuit in the CubeShare source this refluxes, so this contract ports the corrected form. See the grill decision 'PORT WITH A CORRECTION'.",
@@ -89,7 +91,9 @@
         "path:docs/agents/decision-control.md",
         "path:docs/agents/triage-labels.md",
         "path:docs/agents/implementation-policy.md",
-        "path:docs/adr/SADR-0012-autonomous-loop-closeout-to-main.md"
+        "path:docs/adr/SADR-0012-autonomous-loop-closeout-to-main.md",
+        "path:scripts/test_shiki_governance_evidence.sh",
+        "path:scripts/test_shiki_adversarial_state.sh"
       ],
       "non_goals": [
         "Refluxing the `and pr` short-circuit",
