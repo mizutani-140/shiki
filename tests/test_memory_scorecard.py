@@ -144,6 +144,38 @@ class GoalCompleteContractTests(unittest.TestCase):
             self.assertIn("scorecard", report)
             self.assertEqual(report["scorecard"]["goal_id"], GOAL_ID)
 
+    def test_report_uses_strongest_goal_or_task_risk(self) -> None:
+        import argparse
+        import subprocess
+        from shiki_tasks import cmd_goal_complete
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_goal(root)
+            goal_path = root / ".shiki" / "goals" / f"{GOAL_ID}.json"
+            goal = json.loads(goal_path.read_text(encoding="utf-8"))
+            goal["risk_level"] = "medium"
+            goal_path.write_text(json.dumps(goal), encoding="utf-8")
+            task_id = "T-20260613T000000000000Z-0000c002"
+            task = _task(root, task_id, status="done")
+            task["risk_level"] = "critical"
+            (root / ".shiki" / "tasks" / f"{task_id}.json").write_text(
+                json.dumps(task), encoding="utf-8"
+            )
+            subprocess.run(["git", "init", "-b", "main"], cwd=root, capture_output=True, check=True)
+            subprocess.run(
+                ["git", "remote", "add", "origin", "https://github.com/example/x.git"],
+                cwd=root,
+                capture_output=True,
+                check=True,
+            )
+            output = io.StringIO()
+            with redirect_stdout(output):
+                cmd_goal_complete(argparse.Namespace(target=str(root), goal_id=GOAL_ID, summary=None))
+            report_path = Path(json.loads(output.getvalue())["report_file"])
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(report["mergegate"]["risk"], "critical")
+
 
 if __name__ == "__main__":
     unittest.main()

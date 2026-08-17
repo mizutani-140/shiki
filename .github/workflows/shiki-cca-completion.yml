@@ -52,13 +52,21 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          set -euo pipefail
           rm -rf .shiki/gha
           mkdir -p .shiki/gha
-          gh pr view "$PR_NUMBER" --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
+          gh pr view "$PR_NUMBER" --json number,title,body,baseRefOid,isCrossRepository,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
           base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
+          base_oid="$(jq -r '.baseRefOid' .shiki/gha/pr.json)"
+          head_oid="$(jq -r '.headRefOid' .shiki/gha/pr.json)"
           git fetch origin "$base_ref"
-          git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
-          git diff --name-status "origin/${base_ref}...HEAD" > .shiki/gha/changed-files-status.txt
+          merge_base="$(git merge-base "$base_oid" "$head_oid")"
+          printf '%s\n' "$merge_base" > .shiki/gha/merge-base-oid.txt
+          jq --arg merge_base "$merge_base" '. + {mergeBaseOid: $merge_base}' \
+            .shiki/gha/pr.json > .shiki/gha/pr-with-merge-base.json
+          mv .shiki/gha/pr-with-merge-base.json .shiki/gha/pr.json
+          git diff --name-only "${merge_base}...HEAD" > .shiki/gha/changed-files.txt
+          git diff --name-status "${merge_base}...HEAD" > .shiki/gha/changed-files-status.txt
 
           # SADR-0017 bookkeeping-closeout exemption inputs, built the SAME way the
           # mergegate job builds them below. The Guardian-approval signal must
@@ -66,11 +74,11 @@ jobs:
           # check does; without these inputs the CCA path could not classify a
           # closeout at all, so the exemption would be unreachable and a closeout
           # would still return needs_guardian. Base .shiki snapshot from
-          # origin/<base_ref> (the fetch above already ran — do NOT add a second, or
-          # the base fetch would go shallow).
+          # the immutable merge base (the fetch above already ran — do NOT add a
+          # second, or the base fetch would go shallow).
           rm -rf .shiki/gha/base-shiki
           mkdir -p .shiki/gha/base-shiki
-          git archive "origin/${base_ref}" .shiki | tar -x -C .shiki/gha/base-shiki || true
+          git archive "$merge_base" .shiki | tar -x -C .shiki/gha/base-shiki
 
           # Implementation-PR merge proof: resolve the task id with the SAME
           # semantics mergegate_check.py uses (first T-<4+ digits> OR
@@ -85,7 +93,7 @@ jobs:
           if [ -n "$task_id" ] && [ -f "$base_task" ]; then
             base_pr="$(jq -r '.expected_pr // empty' "$base_task")"
             if [ -n "$base_pr" ]; then
-              state="$(gh pr view "$base_pr" --repo "$REPOSITORY" --json state -q .state 2>/dev/null || echo UNKNOWN)"
+              state="$(gh pr view "$base_pr" --repo "$REPOSITORY" --json state,isCrossRepository -q .state 2>/dev/null || echo UNKNOWN)"
               if [ "$state" = "MERGED" ]; then
                 MERGED_PRS="$base_pr"
               fi
@@ -218,7 +226,7 @@ jobs:
           while true; do
             gh pr view "$PR_NUMBER" \
               --repo "$REPOSITORY" \
-              --json headRefOid,statusCheckRollup \
+              --json headRefOid,statusCheckRollup,isCrossRepository \
               > .shiki/gha/pr-settling.json
 
             observed_head="$(jq -r '.headRefOid // ""' .shiki/gha/pr-settling.json)"
@@ -267,9 +275,13 @@ jobs:
 
           # The judge must consume the settled rollup, not the snapshot gathered at
           # the beginning of this concurrently-triggered workflow run.
+          merge_base="$(cat .shiki/gha/merge-base-oid.txt)"
           gh pr view "$PR_NUMBER" \
             --repo "$REPOSITORY" \
-            --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
+            --json number,title,body,baseRefOid,isCrossRepository,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
+          jq --arg merge_base "$merge_base" '. + {mergeBaseOid: $merge_base}' \
+            .shiki/gha/pr.json > .shiki/gha/pr-with-merge-base.json
+          mv .shiki/gha/pr-with-merge-base.json .shiki/gha/pr.json
 
       - name: Prepare CCA transport schema
         id: schema
@@ -706,10 +718,14 @@ jobs:
             exit 1
           fi
 
+          merge_base="$(cat .shiki/gha/merge-base-oid.txt)"
           gh pr view "$PR_NUMBER" \
             --repo "$REPOSITORY" \
-            --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup \
-            > .shiki/gha/pr.json
+            --json number,title,body,baseRefOid,isCrossRepository,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup \
+            > .shiki/gha/pr-refresh.json
+          jq --arg merge_base "$merge_base" '. + {mergeBaseOid: $merge_base}' \
+            .shiki/gha/pr-refresh.json > .shiki/gha/pr.json
+          rm .shiki/gha/pr-refresh.json
 
           echo "::endgroup::"
 
@@ -782,7 +798,7 @@ jobs:
           mkdir -p .shiki/gha/base-shiki
 
           gh pr view "$PR_NUMBER" \
-            --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup \
+            --json number,title,body,baseRefOid,isCrossRepository,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup \
             > .shiki/gha/live-pr.json
 
           gh api --paginate "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
@@ -797,16 +813,21 @@ jobs:
 
           base_ref="$(jq -r '.baseRefName' .shiki/gha/live-pr.json)"
           head_oid="$(jq -r '.headRefOid' .shiki/gha/live-pr.json)"
+          merge_base="$(cat .shiki/gha/merge-base-oid.txt)"
 
           git fetch origin "$base_ref"
 
-          git diff --name-only "origin/${base_ref}...HEAD" \
+          jq --arg merge_base "$merge_base" '. + {mergeBaseOid: $merge_base}' \
+            .shiki/gha/live-pr.json > .shiki/gha/live-pr-with-merge-base.json
+          mv .shiki/gha/live-pr-with-merge-base.json .shiki/gha/live-pr.json
+
+          git diff --name-only "${merge_base}...HEAD" \
             > .shiki/gha/live-changed-files.txt
 
-          git diff --name-status "origin/${base_ref}...HEAD" \
+          git diff --name-status "${merge_base}...HEAD" \
             > .shiki/gha/live-changed-files-status.txt
 
-          git archive "origin/${base_ref}" .shiki | tar -x -C .shiki/gha/base-shiki || true
+          git archive "$merge_base" .shiki | tar -x -C .shiki/gha/base-shiki
 
           current_head="$(git rev-parse HEAD)"
           if [ "$head_oid" != "$current_head" ]; then
@@ -849,7 +870,7 @@ jobs:
           if [ -n "$task_id" ] && [ -f "$base_task" ]; then
             base_pr="$(jq -r '.expected_pr // empty' "$base_task")"
             if [ -n "$base_pr" ]; then
-              state="$(gh pr view "$base_pr" --repo "$REPOSITORY" --json state -q .state 2>/dev/null || echo UNKNOWN)"
+              state="$(gh pr view "$base_pr" --repo "$REPOSITORY" --json state,isCrossRepository -q .state 2>/dev/null || echo UNKNOWN)"
               if [ "$state" = "MERGED" ]; then
                 MERGED_PRS="$base_pr"
               fi

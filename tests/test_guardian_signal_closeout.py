@@ -108,6 +108,7 @@ class Scenario:
         self.changed: list[ChangedFile] = []
         self.head_task: dict = {}
         self.labels: list[str] = []
+        self.is_cross_repository = False
 
     # --- construction -----------------------------------------------------
 
@@ -127,12 +128,19 @@ class Scenario:
         _write(self.base / "locks" / f"{TASK_ID}.json",
                {"task_id": TASK_ID, "goal_id": GOAL_ID, "state": "active", "owner": "shiki-run"})
         _write(self.base / "goals" / f"{GOAL_ID}.json",
-               {"id": GOAL_ID, "status": "in-progress", "title": "g", "risk_level": "critical"})
+               {"id": GOAL_ID, "status": "planned", "title": "g", "risk_level": "critical",
+                "ledger_evidence": []})
+        (self.base / "ledger").mkdir(parents=True, exist_ok=True)
+        (self.base / "reports").mkdir(parents=True, exist_ok=True)
 
         # HEAD (closeout branch cut from origin/main): terminal state.
-        head_ledgers = [COMPLETION_LEDGER, PULL_LEDGER] if completes else [PULL_LEDGER]
+        head_ledgers = (
+            ["L-base00002", COMPLETION_LEDGER, PULL_LEDGER]
+            if completes
+            else ["L-base00002", PULL_LEDGER]
+        )
         self.head_task = self._task(status="done", expected_pr=CLOSEOUT_PR,
-                                    ledger_evidence=head_ledgers, closeout_pr=CLOSEOUT_PR)
+                                    ledger_evidence=head_ledgers)
         self.rewrite_head_task()
         _write(self.target / ".shiki" / "locks" / f"{TASK_ID}.json",
                {"task_id": TASK_ID, "goal_id": GOAL_ID, "state": "released", "owner": "shiki-run"})
@@ -141,19 +149,40 @@ class Scenario:
                 "type": "completion", "summary": "goal complete", "evidence": [REPORT_REL]})
         _write(self.target / ".shiki" / "ledger" / f"{PULL_LEDGER}.json",
                {"id": PULL_LEDGER, "goal_id": GOAL_ID, "task_id": TASK_ID, "type": "lock",
-                "summary": "closeout /pull", "evidence": [f".shiki/tasks/{TASK_ID}.json"]})
+                "summary": "closeout /pull", "evidence": [
+                    f".shiki/tasks/{TASK_ID}.json",
+                    f".shiki/locks/{TASK_ID}.json",
+                ]})
 
         if completes:
             _write(self.target / ".shiki" / "dag" / f"{GOAL_ID}.json",
                    {"goal_id": GOAL_ID, "nodes": [TASK_ID], "edges": []})
             _write(self.target / ".shiki" / "goals" / f"{GOAL_ID}.json",
-                   {"id": GOAL_ID, "status": "complete", "title": "g", "risk_level": "critical"})
-            _write(self.target / REPORT_REL, {"id": REPORT_ID, "goal_id": GOAL_ID, "status": "complete"})
+                   {"id": GOAL_ID, "status": "complete", "title": "g", "risk_level": "critical",
+                    "ledger_evidence": [COMPLETION_LEDGER]})
+            _write(self.target / REPORT_REL, {
+                "id": REPORT_ID,
+                "goal_id": GOAL_ID,
+                "status": "complete",
+                "evidence": [f".shiki/tasks/{TASK_ID}.json"],
+                "blocking_reasons": [],
+                "mergegate": {
+                    "dependencies": "pass",
+                    "locks": "pass",
+                    "checks": "pass",
+                    "review": "recorded",
+                    "ledger": "pass",
+                    "risk": "critical",
+                },
+                "scorecard": {
+                    "goal_id": GOAL_ID,
+                    "tasks": {"completed": 1, "failed": 0, "total": 1},
+                },
+            })
             self.changed = [
                 cf("M", f".shiki/tasks/{TASK_ID}.json"),
                 cf("M", f".shiki/locks/{TASK_ID}.json"),
                 cf("M", f".shiki/goals/{GOAL_ID}.json"),
-                cf("A", f".shiki/worktrees/{TASK_ID}.json"),
                 cf("A", REPORT_REL),
                 cf("A", f".shiki/ledger/{COMPLETION_LEDGER}.json"),
                 cf("A", f".shiki/ledger/{PULL_LEDGER}.json"),
@@ -164,7 +193,8 @@ class Scenario:
             _write(self.target / ".shiki" / "tasks" / f"{SIBLING_ID}.json",
                    {"id": SIBLING_ID, "goal_id": GOAL_ID, "status": "running", "title": "s"})
             _write(self.target / ".shiki" / "goals" / f"{GOAL_ID}.json",
-                   {"id": GOAL_ID, "status": "in-progress", "title": "g", "risk_level": "critical"})
+                   {"id": GOAL_ID, "status": "planned", "title": "g", "risk_level": "critical",
+                    "ledger_evidence": []})
             self.changed = [
                 cf("M", f".shiki/tasks/{TASK_ID}.json"),
                 cf("M", f".shiki/locks/{TASK_ID}.json"),
@@ -201,6 +231,8 @@ class Scenario:
             "reviews": [],
             "body": (f"Closeout {TASK_ID} for goal {GOAL_ID}." if body is _SENTINEL else body),
         }
+        if self.is_cross_repository is not _SENTINEL:
+            pr["isCrossRepository"] = self.is_cross_repository
         path = self.target / "pr.json"
         path.write_text(json.dumps(pr), encoding="utf-8")
         return path
@@ -335,6 +367,34 @@ class GuardianSignalCloseoutTest(unittest.TestCase):
         s = self.new().build()
         s.merged = set()  # the base expected_pr (impl PR) is not proven merged
         self._assert_disqualified(s)
+
+    def test_cross_repository_pr_denies_exemption_and_uses_real_risk(self) -> None:
+        s = self.new().build()
+        self.assertTrue(s.classify(), "the SADR-0017 shape itself should be proven")
+        s.is_cross_repository = True
+        signal = s.run_signal()
+        self.assertTrue(signal["required"])
+        self.assertFalse(signal["bookkeeping_closeout_exemption"])
+        self.assertEqual(signal["risk_level"], "critical")
+        self.assertEqual(
+            sig._carry_resolved_risk(
+                shiki_root=str(s.target),
+                base_shiki=str(s.base),
+                pr_body=f"Closeout {TASK_ID} for goal {GOAL_ID}.",
+                task_risk="critical",
+                exemption=signal["bookkeeping_closeout_exemption"],
+            ),
+            "critical",
+        )
+
+    def test_absent_cross_repository_field_denies_exemption_and_uses_real_risk(self) -> None:
+        s = self.new().build()
+        self.assertTrue(s.classify(), "the SADR-0017 shape itself should be proven")
+        s.is_cross_repository = _SENTINEL
+        signal = s.run_signal()
+        self.assertTrue(signal["required"])
+        self.assertFalse(signal["bookkeeping_closeout_exemption"])
+        self.assertEqual(signal["risk_level"], "critical")
 
     # --- missing / unbuildable inputs fail closed -------------------------
 

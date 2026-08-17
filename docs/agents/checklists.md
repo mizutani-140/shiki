@@ -227,6 +227,8 @@ ledger entries.
 | MG-19 | Runtime registry names, config role assignments, task `assigned_runtime` values, docs, and install/staging coverage remain consistent. | blocking |
 | MG-20 | GitHub provider configuration validates provider kind, host, remote protocol, repo slug, canonical remote URL, API base URL, and legacy `.shiki/repo.json` compatibility. | blocking |
 | MG-21 | `.shiki` state classes classify changed paths, block unknown/runtime/cache/local-only paths, and preserve append-only-evidence rules. | blocking |
+| MG-25 | Repository branch protection or a ruleset requires Shiki checks; otherwise the absent hard enforcement is recorded as a rollout blocker and the Goal is not claimed enforceable. | blocking for governance rollout completion |
+| MG-26 | Migration mode has the exact marker, maintainer-applied label, one non-destructive migration ID registered on the immutable merge base, a snapshot archived from that same merge base, no changes outside `.shiki/**`, and a path/byte-exact re-run result; normal Task, CCA, review, and Guardian gates remain active. | blocking when applicable |
 
 ## GC — Goal Completion Checklist
 

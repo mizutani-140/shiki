@@ -330,6 +330,10 @@ def main(argv: list[str] | None = None) -> int:
         changed_files_status=args.changed_files_status,
         merged_prs=args.merged_prs,
     )
+    # A fork PR is never eligible for the SADR-0017 exemption. The snapshot must
+    # prove the negative; absent/null/anything-but-False fails closed.
+    if exemption and pr.get("isCrossRepository") is not False:
+        exemption = False
     # The risk that actually gates Guardian approval: "low" for a proven closeout,
     # otherwise the real task risk. task_risk is still reported as risk_level for
     # audit. PR labels may only ESCALATE the effective risk (a maintainer can force

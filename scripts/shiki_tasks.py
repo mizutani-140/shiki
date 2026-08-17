@@ -23,6 +23,8 @@ from shiki_state import append_ledger_entry, new_control_id
 _ID_SUFFIX = r"(?:[0-9]{4,}|[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8})"
 _TASK_ID_RE = re.compile(rf"^T-{_ID_SUFFIX}$")
 
+_RISK_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
 # Contract PR mode (SADR-0015). The body marker DECLARES intent; the
 # maintainer-applied label is the independent second factor that AUTHORIZES the
 # mode. `shiki contract open` must never apply the label to its own PR — doing so
@@ -1391,6 +1393,13 @@ def cmd_goal_complete(args: argparse.Namespace) -> int:
         blocking.append(f"incomplete tasks: {', '.join(incomplete)}")
 
     status = "blocked" if blocking else "complete"
+    effective_risk = str(goal.get("risk_level") or "")
+    for task in tasks:
+        task_risk = str(task.get("risk_level") or "")
+        if _RISK_ORDER.get(task_risk, -1) > _RISK_ORDER.get(effective_risk, -1):
+            effective_risk = task_risk
+    if not effective_risk:
+        effective_risk = "low"
     report_id = next_control_id(target, "R")
     report = {
         "id": report_id,
@@ -1405,7 +1414,7 @@ def cmd_goal_complete(args: argparse.Namespace) -> int:
             "checks": "pass" if not blocking else "blocked",
             "review": "recorded",
             "ledger": "pass",
-            "risk": goal.get("risk_level", "low"),
+            "risk": effective_risk,
         },
         "created_at": utc_now(),
     }

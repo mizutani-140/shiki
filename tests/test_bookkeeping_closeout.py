@@ -27,8 +27,11 @@ a non-qualifying PR.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import inspect
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -140,13 +143,20 @@ class Closeout:
         _write(self.base / "locks" / f"{TASK_ID}.json",
                {"task_id": TASK_ID, "goal_id": GOAL_ID, "state": "active", "owner": "shiki-run"})
         _write(self.base / "goals" / f"{GOAL_ID}.json",
-               {"id": GOAL_ID, "status": "in-progress", "title": "g", "risk_level": "high"})
+               {"id": GOAL_ID, "status": "planned", "title": "g", "risk_level": "high",
+                "ledger_evidence": []})
+        (self.base / "ledger").mkdir(parents=True, exist_ok=True)
+        (self.base / "reports").mkdir(parents=True, exist_ok=True)
 
         # HEAD (closeout branch cut from origin/main): terminal state, with
         # expected_branch rewritten to the closeout branch (as the goal loop does).
-        head_ledgers = [COMPLETION_LEDGER, PULL_LEDGER] if completes else [PULL_LEDGER]
+        head_ledgers = (
+            ["L-base00001", COMPLETION_LEDGER, PULL_LEDGER]
+            if completes
+            else ["L-base00001", PULL_LEDGER]
+        )
         self.head_task = self._task(status="done", expected_pr=CLOSEOUT_PR, expected_branch=CLOSEOUT_BRANCH,
-                                    ledger_evidence=head_ledgers, closeout_pr=CLOSEOUT_PR)
+                                    ledger_evidence=head_ledgers)
         _write(self.target / ".shiki" / "tasks" / f"{TASK_ID}.json", self.head_task)
         _write(self.target / ".shiki" / "locks" / f"{TASK_ID}.json",
                {"task_id": TASK_ID, "goal_id": GOAL_ID, "state": "released", "owner": "shiki-run"})
@@ -158,19 +168,40 @@ class Closeout:
                 "type": "completion", "summary": "goal complete", "evidence": [REPORT_REL]})
         _write(self.target / ".shiki" / "ledger" / f"{PULL_LEDGER}.json",
                {"id": PULL_LEDGER, "goal_id": GOAL_ID, "task_id": TASK_ID, "type": "lock",
-                "summary": "closeout /pull", "evidence": [f".shiki/tasks/{TASK_ID}.json"]})
+                "summary": "closeout /pull", "evidence": [
+                    f".shiki/tasks/{TASK_ID}.json",
+                    f".shiki/locks/{TASK_ID}.json",
+                ]})
 
         if completes:
             _write(self.target / ".shiki" / "dag" / f"{GOAL_ID}.json",
                    {"goal_id": GOAL_ID, "nodes": [TASK_ID], "edges": []})
             _write(self.target / ".shiki" / "goals" / f"{GOAL_ID}.json",
-                   {"id": GOAL_ID, "status": "complete", "title": "g", "risk_level": "high"})
-            _write(self.target / REPORT_REL, {"id": REPORT_ID, "goal_id": GOAL_ID, "status": "complete"})
+                   {"id": GOAL_ID, "status": "complete", "title": "g", "risk_level": "high",
+                    "ledger_evidence": [COMPLETION_LEDGER]})
+            _write(self.target / REPORT_REL, {
+                "id": REPORT_ID,
+                "goal_id": GOAL_ID,
+                "status": "complete",
+                "evidence": [f".shiki/tasks/{TASK_ID}.json"],
+                "blocking_reasons": [],
+                "mergegate": {
+                    "dependencies": "pass",
+                    "locks": "pass",
+                    "checks": "pass",
+                    "review": "recorded",
+                    "ledger": "pass",
+                    "risk": "high",
+                },
+                "scorecard": {
+                    "goal_id": GOAL_ID,
+                    "tasks": {"completed": 1, "failed": 0, "total": 1},
+                },
+            })
             self.changed = [
                 cf("M", f".shiki/tasks/{TASK_ID}.json"),
                 cf("M", f".shiki/locks/{TASK_ID}.json"),
                 cf("M", f".shiki/goals/{GOAL_ID}.json"),
-                cf("A", f".shiki/worktrees/{TASK_ID}.json"),
                 cf("A", REPORT_REL),
                 cf("A", f".shiki/ledger/{COMPLETION_LEDGER}.json"),
                 cf("A", f".shiki/ledger/{PULL_LEDGER}.json"),
@@ -183,7 +214,8 @@ class Closeout:
             _write(self.target / ".shiki" / "tasks" / f"{SIBLING_ID}.json",
                    {"id": SIBLING_ID, "goal_id": GOAL_ID, "status": "running", "title": "s"})
             _write(self.target / ".shiki" / "goals" / f"{GOAL_ID}.json",
-                   {"id": GOAL_ID, "status": "in-progress", "title": "g", "risk_level": "high"})
+                   {"id": GOAL_ID, "status": "planned", "title": "g", "risk_level": "high",
+                    "ledger_evidence": []})
             self.changed = [
                 cf("M", f".shiki/tasks/{TASK_ID}.json"),
                 cf("M", f".shiki/locks/{TASK_ID}.json"),
@@ -250,6 +282,83 @@ class Closeout:
         )
         return any("Guardian" in reason for reason in blocking)
 
+    def run_mergegate(self, *, include_cross_repository: bool, is_cross_repository: bool = True) -> dict:
+        """Drive the public MergeGate CLI through its closeout enforcement site."""
+        gha = self.target / ".shiki" / "gha"
+        gha.mkdir(parents=True, exist_ok=True)
+        body = (
+            f"Closeout {TASK_ID} for goal {GOAL_ID}.\n\n"
+            "## Scope\nBookkeeping closeout.\n\n"
+            "## Acceptance\nTerminal mirror state only.\n\n"
+            "## Evidence\nMerged implementation PR.\n\n"
+            "## MergeGate\nSADR-0017 classifier.\n"
+        )
+        pr = {
+            "number": CLOSEOUT_PR,
+            "body": body,
+            "headRefOid": HEAD_SHA,
+            "headRefName": CLOSEOUT_BRANCH,
+            "labels": [],
+            "reviews": [],
+            "statusCheckRollup": [],
+        }
+        if include_cross_repository:
+            pr["isCrossRepository"] = is_cross_repository
+        pr_path = gha / "pr.json"
+        _write(pr_path, pr)
+        changed_path = gha / "changed-files.txt"
+        changed_path.write_text("\n".join(entry.path for entry in self.changed) + "\n", encoding="utf-8")
+        status_path = gha / "changed-files-status.txt"
+        status_path.write_text(
+            "".join(
+                f"{entry.status}\t{entry.old_path}\t{entry.path}\n"
+                if entry.old_path
+                else f"{entry.status}\t{entry.path}\n"
+                for entry in self.changed
+            ),
+            encoding="utf-8",
+        )
+        cca_path = gha / "cca-verdict.json"
+        _write(
+            cca_path,
+            {
+                "verdict": "complete",
+                "task_id": TASK_ID,
+                "goal_id": GOAL_ID,
+                "pr": CLOSEOUT_PR,
+                "head_sha": HEAD_SHA,
+                "can_merge": True,
+                "checklist": [],
+                "acceptance": [{"status": "pass"}],
+            },
+        )
+        for name in ("comments", "events", "timeline"):
+            (gha / f"{name}.json").write_text("[]\n", encoding="utf-8")
+        result_path = gha / "mergegate-result.json"
+        argv = [
+            "mergegate_check.py",
+            "--target", str(self.target),
+            "--pr-json", str(pr_path),
+            "--cca-verdict", str(cca_path),
+            "--changed-files", str(changed_path),
+            "--changed-files-status", str(status_path),
+            "--base-shiki", str(self.base),
+            "--merged-prs", str(IMPL_PR),
+            "--guardian-policy", str(REPO_GUARDIAN_POLICY),
+            "--guardian-comments", str(gha / "comments.json"),
+            "--guardian-events", str(gha / "events.json"),
+            "--guardian-timeline", str(gha / "timeline.json"),
+            "--result-file", str(result_path),
+        ]
+        saved_argv = sys.argv
+        sys.argv = argv
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                mergegate_check.main()
+        finally:
+            sys.argv = saved_argv
+        return json.loads(result_path.read_text(encoding="utf-8"))
+
 
 class BookkeepingCloseoutTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -281,6 +390,26 @@ class BookkeepingCloseoutTest(unittest.TestCase):
         self.assertTrue(c.classify())
         self.assertFalse(c.guardian_required_decision(bookkeeping=True))
 
+    def test_mergegate_fork_and_absent_field_deny_exemption(self) -> None:
+        for include_field, label in ((True, "fork"), (False, "absent")):
+            with self.subTest(snapshot=label):
+                c = self.new().build_noncompleting()
+                self.assertTrue(c.classify(), "the underlying closeout must qualify before the PR guard")
+                result = c.run_mergegate(include_cross_repository=include_field)
+                self.assertTrue(
+                    any("Guardian approval" in reason for reason in result["blocking_reasons"]),
+                    result,
+                )
+        same_repository = self.new().build_noncompleting()
+        control = same_repository.run_mergegate(
+            include_cross_repository=True,
+            is_cross_repository=False,
+        )
+        self.assertFalse(
+            any("Guardian approval" in reason for reason in control["blocking_reasons"]),
+            control,
+        )
+
     def test_positive_expected_branch_differs_is_classified(self) -> None:
         # A REAL closeout is cut onto <branch>-closeout, so base.expected_branch (the
         # implementation branch) and head.expected_branch (the closeout branch)
@@ -298,6 +427,25 @@ class BookkeepingCloseoutTest(unittest.TestCase):
         self.assertTrue(c.classify())
         # The single decision point still exempts it (no Guardian required).
         self.assertFalse(c.guardian_required_decision(bookkeeping=True))
+
+    def test_strongest_goal_or_task_risk_matches_completion_report(self) -> None:
+        c = self.new().build(completes=True)
+        base_task = json.loads((c.base / "tasks" / f"{TASK_ID}.json").read_text())
+        base_task["risk_level"] = "critical"
+        _write(c.base / "tasks" / f"{TASK_ID}.json", base_task)
+        c.head_task["risk_level"] = "critical"
+        c.rewrite_head_task()
+        for goal_path in (
+            c.base / "goals" / f"{GOAL_ID}.json",
+            c.target / ".shiki" / "goals" / f"{GOAL_ID}.json",
+        ):
+            goal = json.loads(goal_path.read_text())
+            goal["risk_level"] = "medium"
+            _write(goal_path, goal)
+        report = json.loads((c.target / REPORT_REL).read_text())
+        report["mergegate"]["risk"] = "critical"
+        _write(c.target / REPORT_REL, report)
+        self.assertTrue(c.classify())
 
     # --- disqualifiers (each in isolation; assert the Guardian fallback) ---
 
@@ -317,6 +465,46 @@ class BookkeepingCloseoutTest(unittest.TestCase):
     def test_deleted_shiki_path_disqualifies(self) -> None:
         c = self.new().build()
         c.changed.append(cf("D", f".shiki/ledger/{PULL_LEDGER}.json"))
+        self._assert_disqualified(c)
+
+    def test_renamed_shiki_path_disqualifies(self) -> None:
+        c = self.new().build_noncompleting()
+        c.changed[0] = cf("R", f".shiki/tasks/{TASK_ID}.json", ".shiki/tasks/T-0000.json")
+        self._assert_disqualified(c)
+
+    def test_type_changed_shiki_path_disqualifies(self) -> None:
+        c = self.new().build_noncompleting()
+        c.changed[0] = cf("T", f".shiki/tasks/{TASK_ID}.json")
+        self._assert_disqualified(c)
+
+    def test_symlinked_task_file_disqualifies(self) -> None:
+        c = self.new().build_noncompleting()
+        task_path = c.target / ".shiki" / "tasks" / f"{TASK_ID}.json"
+        target_path = task_path.with_name("task-target.json")
+        target_path.write_bytes(task_path.read_bytes())
+        task_path.unlink()
+        task_path.symlink_to(target_path.name)
+        self._assert_disqualified(c)
+
+    def test_added_ledger_symlink_on_base_disqualifies(self) -> None:
+        c = self.new().build_noncompleting()
+        base_ledger = c.base / "ledger" / f"{PULL_LEDGER}.json"
+        base_ledger.parent.mkdir(parents=True, exist_ok=True)
+        base_ledger.symlink_to("missing-ledger-target.json")
+        self._assert_disqualified(c)
+
+    def test_coerced_expected_pr_disqualifies(self) -> None:
+        for value in (True, str(IMPL_PR)):
+            with self.subTest(value=value):
+                c = self.new().build_noncompleting()
+                base_task = json.loads((c.base / "tasks" / f"{TASK_ID}.json").read_text())
+                base_task["expected_pr"] = value
+                _write(c.base / "tasks" / f"{TASK_ID}.json", base_task)
+                self._assert_disqualified(c)
+
+    def test_worktree_record_disqualifies(self) -> None:
+        c = self.new().build_noncompleting()
+        c.changed.append(cf("A", f".shiki/worktrees/{TASK_ID}.json"))
         self._assert_disqualified(c)
 
     def test_file_outside_effective_locks_disqualifies(self) -> None:

@@ -798,6 +798,7 @@ def close_pr() -> dict:
         "headRefName": CLOSE_BRANCH,
         "baseRefName": "main",
         "headRefOid": CLOSE_HEAD,
+        "isCrossRepository": False,
         "labels": [],
         "reviews": [{"state": "APPROVED", "author": {"login": "github-actions"}}],
         "reviewDecision": "APPROVED",
@@ -844,11 +845,18 @@ def build_closeout(
     write_json(B / "locks" / f"{CLOSE_TASK}.json",
                {"task_id": CLOSE_TASK, "goal_id": CLOSE_GOAL, "state": base_lock_state, "owner": "shiki-run"})
     write_json(B / "goals" / f"{CLOSE_GOAL}.json",
-               {"id": CLOSE_GOAL, "status": "in-progress", "title": "g", "risk_level": "critical"})
+               {"id": CLOSE_GOAL, "status": "planned", "title": "g", "risk_level": "critical",
+                "ledger_evidence": []})
+    (B / "ledger").mkdir(parents=True, exist_ok=True)
+    (B / "reports").mkdir(parents=True, exist_ok=True)
+    close_base_ledger = {"id": "L-close-base", "goal_id": CLOSE_GOAL, "task_id": CLOSE_TASK,
+                         "type": "check", "summary": "implementation merged", "evidence": []}
+    write_json(B / "ledger" / "L-close-base.json", close_base_ledger)
+    write_json(S / "ledger" / "L-close-base.json", close_base_ledger)
 
-    head_ledgers = [CLOSE_COMP, CLOSE_PULL] if completes else [CLOSE_PULL]
+    head_ledgers = ["L-close-base", CLOSE_COMP, CLOSE_PULL] if completes else ["L-close-base", CLOSE_PULL]
     head_task = {"id": CLOSE_TASK, "goal_id": CLOSE_GOAL, **CLOSE_GOVERNANCE,
-                 "status": "done", "expected_pr": CLOSE_PR, "closeout_pr": CLOSE_PR,
+                 "status": "done", "expected_pr": CLOSE_PR,
                  "ledger_evidence": head_ledgers}
     if head_mutate:
         head_mutate(head_task)
@@ -856,17 +864,27 @@ def build_closeout(
     write_json(S / "locks" / f"{CLOSE_TASK}.json",
                {"task_id": CLOSE_TASK, "goal_id": CLOSE_GOAL, "state": lock_head_state, "owner": "shiki-run"})
     write_json(S / "goals" / f"{CLOSE_GOAL}.json",
-               {"id": CLOSE_GOAL, "status": goal_head_status, "title": "g", "risk_level": "critical"})
+               {"id": CLOSE_GOAL, "status": goal_head_status if completes else "planned", "title": "g",
+                "risk_level": "critical", "ledger_evidence": [CLOSE_COMP] if completes else []})
     write_json(S / "ledger" / f"{CLOSE_PULL}.json",
                {"id": CLOSE_PULL, "goal_id": CLOSE_GOAL, "task_id": CLOSE_TASK, "type": "lock",
-                "summary": f"closeout /pull PR #{CLOSE_PR}", "evidence": [f".shiki/tasks/{CLOSE_TASK}.json"], "links": [CLOSE_URL]})
+                "summary": f"closeout /pull PR #{CLOSE_PR}",
+                "evidence": [f".shiki/tasks/{CLOSE_TASK}.json", f".shiki/locks/{CLOSE_TASK}.json"],
+                "links": [CLOSE_URL]})
 
     if completes:
         write_json(S / "dag" / f"{CLOSE_GOAL}.json", {"goal_id": CLOSE_GOAL, "nodes": [CLOSE_TASK], "edges": []})
         write_json(S / "ledger" / f"{CLOSE_COMP}.json",
                    {"id": CLOSE_COMP, "goal_id": CLOSE_GOAL, "task_id": None, "type": "completion",
                     "summary": "goal complete", "evidence": comp_evidence or [CLOSE_REPORT_REL]})
-        write_json(S / CLOSE_REPORT_REL, {"id": CLOSE_REPORT_ID, "goal_id": CLOSE_GOAL, "status": "complete"})
+        write_json(target / CLOSE_REPORT_REL, {
+            "id": CLOSE_REPORT_ID, "goal_id": CLOSE_GOAL, "status": "complete",
+            "evidence": [f".shiki/tasks/{CLOSE_TASK}.json"], "blocking_reasons": [],
+            "mergegate": {"dependencies": "pass", "locks": "pass", "checks": "pass",
+                          "review": "recorded", "ledger": "pass", "risk": "critical"},
+            "scorecard": {"goal_id": CLOSE_GOAL,
+                          "tasks": {"completed": 1, "failed": 0, "total": 1}},
+        })
         changed = [
             ("M", f".shiki/tasks/{CLOSE_TASK}.json"),
             ("M", f".shiki/locks/{CLOSE_TASK}.json"),
