@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260817T040326894136Z-0d640560.json"
+  ],
+  "goal_id": "G-20260817T040326892610Z-af6effea",
+  "id": "L-20260817T040326894202Z-aae5da62",
+  "links": [],
+  "summary": "Task registered from plan: Cancel superseded runs, gate CCA on settled checks, and stop reading a cancelled check as a failure",
+  "task_id": "T-20260817T040326894136Z-0d640560",
+  "timestamp": "2026-08-17T04:03:26+00:00",
+  "type": "task-registered"
+}

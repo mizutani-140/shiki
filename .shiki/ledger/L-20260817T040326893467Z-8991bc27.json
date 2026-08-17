@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260817T040326892610Z-af6effea.json",
+    ".shiki/plans/P-20260817T035846343372Z-dea0bcbd.json"
+  ],
+  "goal_id": "G-20260817T040326892610Z-af6effea",
+  "id": "L-20260817T040326893467Z-8991bc27",
+  "links": [],
+  "summary": "Goal registered from plan: Stop paying for CCA runs that cannot decide anything",
+  "task_id": null,
+  "timestamp": "2026-08-17T04:03:26+00:00",
+  "type": "goal-created"
+}
