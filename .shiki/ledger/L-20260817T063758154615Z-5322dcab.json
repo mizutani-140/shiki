@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260817T063758153709Z-0302813a.json",
+    ".shiki/plans/P-20260817T063752520648Z-230f8707.json"
+  ],
+  "goal_id": "G-20260817T063758153709Z-0302813a",
+  "id": "L-20260817T063758154615Z-5322dcab",
+  "links": [],
+  "summary": "Goal registered from plan: Close the fork-PR hole in the Guardian exemption, and pin the base a gate judges against",
+  "task_id": null,
+  "timestamp": "2026-08-17T06:37:58+00:00",
+  "type": "goal-created"
+}

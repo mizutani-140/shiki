@@ -1,0 +1,60 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A fork PR cannot obtain the SADR-0017 exemption, at either enforcement point, with no `and pr` short-circuit.",
+    "A PR snapshot missing the field denies the exemption rather than skipping the guard.",
+    "The bookkeeping-closeout classifier is hardened without accepting a lockless closeout.",
+    "A gate that resolves a base ref resolves an immutable merge base, and a failed resolution is not swallowed.",
+    "A completion report's risk is the strongest of the goal's and every task's.",
+    "The full suite, the governance/guardian/control-plane/goal-loop suites and validate_shiki stay green."
+  ],
+  "created_at": "2026-08-17T06:37:58+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "THE HOLE, MEASURED. `git grep -c isCrossRepository origin/main -- scripts/ .github/ tests/` returns nothing \u2014 zero occurrences repo-wide, sanity-checked by the same grep returning 63 files for `bookkeeping_closeout`. `scripts/mergegate_check.py` then computes `carry_resolved_risk = \"low\" if bookkeeping_closeout else str((task or {}).get(\"risk_level\") or \"\")`. So a PR shaped as a SADR-0017 bookkeeping closeout resolves to `low` and never reaches the Guardian gate, whatever the task's real risk is.",
+      "EXTERNALLY REACHABLE. `gh api repos/mizutani-140/shiki` reports `visibility: public`, `allow_forking: true`, `forks_count: 0`, collaborators `[mizutani-140]`. Anyone may fork and open a PR. Zero cross-repository PRs have ever been opened, so nothing has exploited it \u2014 but the door is open, and the earlier assumption that this repository was private was wrong and unmeasured.",
+      "PORT WITH A CORRECTION, NOT AS-IS. The CubeShare source of this reflux has two enforcement points that DISAGREE. `cs/scripts/guardian_approval_signal.py:336` reads `if exemption and pr.get(\"isCrossRepository\") is not False:` while `cs/scripts/mergegate_check.py:3600` reads `if bookkeeping_closeout and pr and pr.get(\"isCrossRepository\") is not False:`. The extra `and pr` short-circuits the guard on a falsy `pr`. On the Guardian leg that branch is unreachable (`enforce_guardian_policy` sits inside `if pr:`), but `bookkeeping_closeout` also flows into `_frozen_spec_mutable_task_fields(...)` at `cs:3608`, which is under `if not migration_mode:` and OUTSIDE any `pr` guard. Port the `guardian_approval_signal.py` form to BOTH sites. Refluxing the CubeShare bytes verbatim would carry a short-circuit into a public platform repository.",
+      "FAIL-CLOSED IS THE SAFE DIRECTION, and the framing that a missing field breaks the guard is inverted. `is not False` means absent, null, or anything other than `False` collapses the exemption to False, which RESTORES the task's real `risk_level` at the Guardian gate. A missing field is strictly stricter, never a bypass. It does mean every snapshot-producing call site must request the field or the SADR-0017 exemption stops working for that path \u2014 so the Python and the `gh pr view --json` field lists must land in ONE commit.",
+      "SCOPE OF THE GUARD, stated so it is not overclaimed: it covers ONLY the SADR-0017 bookkeeping exemption. The `contract_approval` carry and the SADR-0018 base-sync carry have no cross-repository guard, and adding one to them is NOT in this task.",
+      "SUBTRACT THE RELAXATION. CubeShare's `d5ad3b2` rewrote `is_bookkeeping_closeout` from 176 to 424 lines with genuine fail-closed hardening \u2014 symlink-safe `lstat`/`S_ISREG` path proofs, `entry.status in {\"A\",\"M\"}` and `not old_path` (rejecting rename/copy/type-change legs where main rejects only `D`), the task's own worktree record flipping from `pass` to `return False`, `type(...) is not int` for `expected_pr`, base goal status restricted to `{planned, ready, blocked}`, field-identity loops, a completion-report content proof, a scorecard shape proof, a ledger-evidence proof, and a closing `set(changed_paths) != permitted_changed_paths`. It ALSO contains a relaxation: `lock_terminal = lock_released or (lockless and not lock_path_in_diff)`. On main, `if not task_changed or not lock_released: return False` denies the exemption when no lock record exists; CubeShare's form can return True and resolve risk to `low`. CubeShare widened its own SADR-0017 exemption WITHOUT amending SADR-0017 (the ADR is byte-identical on both sides). Reflux the hardening; keep main's `if not task_changed or not lock_released:` verbatim. This is the single change most likely to be 'helpfully' re-added by an implementer following the source commit, so it is a stated non-goal, not implementer judgement.",
+      "MERGE-BASE PINNING. The gates resolve a base ref to judge against; pinning it to an immutable `mergeBaseOid` resolved once in the workflow (via `baseRefOid` + `git merge-base`, injected with jq) removes a moving target, and `git archive \"$merge_base\" .shiki` reads the frozen tree. Remove the `|| true` that swallows a failed resolution. Python and both workflows must land together or every migration PR blocks on the missing field.",
+      "DEFERRED, EXPLICITLY. `exact_head_only` is unreachable dead code on main (3 sites in CubeShare, single call site passing `exact_head_only=spec_amendment_mode`, and its user-visible string hardcodes a Spec Amendment transition main does not implement). `normal_frozen_spec_errors` needs `git archive` plumbing and its own decision. `exact_pr_link` has an unfavourable blast radius: 44 of main's 1095 ledger records reference a PR only outside `links`. None of these are in scope.",
+      "REVIEW-BASED APPROVAL IS NOT HEAD-BOUND \u2014 RECORDED, NOT FIXED HERE. `shiki_guardian.py`'s `_review_source` takes no `head_sha`, and an in-process reproduction against the real policy showed a stale APPROVED review plus the `guardian:approved` label returning `approved=True sources=('guardian_label','github_review')` on a `risk:critical` PR at a different head, while the identically stale COMMENT is correctly refused. It is latent today because `.shiki/guardian-policy.json` sets `github_actions_review_bridge_counts_as_guardian: false` and every APPROVED review in the sampled history is from `github-actions`. Separate task; do not widen this one.",
+      "LOCK-SUFFICIENCY CHECK (2026-08-17). MUST-CHANGE: `scripts/mergegate_check.py`, `scripts/guardian_approval_signal.py`, `scripts/shiki_tasks.py` (the `_max_risk` leg), `.github/workflows/shiki-mergegate.yml`, `.github/workflows/shiki-cca-completion.yml`, `tests/test_bookkeeping_closeout.py`, `tests/test_closeout.py`, `tests/test_guardian_signal_closeout.py`, `tests/test_paired_invariants.py`, `tests/test_memory_scorecard.py`, `tests/test_policy_job_merged_prs.py`, `tests/test_migration_mode.py`, `docs/agents/checklists.md`, `docs/agents/decision-control.md`, `docs/agents/triage-labels.md`, `docs/agents/implementation-policy.md`, `docs/adr/SADR-0012-autonomous-loop-closeout-to-main.md`.",
+      "MUST-NOT-BREAK (verification command, not locks): `tests/test_workflow_invocation.py` and `tests/test_workflow_invocation_carry.py` \u2014 the latter pins `count(\"git fetch origin\") == 2` in the CCA workflow and `== 1` in the mergegate workflow, and `total == 4`, precisely so a second shallow fetch cannot defeat the Contract Approval carry proof; none of those counts may move. Also `scripts/test_shiki_governance_evidence.sh`, `scripts/test_shiki_guardian_policy.sh`, `scripts/test_shiki_control_plane.sh`, and `scripts/test_shiki_goal_loop.sh`.",
+      "RISK IS HIGH and the architecture gate is triggered: this touches authorization, identity, CI workflow policy, and more than three structural files. Under `.shiki/guardian-policy.json` (`applies_to_risk: [high, critical]`) the implementation PR REQUIRES Guardian approval \u2014 the operator must apply `guardian:approved` and post the current-head Guardian comment. Claude must author neither."
+    ],
+    "source": "Measured 2026-08-17 across shiki origin/main and mizutani-140/CubeShare by two Workflow parallel exploration sweeps (CI-08), the second of which was an adversarial security probe whose refutations are preferred wherever it disagreed with its own mapping.",
+    "status": "complete"
+  },
+  "id": "G-20260817T063758153709Z-0302813a",
+  "ledger_evidence": [
+    "L-20260817T063758154615Z-5322dcab"
+  ],
+  "non_goals": [
+    "The lockless-closeout relaxation \u2014 main keeps `if not task_changed or not lock_released:` verbatim, and neither `lockless` nor `lock_terminal` may appear in the result.",
+    "Refluxing the CubeShare `and pr` short-circuit; both enforcement points use the `guardian_approval_signal.py` form.",
+    "Adding a cross-repository guard to the contract_approval carry or the SADR-0018 base-sync carry.",
+    "SADR-0012 step 3, which documents the lockless closeout behaviour main does not implement.",
+    "exact_head_only, normal_frozen_spec_errors, exact_pr_link, and every spec_amendment or delivery_only surface.",
+    "Binding _review_source to a head SHA \u2014 recorded as a separate defect, not fixed here.",
+    "Adding a second `git fetch origin`, or weakening the 2/1 fetch counts or the `total == 4` assertion in tests/test_workflow_invocation_carry.py.",
+    "Changing docs/adr/SADR-0017-bookkeeping-closeouts-do-not-inherit-risk.md itself.",
+    "Touching any file outside the declared locks."
+  ],
+  "outcome": "A pull request opened from a fork can no longer acquire the SADR-0017 bookkeeping-closeout exemption and merge a high- or critical-risk task without Guardian approval, and a gate that resolves a base ref resolves an immutable one. Measured 2026-08-17: `isCrossRepository` appears 0 times anywhere in shiki's scripts/, .github/ and tests/, while `mergegate_check.py` computes `carry_resolved_risk = \"low\" if bookkeeping_closeout else str((task or {}).get(\"risk_level\") or \"\")`. This repository is PUBLIC with `allow_forking: true`, so the hole is externally reachable, not theoretical.",
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260817T063752520648Z-230f8707",
+  "status": "planned",
+  "title": "Close the fork-PR hole in the Guardian exemption, and pin the base a gate judges against"
+}
