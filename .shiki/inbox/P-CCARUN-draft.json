@@ -1,0 +1,99 @@
+{
+  "title": "Stop paying for CCA runs that cannot decide anything",
+  "outcome": "A pull request stops spawning duplicate and structurally-doomed Completion Check Agent runs. Measured 2026-08-17: shiki ran 200 CCA runs over 154 distinct head SHAs (1.30x, 27 pairs starting within 3 minutes of each other on the same SHA); CubeShare ran 200 over 135 (1.48x, 46 near-simultaneous pairs, worst SHAs at 4 runs each). On 2026-08-10 alone CubeShare's Shiki CCA Completion workflow consumed 523 wall-clock minutes across 74 runs. Three causes are removed here, and the one coupling that would make the fix actively harmful is removed with them, in the same commit.",
+  "risk_level": "medium",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "status": "ingested",
+  "spec_freeze": {
+    "status": "frozen",
+    "approved_by": "mizutani-140",
+    "prd": "docs/adr/SADR-0011-autonomous-quality-gate-evidence.md",
+    "source": "Operator approval 2026-08-17 in session. The operator instructed 'CCA の再実行問題を先に潰し' and then approved this contract as enumerated (scope, non-goals, locks, acceptance checks, risk medium) before any plan file existed. This work is sequenced ahead of the five-task CubeShare reflux DAG the operator approved in the same session.",
+    "amendments": []
+  },
+  "grill_with_docs": {
+    "status": "complete",
+    "source": "Measured 2026-08-17 against shiki origin/main (1dd1be7) and mizutani-140/CubeShare (72c96e59) via the GitHub Actions API and the workflow sources at origin/main.",
+    "decisions": [
+      "CAUSE 1, MEASURED — no concurrency control exists anywhere. `grep -c '^concurrency:'` returns 0 for all five of shiki-cca-completion.yml, shiki-mergegate.yml, shiki-validate.yml, shiki-claude-review.yml and shiki-orchestrator.yml. Consequence measured over the last 200 CCA runs in each repository: shiki 200 runs / 154 distinct head SHAs = 1.30x with 27 pairs starting within 180 seconds of each other on the SAME SHA; CubeShare 200 / 135 = 1.48x with 46 such pairs and five SHAs carrying 4 runs each. A superseded run is never cancelled, so every duplicate is a full Claude judgement paid for in runner minutes.",
+      "CAUSE 2, MEASURED — every label application spawns a full CCA run. Both shiki-cca-completion.yml and shiki-mergegate.yml declare `types: [opened, synchronize, reopened, ready_for_review, edited, labeled, unlabeled]`. Measured on shiki PR #323, head b635454c: the issue timeline records `07:35:29 labeled mergegate:contract` and `07:37:25 labeled guardian:approved`, and the CCA run list shows runs on that same SHA at 07:35, 07:35 and 07:37. The sanctioned Contract Approval procedure applies two labels, so it costs two extra CCA runs (~14 minutes) per contract PR by construction.",
+      "CAUSE 3, MEASURED — CCA-06 cannot pass on a PR's first run. `docs/agents/checklists.md:183` defines CCA-06 as 'Required checks pass on current head SHA.' with severity `blocking`. The CCA job reads check state exactly once, at the top of its own run: the `Prepare CCA context` step runs `gh pr view \"$PR_NUMBER\" --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json`. Because the CCA workflow triggers on the same `pull_request` event as CI, Validate and MergeGate, those checks are still pending in that rollup. The first run therefore cannot return `complete`, and a human re-run is required. This is the ordering defect, not a checklist defect — CCA-06 must stay blocking.",
+      "THE COUPLING THAT MAKES A NAIVE FIX HARMFUL. `scripts/shiki_loop.py:580` classifies check conclusions: `if value in {\"pass\",\"success\"}: return \"pass\"` / `if value in {\"pending\",\"queued\",\"in_progress\"}: return \"pending\"` / `return \"fail\"`. A `cancelled` conclusion therefore falls through to `fail`. Adding `cancel-in-progress` WITHOUT widening this bucket makes the loop read every superseded CCA run as a failed required check and dispatch a repair against it — the exact 'repair attempts burned on a failure no implementer touched' class already recorded in this repository. The concurrency block and the `_check_bucket` widening MUST land in one commit. Splitting them makes the loop strictly worse than today.",
+      "LABEL FILTERING MUST NOT DROP THE APPROVAL LABELS. CCA-08 is 'Risk and policy-backed Guardian requirements from .shiki/guardian-policy.json are satisfied' (checklists.md:185), and `guardian:approved` is a Guardian approval source. Removing `labeled` outright, or filtering it in a way that excludes `guardian:approved`, would leave CCA permanently unable to observe an approval and would pin the verdict at needs_guardian. GitHub cannot filter by label name in `on:`, so the filter belongs in a job-level `if:` — a skipped job costs no runner minutes.",
+      "REJECTED ALTERNATIVE — moving CCA to a `workflow_run` trigger. It removes the wait entirely, but `workflow_run` executes in the default-branch context with a write-capable token, which is the same class of exposure AGENTS.md warns about for `pull_request_target` ('Avoid pull_request_target unless the repository has explicitly accepted the security tradeoff'). Waiting inside the existing `pull_request` job keeps the current trust boundary. Recorded as rejected, not deferred.",
+      "SAFETY INVARIANT THAT MUST SURVIVE. The `CCA Review Bridge` step submits `--arg event \"APPROVE\"`. No step that posts a review, a comment or a label may gain `if: always()` in this task. The existing `if: always()` on `Upload CCA evidence` (a pure artifact upload) is unaffected and stays.",
+      "LOCK-SUFFICIENCY CHECK (2026-08-17). MUST-CHANGE: the five workflow files; `scripts/shiki_loop.py` (the `_check_bucket` widening); `tests/test_loop_engine.py` (drives `decide_task_action` over check buckets); `tests/test_workflow_invocation.py` — this file reconstructs `mergegate_check.py`'s argv from the workflow `run:` steps and raises KeyError without a matching `_FLAG_VALUES` entry, so a new `run:` step in a locked workflow can break it and it must be inside the locks, not merely in the test command; and `tests/test_cca_rerun_economy.py` (new).",
+      "MUST-NOT-BREAK (verification command, not locks): `scripts/test_shiki_workflow_lint.sh`, which lints workflow structure and is the surface a new `concurrency:` block would trip; `scripts/test_shiki_goal_loop.sh`, which drives the loop end to end; `scripts/validate_shiki.py`, which enforces required workflow flags and pinned action versions; and `scripts/mergegate_check.py`, which must not be touched.",
+      "Risk is medium: this changes workflow triggering mechanics and one classification helper. No gate rule, schema, approval source, checklist severity or verdict semantic moves. Under `.shiki/guardian-policy.json` (`applies_to_risk: [high, critical]`) this PR does not trigger the Guardian gate.",
+      "ORDERING. This task locks `.github/workflows/shiki-cca-completion.yml` and `.github/workflows/shiki-mergegate.yml`, which the approved reflux task P1 also locks. The two cannot run in parallel and this one runs first, by operator instruction ('CCA の再実行問題を先に潰し')."
+    ]
+  },
+  "non_goals": [
+    "Moving CCA to a workflow_run trigger — rejected on the trust-boundary grounds recorded above.",
+    "Removing `labeled` from the CCA trigger, or filtering it in any way that excludes guardian:approved or the mergegate:* mode labels.",
+    "Changing CCA-06's severity, wording, or any checklist item in docs/agents/checklists.md.",
+    "Changing what the CCA judge evaluates, the verdict schema, or any verdict value.",
+    "Adding if: always() to any step that posts a review, a comment or a label — the CCA Review Bridge submits APPROVE.",
+    "Changing the repair attempt limit, or any MergeGate rule.",
+    "Changing scripts/mergegate_check.py.",
+    "Deleting or disabling the Shiki Claude Review workflow — a separate decision, recorded but not taken here.",
+    "Touching any file outside the declared locks."
+  ],
+  "completion_conditions": [
+    "A superseded run on the same pull request is cancelled rather than run to completion.",
+    "A cancelled required check never causes the loop to dispatch a repair.",
+    "A label that is not an approval or mode label does not start a CCA job.",
+    "The CCA judge does not start while the required checks it must read are still pending.",
+    "No step that posts a review, comment or label gained if: always().",
+    "The full suite, the workflow lint, the goal-loop suite and validate_shiki stay green."
+  ],
+  "tasks": [
+    {
+      "title": "Cancel superseded runs, gate CCA on settled checks, and stop reading a cancelled check as a failure",
+      "runtime": "codex",
+      "risk_level": "medium",
+      "dependencies": [],
+      "locks": [
+        "path:.github/workflows/shiki-cca-completion.yml",
+        "path:.github/workflows/shiki-mergegate.yml",
+        "path:.github/workflows/shiki-validate.yml",
+        "path:.github/workflows/shiki-claude-review.yml",
+        "path:.github/workflows/shiki-orchestrator.yml",
+        "path:scripts/shiki_loop.py",
+        "path:tests/test_workflow_invocation.py",
+        "path:tests/test_loop_engine.py",
+        "path:tests/test_cca_rerun_economy.py"
+      ],
+      "scope": "Remove three measured causes of redundant Completion Check Agent runs, and the one coupling that would make the first of them harmful.\n\n(a) CONCURRENCY. Add a `concurrency:` block with `cancel-in-progress: true` to all five workflows: shiki-cca-completion.yml, shiki-mergegate.yml, shiki-validate.yml, shiki-claude-review.yml, shiki-orchestrator.yml. Key the group per workflow and per pull request so that a newer event supersedes an older run on the SAME pull request and never touches a different one — `${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}` is the intended shape. Measured today: `grep -c '^concurrency:'` is 0 in all five; shiki runs 200 CCA runs over 154 distinct head SHAs (27 pairs within 180s on the same SHA) and CubeShare 200 over 135 (46 such pairs, five SHAs at 4 runs).\n\n(b) THE COUPLING — SAME COMMIT AS (a), NOT A SEPARATE ONE. `scripts/shiki_loop.py:580` `_check_bucket` returns \"fail\" for anything outside {pass, success} and {pending, queued, in_progress}. A `cancelled` conclusion therefore reads as a FAILED required check, and the loop dispatches a repair against a run that was merely superseded. Widen the non-terminal bucket to also cover `cancelled`, `skipped` and `stale`. Landing (a) without (b) makes the loop strictly worse than it is today: it converts every cancellation into a wasted repair attempt.\n\n(c) LABEL FILTERING. Both shiki-cca-completion.yml and shiki-mergegate.yml trigger on `labeled` and `unlabeled`, so every label costs a full run. Measured on shiki PR #323 head b635454c: the timeline shows `07:35:29 labeled mergegate:contract` and `07:37:25 labeled guardian:approved`, and CCA ran at 07:35, 07:35 and 07:37. GitHub cannot filter by label name in `on:`, so add a JOB-LEVEL `if:` that proceeds only when the event is not a label event, or when the label is one that can change the verdict. `guardian:approved` and every `mergegate:*` mode label MUST remain in that set — CCA-08 reads the Guardian approval source, and removing it would pin the verdict at needs_guardian forever. A skipped job costs no runner minutes.\n\n(d) SETTLED-CHECK GATE. The `Prepare CCA context` step reads check state once, at the top of its own run: `gh pr view \"$PR_NUMBER\" --json ...,statusCheckRollup > .shiki/gha/pr.json`. Because CCA triggers on the same `pull_request` event as CI, Validate and MergeGate, those checks are still pending, and CCA-06 ('Required checks pass on current head SHA.', blocking, checklists.md:183) cannot pass. Before the judge is invoked, wait until the required checks other than CCA's own have reached a terminal conclusion on the current head, with a bounded timeout and a clear message when the timeout is hit. Do NOT relax CCA-06 — this is an ordering fix, not a judgement fix. Do NOT move the workflow to a `workflow_run` trigger; that was considered and rejected on trust-boundary grounds.\n\nMUST NOT: add `if: always()` to any step that posts a review, comment or label — the `CCA Review Bridge` step submits `--arg event \"APPROVE\"` and an always-run bridge would mint an approval on a refused verdict. Do not change docs/agents/checklists.md, the verdict schema, any verdict value, the repair attempt limit, any MergeGate rule, or scripts/mergegate_check.py. Do not delete or disable the Shiki Claude Review workflow.\n\nTESTS. `tests/test_cca_rerun_economy.py` (new): all five workflows parse and each declares `concurrency` with `cancel-in-progress: true` and a group expression that includes the pull request number; the CCA and MergeGate jobs' `if:` admits `guardian:approved` and each `mergegate:*` mode label and rejects an unrelated label such as `documentation`; no step whose `run:` or `uses:` posts a review, comment or label carries `if: always()`. `tests/test_loop_engine.py`: `_check_bucket` maps `cancelled`, `skipped` and `stale` to the non-terminal bucket while `failure` and an unknown value still map to fail, and `decide_task_action` does not dispatch a repair for a PR whose only non-green required check is cancelled. `tests/test_workflow_invocation.py` reconstructs mergegate_check.py's argv from the workflow `run:` steps and raises KeyError without a matching `_FLAG_VALUES` entry — keep it green; if a new `run:` step changes what it parses, update it without weakening any existing assertion.\n\nREPRODUCIBILITY — what this task removes, and what to change to get the same result.\n  Symptom: a single head SHA accumulates two to four full Claude CCA runs, each several minutes, and the first run on any new head cannot return `complete` no matter what the implementation does, so a human re-runs it by hand.\n  Measured 2026-08-17: shiki 200 runs / 154 SHAs = 1.30x (27 near-simultaneous same-SHA pairs); CubeShare 200 / 135 = 1.48x (46 pairs, worst SHA 4 runs); CubeShare's CCA workflow consumed 523 minutes over 74 runs on 2026-08-10 alone.\n  Root causes: no `concurrency:` in any of the five workflows; `labeled`/`unlabeled` in the CCA and MergeGate trigger types with no label filter; and a CCA job that reads `statusCheckRollup` at the top of a run that starts concurrently with the very checks CCA-06 requires to be green.\n  Trap that makes a partial fix harmful: `shiki_loop.py:580` buckets `cancelled` as `fail`, so cancellation without the bucket widening converts each superseded run into a dispatched repair.\n  Reproducible when: a second push or label on a pull request cancels the in-flight run instead of adding one; a cancelled check leaves the loop's decision unchanged; an unrelated label starts nothing; and the judge does not start while the checks it reads are pending.",
+      "non_goals": [
+        "Moving CCA to a workflow_run trigger",
+        "Removing labeled from the CCA trigger, or excluding guardian:approved or any mergegate:* label from the filter",
+        "Changing CCA-06's severity or any entry in docs/agents/checklists.md",
+        "Changing the verdict schema, any verdict value, or what the judge evaluates",
+        "Adding if: always() to any step that posts a review, comment or label",
+        "Changing the repair attempt limit or any MergeGate rule",
+        "Changing scripts/mergegate_check.py",
+        "Deleting or disabling the Shiki Claude Review workflow",
+        "Touching any file outside the declared locks"
+      ],
+      "acceptance_checks": [
+        "All five workflows declare a concurrency block with cancel-in-progress: true and a group expression that distinguishes pull requests from one another.",
+        "_check_bucket maps cancelled, skipped and stale to the non-terminal bucket, and still maps failure and an unrecognised value to fail.",
+        "decide_task_action does not dispatch a repair for a PR whose only non-green required check is cancelled — asserted through the decision function, not by inspection.",
+        "A labeled event carrying guardian:approved starts the CCA job.",
+        "A labeled event carrying any mergegate:* mode label starts the CCA job.",
+        "A labeled event carrying an unrelated label does not start the CCA job.",
+        "The CCA judge step does not execute while a required check other than CCA's own is still pending on the current head, and the wait is bounded with a clear timeout message.",
+        "CCA-06 remains blocking and docs/agents/checklists.md is unchanged.",
+        "No step that posts a review, comment or label carries if: always(); the CCA Review Bridge in particular does not.",
+        "scripts/mergegate_check.py is unchanged.",
+        "python3 -m unittest discover -s tests, scripts/test_shiki_workflow_lint.sh, scripts/test_shiki_goal_loop.sh and validate_shiki all pass.",
+        "No file outside the declared locks is changed."
+      ],
+      "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target . && bash scripts/test_shiki_workflow_lint.sh && bash scripts/test_shiki_goal_loop.sh"
+    }
+  ]
+}
