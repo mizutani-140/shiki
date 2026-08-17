@@ -41,7 +41,9 @@
     "path:docs/agents/decision-control.md",
     "path:docs/agents/triage-labels.md",
     "path:docs/agents/implementation-policy.md",
-    "path:docs/adr/SADR-0012-autonomous-loop-closeout-to-main.md"
+    "path:docs/adr/SADR-0012-autonomous-loop-closeout-to-main.md",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:scripts/test_shiki_adversarial_state.sh"
   ],
   "non_goals": [
     "Refluxing the `and pr` short-circuit",
