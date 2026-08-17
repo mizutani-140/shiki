@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260817T063758155247Z-0b11207b.json"
+  ],
+  "goal_id": "G-20260817T063758153709Z-0302813a",
+  "id": "L-20260817T063758155305Z-197baec8",
+  "links": [],
+  "summary": "Task registered from plan: Deny the SADR-0017 exemption to fork PRs and pin the judged base",
+  "task_id": "T-20260817T063758155247Z-0b11207b",
+  "timestamp": "2026-08-17T06:37:58+00:00",
+  "type": "task-registered"
+}
