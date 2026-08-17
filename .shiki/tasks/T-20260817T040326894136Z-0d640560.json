@@ -16,7 +16,7 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/t-20260817t040326894136z-0d640560-closeout",
-  "expected_pr": 331,
+  "expected_pr": 332,
   "github_issue": null,
   "goal_id": "G-20260817T040326892610Z-af6effea",
   "id": "T-20260817T040326894136Z-0d640560",
@@ -28,7 +28,8 @@
     "L-20260817T053736459074Z-f3a17a61",
     "L-20260817T053955454726Z-a87b6382",
     "L-20260817T054000004513Z-b5483b13",
-    "L-20260817T055108330598Z-32122d7d"
+    "L-20260817T055108330598Z-32122d7d",
+    "L-20260817T055111838679Z-258e79cd"
   ],
   "locks": [
     "path:.github/workflows/shiki-cca-completion.yml",
