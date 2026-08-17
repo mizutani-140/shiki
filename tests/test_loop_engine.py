@@ -10,7 +10,7 @@ import unittest
 
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
-from shiki_loop import AUTO_MERGE_RISKS, decide_goal_action, decide_task_action
+from shiki_loop import AUTO_MERGE_RISKS, _check_bucket, decide_goal_action, decide_task_action
 
 REQUIRED = [
     "Validate Shiki mirror",
@@ -48,6 +48,20 @@ def green():
 
 
 class TaskDecisionTests(unittest.TestCase):
+    def test_superseded_check_conclusions_use_the_non_terminal_bucket(self) -> None:
+        for conclusion in ("cancelled", "skipped", "stale"):
+            with self.subTest(conclusion=conclusion):
+                self.assertEqual(_check_bucket(conclusion), "pending")
+        self.assertEqual(_check_bucket("failure"), "fail")
+        self.assertEqual(_check_bucket("future-unknown-conclusion"), "fail")
+
+    def test_cancelled_required_check_does_not_dispatch_repair(self) -> None:
+        checks = green()
+        checks["Validate Shiki mirror"] = _check_bucket("cancelled")
+        decision = decide(task("review"), pr_state={"merged": False}, checks=checks)
+        self.assertEqual(decision["action"], "wait_checks")
+        self.assertNotEqual(decision["action"], "dispatch_repair")
+
     def test_ready_dispatches(self) -> None:
         self.assertEqual(decide(task("ready"))["action"], "dispatch")
 

@@ -17,6 +17,10 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: write
@@ -29,7 +33,7 @@ jobs:
   cca:
     name: CCA verdict
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.draft == false && ((github.event.action != 'labeled' && github.event.action != 'unlabeled') || github.event.label.name == 'guardian:approved' || startsWith(github.event.label.name, 'mergegate:')))
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -181,6 +185,91 @@ jobs:
           echo "::group::guardian-approval signal"
           cat .shiki/gha/guardian-approval.json
           echo "::endgroup::"
+
+      - name: Wait for required checks to settle
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          WAIT_TIMEOUT_SECONDS: "900"
+          WAIT_INTERVAL_SECONDS: "15"
+        run: |
+          set -euo pipefail
+
+          # Read the repository's required-check contract rather than maintaining
+          # another list in this workflow. The two checks produced by this workflow
+          # cannot settle before its judge: CCA verdict is the current job and the
+          # policy check is downstream of it.
+          python3 - <<'PY' > .shiki/gha/required-checks.txt
+          import sys
+
+          sys.path.insert(0, "scripts")
+          from validate_shiki import config_required_checks
+
+          own_checks = {"CCA verdict", "MergeGate policy check"}
+          for check in config_required_checks():
+              if check not in own_checks:
+                  print(check)
+          PY
+
+          deadline=$((SECONDS + WAIT_TIMEOUT_SECONDS))
+          while true; do
+            gh pr view "$PR_NUMBER" \
+              --repo "$REPOSITORY" \
+              --json headRefOid,statusCheckRollup \
+              > .shiki/gha/pr-settling.json
+
+            observed_head="$(jq -r '.headRefOid // ""' .shiki/gha/pr-settling.json)"
+            if [ "$observed_head" != "$EXPECTED_HEAD_SHA" ]; then
+              echo "::error::PR head ${observed_head} does not match expected head ${EXPECTED_HEAD_SHA}; refusing to judge stale check state."
+              exit 1
+            fi
+
+            pending=""
+            while IFS= read -r check_name; do
+              [ -n "$check_name" ] || continue
+              state="$(
+                jq -r --arg name "$check_name" '
+                  [.statusCheckRollup[]?
+                    | select((.name // .context // "") == $name)]
+                  | if length == 0 then
+                      "MISSING"
+                    else
+                      (sort_by(.startedAt // .createdAt // "") | last
+                        | if has("status") then (.status // "MISSING")
+                          else (.state // "MISSING")
+                          end)
+                    end
+                ' .shiki/gha/pr-settling.json
+              )"
+              case "$state" in
+                COMPLETED|SUCCESS|FAILURE|ERROR)
+                  ;;
+                *)
+                  pending="${pending}${pending:+, }${check_name}=${state}"
+                  ;;
+              esac
+            done < .shiki/gha/required-checks.txt
+
+            if [ -z "$pending" ]; then
+              echo "Required checks are terminal on head ${EXPECTED_HEAD_SHA}; refreshing CCA context."
+              break
+            fi
+            if (( SECONDS >= deadline )); then
+              echo "::error::Timed out after ${WAIT_TIMEOUT_SECONDS}s waiting for required checks on head ${EXPECTED_HEAD_SHA}: ${pending}"
+              exit 1
+            fi
+            echo "Waiting for required checks on head ${EXPECTED_HEAD_SHA}: ${pending}"
+            sleep "$WAIT_INTERVAL_SECONDS"
+          done
+
+          # The judge must consume the settled rollup, not the snapshot gathered at
+          # the beginning of this concurrently-triggered workflow run.
+          gh pr view "$PR_NUMBER" \
+            --repo "$REPOSITORY" \
+            --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
 
       - name: Prepare CCA transport schema
         id: schema
@@ -426,12 +515,13 @@ jobs:
         run: python3 scripts/enforce_cca_verdict.py
 
       - name: Post Guardian blockers comment
-        # Runs even after Enforce CCA verdict fails the job (a needs_guardian
+        # Runs when Enforce CCA verdict fails the job (a needs_guardian
         # verdict is a non-zero exit). When the verdict is needs_guardian the
         # approver otherwise only sees an identical red X; this surfaces the exact
         # missing string on the PR. Reuses the SAME evaluate_guardian_approval via
-        # `shiki guardian status` over the evidence already gathered above.
-        if: always()
+        # `shiki guardian status` over the evidence already gathered above. Keep
+        # this failure-only: a cancelled/superseded run must not post stale state.
+        if: failure()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
