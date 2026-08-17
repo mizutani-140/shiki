@@ -33,7 +33,8 @@
   },
   "id": "G-20260817T040326892610Z-af6effea",
   "ledger_evidence": [
-    "L-20260817T040326893467Z-8991bc27"
+    "L-20260817T040326893467Z-8991bc27",
+    "L-20260817T055108330598Z-32122d7d"
   ],
   "non_goals": [
     "Moving CCA to a workflow_run trigger \u2014 rejected on the trust-boundary grounds recorded above.",
@@ -53,6 +54,6 @@
   ],
   "risk_level": "medium",
   "source_plan": "P-20260817T035846343372Z-dea0bcbd",
-  "status": "planned",
+  "status": "complete",
   "title": "Stop paying for CCA runs that cannot decide anything"
 }
