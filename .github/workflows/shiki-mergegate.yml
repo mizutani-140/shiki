@@ -49,13 +49,20 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
         run: |
+          set -euo pipefail
           rm -rf .shiki/gha
           mkdir -p .shiki/gha
-          gh pr view "$PR_NUMBER" --json number,title,body,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
+          gh pr view "$PR_NUMBER" --json number,title,body,baseRefOid,isCrossRepository,author,headRefName,baseRefName,headRefOid,labels,files,reviews,reviewDecision,statusCheckRollup > .shiki/gha/pr.json
           base_ref="$(jq -r '.baseRefName' .shiki/gha/pr.json)"
+          base_oid="$(jq -r '.baseRefOid' .shiki/gha/pr.json)"
+          head_oid="$(jq -r '.headRefOid' .shiki/gha/pr.json)"
           git fetch origin "$base_ref"
-          git diff --name-only "origin/${base_ref}...HEAD" > .shiki/gha/changed-files.txt
-          git diff --name-status "origin/${base_ref}...HEAD" > .shiki/gha/changed-files-status.txt
+          merge_base="$(git merge-base "$base_oid" "$head_oid")"
+          jq --arg merge_base "$merge_base" '. + {mergeBaseOid: $merge_base}' \
+            .shiki/gha/pr.json > .shiki/gha/pr-with-merge-base.json
+          mv .shiki/gha/pr-with-merge-base.json .shiki/gha/pr.json
+          git diff --name-only "${merge_base}...HEAD" > .shiki/gha/changed-files.txt
+          git diff --name-status "${merge_base}...HEAD" > .shiki/gha/changed-files-status.txt
 
           # Live Guardian-approval evidence. A Contract PR (SADR-0015) forces the
           # Guardian gate from the Goal's frozen-plan risk in THIS metadata job,
@@ -69,7 +76,7 @@ jobs:
           gh api --paginate "repos/${REPOSITORY}/issues/${PR_NUMBER}/events" > .shiki/gha/live-guardian-events.json || echo "[]" > .shiki/gha/live-guardian-events.json
           gh api --paginate "repos/${REPOSITORY}/issues/${PR_NUMBER}/timeline" -H "Accept: application/vnd.github+json" > .shiki/gha/live-guardian-timeline.json || echo "[]" > .shiki/gha/live-guardian-timeline.json
 
-          # Base .shiki snapshot from origin/<base_ref>, built the SAME way
+          # Base .shiki snapshot from the PR's immutable merge base, built the SAME way
           # shiki-cca-completion.yml builds it. mergegate_check.py needs it to
           # verify task-field immutability for a post_merge_reconcile PR and to
           # resolve the SADR-0017 bookkeeping-closeout exemption; without it a
@@ -78,7 +85,7 @@ jobs:
           # would go shallow.
           rm -rf .shiki/gha/base-shiki
           mkdir -p .shiki/gha/base-shiki
-          git archive "origin/${base_ref}" .shiki | tar -x -C .shiki/gha/base-shiki || true
+          git archive "$merge_base" .shiki | tar -x -C .shiki/gha/base-shiki
 
       - name: MergeGate metadata check
         env:
@@ -103,7 +110,7 @@ jobs:
           if [ -n "$task_id" ] && [ -f "$base_task" ]; then
             base_pr="$(jq -r '.expected_pr // empty' "$base_task")"
             if [ -n "$base_pr" ]; then
-              state="$(gh pr view "$base_pr" --repo "$REPOSITORY" --json state -q .state 2>/dev/null || echo UNKNOWN)"
+              state="$(gh pr view "$base_pr" --repo "$REPOSITORY" --json state,isCrossRepository -q .state 2>/dev/null || echo UNKNOWN)"
               if [ "$state" = "MERGED" ]; then
                 MERGED_PRS="$base_pr"
               fi

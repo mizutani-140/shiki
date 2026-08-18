@@ -467,13 +467,16 @@ class BaseRegistryResolutionTests(unittest.TestCase):
             (scripts / "shiki_migrations.py").write_text(_BASE_MIGRATIONS_SRC, encoding="utf-8")
             _git(repo, "add", "-A")
             _git(repo, "commit", "-qm", "base migrations")
+            merge_base_oid = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
+            ).stdout.strip()
             # Head branch: adds the attacker migration to its own registry.
             _git(repo, "checkout", "-q", "-b", "head")
             (scripts / "shiki_migrations.py").write_text(_HEAD_MIGRATIONS_SRC, encoding="utf-8")
             _git(repo, "add", "-A")
             _git(repo, "commit", "-qm", "head adds a self-defining migration")
 
-            registry = resolve_base_migration_registry(repo, "main")
+            registry = resolve_base_migration_registry(repo, merge_base_oid)
         ids = {str(migration.id) for migration in registry}
         self.assertIn(BASELINE, ids)
         self.assertNotIn(MIG_ID, ids, "the head-defined migration must be absent from the base registry")
@@ -488,6 +491,9 @@ class BaseRegistryResolutionTests(unittest.TestCase):
             _seed_base(repo)
             _git(repo, "add", "-A")
             _git(repo, "commit", "-qm", "base")
+            merge_base_oid = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
+            ).stdout.strip()
             _git(repo, "checkout", "-q", "-b", "head")
             # The PR head both DEFINES the migration and delivers a .shiki change,
             # declaring the id it just invented.
@@ -498,7 +504,11 @@ class BaseRegistryResolutionTests(unittest.TestCase):
             # base_registry=None => the gate resolves it from base via git show.
             enforce_migration(
                 target=repo,
-                pr={"body": f"<!-- shiki:migration -->\nMigration: {MIG_ID}", "baseRefName": "main"},
+                pr={
+                    "body": f"<!-- shiki:migration -->\nMigration: {MIG_ID}",
+                    "baseRefName": "unresolvable-moving-ref",
+                    "mergeBaseOid": merge_base_oid,
+                },
                 base_shiki=repo / ".shiki",
                 changed_files_status=_conforming_changes(),
                 blocking=blocking,
@@ -506,6 +516,29 @@ class BaseRegistryResolutionTests(unittest.TestCase):
             )
         self.assertTrue(
             any("is not registered in the base branch" in b and MIG_ID in b for b in blocking),
+            blocking,
+        )
+
+    def test_missing_immutable_merge_base_oid_blocks_registry_resolution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._repo(tmp)
+            scripts = repo / "scripts"
+            scripts.mkdir()
+            (scripts / "shiki_migrations.py").write_text(_BASE_MIGRATIONS_SRC, encoding="utf-8")
+            _seed_base(repo)
+            _git(repo, "add", "-A")
+            _git(repo, "commit", "-qm", "base")
+            blocking: list[str] = []
+            enforce_migration(
+                target=repo,
+                pr={"body": f"Migration: {MIG_ID}", "baseRefName": "main"},
+                base_shiki=repo / ".shiki",
+                changed_files_status=_conforming_changes(),
+                blocking=blocking,
+                warnings=[],
+            )
+        self.assertTrue(
+            any("immutable mergeBaseOid" in reason for reason in blocking),
             blocking,
         )
 

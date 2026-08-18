@@ -29,6 +29,10 @@ Target Repositories may customize labels, but the Shiki Template assumes these c
 - `mergegate:waiting` - merge evidence is incomplete.
 - `mergegate:blocked` - check, lock, dependency, risk, or review blocks merge.
 - `mergegate:ready` - MergeGate conditions are satisfied.
+- `mergegate:migration` - a configured maintainer selected the repository-wide
+  mirror migration route. The PR must still bind to a Task, CCA, review, and
+  Guardian policy; its `.shiki/**` diff must equal one migration registered on
+  the immutable merge base, path-for-path and byte-for-byte.
 - `repair:needed` - a bounded Repair Loop is required.
 
 ## Skill Gate

@@ -285,6 +285,13 @@ MergeGate allows merge only when:
 - PR metadata is complete.
 - No architecture gate remains unresolved.
 
+For Migration mode, the implementation PR is a pure `.shiki/**` delivery. It
+names one non-destructive migration already registered on the immutable merge
+base, and MergeGate reproduces that migration from the `.shiki` snapshot archived
+from the same pinned commit before comparing every changed path and byte. The
+specialized scope proof does not waive Task, dependency, lock, CCA, review, or
+Guardian requirements.
+
 ## Phase 11 — Goal Completion Judgment
 
 After all task PRs merge, judge the parent Goal:

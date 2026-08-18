@@ -836,5 +836,55 @@ class Pair14SmokeStartRequired(PairInvariant):
             self.assert_all_equal(sites, relation="set-equality", fix="n/a")
 
 
+class Pair15ForkAndMergeBaseWorkflowEvidence(PairInvariant):
+    WORKFLOWS = (
+        WORKFLOWS_DIR / "shiki-mergegate.yml",
+        WORKFLOWS_DIR / "shiki-cca-completion.yml",
+    )
+
+    @staticmethod
+    def _gh_pr_view_field_lists(text: str) -> list[set[str]]:
+        fields: list[set[str]] = []
+        for match in re.finditer(r'gh pr view\s+"\$[^\"]+"', text):
+            command_tail = text[match.start() : match.start() + 500]
+            json_match = re.search(r"--json\s+([^\s\\]+)", command_tail)
+            if json_match:
+                fields.append(set(json_match.group(1).split(",")))
+        return fields
+
+    def test_every_pr_view_json_field_list_requests_fork_identity(self):
+        for workflow in self.WORKFLOWS:
+            field_lists = self._gh_pr_view_field_lists(read_text(workflow))
+            self.assertTrue(field_lists, f"{workflow.name}: no gh pr view --json field list found")
+            for fields in field_lists:
+                self.assertIn("isCrossRepository", fields, f"{workflow.name}: {sorted(fields)}")
+
+    def test_both_exemption_sites_fail_closed_without_pr_short_circuit(self):
+        mergegate = read_text(SCRIPTS_DIR / "mergegate_check.py")
+        signal = read_text(SCRIPTS_DIR / "guardian_approval_signal.py")
+        self.assertIn(
+            'if bookkeeping_closeout and pr.get("isCrossRepository") is not False:',
+            mergegate,
+        )
+        self.assertNotIn("bookkeeping_closeout and pr and pr.get", mergegate)
+        self.assertIn(
+            'if exemption and pr.get("isCrossRepository") is not False:',
+            signal,
+        )
+        self.assertNotIn("exemption and pr and pr.get", signal)
+
+    def test_closeout_keeps_mandatory_lock_release_and_no_relaxation(self):
+        mergegate = read_text(SCRIPTS_DIR / "mergegate_check.py")
+        self.assertIsNone(re.search(r"lockless|lock_terminal", mergegate))
+        self.assertIn("if not task_changed or not lock_released:", mergegate)
+
+    def test_workflows_archive_the_pinned_merge_base_without_swallowing_failure(self):
+        for workflow in self.WORKFLOWS:
+            text = read_text(workflow)
+            self.assertIn('git archive "$merge_base" .shiki', text, workflow.name)
+            self.assertNotIn('git archive "$merge_base" .shiki | tar -x -C .shiki/gha/base-shiki || true', text)
+            self.assertIn("mergeBaseOid", text, workflow.name)
+
+
 if __name__ == "__main__":
     unittest.main()

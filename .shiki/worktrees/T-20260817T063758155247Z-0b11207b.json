@@ -1,0 +1,30 @@
+{
+  "branch": "shiki/t-20260817t063758155247z-0b11207b-deny-the-sadr-0017-exemption-to-fork-prs-and-pin",
+  "created_at": "2026-08-17T07:07:45+00:00",
+  "created_by": "shiki-cli",
+  "goal_id": "G-20260817T063758153709Z-0302813a",
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:scripts/guardian_approval_signal.py",
+    "path:scripts/shiki_tasks.py",
+    "path:.github/workflows/shiki-mergegate.yml",
+    "path:.github/workflows/shiki-cca-completion.yml",
+    "path:tests/test_bookkeeping_closeout.py",
+    "path:tests/test_closeout.py",
+    "path:tests/test_guardian_signal_closeout.py",
+    "path:tests/test_paired_invariants.py",
+    "path:tests/test_memory_scorecard.py",
+    "path:tests/test_policy_job_merged_prs.py",
+    "path:tests/test_migration_mode.py",
+    "path:docs/agents/checklists.md",
+    "path:docs/agents/decision-control.md",
+    "path:docs/agents/triage-labels.md",
+    "path:docs/agents/implementation-policy.md",
+    "path:docs/adr/SADR-0012-autonomous-loop-closeout-to-main.md"
+  ],
+  "path": "/Users/kio.mizutani/shiki/.claude/worktrees/.worktrees/shiki-t-20260817t063758155247z-0b11207b-deny-the",
+  "pr": 335,
+  "runtime": "codex",
+  "state": "active",
+  "task_id": "T-20260817T063758155247Z-0b11207b"
+}

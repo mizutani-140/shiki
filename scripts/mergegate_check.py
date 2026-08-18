@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import json
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -1279,29 +1280,26 @@ def declared_migration_ids(body: str) -> list[str]:
     return [match.group(1) for match in _MIGRATION_ID_LINE.finditer(body)]
 
 
-def _git_show_base(target: Path, base_ref: str, repo_path: str) -> str:
-    """Read ``repo_path`` from the base branch via a read-only ``git show``.
-
-    Tries ``origin/<base_ref>`` first — the MergeGate workflow fetches it with
-    ``fetch-depth: 0`` (shiki-mergegate.yml) — then the bare ``<base_ref>`` as a
-    fallback for a local base branch. Raises ``FileNotFoundError`` naming every
-    ref it tried when neither resolves the path."""
-    errors: list[str] = []
-    for ref in (f"origin/{base_ref}", base_ref):
-        result = subprocess.run(
-            ["git", "show", f"{ref}:{repo_path}"],
-            cwd=str(target),
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode == 0:
-            return result.stdout
-        errors.append(f"{ref}: {result.stderr.strip() or 'not found'}")
-    raise FileNotFoundError(f"could not read {repo_path} from the base branch ({'; '.join(errors)})")
+def _git_show_merge_base(target: Path, merge_base_oid: str, repo_path: str) -> str:
+    """Read ``repo_path`` from one immutable, workflow-resolved merge base."""
+    if not re.fullmatch(r"[0-9a-fA-F]{40,64}", merge_base_oid):
+        raise FileNotFoundError(f"invalid immutable mergeBaseOid {merge_base_oid!r}")
+    result = subprocess.run(
+        ["git", "show", f"{merge_base_oid}:{repo_path}"],
+        cwd=str(target),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return result.stdout
+    detail = result.stderr.strip() or "not found"
+    raise FileNotFoundError(
+        f"could not read {repo_path} from immutable mergeBaseOid {merge_base_oid} ({detail})"
+    )
 
 
-def resolve_base_migration_registry(target: Path, base_ref: str) -> tuple[Any, ...]:
-    """Resolve the migration registry from the BASE branch's
+def resolve_base_migration_registry(target: Path, merge_base_oid: str) -> tuple[Any, ...]:
+    """Resolve the migration registry from the immutable merge base's
     ``scripts/shiki_migrations.py`` — NEVER the PR head's.
 
     THIS IS THE SECURITY PROPERTY OF MIGRATION MODE. Do NOT simplify this to import
@@ -1320,7 +1318,7 @@ def resolve_base_migration_registry(target: Path, base_ref: str) -> tuple[Any, .
     its only external dependency (``shiki_process``) resolves from ``scripts/`` on
     ``sys.path``, infrastructure that carries no migration logic.
     """
-    source = _git_show_base(target, base_ref, "scripts/shiki_migrations.py")
+    source = _git_show_merge_base(target, merge_base_oid, "scripts/shiki_migrations.py")
     # Execute the base source as a REAL module object registered in sys.modules:
     # dataclass field resolution (Python 3.12+) looks the class's module up there,
     # so a plain-dict namespace would fail on the module's ``@dataclass Migration``.
@@ -1399,14 +1397,17 @@ def enforce_migration(
     migration_id = ids[0]
 
     if base_registry is None:
-        base_ref = str(pr.get("baseRefName") or "")
-        if not base_ref:
-            blocking.append("migration mode requires the PR baseRefName to resolve the base branch migration registry")
+        merge_base_oid = str(pr.get("mergeBaseOid") or "")
+        if not merge_base_oid:
+            blocking.append(
+                "migration mode requires the workflow-resolved immutable mergeBaseOid "
+                "to resolve the trusted migration registry"
+            )
             return
         try:
-            base_registry = resolve_base_migration_registry(target, base_ref)
+            base_registry = resolve_base_migration_registry(target, merge_base_oid)
         except Exception as error:  # noqa: BLE001 - resolving base code can fail many ways; fail closed with a named reason, never crash the gate
-            blocking.append(f"migration mode could not resolve the base branch migration registry: {error}")
+            blocking.append(f"migration mode could not resolve the immutable merge-base migration registry: {error}")
             return
 
     by_id = {str(migration.id): migration for migration in base_registry}
@@ -1976,6 +1977,28 @@ def _builtin_guardian_risk_required(risk_labels: list[str]) -> bool:
 _CLOSEOUT_MUTABLE_TASK_FIELDS = frozenset({"status", "expected_pr", "closeout_pr", "ledger_evidence", "expected_branch"})
 
 
+def _path_proven_absent(path: Path) -> bool:
+    """Prove repository-path absence without following a dangling symlink."""
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        try:
+            return stat.S_ISDIR(path.parent.lstat().st_mode)
+        except OSError:
+            return False
+    except OSError:
+        return False
+    return False
+
+
+def _path_is_regular_file(path: Path) -> bool:
+    """Require a regular repository file without following symlinks."""
+    try:
+        return stat.S_ISREG(path.lstat().st_mode)
+    except OSError:
+        return False
+
+
 def _closeout_completes_goal(target: Path, goal_id: str) -> bool | None:
     """Whether this closeout completes its goal: every task node of the goal's DAG
     is ``done`` at HEAD (this task set ``done`` by the closeout). Returns None when
@@ -2043,10 +2066,21 @@ def is_bookkeeping_closeout(
     try:
         if base_shiki is None or not base_shiki.exists():
             return False
-        if not isinstance(task, dict) or str(task.get("id") or "") != task_id or not goal_id:
+        if (
+            not isinstance(task, dict)
+            or str(task.get("id") or "") != task_id
+            or str(task.get("goal_id") or "") != goal_id
+            or not goal_id
+        ):
             return False
-        base_task = load_json(base_shiki / "tasks" / f"{task_id}.json")
-        if not isinstance(base_task, dict):
+        task_file = f".shiki/tasks/{task_id}.json"
+        base_task_path = base_shiki / "tasks" / f"{task_id}.json"
+        head_task_path = target / task_file
+        if not (_path_is_regular_file(base_task_path) and _path_is_regular_file(head_task_path)):
+            return False
+        base_task = load_json(base_task_path)
+        head_task = load_json(head_task_path)
+        if not isinstance(base_task, dict) or not isinstance(head_task, dict) or head_task != task:
             return False
 
         # Condition 4: every task-file key outside the mutable set is the frozen
@@ -2060,13 +2094,22 @@ def is_bookkeeping_closeout(
         # Condition 5 (task leg): status transitions review -> done, exactly.
         if str(base_task.get("status")) != "review" or str(task.get("status")) != "done":
             return False
+        if type(task.get("expected_pr")) is not int:
+            return False
+        expected_branch = task.get("expected_branch")
+        if not isinstance(expected_branch, str) or not expected_branch.strip():
+            return False
+        if (
+            ("closeout_pr" in base_task) != ("closeout_pr" in task)
+            or base_task.get("closeout_pr") != task.get("closeout_pr")
+        ):
+            return False
 
         # Condition 6: the implementation PR is named by the BASE expected_pr (a
         # field the PR head cannot write) and must be proven merged.
-        try:
-            impl_pr_num = int(base_task.get("expected_pr"))
-        except (TypeError, ValueError):
+        if type(base_task.get("expected_pr")) is not int:
             return False
+        impl_pr_num = base_task["expected_pr"]
         if impl_pr_num not in (merged_pr_numbers or set()):
             return False
 
@@ -2075,7 +2118,6 @@ def is_bookkeeping_closeout(
         if completes_goal is None:
             return False
 
-        task_file = f".shiki/tasks/{task_id}.json"
         lock_file = f".shiki/locks/{task_id}.json"
         goal_file = f".shiki/goals/{goal_id}.json"
         worktree_file = f".shiki/worktrees/{task_id}.json"
@@ -2084,60 +2126,104 @@ def is_bookkeeping_closeout(
         lock_released = False
         goal_completed = False
         reports_added = 0
+        completion_report_path: str | None = None
+        completion_ledger_id: str | None = None
+        base_goal_for_closeout: dict[str, Any] | None = None
+        head_goal_for_closeout: dict[str, Any] | None = None
         changed_paths: list[str] = []
+        changed_ledger_paths: list[str] = []
 
         for entry in changed_files_status:
             path = normalize_repo_path(entry.path)
             old_path = normalize_repo_path(entry.old_path or "")
-            # Condition 1: every changed path (both legs of a rename) under .shiki/.
-            for candidate in (candidate for candidate in (path, old_path) if candidate):
-                if not candidate.startswith(".shiki/"):
-                    return False
-                changed_paths.append(candidate)
-            # Condition 2: no deletion (a rename splits into a delete leg too).
-            if entry.status == "D":
+            # Conditions 1-2: only direct .shiki path additions/modifications;
+            # delete, rename, copy and type-change legs are never terminal state.
+            if old_path or not path.startswith(".shiki/") or entry.status not in {"A", "M"}:
                 return False
+            if entry.status == "A" and (
+                not _path_proven_absent(base_shiki / path.removeprefix(".shiki/"))
+                or not _path_is_regular_file(target / path)
+            ):
+                return False
+            changed_paths.append(path)
 
             if path == task_file:
+                if entry.status != "M":
+                    return False
                 task_changed = True
             elif path == lock_file:
                 # Condition 5 (lock leg): active -> released, proven against base.
-                base_lock = load_json(base_shiki / "locks" / f"{task_id}.json")
-                head_lock = load_json(target / path)
+                base_lock_path = base_shiki / "locks" / f"{task_id}.json"
+                head_lock_path = target / path
+                if (
+                    entry.status != "M"
+                    or not _path_is_regular_file(base_lock_path)
+                    or not _path_is_regular_file(head_lock_path)
+                ):
+                    return False
+                base_lock = load_json(base_lock_path)
+                head_lock = load_json(head_lock_path)
                 if not (isinstance(base_lock, dict) and base_lock.get("state") == "active"):
                     return False
                 if not (isinstance(head_lock, dict) and head_lock.get("state") == "released"):
                     return False
+                if any(
+                    lock.get("task_id") != task_id or lock.get("goal_id") != goal_id
+                    for lock in (base_lock, head_lock)
+                ):
+                    return False
+                for field in (set(base_lock) | set(head_lock)) - {"state"}:
+                    if base_lock.get(field) != head_lock.get(field):
+                        return False
                 lock_released = True
             elif path == goal_file:
                 # Condition 5 (goal leg): a goal transition is allowed ONLY when
                 # this task completes its goal, and must be -> complete.
-                if not completes_goal:
+                base_goal_path = base_shiki / "goals" / f"{goal_id}.json"
+                head_goal_path = target / path
+                if (
+                    entry.status != "M"
+                    or not completes_goal
+                    or not _path_is_regular_file(base_goal_path)
+                    or not _path_is_regular_file(head_goal_path)
+                ):
                     return False
-                base_goal = load_json(base_shiki / "goals" / f"{goal_id}.json")
-                head_goal = load_json(target / path)
-                if not (isinstance(head_goal, dict) and str(head_goal.get("status")) == "complete"):
+                base_goal = load_json(base_goal_path)
+                head_goal = load_json(head_goal_path)
+                if not (
+                    isinstance(base_goal, dict)
+                    and base_goal.get("id") == goal_id
+                    and str(base_goal.get("status")) in {"planned", "ready", "blocked"}
+                ):
                     return False
-                if isinstance(base_goal, dict) and str(base_goal.get("status")) == "complete":
-                    # Already complete on base: not a real completion transition.
+                if not (
+                    isinstance(head_goal, dict)
+                    and head_goal.get("id") == goal_id
+                    and str(head_goal.get("status")) == "complete"
+                ):
                     return False
+                for field in (set(base_goal) | set(head_goal)) - {"status", "ledger_evidence"}:
+                    if base_goal.get(field) != head_goal.get(field):
+                        return False
+                base_goal_for_closeout = base_goal
+                head_goal_for_closeout = head_goal
                 goal_completed = True
             elif path.startswith(".shiki/reports/") and path.endswith(".json"):
                 # A scorecard is ADDED by goal completion; a modified report is not
                 # part of the terminal set.
-                if entry.status != "A":
+                if entry.status != "A" or not _path_is_regular_file(target / path):
                     return False
                 reports_added += 1
+                completion_report_path = path
             elif path == worktree_file:
-                # This task's own worktree record is benign id-scoped mirror state
-                # (no governance transition); condition 3 still covers it.
-                pass
+                return False
             elif path.startswith(".shiki/ledger/") and path.endswith(".json"):
                 # Ledgers are append-only mirror bookkeeping (condition 3 and the
                 # untrusted-mutation gate police them); an ADD carries no transition,
                 # but a modify is never part of a closeout's terminal set.
-                if entry.status != "A":
+                if entry.status != "A" or not _path_is_regular_file(target / path):
                     return False
+                changed_ledger_paths.append(path)
             else:
                 # Any other .shiki path (dag, memories, guardian-policy, another
                 # task/goal/lock, a plan, …) is not part of the terminal set.
@@ -2161,10 +2247,166 @@ def is_bookkeeping_closeout(
             # EXACTLY ONE added scorecard report.
             if not goal_completed or reports_added != 1:
                 return False
+            if not (
+                isinstance(base_goal_for_closeout, dict)
+                and isinstance(head_goal_for_closeout, dict)
+                and completion_report_path
+            ):
+                return False
+
+            dag = load_dag(target, goal_id)
+            dag_nodes = dag.get("nodes") if isinstance(dag, dict) else None
+            if not isinstance(dag_nodes, list) or not dag_nodes:
+                return False
+            goal_task_ids = [str(node) for node in dag_nodes]
+            goal_tasks = [load_task(target, node_id) for node_id in goal_task_ids]
+            if not all(isinstance(goal_task, dict) for goal_task in goal_tasks):
+                return False
+
+            report = load_json(target / completion_report_path)
+            report_mergegate = report.get("mergegate") if isinstance(report, dict) else None
+            scorecard = report.get("scorecard") if isinstance(report, dict) else None
+            scorecard_tasks = scorecard.get("tasks") if isinstance(scorecard, dict) else None
+            expected_task_paths = {
+                f".shiki/tasks/{goal_task_id}.json" for goal_task_id in goal_task_ids
+            }
+            report_evidence = (
+                {str(value) for value in report.get("evidence") or []}
+                if isinstance(report, dict)
+                else set()
+            )
+            effective_risk = str(head_goal_for_closeout.get("risk_level") or "")
+            for goal_task in goal_tasks:
+                if not isinstance(goal_task, dict):
+                    return False
+                effective_risk = _max_risk(effective_risk, str(goal_task.get("risk_level") or ""))
+            if not (
+                isinstance(report, dict)
+                and report.get("id") == Path(completion_report_path).stem
+                and report.get("goal_id") == goal_id
+                and report.get("status") == "complete"
+                and report_evidence == expected_task_paths
+                and report.get("blocking_reasons") == []
+                and isinstance(report_mergegate, dict)
+                and report_mergegate.get("dependencies") == "pass"
+                and report_mergegate.get("locks") == "pass"
+                and report_mergegate.get("checks") == "pass"
+                and report_mergegate.get("review") == "recorded"
+                and report_mergegate.get("ledger") == "pass"
+                and report_mergegate.get("risk") == effective_risk
+            ):
+                return False
+            scorecard_complete = bool(
+                isinstance(scorecard, dict)
+                and scorecard.get("goal_id") == goal_id
+                and isinstance(scorecard_tasks, dict)
+                and type(scorecard_tasks.get("total")) is int
+                and type(scorecard_tasks.get("completed")) is int
+                and type(scorecard_tasks.get("failed")) is int
+                and scorecard_tasks.get("total") == len(goal_task_ids)
+                and scorecard_tasks.get("completed") == len(goal_task_ids)
+                and scorecard_tasks.get("failed") == 0
+            )
+            degraded_warnings = scorecard.get("warnings") if isinstance(scorecard, dict) else None
+            scorecard_degraded = bool(
+                isinstance(scorecard, dict)
+                and set(scorecard) == {"goal_id", "warnings"}
+                and scorecard.get("goal_id") == goal_id
+                and isinstance(degraded_warnings, list)
+                and len(degraded_warnings) == 1
+                and isinstance(degraded_warnings[0], str)
+                and degraded_warnings[0].startswith("scorecard generation failed:")
+            )
+            if not (scorecard_complete or scorecard_degraded):
+                return False
+
+            base_goal_ledger = base_goal_for_closeout.get("ledger_evidence")
+            head_goal_ledger = head_goal_for_closeout.get("ledger_evidence")
+            if not isinstance(base_goal_ledger, list) or not isinstance(head_goal_ledger, list):
+                return False
+            if head_goal_ledger[: len(base_goal_ledger)] != base_goal_ledger:
+                return False
+            added_goal_ledger_ids = head_goal_ledger[len(base_goal_ledger) :]
+            if len(added_goal_ledger_ids) != 1 or not isinstance(added_goal_ledger_ids[0], str):
+                return False
+            completion_ledger_id = added_goal_ledger_ids[0]
+            completion_ledger_path = target / ".shiki" / "ledger" / f"{completion_ledger_id}.json"
+            if not _path_is_regular_file(completion_ledger_path):
+                return False
+            completion_ledger = load_json(completion_ledger_path)
+            completion_evidence = completion_ledger.get("evidence") if isinstance(completion_ledger, dict) else None
+            if not (
+                isinstance(completion_ledger, dict)
+                and completion_ledger.get("id") == completion_ledger_id
+                and completion_ledger.get("goal_id") == goal_id
+                and completion_ledger.get("task_id") is None
+                and completion_ledger.get("type") == "completion"
+                and completion_evidence == [completion_report_path]
+            ):
+                return False
         else:
             # A non-completing closeout must carry NO goal transition and NO report.
             if goal_completed or reports_added != 0:
                 return False
+
+        base_task_ledger = base_task.get("ledger_evidence")
+        head_task_ledger = task.get("ledger_evidence")
+        if not isinstance(base_task_ledger, list) or not isinstance(head_task_ledger, list):
+            return False
+        if head_task_ledger[: len(base_task_ledger)] != base_task_ledger:
+            return False
+        added_task_ledger_ids = head_task_ledger[len(base_task_ledger) :]
+        if (
+            not all(isinstance(value, str) for value in added_task_ledger_ids)
+            or len(added_task_ledger_ids) != len(set(added_task_ledger_ids))
+        ):
+            return False
+        self_reference_ids: list[str] = []
+        for added_ledger_id in added_task_ledger_ids:
+            if not isinstance(added_ledger_id, str):
+                return False
+            if added_ledger_id == completion_ledger_id:
+                continue
+            added_ledger_path = target / ".shiki" / "ledger" / f"{added_ledger_id}.json"
+            if not _path_is_regular_file(added_ledger_path):
+                return False
+            added_ledger = load_json(added_ledger_path)
+            self_reference_evidence = added_ledger.get("evidence") if isinstance(added_ledger, dict) else None
+            required_self_reference_evidence = {task_file, lock_file}
+            if not (
+                isinstance(added_ledger, dict)
+                and added_ledger.get("id") == added_ledger_id
+                and added_ledger.get("goal_id") == goal_id
+                and added_ledger.get("task_id") == task_id
+                and added_ledger.get("type") == "lock"
+                and isinstance(self_reference_evidence, list)
+                and all(isinstance(value, str) for value in self_reference_evidence)
+                and len(self_reference_evidence) == len(required_self_reference_evidence)
+                and set(self_reference_evidence) == required_self_reference_evidence
+            ):
+                return False
+            self_reference_ids.append(added_ledger_id)
+        if len(self_reference_ids) != 1:
+            return False
+        permitted_ledger_ids = {self_reference_ids[0]}
+        if completion_ledger_id is not None:
+            permitted_ledger_ids.add(completion_ledger_id)
+        permitted_ledger_paths = {
+            f".shiki/ledger/{ledger_id}.json" for ledger_id in permitted_ledger_ids
+        }
+        if (
+            set(added_task_ledger_ids) != permitted_ledger_ids
+            or set(changed_ledger_paths) != permitted_ledger_paths
+        ):
+            return False
+
+        permitted_changed_paths = {task_file, lock_file, *permitted_ledger_paths}
+        if completes_goal:
+            if completion_report_path is None:
+                return False
+            permitted_changed_paths.update({goal_file, completion_report_path})
+        if set(changed_paths) != permitted_changed_paths:
+            return False
 
         return True
     except (OSError, ValueError, TypeError):
@@ -3222,6 +3464,10 @@ def main() -> int:
                 changed_files_status=files_status,
                 merged_pr_numbers=merged_prs,
             )
+            # The exemption is same-repository only and fail-closed: the live PR
+            # snapshot must explicitly prove isCrossRepository=false.
+            if bookkeeping_closeout and pr.get("isCrossRepository") is not False:
+                bookkeeping_closeout = False
 
             ledger_entries = load_ledger_entries(target, task, warnings, blocking)
             if pr:
