@@ -1,0 +1,41 @@
+{
+  "acceptance_checks": [
+    "scripts/shiki_bootstrap.py defines a module-level DEFAULT_FIRST_TASK_LOCKS equal to [\"path:**\"].",
+    "Both first-task lock fallbacks in scripts/shiki_bootstrap.py resolve through DEFAULT_FIRST_TASK_LOCKS, and the literal \"path:**/*\" does not appear anywhere in the file.",
+    "files_outside_locks([\"package.json\",\"tsconfig.json\",\".gitignore\"], DEFAULT_FIRST_TASK_LOCKS) == [].",
+    "files_outside_locks([\"src/env.d.ts\",\"a/b/c/deep.ts\",\".github/workflows/x.yml\"], DEFAULT_FIRST_TASK_LOCKS) == [] - nested coverage is not regressed.",
+    "A divergence test asserts files_outside_locks([\"package.json\",\"tsconfig.json\",\".gitignore\"], [\"path:**/*\"]) still returns all three, proving the coverage assertion discriminates.",
+    "any(locks_overlap(lock, \"path:package.json\") for lock in DEFAULT_FIRST_TASK_LOCKS) is True.",
+    "A divergence test asserts locks_overlap(\"path:**/*\", \"path:package.json\") is False.",
+    "The new tests live in tests/test_lock_matching.py and fail when DEFAULT_FIRST_TASK_LOCKS is reverted to [\"path:**/*\"]; the failure message names scripts/shiki_bootstrap.py DEFAULT_FIRST_TASK_LOCKS.",
+    "scripts/shiki_locks.py is unchanged.",
+    "python3 -m unittest discover -s tests passes.",
+    "python3 scripts/validate_shiki.py --target . passes.",
+    "Every scripts/test_shiki_*.sh passes.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260822t100310256523z-ca34e786-default-the-bootstrapped-first-task-lock-to-path",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260822T100310254979Z-b0f195ee",
+  "id": "T-20260822T100310256523Z-ca34e786",
+  "ledger_evidence": [
+    "L-20260822T100310256585Z-7962eb61"
+  ],
+  "locks": [
+    "path:scripts/shiki_bootstrap.py",
+    "path:tests/test_lock_matching.py"
+  ],
+  "non_goals": [],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "low",
+  "scope": "In scripts/shiki_bootstrap.py, introduce a module-level DEFAULT_FIRST_TASK_LOCKS = [\"path:**\"] carrying a comment that states why `path:**/*` is wrong (fnmatch requires a literal \"/\", so it matches src/env.d.ts but not package.json), and resolve both first-task lock fallbacks through it - the interactive one at line 320 and the non-interactive one at line 325. Remove the `\"path:**/*\"` literal from the file entirely.\n\nIn tests/test_lock_matching.py, add a test class that imports DEFAULT_FIRST_TASK_LOCKS from shiki_bootstrap and asserts against the real default rather than a restated literal. It must cover: repository-root files are inside the default; nested files are still inside; the everything-lock conflicts with path:package.json; and the source file no longer contains the broken literal. Pair the two behavioral assertions with divergence tests that feed ['path:**/*'] to the same helpers and assert the old failing results, so the suite proves it detects the regression instead of merely passing today.\n\nChange nothing in scripts/shiki_locks.py. The glob semantics are correct - only the default pattern was wrong - and loosening the matcher is a stated non-goal.\n\nREPRODUCIBILITY - what this task removes, and what to change to get the same result.\n  Symptom: an operator runs `shiki start` on a new project, the first slice creates package.json / tsconfig.json / .gitignore, and MergeGate blocks the PR with one \"Changed file X is outside declared task locks\" reason per root file. Observed live on mizutani-140/shiki-atlas PR #2 with six such reasons. The declared lock was intended to mean \"everything\".\n  Root cause: scripts/shiki_bootstrap.py defaults task locks to [\"path:**/*\"] in two places. Under fnmatch that pattern requires a literal \"/\", so it matches nested paths only.\n  Second, unreported face: locks_overlap('path:**/*','path:package.json') is False, so the everything-lock also failed to serialize against a root-file lock.\n  Why it was silent: no test pinned the default (test_shiki_start.sh passes an explicit lock), no doc stated it, and against directory locks the broken and correct forms behave identically.\n  Reproducible when: DEFAULT_FIRST_TASK_LOCKS is reverted to [\"path:**/*\"], which must fail the new tests.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Default the bootstrapped first task lock to path:** and bind it with a regression test"
+}
