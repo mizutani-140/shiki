@@ -27,7 +27,8 @@
   },
   "id": "G-20260822T100310254979Z-b0f195ee",
   "ledger_evidence": [
-    "L-20260822T100310255866Z-1f86a5f2"
+    "L-20260822T100310255866Z-1f86a5f2",
+    "L-20260822T105326105281Z-a6e426f5"
   ],
   "non_goals": [
     "Loosening files_outside_locks, path_matches_lock, path_lock_patterns or any other matching semantics. The glob behavior is correct; only the default pattern was wrong. Measured: path_lock_patterns already expands a trailing \"/*\" to \"/**\", but that expansion cannot rescue \"**/*\" because the resulting \"**/**\" still requires a separator.",
@@ -42,6 +43,6 @@
   ],
   "risk_level": "low",
   "source_plan": "P-20260822T100256491531Z-04bae792",
-  "status": "planned",
+  "status": "complete",
   "title": "Default the bootstrapped first task lock to path:** so it covers repository-root files"
 }
