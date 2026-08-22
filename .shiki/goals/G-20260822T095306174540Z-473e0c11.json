@@ -1,0 +1,57 @@
+{
+  "acceptance_evidence": [
+    "SADR-0020 merged on the default branch.",
+    "Contract PR for this goal approved once (SADR-0015) and merged.",
+    "Each task PR carries a CCA complete verdict and a green MergeGate.",
+    "tests/test_goal_conditions.py proves the false-positive regression.",
+    "scripts/test_shiki_goal_loop.sh proves the loop refuses a closeout on unmet conditions."
+  ],
+  "completion_conditions": [
+    "A goal completion report (.shiki/reports/R-*.json) records a per-condition verdict for every entry in the goal's completion_conditions, with status drawn from the same enum as cca-verdict.schema.json acceptance[].status.",
+    "cmd_goal_complete refuses status complete when any condition verdict is fail or insufficient_evidence.",
+    "decide_goal_action returns stop_goal_conditions, not goal_complete, when every task is done but at least one condition verdict is unmet.",
+    "A regression test proves a goal whose single task completes but whose completion_conditions are not satisfiable does NOT reach status complete.",
+    "SADR-0020 records the Hybrid judgment decision, and AGENTS.md states that \"every task is done\" is necessary but not sufficient for goal completion.",
+    "No pre-existing goal record in .shiki/goals required migration in order to land the change."
+  ],
+  "created_at": "2026-08-22T09:53:06+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "Defect confirmed: decide_goal_action (shiki_loop.py:555) decides goal_complete solely on task status, and cmd_goal_complete (shiki_tasks.py:1382) computes its blocking set from exactly two inputs (not tasks, incomplete). completion_conditions has writers and a non-empty check but no reader anywhere in the repo.",
+      "acceptance_evidence has the identical write-only gap (validate_shiki.py:1203 checks non-empty; nothing reads it). Scoped as separable T4.",
+      "Hybrid judgment (operator-selected): a condition that declares a verification is decided deterministically; a condition without one is judged by a goal-level CCA; a condition with neither resolves insufficient_evidence and blocks. Chosen over CCA-judges-everything (an LLM inside every state transition) and verification-only (migrating all 20 existing prose-only goals is a cross-task .shiki rewrite blocked by contract-immutability and state_class=mirror). Migration cost of Hybrid is zero.",
+      "Per-condition verdicts live INSIDE the completion report as a sibling of scorecard. mergegate_check.py:2248 rejects a completing closeout unless exactly one report is added, and :2204 freezes every goal field except status and ledger_evidence, so a new goal field or a separate verdict record would lose is_bookkeeping_closeout (SADR-0017) and drag every completing closeout into the Guardian gate.",
+      "Verdicts must NOT be nested inside scorecard: mergegate_check.py:2299 pins its degraded shape to exactly {goal_id, warnings}.",
+      "MergeGate already backstops the new gate: it asserts report[blocking_reasons] == [] (mergegate_check.py:2290), so a closeout carrying unmet conditions is correctly not recognised as completing even if the loop were bypassed.",
+      "Judgment must precede closeout construction. The loop calls cmd_goal_complete inside a temp worktree cut from origin/main, before the closeout PR exists, and discards its return code (shiki_loop.py:1791-1795); a goal judge therefore cannot be a required check on the closeout PR the way task CCA is on the task PR.",
+      "decide_goal_action stays pure: verdicts are resolved read-only in goal_loop_step and passed in as a parameter, matching the idiom already established for the resolved CCA verdict value.",
+      "goal.schema.json completion_conditions.items must widen to oneOf. require_list (validate_shiki.py:1141) does not type-check items, but the schema-conformance loop does, so structured conditions would otherwise fail validation.",
+      "Narrowing completion_conditions is a Spec Amendment and is operator-only; the correct outcome for tasks-done-but-conditions-unmet is a terminal stop that names the unmet conditions.",
+      "Sequencing: T1 gates on fail only. Gating on insufficient_evidence before the goal CCA exists (T3) would block goal completion for every prose-only goal repo-wide. The observed atlas false positive is only fully closed at T3.",
+      "This goal's own completion_conditions are prose, because structured conditions do not exist until T1 lands; it is judged by the same CCA leg it introduces."
+    ],
+    "source": "AGENTS.md, CLAUDE.md, SADR-0009/0012/0015/0017, scripts/shiki_loop.py, scripts/shiki_tasks.py, scripts/mergegate_check.py, scripts/validate_shiki.py, .shiki/schemas/{goal,report,cca-verdict}.schema.json",
+    "status": "complete"
+  },
+  "id": "G-20260822T095306174540Z-473e0c11",
+  "ledger_evidence": [
+    "L-20260822T095306175256Z-a2a84db4"
+  ],
+  "non_goals": [
+    "Auto-narrowing a goal's completion_conditions. Narrowing is a Spec Amendment reserved to the operator (AGENTS.md Approval Records); the loop may only stop.",
+    "Re-judging or backfilling goals already recorded as complete.",
+    "Changing task-level CCA behaviour or the task acceptance_checks contract.",
+    "Making completion_conditions machine-checkable-only; prose conditions stay first-class via the goal CCA leg."
+  ],
+  "outcome": "A Shiki Goal cannot reach status complete unless every entry in its frozen completion_conditions carries a recorded, evidence-backed verdict; \"every task is done\" becomes necessary but not sufficient.",
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260822T095259285078Z-0a6835ac",
+  "status": "planned",
+  "title": "Judge a Goal against its own completion_conditions before marking it complete"
+}

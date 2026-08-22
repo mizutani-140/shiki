@@ -1,0 +1,61 @@
+{
+  "acceptance_checks": [
+    "A goal-level CCA judge emits, for each prose condition, a verdict carrying status, evidence, and reason, conforming to the conditions schema added earlier.",
+    "The judge receives the goal, the merged PR list, and the repository at origin/main, and is dispatched through the same adapter path as the existing pre-PR reviewer.",
+    "insufficient_evidence now blocks goal completion alongside fail, in both cmd_goal_complete and the loop stop.",
+    "A goal reproducing the observed false positive \u2014 one done task, a condition requiring a page per major feature with only one page present \u2014 does NOT reach status complete, and its report records that condition as fail or insufficient_evidence with the evidence it found.",
+    "The judge never writes an approval record and never mutates goal.completion_conditions.",
+    "Every goal fixture across scripts/test_shiki_*.sh that acquires a blocking condition verdict is updated in the same change so no suite regresses.",
+    "python3 -m unittest discover -s tests passes.",
+    "python3 scripts/validate_shiki.py --target . passes.",
+    "Every scripts/test_shiki_*.sh suite passes."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260822T095306177059Z-f0b7ceba"
+  ],
+  "expected_branch": "shiki/t-20260822t095306177744z-38bafdfb-judge-prose-completion-conditions-with-a-goal-le",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260822T095306174540Z-473e0c11",
+  "id": "T-20260822T095306177744Z-38bafdfb",
+  "ledger_evidence": [
+    "L-20260822T095306177774Z-d87421bf"
+  ],
+  "locks": [
+    "path:scripts/shiki_goal_conditions.py",
+    "path:scripts/shiki_loop.py",
+    "path:scripts/shiki_runtime_adapters.py",
+    "path:scripts/shiki_tasks.py",
+    "path:tests/test_goal_conditions.py",
+    "path:tests/test_loop_engine.py",
+    "path:tests/test_runner_adapters.py",
+    "path:scripts/test_shiki_goal_loop.sh",
+    "path:scripts/test_shiki_loop_e2e.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_adversarial_state.sh",
+    "path:scripts/test_shiki_governance_evidence.sh",
+    "path:scripts/test_shiki_daemon_runner.sh",
+    "path:scripts/test_shiki_run_orchestrator.sh",
+    "path:scripts/test_shiki_start.sh",
+    "path:scripts/test_shiki_runner_claude.sh",
+    "path:scripts/test_shiki_runner_codex.sh",
+    "path:scripts/test_shiki_code_review_gate.sh",
+    "path:scripts/test_shiki_init.sh",
+    "path:scripts/test_shiki_migrations.sh"
+  ],
+  "non_goals": [
+    "Changing task-level CCA behaviour or its verdict schema.",
+    "Allowing the judge to narrow, rewrite, or reorder completion_conditions.",
+    "Allowing the judge to author any approval record."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Add a goal-level CCA judge that maps each undeclared (prose) completion condition to evidence and emits a per-condition verdict, dispatched the way the existing pre-PR reviewer is. Then flip the gate so insufficient_evidence blocks completion alongside fail, and update every goal fixture across the shell suites that acquires a blocking verdict as a result.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target . && for s in scripts/test_shiki_*.sh; do bash \"$s\" || exit 1; done",
+  "title": "Judge prose completion conditions with a goal-level CCA and gate on insufficient evidence"
+}

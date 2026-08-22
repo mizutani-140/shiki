@@ -1,0 +1,43 @@
+{
+  "acceptance_checks": [
+    "The completion report records, for each goal.acceptance_evidence entry, whether it is cited by at least one condition verdict's evidence list.",
+    "Uncited acceptance_evidence entries are named explicitly in the report.",
+    "The coverage block is a sibling of conditions and scorecard, never nested inside either.",
+    "tests/test_goal_conditions.py covers a cited entry and an uncited entry.",
+    "python3 -m unittest discover -s tests passes.",
+    "python3 scripts/validate_shiki.py --target . passes.",
+    "Every scripts/test_shiki_*.sh suite passes."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260822T095306177744Z-38bafdfb"
+  ],
+  "expected_branch": "shiki/t-20260822t095306178275z-0dc8a0b4-report-goal-acceptance-evidence-coverage-in-the-",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260822T095306174540Z-473e0c11",
+  "id": "T-20260822T095306178275Z-0dc8a0b4",
+  "ledger_evidence": [
+    "L-20260822T095306178297Z-dd7bbf7e"
+  ],
+  "locks": [
+    "path:scripts/shiki_goal_conditions.py",
+    "path:scripts/shiki_tasks.py",
+    "path:.shiki/schemas/report.schema.json",
+    "path:tests/test_goal_conditions.py",
+    "path:scripts/test_shiki_goal_loop.sh"
+  ],
+  "non_goals": [
+    "Blocking completion on uncited acceptance_evidence in this task.",
+    "Changing the completion_conditions gate established earlier."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "scope": "Close the second write-only judgment field: report, for each entry in goal.acceptance_evidence, whether it is cited by at least one condition verdict's evidence list, and record uncited entries in the completion report.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target . && for s in scripts/test_shiki_*.sh; do bash \"$s\" || exit 1; done",
+  "title": "Report goal acceptance_evidence coverage in the completion report"
+}

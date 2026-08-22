@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260822T095306177059Z-f0b7ceba.json"
+  ],
+  "goal_id": "G-20260822T095306174540Z-473e0c11",
+  "id": "L-20260822T095306177094Z-4e9cb337",
+  "links": [],
+  "summary": "Task registered from plan: Make the loop refuse a closeout for a goal whose completion conditions are unmet",
+  "task_id": "T-20260822T095306177059Z-f0b7ceba",
+  "timestamp": "2026-08-22T09:53:06+00:00",
+  "type": "task-registered"
+}

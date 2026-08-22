@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260822T095306176491Z-a152348c.json"
+  ],
+  "goal_id": "G-20260822T095306174540Z-473e0c11",
+  "id": "L-20260822T095306176514Z-ea8cd364",
+  "links": [],
+  "summary": "Task registered from plan: Record a per-condition verdict in the goal completion report and block completion on a failing condition",
+  "task_id": "T-20260822T095306176491Z-a152348c",
+  "timestamp": "2026-08-22T09:53:06+00:00",
+  "type": "task-registered"
+}

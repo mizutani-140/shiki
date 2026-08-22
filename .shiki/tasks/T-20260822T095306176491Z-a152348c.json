@@ -1,0 +1,57 @@
+{
+  "acceptance_checks": [
+    ".shiki/schemas/goal.schema.json completion_conditions.items is a oneOf accepting either a non-empty string or an object with required text and optional verification, and every pre-existing .shiki/goals/*.json still validates unchanged.",
+    ".shiki/schemas/report.schema.json declares an optional conditions array whose items require condition, status, and judged_by, with a status enum byte-identical to cca-verdict.schema.json acceptance[].status.",
+    "report[\"conditions\"] is written as a sibling of report[\"scorecard\"] and is never nested inside it.",
+    "cmd_goal_complete appends a blocking reason naming the condition for every fail verdict, and does NOT block on insufficient_evidence.",
+    "A goal whose tasks are all done but which carries a failing glob_count condition produces report status blocked, a non-empty blocking_reasons, and exit code 1.",
+    "A goal whose tasks are all done and whose conditions all pass produces report status complete and exit code 0.",
+    "A prose-only condition yields status insufficient_evidence with judged_by goal_cca and does not block at this task's gate.",
+    "tests/test_goal_conditions.py covers each verification kind plus the fail-blocks and pass-completes paths.",
+    "python3 -m unittest discover -s tests passes.",
+    "python3 scripts/validate_shiki.py --target . passes.",
+    "Every scripts/test_shiki_*.sh suite passes."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260822T095306175916Z-69dbeabb"
+  ],
+  "expected_branch": "shiki/t-20260822t095306176491z-a152348c-record-a-per-condition-verdict-in-the-goal-compl",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260822T095306174540Z-473e0c11",
+  "id": "T-20260822T095306176491Z-a152348c",
+  "ledger_evidence": [
+    "L-20260822T095306176514Z-ea8cd364"
+  ],
+  "locks": [
+    "path:scripts/shiki_goal_conditions.py",
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/validate_shiki.py",
+    "path:.shiki/schemas/goal.schema.json",
+    "path:.shiki/schemas/report.schema.json",
+    "path:tests/test_goal_conditions.py",
+    "path:tests/test_mirror_schema_validation.py",
+    "path:tests/test_memory_scorecard.py",
+    "path:tests/test_closeout.py",
+    "path:tests/test_bookkeeping_closeout.py",
+    "path:tests/test_completion_lock_scope.py",
+    "path:tests/test_paired_invariants.py",
+    "path:scripts/test_shiki_goal_loop.sh"
+  ],
+  "non_goals": [
+    "Gating on insufficient_evidence; that flip belongs to the goal CCA task.",
+    "Any change to scripts/shiki_loop.py or the loop decision engine.",
+    "Implementing the goal CCA judge.",
+    "Migrating or rewriting any existing .shiki/goals record."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Add scripts/shiki_goal_conditions.py exposing evaluate_conditions(target, goal, tasks) with verification kinds path_exists, glob_count, http, and command. Make cmd_goal_complete write report[\"conditions\"] as a sibling of scorecard and extend its blocking set with every fail verdict. Widen .shiki/schemas/goal.schema.json completion_conditions.items to oneOf[string, object], and declare the optional conditions array in .shiki/schemas/report.schema.json.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target . && for s in scripts/test_shiki_*.sh; do bash \"$s\" || exit 1; done",
+  "title": "Record a per-condition verdict in the goal completion report and block completion on a failing condition"
+}
