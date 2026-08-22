@@ -6,6 +6,6 @@
     "path:tests/test_lock_matching.py"
   ],
   "owner": "shiki-run",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260822T100310256523Z-ca34e786"
 }
