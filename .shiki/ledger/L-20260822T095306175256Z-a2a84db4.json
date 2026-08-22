@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260822T095306174540Z-473e0c11.json",
+    ".shiki/plans/P-20260822T095259285078Z-0a6835ac.json"
+  ],
+  "goal_id": "G-20260822T095306174540Z-473e0c11",
+  "id": "L-20260822T095306175256Z-a2a84db4",
+  "links": [],
+  "summary": "Goal registered from plan: Judge a Goal against its own completion_conditions before marking it complete",
+  "task_id": null,
+  "timestamp": "2026-08-22T09:53:06+00:00",
+  "type": "goal-created"
+}

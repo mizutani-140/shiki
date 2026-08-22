@@ -1,0 +1,45 @@
+{
+  "acceptance_checks": [
+    "docs/adr/SADR-0020-goal-level-completion-judgment.md exists and follows the section structure of docs/adr/template.md.",
+    "SADR-0020 records the Hybrid decision: a declared verification decides a condition deterministically; a condition without one is judged by a goal-level CCA; a condition with neither resolves insufficient_evidence and blocks.",
+    "SADR-0020 records the four binding constraints: verdicts live inside the report as a sibling of scorecard; judgment precedes closeout construction; decide_goal_action stays pure; goal.schema.json completion_conditions.items widens to oneOf.",
+    "SADR-0020 records that narrowing completion_conditions is a Spec Amendment and is operator-only, and that the loop may only stop.",
+    "AGENTS.md states that \"every task is done\" is necessary but not sufficient for goal completion, and that unmet conditions are a stop rather than an auto-narrow.",
+    "docs/agents/checklists.md gains a goal-completion checklist family covering per-condition verdicts.",
+    "python3 -m unittest discover -s tests passes, including tests/test_adr_references.py.",
+    "python3 scripts/validate_shiki.py --target . passes."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260822t095306175916z-69dbeabb-record-the-goal-level-completion-judgment-decisi",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260822T095306174540Z-473e0c11",
+  "id": "T-20260822T095306175916Z-69dbeabb",
+  "ledger_evidence": [
+    "L-20260822T095306175992Z-31948c4c"
+  ],
+  "locks": [
+    "path:docs/adr/SADR-0020-goal-level-completion-judgment.md",
+    "path:docs/adr/README.md",
+    "path:AGENTS.md",
+    "path:CLAUDE.md",
+    "path:docs/agents/completion-check-agent.md",
+    "path:docs/agents/checklists.md",
+    "path:tests/test_adr_references.py"
+  ],
+  "non_goals": [
+    "Any change under scripts/.",
+    "Any change to .shiki/schemas/.",
+    "Implementing condition evaluation."
+  ],
+  "required_skills": [
+    "grill-with-docs",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "scope": "Write docs/adr/SADR-0020-goal-level-completion-judgment.md following docs/adr/template.md, and align the goal-completion doctrine in AGENTS.md, CLAUDE.md, docs/agents/completion-check-agent.md, and docs/agents/checklists.md. Documentation and decision record only.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target .",
+  "title": "Record the goal-level completion judgment decision as SADR-0020 and align doctrine"
+}

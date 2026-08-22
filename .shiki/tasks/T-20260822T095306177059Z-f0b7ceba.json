@@ -1,0 +1,52 @@
+{
+  "acceptance_checks": [
+    "decide_goal_action accepts condition verdicts as a parameter and performs no file or network I/O, preserving its purity contract.",
+    "With every task done and at least one fail verdict, decide_goal_action returns stop_goal_conditions and never goal_complete.",
+    "The stop reason names each unmet condition verbatim as it appears in goal.completion_conditions.",
+    "stop_goal_conditions is a member of STOP_ACTIONS so goal_loop_step exits non-zero.",
+    "Positive control: with every task done and every condition passing, decide_goal_action still returns goal_complete.",
+    "The loop never writes, narrows, or reorders goal.completion_conditions on any path.",
+    "tests/test_loop_engine.py covers the stop path and the positive control.",
+    "scripts/test_shiki_goal_loop.sh proves an end-to-end goal with one done task and an unsatisfiable condition does not reach status complete, using a fixture condition that is NOT satisfiable by task completion alone.",
+    "python3 -m unittest discover -s tests passes.",
+    "python3 scripts/validate_shiki.py --target . passes.",
+    "Every scripts/test_shiki_*.sh suite passes."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260822T095306176491Z-a152348c"
+  ],
+  "expected_branch": "shiki/t-20260822t095306177059z-f0b7ceba-make-the-loop-refuse-a-closeout-for-a-goal-whose",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260822T095306174540Z-473e0c11",
+  "id": "T-20260822T095306177059Z-f0b7ceba",
+  "ledger_evidence": [
+    "L-20260822T095306177094Z-4e9cb337"
+  ],
+  "locks": [
+    "path:scripts/shiki_loop.py",
+    "path:scripts/shiki_goal_conditions.py",
+    "path:tests/test_loop_engine.py",
+    "path:tests/test_goal_conditions.py",
+    "path:tests/test_loop_verdict_gating.py",
+    "path:tests/test_lock_conflict_stop.py",
+    "path:tests/test_loop_e2e_contract.py",
+    "path:scripts/test_shiki_goal_loop.sh",
+    "path:scripts/test_shiki_loop_e2e.sh"
+  ],
+  "non_goals": [
+    "Performing any file or network I/O inside decide_goal_action.",
+    "Implementing the goal CCA judge.",
+    "Narrowing or editing any goal's completion_conditions."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Resolve condition verdicts read-only in goal_loop_step and pass them into decide_goal_action as a pure parameter. Make all-tasks-done necessary but not sufficient: when a verdict is unmet, emit stop_goal_conditions naming each unmet condition verbatim, and register stop_goal_conditions in STOP_ACTIONS so the loop exits non-zero before building a closeout.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target . && for s in scripts/test_shiki_*.sh; do bash \"$s\" || exit 1; done",
+  "title": "Make the loop refuse a closeout for a goal whose completion conditions are unmet"
+}

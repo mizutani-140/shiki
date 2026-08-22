@@ -1,0 +1,270 @@
+{
+  "acceptance_evidence": [
+    "SADR-0020 merged on the default branch.",
+    "Contract PR for this goal approved once (SADR-0015) and merged.",
+    "Each task PR carries a CCA complete verdict and a green MergeGate.",
+    "tests/test_goal_conditions.py proves the false-positive regression.",
+    "scripts/test_shiki_goal_loop.sh proves the loop refuses a closeout on unmet conditions."
+  ],
+  "completion_conditions": [
+    "A goal completion report (.shiki/reports/R-*.json) records a per-condition verdict for every entry in the goal's completion_conditions, with status drawn from the same enum as cca-verdict.schema.json acceptance[].status.",
+    "cmd_goal_complete refuses status complete when any condition verdict is fail or insufficient_evidence.",
+    "decide_goal_action returns stop_goal_conditions, not goal_complete, when every task is done but at least one condition verdict is unmet.",
+    "A regression test proves a goal whose single task completes but whose completion_conditions are not satisfiable does NOT reach status complete.",
+    "SADR-0020 records the Hybrid judgment decision, and AGENTS.md states that \"every task is done\" is necessary but not sufficient for goal completion.",
+    "No pre-existing goal record in .shiki/goals required migration in order to land the change."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "Defect confirmed: decide_goal_action (shiki_loop.py:555) decides goal_complete solely on task status, and cmd_goal_complete (shiki_tasks.py:1382) computes its blocking set from exactly two inputs (not tasks, incomplete). completion_conditions has writers and a non-empty check but no reader anywhere in the repo.",
+      "acceptance_evidence has the identical write-only gap (validate_shiki.py:1203 checks non-empty; nothing reads it). Scoped as separable T4.",
+      "Hybrid judgment (operator-selected): a condition that declares a verification is decided deterministically; a condition without one is judged by a goal-level CCA; a condition with neither resolves insufficient_evidence and blocks. Chosen over CCA-judges-everything (an LLM inside every state transition) and verification-only (migrating all 20 existing prose-only goals is a cross-task .shiki rewrite blocked by contract-immutability and state_class=mirror). Migration cost of Hybrid is zero.",
+      "Per-condition verdicts live INSIDE the completion report as a sibling of scorecard. mergegate_check.py:2248 rejects a completing closeout unless exactly one report is added, and :2204 freezes every goal field except status and ledger_evidence, so a new goal field or a separate verdict record would lose is_bookkeeping_closeout (SADR-0017) and drag every completing closeout into the Guardian gate.",
+      "Verdicts must NOT be nested inside scorecard: mergegate_check.py:2299 pins its degraded shape to exactly {goal_id, warnings}.",
+      "MergeGate already backstops the new gate: it asserts report[blocking_reasons] == [] (mergegate_check.py:2290), so a closeout carrying unmet conditions is correctly not recognised as completing even if the loop were bypassed.",
+      "Judgment must precede closeout construction. The loop calls cmd_goal_complete inside a temp worktree cut from origin/main, before the closeout PR exists, and discards its return code (shiki_loop.py:1791-1795); a goal judge therefore cannot be a required check on the closeout PR the way task CCA is on the task PR.",
+      "decide_goal_action stays pure: verdicts are resolved read-only in goal_loop_step and passed in as a parameter, matching the idiom already established for the resolved CCA verdict value.",
+      "goal.schema.json completion_conditions.items must widen to oneOf. require_list (validate_shiki.py:1141) does not type-check items, but the schema-conformance loop does, so structured conditions would otherwise fail validation.",
+      "Narrowing completion_conditions is a Spec Amendment and is operator-only; the correct outcome for tasks-done-but-conditions-unmet is a terminal stop that names the unmet conditions.",
+      "Sequencing: T1 gates on fail only. Gating on insufficient_evidence before the goal CCA exists (T3) would block goal completion for every prose-only goal repo-wide. The observed atlas false positive is only fully closed at T3.",
+      "This goal's own completion_conditions are prose, because structured conditions do not exist until T1 lands; it is judged by the same CCA leg it introduces."
+    ],
+    "source": "AGENTS.md, CLAUDE.md, SADR-0009/0012/0015/0017, scripts/shiki_loop.py, scripts/shiki_tasks.py, scripts/mergegate_check.py, scripts/validate_shiki.py, .shiki/schemas/{goal,report,cca-verdict}.schema.json",
+    "status": "complete"
+  },
+  "id": "P-20260822T095259285078Z-0a6835ac",
+  "ingested_at": "2026-08-22T09:52:59+00:00",
+  "non_goals": [
+    "Auto-narrowing a goal's completion_conditions. Narrowing is a Spec Amendment reserved to the operator (AGENTS.md Approval Records); the loop may only stop.",
+    "Re-judging or backfilling goals already recorded as complete.",
+    "Changing task-level CCA behaviour or the task acceptance_checks contract.",
+    "Making completion_conditions machine-checkable-only; prose conditions stay first-class via the goal CCA leg."
+  ],
+  "outcome": "A Shiki Goal cannot reach status complete unless every entry in its frozen completion_conditions carries a recorded, evidence-backed verdict; \"every task is done\" becomes necessary but not sufficient.",
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_file": "/private/tmp/claude-501/-Users-kio-mizutani-shiki--claude-worktrees-lucid-aryabhata-d6756a/00447fc5-9b53-4645-ae11-98d298edf7a0/scratchpad/PLAN.json",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": "docs/adr/SADR-0020-goal-level-completion-judgment.md",
+    "source": "Operator approved in session on 2026-08-22 by replying '1' to a two-item next-action list whose item 1 was 'Spec Freeze the plan as written', after being shown the full plan: goal and non-goals, the five-task DAG with per-task locks and acceptance checks, the four measured MergeGate/loop constraints, and the known hazards. Earlier in the same session the operator selected the Hybrid judgment option from a three-option decision presented as SADR-level. This record was authored by Claude Code acting as Planner to capture that operator approval; the approving authority is the operator, not the planner.",
+    "status": "frozen"
+  },
+  "status": "ingested",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "docs/adr/SADR-0020-goal-level-completion-judgment.md exists and follows the section structure of docs/adr/template.md.",
+        "SADR-0020 records the Hybrid decision: a declared verification decides a condition deterministically; a condition without one is judged by a goal-level CCA; a condition with neither resolves insufficient_evidence and blocks.",
+        "SADR-0020 records the four binding constraints: verdicts live inside the report as a sibling of scorecard; judgment precedes closeout construction; decide_goal_action stays pure; goal.schema.json completion_conditions.items widens to oneOf.",
+        "SADR-0020 records that narrowing completion_conditions is a Spec Amendment and is operator-only, and that the loop may only stop.",
+        "AGENTS.md states that \"every task is done\" is necessary but not sufficient for goal completion, and that unmet conditions are a stop rather than an auto-narrow.",
+        "docs/agents/checklists.md gains a goal-completion checklist family covering per-condition verdicts.",
+        "python3 -m unittest discover -s tests passes, including tests/test_adr_references.py.",
+        "python3 scripts/validate_shiki.py --target . passes."
+      ],
+      "dependencies": [],
+      "locks": [
+        "path:docs/adr/SADR-0020-goal-level-completion-judgment.md",
+        "path:docs/adr/README.md",
+        "path:AGENTS.md",
+        "path:CLAUDE.md",
+        "path:docs/agents/completion-check-agent.md",
+        "path:docs/agents/checklists.md",
+        "path:tests/test_adr_references.py"
+      ],
+      "non_goals": [
+        "Any change under scripts/.",
+        "Any change to .shiki/schemas/.",
+        "Implementing condition evaluation."
+      ],
+      "required_skills": [
+        "grill-with-docs",
+        "code-review"
+      ],
+      "risk_level": "medium",
+      "scope": "Write docs/adr/SADR-0020-goal-level-completion-judgment.md following docs/adr/template.md, and align the goal-completion doctrine in AGENTS.md, CLAUDE.md, docs/agents/completion-check-agent.md, and docs/agents/checklists.md. Documentation and decision record only.",
+      "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target .",
+      "title": "Record the goal-level completion judgment decision as SADR-0020 and align doctrine"
+    },
+    {
+      "acceptance_checks": [
+        ".shiki/schemas/goal.schema.json completion_conditions.items is a oneOf accepting either a non-empty string or an object with required text and optional verification, and every pre-existing .shiki/goals/*.json still validates unchanged.",
+        ".shiki/schemas/report.schema.json declares an optional conditions array whose items require condition, status, and judged_by, with a status enum byte-identical to cca-verdict.schema.json acceptance[].status.",
+        "report[\"conditions\"] is written as a sibling of report[\"scorecard\"] and is never nested inside it.",
+        "cmd_goal_complete appends a blocking reason naming the condition for every fail verdict, and does NOT block on insufficient_evidence.",
+        "A goal whose tasks are all done but which carries a failing glob_count condition produces report status blocked, a non-empty blocking_reasons, and exit code 1.",
+        "A goal whose tasks are all done and whose conditions all pass produces report status complete and exit code 0.",
+        "A prose-only condition yields status insufficient_evidence with judged_by goal_cca and does not block at this task's gate.",
+        "tests/test_goal_conditions.py covers each verification kind plus the fail-blocks and pass-completes paths.",
+        "python3 -m unittest discover -s tests passes.",
+        "python3 scripts/validate_shiki.py --target . passes.",
+        "Every scripts/test_shiki_*.sh suite passes."
+      ],
+      "dependencies": [
+        "Record the goal-level completion judgment decision as SADR-0020 and align doctrine"
+      ],
+      "locks": [
+        "path:scripts/shiki_goal_conditions.py",
+        "path:scripts/shiki_tasks.py",
+        "path:scripts/validate_shiki.py",
+        "path:.shiki/schemas/goal.schema.json",
+        "path:.shiki/schemas/report.schema.json",
+        "path:tests/test_goal_conditions.py",
+        "path:tests/test_mirror_schema_validation.py",
+        "path:tests/test_memory_scorecard.py",
+        "path:tests/test_closeout.py",
+        "path:tests/test_bookkeeping_closeout.py",
+        "path:tests/test_completion_lock_scope.py",
+        "path:tests/test_paired_invariants.py",
+        "path:scripts/test_shiki_goal_loop.sh"
+      ],
+      "non_goals": [
+        "Gating on insufficient_evidence; that flip belongs to the goal CCA task.",
+        "Any change to scripts/shiki_loop.py or the loop decision engine.",
+        "Implementing the goal CCA judge.",
+        "Migrating or rewriting any existing .shiki/goals record."
+      ],
+      "required_skills": [
+        "tdd",
+        "code-review"
+      ],
+      "risk_level": "high",
+      "scope": "Add scripts/shiki_goal_conditions.py exposing evaluate_conditions(target, goal, tasks) with verification kinds path_exists, glob_count, http, and command. Make cmd_goal_complete write report[\"conditions\"] as a sibling of scorecard and extend its blocking set with every fail verdict. Widen .shiki/schemas/goal.schema.json completion_conditions.items to oneOf[string, object], and declare the optional conditions array in .shiki/schemas/report.schema.json.",
+      "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target . && for s in scripts/test_shiki_*.sh; do bash \"$s\" || exit 1; done",
+      "title": "Record a per-condition verdict in the goal completion report and block completion on a failing condition"
+    },
+    {
+      "acceptance_checks": [
+        "decide_goal_action accepts condition verdicts as a parameter and performs no file or network I/O, preserving its purity contract.",
+        "With every task done and at least one fail verdict, decide_goal_action returns stop_goal_conditions and never goal_complete.",
+        "The stop reason names each unmet condition verbatim as it appears in goal.completion_conditions.",
+        "stop_goal_conditions is a member of STOP_ACTIONS so goal_loop_step exits non-zero.",
+        "Positive control: with every task done and every condition passing, decide_goal_action still returns goal_complete.",
+        "The loop never writes, narrows, or reorders goal.completion_conditions on any path.",
+        "tests/test_loop_engine.py covers the stop path and the positive control.",
+        "scripts/test_shiki_goal_loop.sh proves an end-to-end goal with one done task and an unsatisfiable condition does not reach status complete, using a fixture condition that is NOT satisfiable by task completion alone.",
+        "python3 -m unittest discover -s tests passes.",
+        "python3 scripts/validate_shiki.py --target . passes.",
+        "Every scripts/test_shiki_*.sh suite passes."
+      ],
+      "dependencies": [
+        "Record a per-condition verdict in the goal completion report and block completion on a failing condition"
+      ],
+      "locks": [
+        "path:scripts/shiki_loop.py",
+        "path:scripts/shiki_goal_conditions.py",
+        "path:tests/test_loop_engine.py",
+        "path:tests/test_goal_conditions.py",
+        "path:tests/test_loop_verdict_gating.py",
+        "path:tests/test_lock_conflict_stop.py",
+        "path:tests/test_loop_e2e_contract.py",
+        "path:scripts/test_shiki_goal_loop.sh",
+        "path:scripts/test_shiki_loop_e2e.sh"
+      ],
+      "non_goals": [
+        "Performing any file or network I/O inside decide_goal_action.",
+        "Implementing the goal CCA judge.",
+        "Narrowing or editing any goal's completion_conditions."
+      ],
+      "required_skills": [
+        "tdd",
+        "code-review"
+      ],
+      "risk_level": "high",
+      "scope": "Resolve condition verdicts read-only in goal_loop_step and pass them into decide_goal_action as a pure parameter. Make all-tasks-done necessary but not sufficient: when a verdict is unmet, emit stop_goal_conditions naming each unmet condition verbatim, and register stop_goal_conditions in STOP_ACTIONS so the loop exits non-zero before building a closeout.",
+      "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target . && for s in scripts/test_shiki_*.sh; do bash \"$s\" || exit 1; done",
+      "title": "Make the loop refuse a closeout for a goal whose completion conditions are unmet"
+    },
+    {
+      "acceptance_checks": [
+        "A goal-level CCA judge emits, for each prose condition, a verdict carrying status, evidence, and reason, conforming to the conditions schema added earlier.",
+        "The judge receives the goal, the merged PR list, and the repository at origin/main, and is dispatched through the same adapter path as the existing pre-PR reviewer.",
+        "insufficient_evidence now blocks goal completion alongside fail, in both cmd_goal_complete and the loop stop.",
+        "A goal reproducing the observed false positive \u2014 one done task, a condition requiring a page per major feature with only one page present \u2014 does NOT reach status complete, and its report records that condition as fail or insufficient_evidence with the evidence it found.",
+        "The judge never writes an approval record and never mutates goal.completion_conditions.",
+        "Every goal fixture across scripts/test_shiki_*.sh that acquires a blocking condition verdict is updated in the same change so no suite regresses.",
+        "python3 -m unittest discover -s tests passes.",
+        "python3 scripts/validate_shiki.py --target . passes.",
+        "Every scripts/test_shiki_*.sh suite passes."
+      ],
+      "dependencies": [
+        "Make the loop refuse a closeout for a goal whose completion conditions are unmet"
+      ],
+      "locks": [
+        "path:scripts/shiki_goal_conditions.py",
+        "path:scripts/shiki_loop.py",
+        "path:scripts/shiki_runtime_adapters.py",
+        "path:scripts/shiki_tasks.py",
+        "path:tests/test_goal_conditions.py",
+        "path:tests/test_loop_engine.py",
+        "path:tests/test_runner_adapters.py",
+        "path:scripts/test_shiki_goal_loop.sh",
+        "path:scripts/test_shiki_loop_e2e.sh",
+        "path:scripts/test_shiki_control_plane.sh",
+        "path:scripts/test_shiki_adversarial_state.sh",
+        "path:scripts/test_shiki_governance_evidence.sh",
+        "path:scripts/test_shiki_daemon_runner.sh",
+        "path:scripts/test_shiki_run_orchestrator.sh",
+        "path:scripts/test_shiki_start.sh",
+        "path:scripts/test_shiki_runner_claude.sh",
+        "path:scripts/test_shiki_runner_codex.sh",
+        "path:scripts/test_shiki_code_review_gate.sh",
+        "path:scripts/test_shiki_init.sh",
+        "path:scripts/test_shiki_migrations.sh"
+      ],
+      "non_goals": [
+        "Changing task-level CCA behaviour or its verdict schema.",
+        "Allowing the judge to narrow, rewrite, or reorder completion_conditions.",
+        "Allowing the judge to author any approval record."
+      ],
+      "required_skills": [
+        "tdd",
+        "code-review"
+      ],
+      "risk_level": "high",
+      "scope": "Add a goal-level CCA judge that maps each undeclared (prose) completion condition to evidence and emits a per-condition verdict, dispatched the way the existing pre-PR reviewer is. Then flip the gate so insufficient_evidence blocks completion alongside fail, and update every goal fixture across the shell suites that acquires a blocking verdict as a result.",
+      "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target . && for s in scripts/test_shiki_*.sh; do bash \"$s\" || exit 1; done",
+      "title": "Judge prose completion conditions with a goal-level CCA and gate on insufficient evidence"
+    },
+    {
+      "acceptance_checks": [
+        "The completion report records, for each goal.acceptance_evidence entry, whether it is cited by at least one condition verdict's evidence list.",
+        "Uncited acceptance_evidence entries are named explicitly in the report.",
+        "The coverage block is a sibling of conditions and scorecard, never nested inside either.",
+        "tests/test_goal_conditions.py covers a cited entry and an uncited entry.",
+        "python3 -m unittest discover -s tests passes.",
+        "python3 scripts/validate_shiki.py --target . passes.",
+        "Every scripts/test_shiki_*.sh suite passes."
+      ],
+      "dependencies": [
+        "Judge prose completion conditions with a goal-level CCA and gate on insufficient evidence"
+      ],
+      "locks": [
+        "path:scripts/shiki_goal_conditions.py",
+        "path:scripts/shiki_tasks.py",
+        "path:.shiki/schemas/report.schema.json",
+        "path:tests/test_goal_conditions.py",
+        "path:scripts/test_shiki_goal_loop.sh"
+      ],
+      "non_goals": [
+        "Blocking completion on uncited acceptance_evidence in this task.",
+        "Changing the completion_conditions gate established earlier."
+      ],
+      "required_skills": [
+        "tdd",
+        "code-review"
+      ],
+      "risk_level": "medium",
+      "scope": "Close the second write-only judgment field: report, for each entry in goal.acceptance_evidence, whether it is cited by at least one condition verdict's evidence list, and record uncited entries in the completion report.",
+      "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target . && for s in scripts/test_shiki_*.sh; do bash \"$s\" || exit 1; done",
+      "title": "Report goal acceptance_evidence coverage in the completion report"
+    }
+  ],
+  "title": "Judge a Goal against its own completion_conditions before marking it complete"
+}
