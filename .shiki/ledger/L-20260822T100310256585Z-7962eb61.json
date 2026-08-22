@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260822T100310256523Z-ca34e786.json"
+  ],
+  "goal_id": "G-20260822T100310254979Z-b0f195ee",
+  "id": "L-20260822T100310256585Z-7962eb61",
+  "links": [],
+  "summary": "Task registered from plan: Default the bootstrapped first task lock to path:** and bind it with a regression test",
+  "task_id": "T-20260822T100310256523Z-ca34e786",
+  "timestamp": "2026-08-22T10:03:10+00:00",
+  "type": "task-registered"
+}

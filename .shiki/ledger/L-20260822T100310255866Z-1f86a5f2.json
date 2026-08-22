@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260822T100310254979Z-b0f195ee.json",
+    ".shiki/plans/P-20260822T100256491531Z-04bae792.json"
+  ],
+  "goal_id": "G-20260822T100310254979Z-b0f195ee",
+  "id": "L-20260822T100310255866Z-1f86a5f2",
+  "links": [],
+  "summary": "Goal registered from plan: Default the bootstrapped first task lock to path:** so it covers repository-root files",
+  "task_id": null,
+  "timestamp": "2026-08-22T10:03:10+00:00",
+  "type": "goal-created"
+}
