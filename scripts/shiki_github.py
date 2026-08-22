@@ -364,7 +364,11 @@ def _auth_rejection_status(result: dict[str, Any]) -> int | None:
         return None
     if isinstance(status, str):
         status = status.strip()
-        if not status.isdigit():
+        # `isascii()` is load-bearing: `str.isdigit()` alone is True for non-ASCII
+        # digits, where `int()` either raises (²) or silently succeeds (４０１, ٤٠١).
+        # An HTTP status is ASCII, and this path must never raise — an
+        # unparseable status is INDETERMINATE, not a crash.
+        if not (status.isascii() and status.isdigit()):
             return None
         status = int(status)
     if isinstance(status, int) and status in _AUTH_REJECTION_STATUSES:

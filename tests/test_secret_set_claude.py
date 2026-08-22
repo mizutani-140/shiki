@@ -289,8 +289,11 @@ class ApiErrorStatusTests(unittest.TestCase):
 
     def test_malformed_status_falls_through_to_indeterminate(self):
         # Booleans (bool is an int subclass), non-numeric strings, and null must
-        # not be coerced into an auth verdict.
-        for status in (True, False, "unauthorized", "", None, 4.01, [401]):
+        # not be coerced into an auth verdict. The non-ASCII digits are the
+        # sharp cases: str.isdigit() is True for all three, where int() raises
+        # on "\u00b2" and silently succeeds on the fullwidth/Arabic-Indic forms.
+        # This path must never raise, and a non-ASCII status is never proof.
+        for status in (True, False, "unauthorized", "", None, 4.01, [401], "\u00b2", "\uff14\uff10\uff11", "\u0664\u0660\u0661"):
             self.assertEqual(
                 gh.PROBE_INDETERMINATE,
                 gh._classify_probe_result(
