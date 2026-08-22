@@ -110,8 +110,11 @@ enumerated. So the completeness guarantee is **behavioral, not a path list**:
 after the candidate token passes, the command runs a **negative-control probe**
 with a deliberately-invalid token in the same isolated environment. The candidate
 is trusted **only** when that invalid token comes back with a clean
-authentication rejection (e.g. `401 Invalid bearer token`) — the positive proof
-that nothing but the candidate can authenticate here. If the invalid token *also*
+authentication rejection — the positive proof that nothing but the candidate can
+authenticate here. A rejection is recognized from the probe payload's structured
+`api_error_status` (`401`/`403`) first, because the CLI's error *prose* is not a
+stable contract and has changed across releases; a wording match is only the
+fallback for CLIs that report no status. If the invalid token *also*
 authenticates, some credential independent of the candidate is in play; and if
 the negative control fails for an *indeterminate* reason (network / CLI error /
 non-JSON), the auth verdict is unknown. In both cases the probe is not proven
