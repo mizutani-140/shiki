@@ -1,0 +1,17 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/338",
+    "CCA verdict: complete (checklist CCA-01..12, PR-01..12, V, TDD)",
+    "shiki guardian status --pr 338 -> Result: APPROVED (guardian_label + guardian_comment)"
+  ],
+  "goal_id": "G-20260822T100353919056Z-551ef453",
+  "id": "L-20260822T104409233512Z-f28b0886",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/338"
+  ],
+  "summary": "MergeGate evidence: task delivered on PR #338 (https://github.com/mizutani-140/shiki/pull/338). Required checks green on the implementation head: 'Validate Shiki mirror' SUCCESS (full suite 1178 tests OK, 34 scripts/test_shiki_*.sh suites PASS, validate_shiki passed), 'MergeGate metadata check' SUCCESS, 'Claude review' SUCCESS. CCA verdict complete with all 11 acceptance criteria pass. Guardian approval (risk high) granted by mizutani-140 via guardian_label + guardian_comment. This entry exists to satisfy the MergeGate requirement that task ledger evidence reference its PR; it necessarily advances the head, so Guardian approval must be re-granted against the new head SHA.",
+  "task_id": "T-20260822T100424402655Z-f2564d9e",
+  "timestamp": "2026-08-22T10:44:09+00:00",
+  "type": "mergegate"
+}
