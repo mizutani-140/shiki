@@ -15,12 +15,13 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "claude/cranky-boyd-541102",
-  "expected_pr": null,
+  "expected_pr": 338,
   "github_issue": null,
   "goal_id": "G-20260822T100353919056Z-551ef453",
   "id": "T-20260822T100424402655Z-f2564d9e",
   "ledger_evidence": [
-    "L-20260822T100424402833Z-ba9b661b"
+    "L-20260822T100424402833Z-ba9b661b",
+    "L-20260822T100659773646Z-0a9fbf3e"
   ],
   "locks": [
     "path:scripts/shiki_github.py",
@@ -43,7 +44,7 @@
   ],
   "risk_level": "high",
   "scope": "Repair the negative-control probe classifier in scripts/shiki_github.py so `shiki secret set-claude` works against the current Claude CLI.\n\nROOT CAUSE, MEASURED 2026-08-20. `_classify_probe_result` decided PROBE_AUTH_REJECTED solely by regex-matching the CLI's prose against `_AUTH_REJECTION_MARKERS`, whose first entry is commented \"the negative control's real signature\" and was seeded from `401 Invalid bearer token`. The current CLI returns `Failed to authenticate. API Error: 401 OAuth access token is invalid.`. The list carries \"invalid token\"; the actual phrase is \"access token is invalid\" \u2014 the same words reversed \u2014 so `_AUTH_REJECTION_RE.search(...)` returns None and the payload falls through to PROBE_INDETERMINATE. `verify_claude_oauth_token` requires the negative control to be PROBE_AUTH_REJECTED, so it returned \"could not prove token-exclusive verification\" for EVERY candidate token, valid or not, and `cmd_secret_set_claude` refused to set the secret.\n\nFIX. The probe payload already carries a structured field the classifier ignored: `api_error_status`. Add `_AUTH_REJECTION_STATUSES = frozenset({401, 403})` and `_auth_rejection_status(result)`, which accepts the int or digit-string form and returns None for absent / boolean / non-numeric / non-auth statuses. Consult it in `_classify_probe_result` BEFORE the success branch, so a payload carrying an auth status is never PROBE_AUTHENTICATED whatever `is_error`, `subtype` or `total_cost_usd` claim \u2014 the CLI reports `subtype: \"success\"` even on this failure, so neither field is load-bearing. Keep the wordlist as the fallback for CLIs that report no status and add \"token is invalid\" for the reversed word order.\n\nDELIBERATE OMISSION, stated so it is not \"helpfully\" re-added. Do NOT add \"oauth access token\" as a marker. It is a topic noun, not a rejection predicate: a non-auth failure such as \"Connection error while refreshing OAuth access token\" would then read as a clean rejection, and the negative control would certify a token-exclusivity it never proved. That WEAKENS the fail-closed posture this module exists to hold. \"access token is invalid\" is already covered by \"token is invalid\", and `api_error_status` covers the rest. A test pins that string as INDETERMINATE.\n\nFAIL-CLOSED IS UNCHANGED. A genuinely indeterminate probe \u2014 network error, CLI crash, non-JSON, rate limit, 5xx \u2014 must still classify as PROBE_INDETERMINATE and still refuse to set the secret.\n\nDOCS. docs/agents/runtime-auth-model.md states the negative control's expected rejection as \"(e.g. `401 Invalid bearer token`)\". That example encodes the very assumption that broke; de-pin it and state the structured-status-first rule.",
-  "status": "planned",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py && for s in scripts/test_shiki_*.sh; do bash \"$s\" || exit 1; done",
   "title": "Classify probe auth rejections from api_error_status, not CLI prose"
 }

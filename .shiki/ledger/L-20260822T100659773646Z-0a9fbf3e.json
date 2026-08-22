@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260822T100424402655Z-f2564d9e.json"
+  ],
+  "goal_id": "G-20260822T100353919056Z-551ef453",
+  "id": "L-20260822T100659773646Z-0a9fbf3e",
+  "links": [],
+  "summary": "Task T-20260822T100424402655Z-f2564d9e status changed to review",
+  "task_id": "T-20260822T100424402655Z-f2564d9e",
+  "timestamp": "2026-08-22T10:06:59+00:00",
+  "type": "check"
+}
