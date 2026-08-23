@@ -16,26 +16,39 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260822t100310256523z-ca34e786-default-the-bootstrapped-first-task-lock-to-path",
-  "expected_pr": null,
+  "expected_branch": "shiki/t-20260822t100310256523z-ca34e786-closeout",
+  "expected_pr": 342,
   "github_issue": null,
   "goal_id": "G-20260822T100310254979Z-b0f195ee",
   "id": "T-20260822T100310256523Z-ca34e786",
   "ledger_evidence": [
-    "L-20260822T100310256585Z-7962eb61"
+    "L-20260822T100310256585Z-7962eb61",
+    "L-20260822T102026800683Z-27a351f2",
+    "L-20260822T102026801855Z-db2067b8",
+    "L-20260822T103241366037Z-990e9b93",
+    "L-20260822T103410464410Z-c8e06987",
+    "L-20260822T103618896899Z-cd182d62",
+    "L-20260822T103622774160Z-1a786db9",
+    "L-20260822T105326105281Z-a6e426f5",
+    "L-20260822T105329438774Z-0d35f18f"
   ],
   "locks": [
     "path:scripts/shiki_bootstrap.py",
     "path:tests/test_lock_matching.py"
   ],
   "non_goals": [],
+  "pre_pr_code_review": {
+    "findings": [],
+    "ledger_id": "L-20260822T103410464410Z-c8e06987",
+    "verdict": "clean"
+  },
   "required_skills": [
     "tdd",
     "code-review"
   ],
   "risk_level": "low",
   "scope": "In scripts/shiki_bootstrap.py, introduce a module-level DEFAULT_FIRST_TASK_LOCKS = [\"path:**\"] carrying a comment that states why `path:**/*` is wrong (fnmatch requires a literal \"/\", so it matches src/env.d.ts but not package.json), and resolve both first-task lock fallbacks through it - the interactive one at line 320 and the non-interactive one at line 325. Remove the `\"path:**/*\"` literal from the file entirely.\n\nIn tests/test_lock_matching.py, add a test class that imports DEFAULT_FIRST_TASK_LOCKS from shiki_bootstrap and asserts against the real default rather than a restated literal. It must cover: repository-root files are inside the default; nested files are still inside; the everything-lock conflicts with path:package.json; and the source file no longer contains the broken literal. Pair the two behavioral assertions with divergence tests that feed ['path:**/*'] to the same helpers and assert the old failing results, so the suite proves it detects the regression instead of merely passing today.\n\nChange nothing in scripts/shiki_locks.py. The glob semantics are correct - only the default pattern was wrong - and loosening the matcher is a stated non-goal.\n\nREPRODUCIBILITY - what this task removes, and what to change to get the same result.\n  Symptom: an operator runs `shiki start` on a new project, the first slice creates package.json / tsconfig.json / .gitignore, and MergeGate blocks the PR with one \"Changed file X is outside declared task locks\" reason per root file. Observed live on mizutani-140/shiki-atlas PR #2 with six such reasons. The declared lock was intended to mean \"everything\".\n  Root cause: scripts/shiki_bootstrap.py defaults task locks to [\"path:**/*\"] in two places. Under fnmatch that pattern requires a literal \"/\", so it matches nested paths only.\n  Second, unreported face: locks_overlap('path:**/*','path:package.json') is False, so the everything-lock also failed to serialize against a root-file lock.\n  Why it was silent: no test pinned the default (test_shiki_start.sh passes an explicit lock), no doc stated it, and against directory locks the broken and correct forms behave identically.\n  Reproducible when: DEFAULT_FIRST_TASK_LOCKS is reverted to [\"path:**/*\"], which must fail the new tests.",
-  "status": "planned",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Default the bootstrapped first task lock to path:** and bind it with a regression test"
 }

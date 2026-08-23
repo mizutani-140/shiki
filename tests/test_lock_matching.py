@@ -13,6 +13,8 @@ from pathlib import Path
 
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
+import shiki_bootstrap
+from shiki_bootstrap import DEFAULT_FIRST_TASK_LOCKS
 from shiki_locks import (
     active_lock_conflicts,
     files_outside_locks,
@@ -112,6 +114,75 @@ class ActiveLockConflictTests(unittest.TestCase):
     def test_missing_locks_dir_returns_empty(self) -> None:
         tmp = Path(tempfile.mkdtemp())
         self.assertEqual(active_lock_conflicts(tmp, "T-mine", ["path:tests/**"]), [])
+
+
+_BOOTSTRAP_SYMBOL = "scripts/shiki_bootstrap.py DEFAULT_FIRST_TASK_LOCKS"
+
+
+class DefaultFirstTaskLocksTests(unittest.TestCase):
+    """Pin the bootstrap first-task lock default against the real helpers.
+
+    Regression guard for mizutani-140/shiki-atlas PR #2: the bootstrapped
+    first slice created repo-root files (package.json, tsconfig.json,
+    .gitignore) and MergeGate rejected each one, because the default lock was
+    "path:" + "**/*" — a pattern fnmatch only matches when the path already
+    contains a literal "/". Each behavioral assertion is paired with a
+    divergence assertion that feeds the broken form to the same helper and pins
+    the old failing result, so the suite proves it discriminates the regression
+    rather than merely passing today. Reverting DEFAULT_FIRST_TASK_LOCKS to the
+    broken form fails the behavioral assertions, whose messages name the source.
+    """
+
+    def test_default_is_everything_lock(self) -> None:
+        self.assertEqual(
+            DEFAULT_FIRST_TASK_LOCKS,
+            ["path:**"],
+            msg=f"{_BOOTSTRAP_SYMBOL} must equal ['path:**']",
+        )
+
+    def test_root_files_inside_default(self) -> None:
+        root = ["package.json", "tsconfig.json", ".gitignore"]
+        self.assertEqual(
+            files_outside_locks(root, DEFAULT_FIRST_TASK_LOCKS),
+            [],
+            msg=f"{_BOOTSTRAP_SYMBOL} must cover repo-root files",
+        )
+
+    def test_root_files_diverge_under_broken_default(self) -> None:
+        # Discriminator: the broken form leaves every root file outside locks,
+        # so the coverage assertion above is a real check, not a tautology.
+        root = ["package.json", "tsconfig.json", ".gitignore"]
+        self.assertEqual(files_outside_locks(root, ["path:**/*"]), root)
+
+    def test_nested_files_inside_default(self) -> None:
+        nested = ["src/env.d.ts", "a/b/c/deep.ts", ".github/workflows/x.yml"]
+        self.assertEqual(
+            files_outside_locks(nested, DEFAULT_FIRST_TASK_LOCKS),
+            [],
+            msg=f"{_BOOTSTRAP_SYMBOL} must not regress nested-path coverage",
+        )
+
+    def test_default_overlaps_root_file_lock(self) -> None:
+        self.assertTrue(
+            any(
+                locks_overlap(lock, "path:package.json")
+                for lock in DEFAULT_FIRST_TASK_LOCKS
+            ),
+            msg=f"{_BOOTSTRAP_SYMBOL} must serialize against path:package.json",
+        )
+
+    def test_overlap_diverges_under_broken_default(self) -> None:
+        # Discriminator: the broken form does not serialize against a root file,
+        # so the overlap assertion above is a real check, not a tautology.
+        self.assertFalse(locks_overlap("path:**/*", "path:package.json"))
+
+    def test_source_has_no_broken_literal(self) -> None:
+        source = Path(shiki_bootstrap.__file__).read_text(encoding="utf-8")
+        self.assertNotIn(
+            "path:**/*",
+            source,
+            msg=f"{_BOOTSTRAP_SYMBOL} must not reintroduce the broken literal",
+        )
 
 
 if __name__ == "__main__":
