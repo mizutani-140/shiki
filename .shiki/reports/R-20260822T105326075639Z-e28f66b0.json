@@ -1,0 +1,51 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-08-22T10:53:26+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260822T100310256523Z-ca34e786.json"
+  ],
+  "goal_id": "G-20260822T100310254979Z-b0f195ee",
+  "id": "R-20260822T105326075639Z-e28f66b0",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "low"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 1992000,
+    "generated_at": "2026-08-22T10:53:26+00:00",
+    "goal_id": "G-20260822T100310254979Z-b0f195ee",
+    "lock_amendments": {
+      "total": 1
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 0
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard"
+    ],
+    "window": {
+      "from": "2026-08-22T10:03:10+00:00",
+      "to": "2026-08-22T10:36:22+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "Autonomous loop closeout: push goal completion to main (SADR-0012)."
+}

@@ -32,6 +32,14 @@ START_QUESTIONS = [
     "First task locks",
 ]
 
+# First-task lock fallback for `shiki start`. Must be "path:**": under fnmatch a
+# "*" matches "/", so "**" covers every path, root or nested. The "**/*" form is
+# WRONG — fnmatch requires a literal "/" in the candidate, so it matches nested
+# paths like src/env.d.ts but never a repo-root file like package.json, and
+# MergeGate then rejects every root file the bootstrapped first slice creates.
+DEFAULT_FIRST_TASK_LOCKS = ["path:**"]
+
+
 def execution_confirmed(args: argparse.Namespace) -> bool:
     return bool(getattr(args, "execute", False) or getattr(args, "i_understand", False))
 
@@ -317,12 +325,12 @@ def load_start_answers(args: argparse.Namespace) -> dict[str, Any]:
             task_title = prompt_default("First vertical-slice task title", args.task_title or f"Implement first vertical slice for {goal}")
             task_scope = prompt_default("First task scope", args.task_scope or f"Create the smallest end-to-end implementation path for {outcome}")
             acceptance_checks = prompt_list("First task acceptance checks", args.acceptance_check) or [f"User can verify: {outcome}"]
-            locks = prompt_list("First task locks", args.lock) or ["path:**/*"]
+            locks = prompt_list("First task locks", args.lock) or list(DEFAULT_FIRST_TASK_LOCKS)
         else:
             task_title = args.task_title or f"Implement first vertical slice for {goal}"
             task_scope = args.task_scope or f"Create the smallest end-to-end implementation path for {outcome}"
             acceptance_checks = args.acceptance_check or [f"User can verify: {outcome}"]
-            locks = args.lock or ["path:**/*"]
+            locks = args.lock or list(DEFAULT_FIRST_TASK_LOCKS)
         tasks = [
             {
                 "title": task_title,
