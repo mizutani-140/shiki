@@ -17,7 +17,7 @@
   "assigned_runtime": "codex",
   "dependencies": [],
   "expected_branch": "shiki/t-20260817t063758155247z-0b11207b-closeout",
-  "expected_pr": 335,
+  "expected_pr": 343,
   "github_issue": null,
   "goal_id": "G-20260817T063758153709Z-0302813a",
   "id": "T-20260817T063758155247Z-0b11207b",
@@ -28,7 +28,8 @@
     "L-20260817T104658980831Z-6e4a2524",
     "L-20260817T105432313998Z-27ff08df",
     "L-20260817T105437048983Z-8a2904db",
-    "L-20260823T102538649939Z-a1b4e282"
+    "L-20260823T102538649939Z-a1b4e282",
+    "L-20260823T102542797707Z-f9933096"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
