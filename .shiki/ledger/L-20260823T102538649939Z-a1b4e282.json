@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260823T102538629981Z-d6b7e6b3.json"
+  ],
+  "goal_id": "G-20260817T063758153709Z-0302813a",
+  "id": "L-20260823T102538649939Z-a1b4e282",
+  "links": [],
+  "summary": "Autonomous loop closeout: push goal completion to main (SADR-0012).",
+  "task_id": null,
+  "timestamp": "2026-08-23T10:25:38+00:00",
+  "type": "completion"
+}

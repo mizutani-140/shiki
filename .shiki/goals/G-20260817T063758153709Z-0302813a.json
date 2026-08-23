@@ -34,7 +34,8 @@
   },
   "id": "G-20260817T063758153709Z-0302813a",
   "ledger_evidence": [
-    "L-20260817T063758154615Z-5322dcab"
+    "L-20260817T063758154615Z-5322dcab",
+    "L-20260823T102538649939Z-a1b4e282"
   ],
   "non_goals": [
     "The lockless-closeout relaxation \u2014 main keeps `if not task_changed or not lock_released:` verbatim, and neither `lockless` nor `lock_terminal` may appear in the result.",
@@ -55,6 +56,6 @@
   ],
   "risk_level": "high",
   "source_plan": "P-20260817T063752520648Z-230f8707",
-  "status": "planned",
+  "status": "complete",
   "title": "Close the fork-PR hole in the Guardian exemption, and pin the base a gate judges against"
 }
