@@ -20,7 +20,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260822t102714799429z-c43ccdcf-make-github-code-owner-review-enforcement-opt-in",
-  "expected_pr": null,
+  "expected_pr": 347,
   "github_issue": null,
   "goal_id": "G-20260822T102714798265Z-66a9cfa2",
   "id": "T-20260822T102714799429Z-c43ccdcf",
@@ -62,7 +62,7 @@
   ],
   "risk_level": "critical",
   "scope": "Add defaults.required_code_owner_review to Shiki config and drive protect_branch's require_code_owner_reviews from it instead of from review_count; name the key as governance-critical in the installer; teach doctor the fail/warn matrix; and record the decision in SADR-0021 with the governance docs corrected.",
-  "status": "ready",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Make GitHub code-owner review enforcement opt-in"
 }
