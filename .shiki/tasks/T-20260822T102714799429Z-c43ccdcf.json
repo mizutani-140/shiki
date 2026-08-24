@@ -1,0 +1,58 @@
+{
+  "acceptance_checks": [
+    "protect_branch emits require_code_owner_reviews: false when the target config omits defaults.required_code_owner_review.",
+    "protect_branch emits require_code_owner_reviews: true only when defaults.required_review and defaults.required_code_owner_review are both true.",
+    "protect_branch emits require_code_owner_reviews: false when defaults.required_review is false, even if defaults.required_code_owner_review is true.",
+    "required_approving_review_count is unchanged in every case: 1 when required_review is true, 0 when it is false.",
+    "configured_required_code_owner_review returns False for an absent key, honors an explicit true, and returns False whenever configured_required_review is False (tests/test_config_loading.py).",
+    "tests/test_branch_protection_payload.py no longer asserts require_code_owner_reviews is true at review_count=1, and its cases pass the code-owner value explicitly.",
+    "The shipped .shiki/config.yaml contains required_code_owner_review: false under defaults.",
+    "GOVERNANCE_CRITICAL_KEYS['.shiki/config.yaml'] contains 'defaults.required_code_owner_review'.",
+    "doctor.github.branch_protection is fail when config requires code-owner review and live protection lacks it.",
+    "doctor.github.branch_protection is warn when live protection requires code-owner review and config does not, and its remediation text names the PR-author deadlock.",
+    "doctor.github.branch_protection is pass when the configured and live values agree in either direction.",
+    "A MergeGate PR snapshot whose sole APPROVED review is the GitHub Actions bot, authored by the repo owner, passes enforce_review_policy; the existing 'Required review is missing' case in scripts/test_shiki_control_plane.sh still fails as before.",
+    "docs/agents/decision-control.md no longer asserts that branch protection must require code owner reviews, and states that multi-maintainer adopters opt in.",
+    "docs/agents/bootstrap-command.md and docs/agents/shiki-doctor.md describe the opt-in setting rather than unconditional enforcement.",
+    "docs/adr/SADR-0021-code-owner-review-enforcement-is-opt-in.md exists and records the decision, the SADR-0013 tension, and the multi-maintainer trade-off.",
+    "python3 scripts/validate_shiki.py passes; python3 -m unittest discover tests passes; scripts/test_shiki_init.sh, scripts/test_shiki_control_plane.sh and scripts/test_shiki_doctor.sh pass."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260822t102714799429z-c43ccdcf-make-github-code-owner-review-enforcement-opt-in",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260822T102714798265Z-66a9cfa2",
+  "id": "T-20260822T102714799429Z-c43ccdcf",
+  "ledger_evidence": [
+    "L-20260822T102714799494Z-aa09d6f7"
+  ],
+  "locks": [
+    "path:scripts/shiki_config.py",
+    "path:scripts/shiki_github.py",
+    "path:scripts/shiki_bootstrap.py",
+    "path:scripts/shiki_doctor.py",
+    "path:scripts/shiki_installer.py",
+    "path:.shiki/config.yaml",
+    "path:scripts/test_shiki_init.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_doctor.sh",
+    "path:tests/test_branch_protection_payload.py",
+    "path:tests/test_config_loading.py",
+    "path:docs/agents/decision-control.md",
+    "path:docs/agents/bootstrap-command.md",
+    "path:docs/agents/shiki-doctor.md",
+    "path:docs/adr/SADR-0021-code-owner-review-enforcement-is-opt-in.md",
+    "path:CONTEXT.md"
+  ],
+  "non_goals": [],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "scope": "Add defaults.required_code_owner_review to Shiki config and drive protect_branch's require_code_owner_reviews from it instead of from review_count; name the key as governance-critical in the installer; teach doctor the fail/warn matrix; and record the decision in SADR-0021 with the governance docs corrected.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Make GitHub code-owner review enforcement opt-in"
+}
