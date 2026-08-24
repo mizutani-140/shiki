@@ -1,0 +1,51 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-08-24T01:40:59+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260824T011706104923Z-2beb4bd7.json"
+  ],
+  "goal_id": "G-20260824T011654000514Z-d57197b5",
+  "id": "R-20260824T014059847364Z-dfe41848",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "low"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 1439000,
+    "generated_at": "2026-08-24T01:40:59+00:00",
+    "goal_id": "G-20260824T011654000514Z-d57197b5",
+    "lock_amendments": {
+      "total": 2
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 0
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard"
+    ],
+    "window": {
+      "from": "2026-08-24T01:16:54+00:00",
+      "to": "2026-08-24T01:40:53+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "MergeGate discloses the base-sync carry outcome. A proven carry names the head it came from; a refused carry's evaluator reason goes to blocking_reasons when the gate blocks, so shiki_loop._resolve_blocking_reasons carries it into the repair packet. Implemented in PR #345 (merge commit 5188ef5), CCA verdict complete with all five acceptance criteria passing."
+}
