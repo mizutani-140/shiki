@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "scripts/shiki_github.py:_classify_probe_result",
+    "EXEC python3 -c \"from shiki_github import _classify_probe_result\" -> ('indeterminate', ...)"
+  ],
+  "goal_id": "G-20260822T100353919056Z-551ef453",
+  "id": "L-20260822T101656171279Z-4d1766b7",
+  "links": [],
+  "summary": "skill diagnose (EXEC): reproduced the defect before editing. _AUTH_REJECTION_RE.search() on the current Claude CLI message 'Failed to authenticate. API Error: 401 OAuth access token is invalid.' returned None, and _classify_probe_result on the verbatim payload returned ('indeterminate', 'Failed to authenticate. API Error: 401 OAuth access token is invalid.'). Root cause: the marker list carries 'invalid token' while the CLI says 'access token is invalid' (reversed word order), so the negative control could never reach PROBE_AUTH_REJECTED and verify_claude_oauth_token refused every candidate token.",
+  "task_id": "T-20260822T100424402655Z-f2564d9e",
+  "timestamp": "2026-08-22T10:16:56+00:00",
+  "type": "check"
+}

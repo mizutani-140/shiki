@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "scripts/shiki_github.py:367 isascii() guard",
+    "tests/test_secret_set_claude.py::ApiErrorStatusTests::test_malformed_status_falls_through_to_indeterminate",
+    "EXEC python3 -m unittest discover -s tests -p test_secret_set_claude.py -> Ran 57 tests ... OK"
+  ],
+  "goal_id": "G-20260822T100353919056Z-551ef453",
+  "id": "L-20260822T101656172566Z-a57c2e09",
+  "links": [],
+  "summary": "skill code-review (EXEC, pre-PR gate, IMPLEMENTER-RUN): reviewed the full diff at high effort. 1 finding, CONFIRMED and fixed in this branch: scripts/shiki_github.py _auth_rejection_status guarded the string form with str.isdigit(), which is True for non-ASCII digits -- api_error_status '\u00b2' passed the guard and int() raised ValueError, crashing shiki secret set-claude with an unhandled traceback instead of classifying INDETERMINATE, while '\uff14\uff10\uff11' and '\u0664\u0660\u0661' were silently honoured as a real HTTP 401. Fixed by requiring status.isascii() and status.isdigit(); regression cases added. NOTE: this is the Skill Gate code-review the implementer owes before opening a PR, NOT the SADR-0011 independent read-only reviewer dispatched by the loop, which has not run.",
+  "task_id": "T-20260822T100424402655Z-f2564d9e",
+  "timestamp": "2026-08-22T10:16:56+00:00",
+  "type": "review"
+}

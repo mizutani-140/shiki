@@ -310,17 +310,22 @@ PROBE_AUTHENTICATED = "authenticated"
 PROBE_AUTH_REJECTED = "auth_rejected"
 PROBE_INDETERMINATE = "indeterminate"
 
-# Substrings (lowercased) that mark a genuine authentication rejection. Network /
-# overload / rate-limit / generic CLI errors are deliberately absent so they fall
-# through to INDETERMINATE.
+# Substrings (lowercased) that mark a genuine authentication rejection. This is
+# the FALLBACK path for CLIs that report no ``api_error_status`` (see
+# ``_auth_rejection_status``): the CLI's prose is not a stable contract, so
+# matching it is best-effort. Network / overload / rate-limit / generic CLI
+# errors are deliberately absent so they fall through to INDETERMINATE, as are
+# bare nouns like "oauth access token" that a NON-auth failure could also
+# mention — a marker must be a rejection PREDICATE, never a topic.
 _AUTH_REJECTION_MARKERS = (
-    "invalid bearer",  # "401 Invalid bearer token" — the negative control's real signature
+    "invalid bearer",  # "401 Invalid bearer token" — wording of the pre-2026 CLI
     "invalid_bearer",
     "invalid x-api-key",
     "invalid api key",
     "invalid_api_key",
     "invalid token",
     "invalid_token",
+    "token is invalid",  # current CLI: "401 OAuth access token is invalid."
     "authentication_error",  # Anthropic's structured auth-error TYPE (distinct from "authentication service ...")
     "unauthorized",
     "not logged in",
@@ -338,6 +343,39 @@ _AUTH_REJECTION_RE = re.compile(
 )
 
 
+# HTTP statuses that prove the auth layer adjudicated — and refused — the
+# credential. Taken from the probe payload's structured ``api_error_status``,
+# which, unlike the human-readable ``result`` prose, is not CLI wording that
+# drifts between releases. Rate-limit / overload / server statuses are absent so
+# they stay INDETERMINATE.
+_AUTH_REJECTION_STATUSES = frozenset({401, 403})
+
+
+def _auth_rejection_status(result: dict[str, Any]) -> int | None:
+    """Return ``api_error_status`` when it proves an authentication rejection.
+
+    Accepts the int or digit-string form. Anything else — absent, boolean,
+    non-numeric, or a non-auth status such as ``429``/``500`` — returns ``None``
+    so the caller falls through to the wording fallback and then to
+    INDETERMINATE, preserving the fail-closed posture.
+    """
+    status = result.get("api_error_status")
+    if isinstance(status, bool):
+        return None
+    if isinstance(status, str):
+        status = status.strip()
+        # `isascii()` is load-bearing: `str.isdigit()` alone is True for non-ASCII
+        # digits, where `int()` either raises (²) or silently succeeds (４０１, ٤٠١).
+        # An HTTP status is ASCII, and this path must never raise — an
+        # unparseable status is INDETERMINATE, not a crash.
+        if not (status.isascii() and status.isdigit()):
+            return None
+        status = int(status)
+    if isinstance(status, int) and status in _AUTH_REJECTION_STATUSES:
+        return status
+    return None
+
+
 def _classify_probe_result(result: Any) -> tuple[str, str]:
     """Classify a ``claude -p --output-format json`` probe result.
 
@@ -346,8 +384,10 @@ def _classify_probe_result(result: Any) -> tuple[str, str]:
     - ``PROBE_AUTHENTICATED``: ``is_error=false`` with a billable response
       (``total_cost_usd > 0``).
     - ``PROBE_AUTH_REJECTED``: a genuine authentication rejection (e.g. ``401
-      Invalid bearer token`` / unauthorized / not logged in) — the only positive
-      proof the token was adjudicated by the auth layer.
+      OAuth access token is invalid`` / unauthorized / not logged in) — the only
+      positive proof the token was adjudicated by the auth layer. Proven by the
+      structured ``api_error_status`` where the CLI reports one, and only
+      otherwise by the ``_AUTH_REJECTION_MARKERS`` wording fallback.
     - ``PROBE_INDETERMINATE``: anything else (non-dict, network/overload/rate-limit,
       CLI error). The auth verdict is unknown, so callers must fail closed rather
       than infer token-exclusivity from a non-auth failure.
@@ -355,6 +395,13 @@ def _classify_probe_result(result: Any) -> tuple[str, str]:
     if not isinstance(result, dict):
         return PROBE_INDETERMINATE, "probe returned no structured result"
     detail = _redact_token(str(result.get("result") or "").strip())
+    status = _auth_rejection_status(result)
+    if status is not None:
+        # Checked BEFORE the success branch: a payload carrying an auth status is
+        # never an authenticated probe, whatever ``is_error``/``subtype`` claim.
+        # The CLI reports ``subtype: "success"`` even on this failure, so neither
+        # field is load-bearing here.
+        return PROBE_AUTH_REJECTED, detail or f"authentication rejected (HTTP {status})"
     cost = result.get("total_cost_usd")
     if not result.get("is_error") and isinstance(cost, (int, float)) and not isinstance(cost, bool) and cost > 0:
         return PROBE_AUTHENTICATED, detail or "authenticated"
