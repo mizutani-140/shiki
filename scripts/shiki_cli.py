@@ -355,6 +355,7 @@ def build_parser() -> argparse.ArgumentParser:
     issue_plan.add_argument("--runtime", default="claude-code", choices=["codex", "claude-code", "github-actions", "hermes-runner", "human", "other"])
     issue_plan.add_argument("--risk-level", default="low", choices=["low", "medium", "high", "critical"])
     issue_plan.add_argument("--required-skill", action="append", default=[])
+    issue_plan.add_argument("--cca-checklist-profile", action="append", default=[], help="CCA checklist id the PR's structured verdict must resolve to a terminal status; repeatable")
     issue_plan.add_argument("--acceptance-check", action="append", required=True)
     issue_plan.add_argument("--expected-branch")
     issue_plan.add_argument("--expected-pr", type=int)
