@@ -311,6 +311,25 @@ def register_goal_from_plan(target: Path, plan: dict[str, Any], *, github_issue:
     return goal_id, ledger_id
 
 
+def dispatch_mode_for_runtime(runtime: str | None) -> str:
+    """AFK/HITL classification derived from a task's ``assigned_runtime``.
+
+    This is checklist item ISS-05's fallback (docs/agents/checklists.md) as
+    executable code, and the default every registration path writes. ``human`` is
+    the runtime registry's manual HITL approval/review surface — the one runtime
+    whose execution IS a human decision; every other runtime executes without a
+    human in the loop, with Claude Code the default AFK implementer (SADR-0008).
+
+    Total on purpose. ``dispatch_mode`` is optional in ``task.schema.json``, so
+    ISS-05 must stay judgeable for a record that carries no value and for one
+    whose runtime is unset or unrecognised — an unclassifiable record is exactly
+    what made ISS-05 unsatisfiable and the CCA verdict intermittent. Unknown
+    resolves to ``afk`` rather than raising: a runtime the registry does not
+    define is caught by ``validate_task_runtime_assignment``, not here.
+    """
+    return "hitl" if runtime == "human" else "afk"
+
+
 def register_task_from_plan(
     target: Path,
     *,
@@ -339,7 +358,18 @@ def register_task_from_plan(
         "locks": task_plan.get("locks") or [],
         "assigned_runtime": task_plan.get("runtime", "claude-code"),
         "risk_level": task_plan.get("risk_level", "low"),
+        # ISS-05's explicit AFK/HITL surface. The plan may state it outright — an
+        # automated runtime can still be HITL when a human decision gates the
+        # slice — otherwise it is derived from the runtime (SADR-0008).
+        "dispatch_mode": task_plan.get("dispatch_mode")
+        or dispatch_mode_for_runtime(task_plan.get("runtime", "claude-code")),
         "required_skills": task_plan.get("required_skills") or ["tdd", "code-review"],
+        # ISS-11's surface, and the ids MergeGate forces the CCA verdict to judge
+        # to a terminal status (checklist_profile_coverage_failures). Dropping the
+        # plan's declaration here made that gate a no-op, because absent and `[]`
+        # are treated identically. Default `[]`, never a bare family name: a
+        # family name matches no verdict item id and so enforces nothing.
+        "cca_checklist_profile": task_plan.get("cca_checklist_profile") or [],
         "acceptance_checks": task_plan["acceptance_checks"],
         # The loop-observed TDD gate (SADR-0011) exec's THIS structured command in
         # the worktree before opening the PR. acceptance_checks is free-form
@@ -954,7 +984,12 @@ def cmd_issue_plan(args: argparse.Namespace) -> int:
         "locks": args.lock or [],
         "assigned_runtime": args.runtime,
         "risk_level": args.risk_level,
+        # Same two ISS-backing fields as the plan path; the two registration paths
+        # must emit identical task-record shapes or a field is enforced only for
+        # tasks registered one way (tests/test_paired_invariants Pair 16).
+        "dispatch_mode": getattr(args, "dispatch_mode", None) or dispatch_mode_for_runtime(args.runtime),
         "required_skills": args.required_skill or [],
+        "cca_checklist_profile": getattr(args, "cca_checklist_profile", None) or [],
         "acceptance_checks": args.acceptance_check,
         # Structured loop-observed TDD command (SADR-0011); falls back to the safe
         # unittest-discover default when the CLI did not supply one.

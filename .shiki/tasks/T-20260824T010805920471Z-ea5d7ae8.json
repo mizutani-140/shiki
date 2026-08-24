@@ -1,0 +1,69 @@
+{
+  "acceptance_checks": [
+    "task.schema.json defines a dispatch_mode property with enum [afk, hitl] and does NOT list it in required; set(task.schema.json required) == set(validate_shiki.TASK_REQUIRED) still holds (tests/test_cca_verdict_consistency.py green).",
+    "register_task_from_plan and cmd_issue_plan emit byte-identical key sets that both include dispatch_mode and cca_checklist_profile; a task registered from a plan declaring cca_checklist_profile [CCA-01, CCA-09] yields a task file carrying exactly that list, and mergegate_check.checklist_profile_coverage_failures then reports both ids against a verdict omitting them.",
+    "A task registered with --runtime human gets dispatch_mode 'hitl'; a task registered with any other runtime gets 'afk'.",
+    "docs/agents/checklists.md ISS-05 names dispatch_mode and states the assigned_runtime fallback, so the row is satisfiable for a record with no dispatch_mode field; ISS-11 remains satisfiable via the now-carried cca_checklist_profile.",
+    "tests/test_paired_invariants.py Pair16 asserts set-equality between the blocking ISS-NN ids in docs/agents/checklists.md and an explicit ISS-to-task-schema-property mapping, that each mapped property exists in task.schema.json properties, and that each is emitted by both registration payloads; its divergence test proves the binder fails when a blocking ISS row has no backing field.",
+    "python3 -m unittest discover -s tests passes, and python3 scripts/validate_shiki.py --target . passes.",
+    "CONTEXT.md defines the AFK/HITL classification term with an _Avoid_ line, in the existing Language section style."
+  ],
+  "assigned_runtime": "claude-code",
+  "cca_checklist_profile": [
+    "ISS-05",
+    "ISS-11",
+    "CCA-01",
+    "CCA-02",
+    "CCA-03",
+    "CCA-04",
+    "CCA-05",
+    "CCA-06",
+    "CCA-07",
+    "CCA-08",
+    "CCA-09",
+    "CCA-10",
+    "CCA-11",
+    "CCA-12"
+  ],
+  "dependencies": [],
+  "expected_branch": "claude/charming-chatterjee-d19a15",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260824T010736685173Z-c1131b6d",
+  "id": "T-20260824T010805920471Z-ea5d7ae8",
+  "ledger_evidence": [
+    "L-20260824T010805920722Z-1b6d4e66",
+    "L-20260824T010736685791Z-ea4e2c1f",
+    "L-20260824T015628961531Z-0dbf727e",
+    "L-20260824T015628962386Z-6c039274",
+    "L-20260824T015704300320Z-cab00863",
+    "L-20260824T015727406121Z-c9c01654"
+  ],
+  "locks": [
+    "path:.shiki/schemas/task.schema.json",
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/shiki_cli.py",
+    "path:scripts/validate_shiki.py",
+    "path:docs/agents/checklists.md",
+    "path:CONTEXT.md",
+    "path:tests/test_paired_invariants.py",
+    "path:tests/test_task_registration_fields.py"
+  ],
+  "non_goals": [
+    "Backfilling dispatch_mode or cca_checklist_profile into existing .shiki/tasks/*.json records",
+    "Promoting dispatch_mode or cca_checklist_profile to required in task.schema.json or validate_shiki.TASK_REQUIRED",
+    "Adding cca_checklist_profile to mergegate_check._FROZEN_TASK_MATCH_FIELDS (it blocks goal G-20260822T100310254979Z-b0f195ee until a mirror backfill lands)",
+    "Scoping the ISS family to Issue-backed tasks, or making ISS-05 advisory",
+    "Adding a SADR or touching docs/adr and tests/test_adr_references.py",
+    "Changing which checklist families the CCA judge decides are applicable"
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Add an optional `dispatch_mode` field (enum afk|hitl) to .shiki/schemas/task.schema.json carrying the AFK/HITL classification ISS-05 demands. Name it dispatch_mode, NOT execution_mode: execution_mode is already taken by the runtime registry (scripts/shiki_runtime_registry.py, values local_cli|github_action|workflow_job|human|external_runner|placeholder) and reusing it would collide. Keep it OUT of schema `required` and out of validate_shiki.TASK_REQUIRED (both must move together per tests/test_cca_verdict_consistency.TaskSchemaRequiredConsistency; promoting either would invalidate all 153 existing task files). Make both registration paths in scripts/shiki_tasks.py (register_task_from_plan and cmd_issue_plan) write dispatch_mode, defaulting to 'hitl' when assigned_runtime is 'human' and 'afk' otherwise per SADR-0008, and additionally carry the plan-declared/CLI-supplied cca_checklist_profile that both paths silently drop today (defaulting to [], never a bare family name). Add --dispatch-mode and --cca-checklist-profile to the issue plan subparser in scripts/shiki_cli.py. Validate the dispatch_mode enum when present in scripts/validate_shiki.py. Reword docs/agents/checklists.md ISS-05 so it is TOTAL and deterministic: satisfied by dispatch_mode when the record carries it, otherwise derived from assigned_runtime (human => hitl, any other registry runtime => afk) per SADR-0008 - the fallback is what makes ISS-05 judgeable for the 153 tasks registered before the field existed and is the part that actually stops the pass/fail flip. Define the AFK/HITL classification as a domain term in CONTEXT.md. Add Pair16 to tests/test_paired_invariants.py binding, by set-equality, the blocking ISS-NN ids parsed from docs/agents/checklists.md to an explicit ISS-id -> task-schema-property mapping, asserting every mapped property exists in task.schema.json properties and is emitted by BOTH registration payloads, with a divergence test per the module's existing convention.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Add dispatch_mode to the task contract and bind blocking ISS items to task-schema fields"
+}

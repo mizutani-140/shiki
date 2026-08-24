@@ -1,0 +1,29 @@
+{
+  "acceptance_evidence": [
+    "GitHub Actions checks on the implementation PR",
+    "CCA structured verdict recording ISS-05 and ISS-11 as pass",
+    ".shiki ledger entries for the tdd and code-review skill invocations"
+  ],
+  "completion_conditions": [
+    "The task schema defines a field that carries the AFK/HITL classification, and docs/agents/checklists.md ISS-05 names that field plus a total fallback derivation, so ISS-05 is judgeable from the record for every task including the 153 registered before the field existed.",
+    "Both task-registration paths in scripts/shiki_tasks.py emit the AFK/HITL field and carry the plan-declared cca_checklist_profile, so ISS-11 stops being unsatisfiable-by-construction.",
+    "A binder test in tests/test_paired_invariants.py fails when a blocking ISS row exists with no backing task-schema field, or when the two registration paths stop emitting that field."
+  ],
+  "created_at": "2026-08-24T01:07:36+00:00",
+  "github_issue": null,
+  "id": "G-20260824T010736685173Z-c1131b6d",
+  "non_goals": [
+    "Backfilling dispatch_mode or cca_checklist_profile into the 153 existing .shiki/tasks records (cross-task mirror rewrite is blocked by contract immutability; it belongs to the already-registered migration-mode tasks).",
+    "Promoting any field to task.schema.json required or validate_shiki.TASK_REQUIRED.",
+    "Making the CCA deterministic about which checklist FAMILIES apply to a PR (the broader nondeterminism this defect exposed).",
+    "Adding a SADR (docs/adr numbering 0020 and 0021 are already claimed by other planned tasks)."
+  ],
+  "outcome": "Blocking checklist item ISS-05 (and ISS-11) can be satisfied deterministically from a registered Shiki task record, so the CCA verdict on a Contract-PR-registered task stops flipping between complete and refused on identical content.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "status": "planned",
+  "title": "Bind every blocking ISS checklist item to a field the task schema defines"
+}
