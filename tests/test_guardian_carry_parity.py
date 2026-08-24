@@ -235,6 +235,20 @@ class CarryParityTests(unittest.TestCase):
     def _mg_carried(mg: dict) -> bool:
         return any("guardian_comment_carried" in w for w in mg.get("warnings") or [])
 
+    @staticmethod
+    def _mg_carry_refusals(mg: dict) -> list[str]:
+        """The carry refusals the gate disclosed, stripped of their prefix.
+
+        A refusal is a reason the Guardian requirement is unmet, so the gate
+        routes it to ``blocking_reasons`` when it blocks and to ``warnings`` when
+        some other source approved. Read both so a caller never has to know which.
+        """
+        return [
+            entry.removeprefix("Guardian approval ")
+            for entry in [*(mg.get("blocking_reasons") or []), *(mg.get("warnings") or [])]
+            if "carry refused" in entry
+        ]
+
     def _assert_parity(self, mg: dict, sg: dict) -> None:
         """MergeGate and the signal agree, and the signal is never more permissive.
 
@@ -357,6 +371,187 @@ class CarryParityTests(unittest.TestCase):
         self._assert_parity(mg, sg)
         self.assertFalse(sg["approved"])
         self.assertEqual(sg["carried_from_head"], "")
+
+    # -- base drift between the two legs (PR #338) ---------------------------
+    #
+    # The gate and the signal share one evaluator and one git proof, so they can
+    # only disagree when their INPUTS differ. One input is not carried in any
+    # file: ``verify_pure_base_sync`` resolves ``refs/remotes/origin/<default>``
+    # live, at call time. The CCA job and the MergeGate job of the same run are
+    # minutes apart, so an unrelated merge to the default branch between them
+    # changes that input under the second leg alone.
+    #
+    # Measured on PR #338, run 32676750010, head e7b2a5b9 = merge(583055aa,
+    # dd8d5c9): the signal carried at 00:27:52Z, main advanced to e886c61 at
+    # 00:28:46Z, and the gate refused at 00:37:03Z. Step 8 still passed (the
+    # merged base stayed an ancestor of the new tip); only the step-9 tree
+    # reproduction flipped. The gate then reported the generic stale-comment
+    # blockers and nothing about the carry, so the split-brain was
+    # undiagnosable from its own output.
+
+    def _advance_origin_main(self) -> str:
+        """Land an unrelated commit on the default branch, as a concurrent merge
+        would, and leave HEAD back on the PR head the proof is run against."""
+        _git(self.root, "checkout", "-q", "main")
+        (self.root / "later.txt").write_text("later\n")
+        # Stage only this file: the fixture's .shiki/ tree is deliberately
+        # untracked and must not be swept into a base commit by `add -A`.
+        _git(self.root, "add", "later.txt")
+        _git(self.root, "commit", "-qm", "B2")
+        b2 = _rev(self.root, "HEAD")
+        _git(self.root, "update-ref", "refs/remotes/origin/main", b2)
+        _git(self.root, "checkout", "-q", "feat")
+        self.assertEqual(_rev(self.root, "HEAD"), self.head_sha)
+        return b2
+
+    def test_gate_and_signal_disclose_the_same_carried_head(self) -> None:
+        """A successful carry names the SAME prior head on both legs.
+
+        The signal reports it as ``carried_from_head``; the gate must state it in
+        its own result, or a carry is indistinguishable from a fresh approval in
+        the only artifact MergeGate publishes.
+        """
+        self._build(labels=[LABEL], comments=[self._comment(self.a_sha)])
+        mg = self._run_mergegate(carry=True)
+        sg = self._run_signal(carry=True)
+        self._assert_parity(mg, sg)
+        self.assertEqual(sg["carried_from_head"], self.a_sha)
+        self.assertTrue(
+            any(f"carry proven from head {self.a_sha}" in w for w in mg.get("warnings") or []),
+            f"the gate must name the head it carried from: {mg}",
+        )
+
+    def test_base_advance_between_the_legs_is_disclosed_by_the_gate(self) -> None:
+        """The PR #338 shape: leg 1 carries, the base moves, leg 2 refuses.
+
+        The refusal itself is the designed behaviour — step 9 proves against the
+        base tip, so a superseded base cannot reproduce the head tree (see
+        ``test_superseded_stale_base_passes_arity_refused_by_step9``). What must
+        not happen is the gate refusing SILENTLY: the operator sees an approved
+        CCA signal and a blocked gate with no reason connecting them.
+        """
+        self._build(labels=[LABEL], comments=[self._comment(self.a_sha)])
+
+        # Leg 1 — the CCA job, while origin/main still sits at the merged base.
+        sg_before = self._run_signal(carry=True)
+        self.assertTrue(sg_before["approved"], sg_before)
+        self.assertIn("guardian_comment_carried", sg_before["sources"])
+        self.assertEqual(sg_before["carry_refused_reasons"], [], sg_before)
+
+        # An unrelated PR merges to the default branch between the two jobs.
+        self._advance_origin_main()
+
+        # Leg 2 — the MergeGate job. Same PR, same head, same comments, same flags.
+        mg = self._run_mergegate(carry=True)
+        self.assertTrue(self._mg_guardian_blocked(mg), mg)
+        self.assertFalse(self._mg_carried(mg), mg)
+        refusals = self._mg_carry_refusals(mg)
+        self.assertTrue(refusals, f"the gate must disclose why the carry was refused: {mg}")
+        self.assertTrue(
+            any("step 9" in reason for reason in refusals),
+            f"the refusal must name the failing proof step: {refusals}",
+        )
+        # It must land in blocking_reasons, the only field shiki_loop reads back
+        # into the repair packet; a reason parked in warnings never reaches it.
+        self.assertTrue(
+            any("carry refused" in reason for reason in mg.get("blocking_reasons") or []),
+            f"a refused carry on a blocked gate must be a blocking reason: {mg}",
+        )
+
+    def test_gate_and_signal_name_the_same_refusal_on_the_advanced_base(self) -> None:
+        """Re-run the signal against the ADVANCED base and the two legs agree.
+
+        This is what proves the divergence is the moving ref and not a second
+        code path: neither leg has a private branch that the other lacks, so once
+        both see the same ``origin/main`` they reach the same verdict and name the
+        same refusal reason.
+        """
+        self._build(labels=[LABEL], comments=[self._comment(self.a_sha)])
+        self._advance_origin_main()
+
+        mg = self._run_mergegate(carry=True)
+        sg = self._run_signal(carry=True)
+        self._assert_parity(mg, sg)
+        self.assertFalse(sg["approved"], sg)
+        self.assertNotIn("guardian_comment_carried", sg["sources"])
+        signal_reasons = sg["carry_refused_reasons"]
+        self.assertTrue(any("step 9" in r for r in signal_reasons), sg)
+        gate_reasons = self._mg_carry_refusals(mg)
+        self.assertEqual(
+            sorted(gate_reasons), sorted(signal_reasons),
+            f"gate and signal must name the same carry refusal: {gate_reasons} vs {signal_reasons}",
+        )
+
+    def test_a_proven_carry_on_a_blocked_pr_never_claims_approval(self) -> None:
+        """The carry is only the human-secondary leg, so it can be proven on a PR
+        the gate correctly blocks.
+
+        With the label removed the proof still succeeds and the evaluator still
+        reports ``carried_from_head``. The gate must disclose that as a fact about
+        the CARRY and never as "Guardian approval carried" — blocking a PR for a
+        missing label while announcing its approval was carried is a governance
+        artifact contradicting itself.
+        """
+        self._build(labels=[], comments=[self._comment(self.a_sha)])
+        mg = self._run_mergegate(carry=True)
+        sg = self._run_signal(carry=True)
+        self._assert_parity(mg, sg)
+        self.assertFalse(sg["approved"], sg)
+        self.assertEqual(sg["carried_from_head"], self.a_sha, sg)
+        self.assertIn(
+            "Guardian label 'guardian:approved' is missing", mg.get("blocking_reasons") or [], mg
+        )
+        disclosed = [w for w in mg.get("warnings") or [] if "carry proven" in w]
+        self.assertTrue(disclosed, f"the proven carry must still be disclosed: {mg}")
+        self.assertFalse(
+            [w for w in mg.get("warnings") or [] if "approval carried" in w],
+            f"a blocked PR must never be told its approval was carried: {mg}",
+        )
+        # ...and the "satisfied by" claim, the only warning that may assert
+        # approval, must be absent entirely.
+        self.assertFalse(
+            [w for w in mg.get("warnings") or [] if "Guardian approval satisfied by" in w], mg
+        )
+
+    def test_a_guardian_negation_is_not_disclosed_twice(self) -> None:
+        """A revocation hard-blocks AND is recorded as the carry refusal reason.
+
+        ``_resolve_carry`` appends the same string to both channels, so the gate
+        filters reasons already raised as blockers. Without that filter the
+        operator sees the identical sentence as a blocking reason and again as a
+        carry disclosure.
+        """
+        negation = {
+            "user": {"login": GUARDIAN},
+            "body": "I revoke my Guardian approval for this PR.",
+            "created_at": T_LATER,
+        }
+        self._build(labels=[LABEL], comments=[self._comment(self.a_sha), negation])
+        mg = self._run_mergegate(carry=True)
+        sg = self._run_signal(carry=True)
+        self._assert_parity(mg, sg)
+        self.assertFalse(sg["approved"], sg)
+        entries = [
+            entry
+            for entry in [*(mg.get("blocking_reasons") or []), *(mg.get("warnings") or [])]
+            if "negation or" in entry
+        ]
+        self.assertEqual(len(entries), 1, f"the revocation must be stated once, not twice: {mg}")
+
+    def test_carry_off_discloses_nothing_about_the_carry(self) -> None:
+        """SADR-0018's carry-off invariance covers the disclosure too.
+
+        Without both flags every carry code path is inert, so the gate's result
+        must carry no carry-shaped text at all.
+        """
+        self._build(labels=[LABEL], comments=[self._comment(self.a_sha)])
+        self._advance_origin_main()
+        mg = self._run_mergegate(carry=False)
+        self.assertEqual(self._mg_carry_refusals(mg), [], f"carry-off must disclose nothing: {mg}")
+        self.assertEqual(
+            [w for w in mg.get("warnings") or [] if "carry proven" in w], [],
+            f"carry-off must disclose nothing: {mg}",
+        )
 
 
 if __name__ == "__main__":

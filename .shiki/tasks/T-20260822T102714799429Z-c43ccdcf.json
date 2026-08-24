@@ -43,7 +43,9 @@
     "path:docs/agents/bootstrap-command.md",
     "path:docs/agents/shiki-doctor.md",
     "path:docs/adr/SADR-0021-code-owner-review-enforcement-is-opt-in.md",
-    "path:CONTEXT.md"
+    "path:CONTEXT.md",
+    "path:tests/test_adr_references.py",
+    "path:tests/test_sadr_install_migration.py"
   ],
   "non_goals": [],
   "required_skills": [

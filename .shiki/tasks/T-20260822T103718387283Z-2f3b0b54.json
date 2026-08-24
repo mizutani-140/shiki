@@ -1,0 +1,42 @@
+{
+  "acceptance_checks": [
+    "docs/adr/SADR-0015-contract-approval-before-dispatch.md contains a Decision paragraph whose lead is '**What did not ship: the size ceiling.**'.",
+    "That paragraph names Goal G-20260801T040836630398Z-f28167e5 and the date 2026-08-01 as the descope, and reproduces the three recorded reasons.",
+    "That paragraph names both files_outside_locks and normal_task_contract_immutability_reasons as what bounds a Contract Approval today, and states that the size axis is enforced by no check.",
+    "That paragraph carries the routing constraint forward: any future ceiling surfaces only on the non-repairable 'MergeGate policy check' and never on the repairable 'MergeGate metadata check'.",
+    "The existing '**Scope Envelope.**' paragraph still describes the originally-decided ceiling (history preserved) and forward-points to the new paragraph.",
+    "The Consequences sentence beginning 'It is bounded by three things' no longer asserts unqualified that 'the envelope is enforced deterministically at merge'; its first clause is limited to the path axis.",
+    "grep -n 'declared locks plus a size ceiling' CONTEXT.md returns no match.",
+    "The CONTEXT.md '**Scope Envelope**:' entry defines the envelope as the declared locks, records that the size ceiling was descoped and is unenforced, and keeps the bold-term / definition / _Avoid_ format.",
+    "The CONTEXT.md '**Contract Approval**:' entry at line 104 is unchanged.",
+    "git diff --name-only against the merge base lists exactly two files: docs/adr/SADR-0015-contract-approval-before-dispatch.md and CONTEXT.md.",
+    ".shiki/guardian-policy.json is byte-identical to its base version.",
+    "SADR-0015's Status section still reads 'Accepted'.",
+    "python3 -m unittest discover -s tests passes, including tests/test_adr_references.py.",
+    "python3 scripts/validate_shiki.py --target . passes.",
+    "No file outside the declared locks is changed."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260822t103718387283z-2f3b0b54-amend-sadr-0015-and-context-md-to-record-the-des",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260822T103718385731Z-f0b5eff6",
+  "id": "T-20260822T103718387283Z-2f3b0b54",
+  "ledger_evidence": [
+    "L-20260822T103718387344Z-e72ae460"
+  ],
+  "locks": [
+    "path:docs/adr/SADR-0015-contract-approval-before-dispatch.md",
+    "path:CONTEXT.md"
+  ],
+  "non_goals": [],
+  "required_skills": [
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Four prose edits across two files. No code, no schema, no workflow, no policy file.\n\nEDIT 1 - docs/adr/SADR-0015, Decision, the '**Scope Envelope.**' paragraph. Leave the existing prose byte-unchanged as the record of what was decided, and append one sentence to the end of its first paragraph forward-pointing to the descope record added by EDIT 2. Do not delete or reword the ceiling description: it is history.\n\nEDIT 2 - docs/adr/SADR-0015, Decision, a new paragraph placed last in the section (after the paragraph beginning 'The Bootstrap double-approval described above was not hypothetical.' and before '## Alternatives Considered'), opening with the bolded lead '**What did not ship: the size ceiling.**'. It must state: (i) that the numeric axis was descoped on 2026-08-01 in Goal G-20260801T040836630398Z-f28167e5, the same Goal that closed the approval carry and moved this record to Accepted, whose source plan P-20260801T040831205733Z-f88e60e0 is spec-frozen against this document as its PRD and names 'Introducing a numeric size ceiling for the Scope Envelope' as an explicit non-goal; (ii) the three reasons recorded at the time - no measured basis, a number without one would block legitimate work, and a diff-size gate reintroduces the diff-time judgment this SADR removes - noting that the already-listed rejected alternative reusing the architecture-gate thresholds is the measured form of the same objection; (iii) that what bounds a Contract Approval today is the path axis alone, naming files_outside_locks and normal_task_contract_immutability_reasons (PR #229), and stating plainly that the size axis is enforced by no check, so the residual risk named under Consequences is carried entirely by CCA and the code-review gate; and (iv) that the routing constraint stands unexercised rather than repealed - any future ceiling must still surface only on the non-repairable 'MergeGate policy check', never on the repairable 'MergeGate metadata check' - and that reintroduction requires a Guardian-approved Contract Amendment reversing the recorded non-goal plus a measured basis.\n\nEDIT 3 - docs/adr/SADR-0015, Consequences. The sentence currently reading 'It is bounded by three things: the envelope is enforced deterministically at merge, the contract cannot be edited by the work it governs, and CCA plus the `code-review` gate still judge whether the authorized work was implemented correctly.' asserts enforcement that does not exist. Qualify the first clause so it claims only the path axis and points to the EDIT 2 paragraph for the size axis. Leave the other two clauses unchanged - both remain true.\n\nEDIT 4 - CONTEXT.md, the '**Scope Envelope**:' glossary entry (lines 111-113). Its definition 'the task's declared locks plus a size ceiling' must no longer present the ceiling as part of the operative bound. Define the envelope as the declared locks, then record in the same entry that SADR-0015 also specified a size ceiling which was descoped on 2026-08-01 and is enforced by no check, so change size inside the declared paths is bounded by CCA and review. Update the entry's _Avoid_ line, which currently warns against 'treating the size ceiling as a work budget rather than a tripwire' - a warning about a mechanism that does not exist - to warn instead against describing the ceiling as though it were enforced. Keep the entry's existing format (bold term, definition paragraph, _Avoid_ line). Do not touch the '**Contract Approval**' entry at line 104: 'stays inside its Scope Envelope' remains true under the corrected definition.\n\nPROHIBITED. Do not modify .shiki/guardian-policy.json. Do not add a ceiling key anywhere. Do not change SADR-0015's Status line (it stays Accepted). Do not edit any file outside the two declared locks. Do not add a test that pins amendment wording.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target .",
+  "title": "Amend SADR-0015 and CONTEXT.md to record the descoped Scope Envelope size ceiling"
+}
