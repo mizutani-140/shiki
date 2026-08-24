@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260822T102714798265Z-66a9cfa2.json",
+    ".shiki/plans/P-20260822T100307335677Z-5edd4fcb.json"
+  ],
+  "goal_id": "G-20260822T102714798265Z-66a9cfa2",
+  "id": "L-20260822T102714798848Z-c0373bf3",
+  "links": [],
+  "summary": "Goal registered from plan: Make GitHub code-owner review enforcement independently configurable",
+  "task_id": null,
+  "timestamp": "2026-08-22T10:27:14+00:00",
+  "type": "goal-created"
+}

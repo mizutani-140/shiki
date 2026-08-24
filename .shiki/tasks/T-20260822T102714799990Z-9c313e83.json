@@ -1,0 +1,32 @@
+{
+  "acceptance_checks": [
+    "mizutani-140/shiki-atlas carries defaults.required_code_owner_review after re-install, or the install summary names it as a differing governance-critical key.",
+    "gh api repos/mizutani-140/shiki-atlas/branches/main/protection --jq '.required_pull_request_reviews.require_code_owner_reviews' returns false after re-protection.",
+    "PR #2 on mizutani-140/shiki-atlas reports a mergeable state and merges, with its CCA-supplied approval as the only approving review.",
+    "A ledger entry records the captured command output as manual verification evidence for this goal."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260822T102714799429Z-c43ccdcf"
+  ],
+  "expected_branch": "shiki/t-20260822t102714799990z-9c313e83-prove-the-code-owner-deadlock-is-broken-on-a-liv",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260822T102714798265Z-66a9cfa2",
+  "id": "T-20260822T102714799990Z-9c313e83",
+  "ledger_evidence": [
+    "L-20260822T102714800015Z-77df87ac"
+  ],
+  "locks": [
+    "path:.shiki/ledger/**"
+  ],
+  "non_goals": [],
+  "required_skills": [
+    "evidence-only"
+  ],
+  "risk_level": "low",
+  "scope": "After the platform change merges, re-install Shiki into mizutani-140/shiki-atlas, re-apply branch protection, and confirm the previously unmergeable PR #2 reaches a mergeable state and merges. Record the command output as durable manual verification evidence. No platform source changes.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Prove the code-owner deadlock is broken on a live solo-maintainer target"
+}

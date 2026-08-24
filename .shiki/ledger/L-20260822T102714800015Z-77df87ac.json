@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260822T102714799990Z-9c313e83.json"
+  ],
+  "goal_id": "G-20260822T102714798265Z-66a9cfa2",
+  "id": "L-20260822T102714800015Z-77df87ac",
+  "links": [],
+  "summary": "Task registered from plan: Prove the code-owner deadlock is broken on a live solo-maintainer target",
+  "task_id": "T-20260822T102714799990Z-9c313e83",
+  "timestamp": "2026-08-22T10:27:14+00:00",
+  "type": "task-registered"
+}
