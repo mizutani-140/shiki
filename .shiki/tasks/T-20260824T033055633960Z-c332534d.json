@@ -7,7 +7,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "claude/compassionate-lalande-acfec7",
-  "expected_pr": 354,
+  "expected_pr": 355,
   "github_issue": null,
   "goal_id": "G-20260824T033043243224Z-7bbcdbce",
   "id": "T-20260824T033055633960Z-c332534d",
@@ -20,7 +20,8 @@
     "L-20260824T034812445901Z-9f5c93ac",
     "L-20260824T035806398604Z-8a0e58d4",
     "L-20260824T035806473690Z-4524650f",
-    "L-20260824T035824636215Z-2c840965"
+    "L-20260824T035824636215Z-2c840965",
+    "L-20260824T040255771204Z-715e5f9b"
   ],
   "locks": [
     "path:.shiki/repo.json"
