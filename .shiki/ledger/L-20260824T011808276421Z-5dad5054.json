@@ -1,0 +1,13 @@
+{
+  "id": "L-20260824T011808276421Z-5dad5054",
+  "timestamp": "2026-08-24T01:18:08+00:00",
+  "goal_id": "G-20260824T011654000514Z-d57197b5",
+  "task_id": "T-20260824T011706104923Z-2beb4bd7",
+  "type": "check",
+  "actor": "claude-code",
+  "summary": "Skill diagnose: reproduced the MergeGate/CCA carry divergence on PR #338 from first principles. Read job 97286189888 and job 97287451418 of run 32676750010: both invoke the carry with --base-sync-carry and --default-branch main, both check out fetch-depth 0 at the same head, and both call one shared evaluator, so the divergence is not a second code path. Isolated the differing input by re-running the raw proof over the real objects: head e7b2a5b9 = merge(583055aa, dd8d5c9); merge-tree(583055aa, dd8d5c9) = efb4ab7631c2cfdff9d1d9024eac0394b39a50a7 = tree(e7b2a5b9), while merge-tree(583055aa, e886c616) = 132745b06949139428d27fd997721aefca6f21fe. dd8d5c9 is an ancestor of e886c616, so steps 6-8 hold and only the step-9 tree reproduction flips. Cause: verify_pure_base_sync resolves refs/remotes/origin/<default_branch> at call time, and origin/main advanced at 00:28:46Z between the signal step at 00:27:52Z and the gate at 00:37:03Z.",
+  "evidence": [
+    ".shiki/tasks/T-20260824T011706104923Z-2beb4bd7.json"
+  ],
+  "links": []
+}

@@ -1,0 +1,16 @@
+{
+  "id": "L-20260824T011808276738Z-7300600f",
+  "timestamp": "2026-08-24T01:18:08+00:00",
+  "goal_id": "G-20260824T011654000514Z-d57197b5",
+  "task_id": "T-20260824T011706104923Z-2beb4bd7",
+  "type": "check",
+  "actor": "claude-code",
+  "summary": "Skill tdd: red-green on the disclosure change. Wrote the parity regression first and observed it red with scripts/mergegate_check.py at its prior revision - 3 of 4 failed with 'the gate must name the head it carried from', 'the gate must disclose why the carry was refused', and \"[] != ['carry refused: step 9: the mechanical merge tree ... does not equal head tree ...']\" - then green after the change. Mutation-checked the two later tests by reverting each behaviour in turn: dropping the blockers dedup filter fails test_a_guardian_negation_is_not_disclosed_twice, and restoring the claiming wording fails test_a_proven_carry_on_a_blocked_pr_never_claims_approval and test_gate_and_signal_disclose_the_same_carried_head. Verification run recorded in this goal's later check entry.",
+  "evidence": [
+    ".shiki/tasks/T-20260824T011706104923Z-2beb4bd7.json",
+    "tests/test_guardian_carry_parity.py"
+  ],
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/345"
+  ]
+}
