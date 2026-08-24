@@ -35,7 +35,8 @@
   "goal_id": "G-20260824T012326721896Z-035ac95a",
   "id": "T-20260824T012326723248Z-b03c3416",
   "ledger_evidence": [
-    "L-20260824T012326723322Z-fbde7295"
+    "L-20260824T012326723322Z-fbde7295",
+    "L-20260824T021245483377Z-bdfe328f"
   ],
   "locks": [
     "path:scripts/shiki_contracts.py",
