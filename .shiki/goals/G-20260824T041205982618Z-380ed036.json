@@ -1,0 +1,28 @@
+{
+  "acceptance_evidence": [
+    "unittest output showing the new regression tests fail before the change and pass after; test_shiki_doctor.sh green"
+  ],
+  "completion_conditions": [
+    "scripts/shiki_doctor.py defines none of _required_review, _required_checks, _required_code_owner_review.",
+    "For an absent defaults.required_review, an absent or empty mergegate.required_checks, and required_code_owner_review: true with required_review absent, doctor's branch-protection inputs equal shiki_config's; regression tests cover all three and fail before the change.",
+    "The explicit-required_review pin in test_doctor_agrees_with_shiki_config_on_code_owner_review is removed."
+  ],
+  "created_at": "2026-08-24T04:12:05+00:00",
+  "github_issue": null,
+  "id": "G-20260824T041205982618Z-380ed036",
+  "ledger_evidence": [
+    "L-20260824T102216258649Z-5dd6fa33"
+  ],
+  "non_goals": [
+    "Do not change shiki_config or mergegate_check defaults; the operative readers are correct and changing them would weaken the merge gate.",
+    "Do not change GitHub branch protection or reconcile the mismatch doctor reports."
+  ],
+  "outcome": "shiki_doctor stops maintaining its own copies of shiki_config's config rules over a different parser. All three mirrors are deleted and doctor reads the canonical configured_* helpers, so doctor's branch-protection judgement cannot silently disagree with the value that actually configures protection and gates the merge.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "status": "complete",
+  "title": "Make shiki doctor read branch-protection policy through shiki_config instead of restating it"
+}

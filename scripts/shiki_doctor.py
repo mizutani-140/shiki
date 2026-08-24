@@ -14,6 +14,12 @@ import shutil
 import subprocess
 from typing import Any, Literal
 
+from shiki_config import (
+    configured_required_checks,
+    configured_required_code_owner_review,
+    configured_required_review,
+)
+from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_git import current_branch, existing_origin_url, is_git_repo
 from shiki_evidence import CCA_EVIDENCE_MANIFEST_PATH
 from shiki_installer import (
@@ -83,34 +89,6 @@ def _config_model(target: Path) -> dict[str, Any]:
         return load_yaml_model(path)
     except FileNotFoundError as error:
         raise WorkflowParseError(f"{path}: missing config") from error
-
-
-def _required_checks(config: dict[str, Any]) -> list[str]:
-    mergegate = config.get("mergegate")
-    if not isinstance(mergegate, dict):
-        return []
-    checks = mergegate.get("required_checks")
-    if not isinstance(checks, list):
-        return []
-    return [check for check in checks if isinstance(check, str) and check]
-
-
-def _required_review(config: dict[str, Any]) -> bool:
-    defaults = config.get("defaults")
-    return bool(isinstance(defaults, dict) and defaults.get("required_review") is True)
-
-
-def _required_code_owner_review(config: dict[str, Any]) -> bool:
-    """Mirror of ``shiki_config.configured_required_code_owner_review``.
-
-    Doctor parses config into a dict rather than reading from a target path, so
-    the precedence rule (code-owner review is inert unless review is required)
-    is restated here. Keep the two in step.
-    """
-    if not _required_review(config):
-        return False
-    defaults = config.get("defaults")
-    return bool(isinstance(defaults, dict) and defaults.get("required_code_owner_review") is True)
 
 
 def _repo_config(target: Path) -> tuple[ProviderConfig | None, DoctorFinding | None]:
@@ -375,7 +353,7 @@ def _worktree_registry_finding(target: Path) -> DoctorFinding:
     )
 
 
-def _workflow_findings(target: Path, config: dict[str, Any]) -> list[DoctorFinding]:
+def _workflow_findings(target: Path) -> list[DoctorFinding]:
     findings: list[DoctorFinding] = []
     workflow_dir = target / ".github" / "workflows"
     required_files = [
@@ -409,15 +387,18 @@ def _workflow_findings(target: Path, config: dict[str, Any]) -> list[DoctorFindi
             for job in jobs.values():
                 if isinstance(job, dict) and isinstance(job.get("name"), str):
                     job_names.add(job["name"])
-    required_checks = _required_checks(config)
+    required_checks = configured_required_checks(target, DEFAULT_REQUIRED_CHECKS)
     missing_checks = [check for check in required_checks if check not in job_names]
     findings.append(
         _finding(
             "doctor.checks.required_checks",
-            "pass" if not missing_checks and required_checks else "fail",
+            # required_checks can no longer be empty: configured_required_checks
+            # falls back to DEFAULT_REQUIRED_CHECKS, so the old "empty means fail"
+            # arm is unreachable and has been dropped rather than left to mislead.
+            "pass" if not missing_checks else "fail",
             "Required check names",
-            "Required checks match workflow job display names." if not missing_checks and required_checks else "Required checks do not match workflow job display names.",
-            "Align .shiki/config.yaml mergegate.required_checks with workflow job names." if missing_checks or not required_checks else "",
+            "Required checks match workflow job display names." if not missing_checks else "Required checks do not match workflow job display names.",
+            "Align .shiki/config.yaml mergegate.required_checks with workflow job names." if missing_checks else "",
             {"required_checks": required_checks, "missing": missing_checks, "workflow_parse_errors": parse_errors},
         )
     )
@@ -847,7 +828,7 @@ def _branch_protection_read_failure(result: subprocess.CompletedProcess[str]) ->
     )
 
 
-def _online_findings(config: ProviderConfig | None, local_config: dict[str, Any]) -> list[DoctorFinding]:
+def _online_findings(config: ProviderConfig | None, target: Path) -> list[DoctorFinding]:
     if config is None:
         return [
             _finding(
@@ -908,9 +889,13 @@ def _online_findings(config: ProviderConfig | None, local_config: dict[str, Any]
         )
     )
     protection = _gh(["api", f"repos/{config.repo}/branches/{default_branch}/protection"], config)
-    required_checks = _required_checks(local_config)
-    required_review = _required_review(local_config)
-    required_code_owner = _required_code_owner_review(local_config)
+    # Read policy through shiki_config, never restate it. These are the SAME
+    # values that configure protection (branch_protection_review_count ->
+    # protect_branch) and gate the merge (mergegate_check), so doctor cannot
+    # judge a repository against a policy nobody else applies.
+    required_checks = configured_required_checks(target, DEFAULT_REQUIRED_CHECKS)
+    required_review = configured_required_review(target)
+    required_code_owner = configured_required_code_owner_review(target)
     if protection.returncode != 0:
         findings.append(_branch_protection_read_failure(protection))
     else:
@@ -1204,7 +1189,7 @@ def doctor_findings(target: Path, *, online: bool = False) -> list[DoctorFinding
         findings.append(provider_finding)
     findings.extend(_provider_findings(target, provider_config))
     findings.extend(_git_findings(target, provider_config))
-    findings.extend(_workflow_findings(target, config))
+    findings.extend(_workflow_findings(target))
     findings.extend(_codeowners_findings(target))
     findings.extend(_manifest_findings(target))
     findings.extend(_state_class_findings(target))
@@ -1215,7 +1200,7 @@ def doctor_findings(target: Path, *, online: bool = False) -> list[DoctorFinding
     findings.extend(_runtime_findings(target, config))
     findings.append(_contract_finding(target))
     if online:
-        findings.extend(_online_findings(provider_config, config))
+        findings.extend(_online_findings(provider_config, target))
     else:
         findings.append(_finding("doctor.github.online", "skip", "GitHub online checks", "Online GitHub checks were skipped; pass --online to enable them."))
     return findings

@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/357"
+  ],
+  "goal_id": "G-20260824T041205982618Z-380ed036",
+  "id": "L-20260824T050819662104Z-4535916e",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/357"
+  ],
+  "summary": "PR delivered: https://github.com/mizutani-140/shiki/pull/357 deletes shiki_doctor's three _required_* mirrors and reads shiki_config's configured_* helpers instead. TDD red captured (4 errors + 1 failure on unmodified main) then green (17/17). unittest discover, test_shiki_doctor.sh, test_shiki_module_boundaries.sh and validate_shiki all pass.",
+  "task_id": "T-20260824T041220229381Z-9292b383",
+  "timestamp": "2026-08-24T05:08:19.662104+00:00",
+  "type": "check"
+}
