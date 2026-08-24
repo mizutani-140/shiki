@@ -219,8 +219,88 @@ class InterpretProbeTests(unittest.TestCase):
             "rate_limit_error: 429 Too Many Requests",
             "Request timed out",
             "unauthorized_error: rate_limit_exceeded",  # word-boundary: not a real auth rejection
+            # A non-auth failure that merely NAMES the credential. "oauth access
+            # token" is a topic, not a rejection predicate, so it must never be a
+            # marker: reading this as a clean rejection would let the negative
+            # control certify token-exclusivity it never proved.
+            "Connection error while refreshing OAuth access token",
         ):
             self.assertEqual(gh.PROBE_INDETERMINATE, self._classify(text), text)
+
+
+# The verbatim payload the current Claude CLI returns for an invalid OAuth token.
+# Regression anchor: the pre-fix classifier read this as INDETERMINATE, which made
+# the negative control unprovable and blocked `shiki secret set-claude` for EVERY
+# token, valid or not. Note `subtype` is "success" even on this failure.
+CURRENT_CLI_401 = {
+    "type": "result",
+    "subtype": "success",
+    "is_error": True,
+    "api_error_status": 401,
+    "result": "Failed to authenticate. API Error: 401 OAuth access token is invalid.",
+    "total_cost_usd": 0,
+}
+
+
+class ApiErrorStatusTests(unittest.TestCase):
+    """The structured `api_error_status` is preferred over matching CLI prose."""
+
+    def test_current_cli_invalid_token_payload_is_auth_rejected(self):
+        classification, detail = gh._classify_probe_result(dict(CURRENT_CLI_401))
+        self.assertEqual(gh.PROBE_AUTH_REJECTED, classification)
+        self.assertIn("401", detail)
+
+    def test_current_cli_wording_alone_is_auth_rejected(self):
+        # Same message from a CLI that reports no api_error_status: the wording
+        # fallback must still catch it (word order is reversed vs "invalid token").
+        payload = {k: v for k, v in CURRENT_CLI_401.items() if k != "api_error_status"}
+        self.assertEqual(gh.PROBE_AUTH_REJECTED, gh._classify_probe_result(payload)[0])
+
+    def test_auth_status_beats_a_contradictory_success_claim(self):
+        # Fail closed: a payload carrying an auth status is never AUTHENTICATED,
+        # however is_error/subtype/cost present themselves.
+        classification, _ = gh._classify_probe_result(
+            {"is_error": False, "subtype": "success", "api_error_status": 401, "total_cost_usd": 0.4, "result": "pong"}
+        )
+        self.assertEqual(gh.PROBE_AUTH_REJECTED, classification)
+
+    def test_403_is_an_auth_rejection(self):
+        self.assertEqual(
+            gh.PROBE_AUTH_REJECTED,
+            gh._classify_probe_result({"is_error": True, "api_error_status": 403, "result": "", "total_cost_usd": 0})[0],
+        )
+
+    def test_digit_string_status_is_honoured(self):
+        self.assertEqual(
+            gh.PROBE_AUTH_REJECTED,
+            gh._classify_probe_result({"is_error": True, "api_error_status": "401", "result": "", "total_cost_usd": 0})[0],
+        )
+
+    def test_non_auth_statuses_stay_indeterminate(self):
+        # Rate-limit / server / gateway failures carry no auth verdict.
+        for status in (429, 500, 502, 503, 529):
+            self.assertEqual(
+                gh.PROBE_INDETERMINATE,
+                gh._classify_probe_result(
+                    {"is_error": True, "api_error_status": status, "result": "service failure", "total_cost_usd": 0}
+                )[0],
+                status,
+            )
+
+    def test_malformed_status_falls_through_to_indeterminate(self):
+        # Booleans (bool is an int subclass), non-numeric strings, and null must
+        # not be coerced into an auth verdict. The non-ASCII digits are the
+        # sharp cases: str.isdigit() is True for all three, where int() raises
+        # on "\u00b2" and silently succeeds on the fullwidth/Arabic-Indic forms.
+        # This path must never raise, and a non-ASCII status is never proof.
+        for status in (True, False, "unauthorized", "", None, 4.01, [401], "\u00b2", "\uff14\uff10\uff11", "\u0664\u0660\u0661"):
+            self.assertEqual(
+                gh.PROBE_INDETERMINATE,
+                gh._classify_probe_result(
+                    {"is_error": True, "api_error_status": status, "result": "opaque failure", "total_cost_usd": 0}
+                )[0],
+                repr(status),
+            )
 
 
 class MintTests(unittest.TestCase):
@@ -244,7 +324,16 @@ class VerifyTests(unittest.TestCase):
     def tearDown(self):
         gh.require_tool = self._orig_require_tool
 
-    def _runner(self, stdout, stderr="", *, supports_setting_sources=True, negative_authenticates=False, negative_indeterminate=False):
+    def _runner(
+        self,
+        stdout,
+        stderr="",
+        *,
+        supports_setting_sources=True,
+        negative_authenticates=False,
+        negative_indeterminate=False,
+        negative_stdout=None,
+    ):
         # verify_claude_oauth_token probes `claude --help` (setting-sources
         # detection), then the candidate token, then — only if the candidate
         # passes — a negative-control probe with _NEGATIVE_CONTROL_TOKEN. The fake
@@ -257,6 +346,8 @@ class VerifyTests(unittest.TestCase):
             negative_out = json.dumps({"is_error": False, "total_cost_usd": 0.5, "result": "authenticated"})
         elif negative_indeterminate:
             negative_out = json.dumps({"is_error": True, "total_cost_usd": 0, "result": "Connection error: network unreachable"})
+        elif negative_stdout is not None:
+            negative_out = negative_stdout
         else:
             negative_out = json.dumps({"is_error": True, "total_cost_usd": 0, "result": "401 Invalid bearer token"})
 
@@ -311,6 +402,20 @@ class VerifyTests(unittest.TestCase):
         # proven => the candidate PASS is trusted.
         ok, _ = gh.verify_claude_oauth_token(
             "sk-ant-oat01-tok", runner=self._runner('{"is_error": false, "total_cost_usd": 0.4}')
+        )
+        self.assertTrue(ok)
+
+    def test_verify_passes_against_current_cli_negative_control(self):
+        # The operator-visible regression: with the current CLI's 401 wording the
+        # negative control classified as INDETERMINATE, so verification failed
+        # closed with "could not prove token-exclusive verification" for EVERY
+        # token and `shiki secret set-claude` could never succeed.
+        ok, _ = gh.verify_claude_oauth_token(
+            "sk-ant-oat01-tok",
+            runner=self._runner(
+                '{"is_error": false, "total_cost_usd": 0.4}',
+                negative_stdout=json.dumps(CURRENT_CLI_401),
+            ),
         )
         self.assertTrue(ok)
 
