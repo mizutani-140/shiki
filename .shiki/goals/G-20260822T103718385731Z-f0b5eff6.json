@@ -1,0 +1,56 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "SADR-0015 no longer asserts an enforced size ceiling anywhere in Decision or Consequences.",
+    "SADR-0015 records that the ceiling was descoped, when, under which Goal, and the recorded reason.",
+    "SADR-0015 states precisely what does bound a Contract Approval today: the path axis via files_outside_locks and normal_task_contract_immutability_reasons, with the size axis unenforced.",
+    "The non-repairable-gate routing constraint survives as binding on any future reintroduction.",
+    "The CONTEXT.md Scope Envelope glossary entry agrees with SADR-0015.",
+    ".shiki/guardian-policy.json is unmodified.",
+    "The full Python suite and validate_shiki stay green.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "created_at": "2026-08-22T10:37:18+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "THE GAP IS REAL, AND IT DID NOT LAND UNDER ANOTHER NAME. The operator measured two things; both reproduce. Widening the search does not rescue them. `git grep -rniE 'envelope|ceiling|tripwire|max_lines|net_added|added_lines|size_limit|max_files' -- scripts/mergegate_check.py scripts/guardian_approval_signal.py scripts/shiki_contract_approval.py .shiki/guardian-policy.json .shiki/schemas/ .github/workflows/` returns 0 hits. Across all of scripts/ and tests/, 'envelope' appears 23 times in exactly two files - scripts/shiki_runtime_adapters.py (11) and tests/test_loop_code_review.py (12) - and 0 of the 23 co-occur with 'scope': every one is the `claude -p --output-format json` RESULT envelope parsed by parse_code_review_verdict, an unrelated homonym. A search for diff-size arithmetic under other names (additions, deletions, --numstat, --shortstat, insertions, len(changed_paths) compared numerically) over the same enforcement surfaces returns nothing either. There is no size gate anywhere, under any name.",
+      "THE DESCOPE WAS ALREADY DECIDED, BY THE OPERATOR, AND IS ALREADY RECORDED. This is the finding that changes the remedy, and it was not in the report. Goal G-20260801T040836630398Z-f28167e5 ('Let a Contract Approval carry to the implementation PR it approved', status complete, risk critical) carries the explicit non-goal 'Introducing a numeric size ceiling for the Scope Envelope', and its grill_with_docs records the reason: 'A separate numeric size ceiling is deliberately NOT introduced: it is new policy with no measured basis, it would block legitimate work, and ADR 0015's decision is to approve the contract rather than the diff. CCA still judges the diff against the acceptance criteria.' Its source plan P-20260801T040831205733Z-f88e60e0 carries spec_freeze.status=frozen, approved_by=mizutani-140, and - decisively - prd=docs/adr/0015-contract-approval-before-dispatch.md. The operator froze a plan whose PRD is this very SADR and whose non-goals decline the ceiling. So the code is not lagging the doc; the doc is lagging an approved decision.",
+      "HOW THE DOCUMENTS CAME TO DISAGREE. `git log -- docs/adr/SADR-0015-*` has three commits. The middle one, 0096921, is the implementation commit of that same descoping Goal (T-20260801T040836632579Z-2cde7018), and its diff against the ADR is `-Proposed / +Accepted` plus the 'What shipped, and when.' narrative. The record was moved to Accepted in the very commit whose parent Goal had just declined to build the ceiling, and the Scope Envelope prose was left untouched. That is the whole mechanism: not an oversight about the code, an oversight about the prose.",
+      "WHY THE REMEDY IS (b) AND NOT (a). Implementing the ceiling would reverse a frozen, operator-approved non-goal on a plan whose PRD is the SADR itself. Only the operator can do that, and it is a new decision requiring a measured basis - which the SADR itself says does not exist: its 'Alternatives Considered' already rejects the only two numbers this repository has (100 net lines, 3 new files) against the measurement that the median merged PR here is ~110 net added lines across 7 files, so those thresholds 'would fire on nearly every PR'. The operator was shown both options with this asymmetry stated and selected (b) on 2026-08-22.",
+      "WHAT ACTUALLY BOUNDS A CONTRACT APPROVAL TODAY, STATED PRECISELY. The envelope's PATH axis is enforced: mergegate_check.py calls files_outside_locks at two sites (lines 2237 and 3449), and normal_task_contract_immutability_reasons (line 2761, called at 3493, shipped in PR #229) freezes the seven governance fields of a PR's own contract against the base snapshot, so an implementation can neither leave its declared paths nor widen them from inside. The SIZE axis is enforced by nothing. The amendment must say exactly this rather than either 'the envelope is enforced' (false) or 'the envelope does not exist' (also false).",
+      "THE ROUTING CONSTRAINT IS PRESERVED, NOT REPEALED. SADR-0015 forbids surfacing a breach on the repairable 'MergeGate metadata check' because the Goal Loop would route it to dispatch_repair and instruct a runner to make the breach disappear. That reasoning is sound and independent of whether a ceiling exists today, so the amendment carries it forward as a constraint binding any future reintroduction, instead of deleting it with the ceiling. Deleting it would lose the reasoning and invite a future implementation to wire the breach to the wrong gate.",
+      "SCOPE, AUDITED. `git grep -rniE 'scope envelope|envelope|ceiling|tripwire'` over docs/, CONTEXT.md, AGENTS.md, CLAUDE.md, README.md and CONTRIBUTING.md returns exactly two files needing change: docs/adr/SADR-0015-contract-approval-before-dispatch.md and CONTEXT.md lines 111-113 (the **Scope Envelope** glossary entry, which states 'the task's declared locks plus a size ceiling'). Two further hits need no change: CONTEXT.md line 104 ('stays inside its Scope Envelope') stays true under the corrected definition, and SADR-0016 line 176 ('SADR-0015 owns ... the Scope Envelope') is a division-of-ownership statement that remains accurate.",
+      "GUARDIAN-POLICY.JSON IS NOT TOUCHED. The operator flagged that .shiki/guardian-policy.json is CODEOWNERS-protected. Under remedy (b) the file is not modified at all - the ceiling key is never added - so the CODEOWNERS surface is not engaged and the file stays out of the task's locks. Confirmed: .github/CODEOWNERS is one of ten files referencing guardian-policy.json; none of them need to change.",
+      "RISK IS HIGH, AND THE ARCHITECTURE GATE IS SATISFIED BY THIS SESSION. The change is zero-code, but it edits the record that defines what a Guardian approval authorizes, and CONTEXT.md is the glossary authority. Every prior governance-document task in this repository is classified high (T-20260817T063758155247Z-0b11207b, T-20260807T073307221254Z-2d22d654, T-20260804T095105535495Z-22a51036). High risk routes through a Contract PR and Guardian approval, which is the correct gate for a document that redefines the meaning of Guardian approval. The architecture gate's 'shared contracts' trigger is met and is discharged by this grill-with-docs session plus the Guardian's review of the Contract PR.",
+      "VERIFICATION SURFACE. There is no behavioral test for prose, so the regression surface is tests/test_adr_references.py, which binds every 'ADR NNNN' / 'SADR-NNNN' citation to exactly one file in its namespace. The drafted amendment cites SADR-0015 and SADR-0016 only, both of which resolve, and cites PR #229 and Goal/plan ids, which that test does not constrain. test_command is therefore the full Python suite plus validate_shiki; no new test is warranted, and inventing a prose-matching test would pin wording that a future amendment should be free to change."
+    ],
+    "source": "Claude Code planning session 2026-08-22 in worktree quirky-mclaren-f7d8f2, from an operator report of the gap. The operator's grep results were treated as a claim to re-test, not as evidence; every measurement below was re-run independently and the search was widened beyond the operator's two commands before any conclusion was drawn.",
+    "status": "complete"
+  },
+  "id": "G-20260822T103718385731Z-f0b5eff6",
+  "ledger_evidence": [
+    "L-20260822T103718386637Z-4147e7d2"
+  ],
+  "non_goals": [
+    "Implementing the size ceiling, adding a ceiling key to .shiki/guardian-policy.json, or otherwise reversing the frozen non-goal in G-20260801T040836630398Z-f28167e5. That reversal is the operator's to make, needs a measured basis the repository does not yet have, and is out of this slice.",
+    "Modifying .shiki/guardian-policy.json in any way. It is CODEOWNERS-protected and remedy (b) does not need it.",
+    "Deleting the routing constraint (breach surfaces only on the non-repairable 'MergeGate policy check'). It is carried forward as binding on any future reintroduction.",
+    "Changing SADR-0015's Status. It stays Accepted: the decision to approve contracts rather than diffs was implemented and is in force; only the ceiling sub-mechanism was descoped.",
+    "Rewriting the historical Decision prose. The Scope Envelope paragraph is preserved as the record of what was decided, with a forward pointer added; ADRs record history rather than being edited to match the present.",
+    "Touching scripts/, tests/, .github/ or any enforcement surface. This slice changes no behavior.",
+    "Reclassifying risk, or revisiting the 43/80 high-risk ratio SADR-0015 defers."
+  ],
+  "outcome": "SADR-0015 and CONTEXT.md stop asserting a size ceiling that no check enforces. Measured 2026-08-22 against this worktree: the combined grep for envelope|ceiling|tripwire|max_lines|net_added|added_lines|size_limit|max_files over scripts/mergegate_check.py, scripts/guardian_approval_signal.py, scripts/shiki_contract_approval.py, .shiki/guardian-policy.json, .shiki/schemas/ and .github/workflows/ returns 0 hits, and guardian-policy.json's top-level keys are ['applies_to_risk','approval_sources','approvers','description','exclusions','solo_maintainer','version'] - no ceiling key. Meanwhile SADR-0015's Decision says the ceiling 'is a single default in guardian-policy.json' and its Consequences says 'the envelope is enforced deterministically at merge'. A reader of either document, or of the CONTEXT.md glossary entry that defines the envelope as 'the task's declared locks plus a size ceiling', concludes that a Contract Approval is bounded in change size. It is not.",
+  "required_skills": [
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260822T103714137950Z-8e9d776f",
+  "status": "planned",
+  "title": "Record that the SADR-0015 Scope Envelope size ceiling was descoped"
+}

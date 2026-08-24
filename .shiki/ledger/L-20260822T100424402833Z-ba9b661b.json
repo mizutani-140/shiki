@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260822T100424402655Z-f2564d9e.json"
+  ],
+  "goal_id": "G-20260822T100353919056Z-551ef453",
+  "id": "L-20260822T100424402833Z-ba9b661b",
+  "links": [],
+  "summary": "Task registered: Classify probe auth rejections from api_error_status, not CLI prose",
+  "task_id": "T-20260822T100424402655Z-f2564d9e",
+  "timestamp": "2026-08-22T10:04:24+00:00",
+  "type": "task-registered"
+}

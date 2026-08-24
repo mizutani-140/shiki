@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "tests/test_secret_set_claude.py::ApiErrorStatusTests",
+    "tests/test_secret_set_claude.py::VerifyTests::test_verify_passes_against_current_cli_negative_control",
+    "EXEC python3 -m unittest discover -s tests -> Ran 1178 tests ... OK",
+    "EXEC pre-fix module + new tests -> Ran 57 tests ... FAILED (failures=6)"
+  ],
+  "goal_id": "G-20260822T100353919056Z-551ef453",
+  "id": "L-20260822T101656172131Z-b7410d1c",
+  "links": [],
+  "summary": "skill tdd (EXEC): red-then-green proven, not asserted. The new tests were run against HEAD:scripts/shiki_github.py (pre-fix module + new tests, temp tree) -> 'Ran 57 tests ... FAILED (failures=6)', including test_verify_passes_against_current_cli_negative_control (the operator-visible symptom). Against the fixed module -> 'Ran 57 tests ... OK'. Full suite: 'Ran 1178 tests in 132.076s ... OK'. All 34 scripts/test_shiki_*.sh suites PASS. python3 scripts/validate_shiki.py -> Shiki validation passed.",
+  "task_id": "T-20260822T100424402655Z-f2564d9e",
+  "timestamp": "2026-08-22T10:16:56+00:00",
+  "type": "check"
+}
