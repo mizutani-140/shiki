@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260824T012337181991Z-de7409ed.json",
+    ".shiki/plans/P-20260824T012332779582Z-13835efc.json"
+  ],
+  "goal_id": "G-20260824T012337181991Z-de7409ed",
+  "id": "L-20260824T012337182947Z-c970a8e6",
+  "links": [],
+  "summary": "Goal registered from plan: Carry the declared CCA checklist profile into every registered task",
+  "task_id": null,
+  "timestamp": "2026-08-24T01:23:37+00:00",
+  "type": "goal-created"
+}

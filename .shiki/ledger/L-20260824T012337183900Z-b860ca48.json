@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260824T012337183814Z-ee4c7a97.json"
+  ],
+  "goal_id": "G-20260824T012337181991Z-de7409ed",
+  "id": "L-20260824T012337183900Z-b860ca48",
+  "links": [],
+  "summary": "Task registered from plan: Carry the declared CCA checklist profile through both task-registration paths",
+  "task_id": "T-20260824T012337183814Z-ee4c7a97",
+  "timestamp": "2026-08-24T01:23:37+00:00",
+  "type": "task-registered"
+}
