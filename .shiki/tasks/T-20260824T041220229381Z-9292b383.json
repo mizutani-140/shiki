@@ -1,0 +1,41 @@
+{
+  "acceptance_checks": [
+    "grep -c '_required_review\\|_required_checks\\|_required_code_owner_review' scripts/shiki_doctor.py returns 0 definitions",
+    "New regression tests fail on the pre-change shiki_doctor and pass after; captured in the ledger",
+    "python3 -m unittest discover -s tests passes",
+    "bash scripts/test_shiki_doctor.sh passes"
+  ],
+  "assigned_runtime": "claude-code",
+  "cca_checklist_profile": [],
+  "dependencies": [],
+  "expected_branch": "claude/compassionate-lalande-acfec7",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260824T041205982618Z-380ed036",
+  "id": "T-20260824T041220229381Z-9292b383",
+  "ledger_evidence": [
+    "L-20260824T041205983476Z-b24144ed",
+    "L-20260824T041220229562Z-fb1ad6c0",
+    "L-20260824T042352312645Z-43f19c7a",
+    "L-20260824T050241337708Z-8eecf875",
+    "L-20260824T100811681292Z-63e52e81"
+  ],
+  "locks": [
+    "path:scripts/shiki_doctor.py",
+    "path:tests/test_config_loading.py",
+    "path:docs/agents/shiki-doctor.md"
+  ],
+  "non_goals": [
+    "Do not change shiki_config or mergegate_check defaults or parsers.",
+    "Do not change GitHub branch protection or any workflow file."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "scope": "Thread the target Path into shiki_doctor._online_findings and read policy via shiki_config.configured_required_checks(target, DEFAULT_REQUIRED_CHECKS), configured_required_review(target) and configured_required_code_owner_review(target); delete the three _required_* mirrors; remove the explicit-required_review pin from the parity test and replace it with regressions for the absent-key, absent/empty-checks and code-owner-inheritance cases; update docs/agents/shiki-doctor.md to state the defaults doctor now honours.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Single-source doctor's branch-protection policy reads through shiki_config"
+}

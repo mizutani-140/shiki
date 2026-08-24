@@ -7,15 +7,18 @@ real config content and handle the documented edge cases.
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
 import shiki_config
 import shiki_doctor
 import mergegate_check
+from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 
 
 CONFIG_SAMPLE = """version: 1
@@ -125,39 +128,125 @@ class ConfigLoadingTests(unittest.TestCase):
         )
         self.assertFalse(shiki_config.configured_required_code_owner_review(target))
 
-    def test_doctor_agrees_with_shiki_config_on_code_owner_review(self) -> None:
-        """Bind doctor's restatement of the rule to shiki_config's.
-
-        They are two implementations of one precedence rule over two different
-        parsers: shiki_config reads the subset YAML from a target path, doctor
-        reads its own load_yaml_model. Nothing else forces them to agree, and a
-        drift is silent and wrong in both directions -- bootstrap would write one
-        protection payload while doctor judged it against the other.
-
-        Every case states required_review EXPLICITLY, because the two disagree
-        on its DEFAULT and always have: shiki_config.configured_required_review
-        treats an absent key as true, doctor._required_review treats it as false.
-        That pre-existing divergence is out of this task's scope; pinning the
-        cases keeps this test honest about what it does and does not bind.
-        """
-        for body in (
-            "defaults:\n  required_review: true\n",
-            "defaults:\n  required_review: true\n  required_code_owner_review: true\n",
-            "defaults:\n  required_review: true\n  required_code_owner_review: false\n",
-            "defaults:\n  required_review: false\n  required_code_owner_review: true\n",
-            "version: 1\n",
-        ):
-            with self.subTest(body=body):
-                target = self._write_config(body)
-                self.assertEqual(
-                    shiki_doctor._required_code_owner_review(shiki_doctor._config_model(target)),
-                    shiki_config.configured_required_code_owner_review(target),
-                )
-
     def test_mergegate_required_checks_fall_back_to_defaults(self) -> None:
         target = self._write_config("platform: shiki\n")
         checks = mergegate_check.configured_required_checks(target)
         self.assertEqual(list(checks), list(mergegate_check.DEFAULT_REQUIRED_CHECKS))
+
+
+class DoctorReadsPolicyThroughConfigTests(unittest.TestCase):
+    """Doctor must judge branch protection against the SAME values that configure it.
+
+    Doctor used to restate shiki_config's rules over its own parser
+    (``_required_review``, ``_required_checks``, ``_required_code_owner_review``).
+    Every divergence failed OPEN: a config relying on the documented defaults made
+    doctor compare protection against ``[]`` required checks and ``required_review
+    = False``, so it reported "matches Shiki required checks/review policy" for a
+    branch with no protection at all -- while bootstrap had protected it with four
+    contexts and one approving review, and MergeGate blocked merges without a review.
+
+    These tests pin the behaviour, not the helpers, so the mirrors cannot come back
+    by a different name.
+    """
+
+    UNPROTECTED = {
+        "required_status_checks": {"contexts": []},
+        "required_pull_request_reviews": {
+            "required_approving_review_count": 0,
+            "require_code_owner_reviews": False,
+        },
+    }
+
+    def _target(self, config_body: str) -> Path:
+        target = Path(tempfile.mkdtemp())
+        (target / ".shiki").mkdir(parents=True)
+        (target / ".shiki" / "config.yaml").write_text(config_body, encoding="utf-8")
+        return target
+
+    def _branch_protection_finding(self, target: Path, protection: dict):
+        """Run doctor's online checks against a stubbed `gh`, return the BP finding."""
+        original_gh = shiki_doctor._gh
+        original_which = shiki_doctor.shutil.which
+
+        def fake_gh(args, config):
+            stdout = ""
+            if args[:1] == ["api"] and args[1].endswith("/protection"):
+                stdout = json.dumps(protection)
+            elif args[:1] == ["api"] and "permissions/workflow" in args[1]:
+                stdout = json.dumps(
+                    {"default_workflow_permissions": "read", "can_approve_pull_request_reviews": True}
+                )
+            elif args[:1] == ["api"]:
+                stdout = "[]"
+            elif args[:2] == ["repo", "view"]:
+                stdout = json.dumps({"defaultBranchRef": {"name": "main"}})
+            elif args[:2] == ["secret", "list"]:
+                stdout = "CLAUDE_CODE_OAUTH_TOKEN\t2026"
+            return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+
+        shiki_doctor._gh = fake_gh
+        shiki_doctor.shutil.which = lambda name: "/usr/bin/gh"
+        try:
+            provider = shiki_doctor.provider_from_repo_json(
+                {"provider": "github", "repo": "owner/name", "host": "github.com"}
+            )
+            findings = shiki_doctor._online_findings(provider, target)
+        finally:
+            shiki_doctor._gh = original_gh
+            shiki_doctor.shutil.which = original_which
+        return next(f for f in findings if f.id == "doctor.github.branch_protection")
+
+    def test_absent_config_keys_still_judge_protection(self) -> None:
+        """The regression: a config relying on BOTH documented defaults.
+
+        Absent ``defaults.required_review`` means review IS required, and an absent
+        ``mergegate.required_checks`` means the four DEFAULT_REQUIRED_CHECKS. Doctor
+        must fail an unprotected branch on both counts, not pass it.
+        """
+        target = self._target("version: 1\nplatform: shiki\n")
+        finding = self._branch_protection_finding(target, self.UNPROTECTED)
+        self.assertEqual(finding.status, "fail")
+        self.assertEqual(
+            finding.details["required_checks"],
+            list(shiki_config.configured_required_checks(target, DEFAULT_REQUIRED_CHECKS)),
+        )
+        failures = " | ".join(finding.details["failures"])
+        self.assertIn("missing required checks", failures)
+        self.assertIn("required review count is less than 1", failures)
+
+    def test_empty_required_checks_section_falls_back_to_defaults(self) -> None:
+        """A present-but-empty list is the same as absent for every other reader."""
+        target = self._target("mergegate:\n  required_checks:\n")
+        finding = self._branch_protection_finding(target, self.UNPROTECTED)
+        self.assertEqual(
+            finding.details["required_checks"],
+            list(DEFAULT_REQUIRED_CHECKS),
+        )
+
+    def test_explicit_required_review_false_is_still_honoured(self) -> None:
+        """Fixing the default must not break the opt-out: false still means false."""
+        target = self._target("defaults:\n  required_review: false\n")
+        finding = self._branch_protection_finding(target, self.UNPROTECTED)
+        failures = " | ".join(finding.details["failures"])
+        self.assertNotIn("required review count", failures)
+
+    def test_code_owner_opt_in_readable_without_explicit_required_review(self) -> None:
+        """``required_code_owner_review: true`` was unreadable when required_review
+        was absent, because doctor's mirror read the absent key as false and the
+        precedence rule then forced code-owner review off."""
+        target = self._target("defaults:\n  required_code_owner_review: true\n")
+        self.assertTrue(shiki_config.configured_required_code_owner_review(target))
+        finding = self._branch_protection_finding(target, self.UNPROTECTED)
+        self.assertTrue(finding.details["required_code_owner_review"])
+
+    def test_doctor_keeps_no_private_copy_of_the_rules(self) -> None:
+        """Structural guard: the mirrors must not return under any name."""
+        for name in ("_required_review", "_required_checks", "_required_code_owner_review"):
+            self.assertFalse(
+                hasattr(shiki_doctor, name),
+                f"shiki_doctor.{name} is a private restatement of a shiki_config rule; "
+                "read the configured_* helper instead so the two cannot diverge.",
+            )
 
 
 if __name__ == "__main__":

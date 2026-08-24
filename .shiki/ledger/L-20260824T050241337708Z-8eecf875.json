@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/shiki_doctor.py",
+    "tests/test_config_loading.py",
+    "docs/agents/shiki-doctor.md"
+  ],
+  "goal_id": "G-20260824T041205982618Z-380ed036",
+  "id": "L-20260824T050241337708Z-8eecf875",
+  "links": [],
+  "summary": "Pre-PR code-review skill gate run at medium effort over the diff: 2 findings, both real. (1) shiki_doctor.py:395 - the 'and required_checks' arm became unreachable once configured_required_checks always falls back to DEFAULT_REQUIRED_CHECKS; FIXED in this branch by dropping the dead arm. (2) shiki_doctor.py:893 - deleting doctor's _required_checks also drops its isinstance(checks, list) guard, so a mergegate.required_checks written as an inline scalar is now iterated character by character (measured: ['C','C','A','v','e','r','d','i','t','s'] for 'CCA verdict'). NOT fixed here: the root defect is in shiki_config.configured_required_checks and the identical mergegate_check copy, both outside this task's locks, and mergegate_check is CODEOWNERS-critical. Doctor now shares MergeGate's pre-existing exposure rather than having a stricter private guard; recorded as follow-up work rather than silently widening this task's scope.",
+  "task_id": "T-20260824T041220229381Z-9292b383",
+  "timestamp": "2026-08-24T05:02:41.337708+00:00",
+  "type": "review"
+}
