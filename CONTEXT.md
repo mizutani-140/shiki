@@ -64,10 +64,6 @@ _Avoid_: horizontal layer-only ticket
 A dependency graph of executable tasks derived from a Goal or PRD. Only tasks whose dependencies and locks are satisfied may run.
 _Avoid_: unordered checklist, parallel execution without dependency proof
 
-**Dispatch Mode**:
-A task's AFK/HITL classification: `afk` when the task can be dispatched and driven to completion with no human in the loop, `hitl` when a human decision is load-bearing during execution. It is recorded as `dispatch_mode` on the task record and is the field checklist item ISS-05 is judged from; a record without it is classified from `assigned_runtime` (`human` is `hitl`, any other runtime is `afk`). Distinct from a runtime's execution mode, which names how a runtime runs (`local_cli`, `github_action`, ...), not whether a human gates it — so an AFK runtime may still carry a `hitl` task.
-_Avoid_: inferring the classification from risk level or task status, marking a slice HITL to defer a decision the Goal should have settled
-
 **MergeGate**:
 The execution governance layer that decides whether a task, branch, or pull request can proceed, based on dependency state, file locks, required checks, CCA verdict, review status, risk level, and evidence completeness.
 _Avoid_: simple CI status, human-only merge habit

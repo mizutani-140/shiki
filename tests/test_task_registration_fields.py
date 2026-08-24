@@ -15,10 +15,11 @@ field ``task.schema.json`` defines; two did not hold up in practice:
     that judge scored only CCA-01..CCA-12 and never reached ISS-*. Identical
     content, opposite gate results.
   * **ISS-11** ("CCA checklist profile is listed") had a field, but neither
-    registration path wrote it: both emitted byte-identical 17-key records with
-    ``cca_checklist_profile`` absent, so a planner's declared profile reached no
-    task file and ``mergegate_check.checklist_profile_coverage_failures``
-    (which treats absent and ``[]`` identically) enforced nothing.
+    registration path wrote it, so a planner's declared profile reached no task
+    file. That carry landed separately on main as PR #352, and
+    ``tests/test_plan_task_carry.py`` owns its behaviour — this module does not
+    duplicate it. Pair 16 still binds the field structurally, because ISS-11 is
+    judged from it whoever implements the carry.
 
 This suite pins the behaviour that closes both. ``dispatch_mode`` is the explicit
 AFK/HITL surface; it is deliberately OPTIONAL in the schema (promoting it would
@@ -55,7 +56,6 @@ from shiki_tasks import (
     load_task,
     register_task_from_plan,
 )
-from mergegate_check import checklist_profile_coverage_failures
 
 CONTROL_DIRS = ("goals", "tasks", "dag", "ledger", "locks", "plans")
 
@@ -179,56 +179,6 @@ class PlanRegistrationCarriesFields(unittest.TestCase):
         )
         self.assertEqual(load_task(target, task_id)["dispatch_mode"], "hitl")
 
-    def test_cca_checklist_profile_is_carried_not_dropped(self) -> None:
-        target = _make_target()
-        goal_id = _goal(target)
-        declared = ["CCA-01", "CCA-09"]
-        task_id, _ = register_task_from_plan(
-            target,
-            goal_id=goal_id,
-            task_plan=_task_plan(cca_checklist_profile=list(declared)),
-            dependencies=[],
-        )
-        self.assertEqual(load_task(target, task_id)["cca_checklist_profile"], declared)
-
-    def test_carried_profile_reaches_the_mergegate_coverage_gate(self) -> None:
-        """The drop was invisible precisely because the gate no-ops on ``[]``.
-
-        This is the end-to-end proof that carrying the field restores
-        enforcement: the same verdict yields no reasons against a dropped
-        profile and both reasons against a carried one.
-        """
-        target = _make_target()
-        goal_id = _goal(target)
-        verdict = {"checklist": [{"id": "CCA-02", "status": "pass"}]}
-
-        task_id, _ = register_task_from_plan(
-            target, goal_id=goal_id, task_plan=_task_plan(), dependencies=[]
-        )
-        self.assertEqual(checklist_profile_coverage_failures(load_task(target, task_id), verdict), [])
-
-        task_id, _ = register_task_from_plan(
-            target,
-            goal_id=goal_id,
-            task_plan=_task_plan(cca_checklist_profile=["CCA-01", "CCA-09"]),
-            dependencies=[],
-        )
-        reasons = checklist_profile_coverage_failures(load_task(target, task_id), verdict)
-        self.assertEqual(len(reasons), 2, reasons)
-        self.assertTrue(any("CCA-01" in reason for reason in reasons), reasons)
-        self.assertTrue(any("CCA-09" in reason for reason in reasons), reasons)
-
-    def test_profile_defaults_to_empty_never_a_family_name(self) -> None:
-        # A bare family name (`ISS`, `CCA`) matches no verdict item id, so it
-        # imposes nothing while LOOKING like a declared profile.
-        target = _make_target()
-        goal_id = _goal(target)
-        task_id, _ = register_task_from_plan(
-            target, goal_id=goal_id, task_plan=_task_plan(), dependencies=[]
-        )
-        self.assertEqual(load_task(target, task_id)["cca_checklist_profile"], [])
-
-
 class CliRegistrationCarriesFields(unittest.TestCase):
     """``cmd_issue_plan`` writes the same two fields as the plan path."""
 
@@ -246,19 +196,6 @@ class CliRegistrationCarriesFields(unittest.TestCase):
         goal_id = _goal(target)
         task_id = _register_via_cli(target, goal_id, runtime="claude-code", dispatch_mode="hitl")
         self.assertEqual(load_task(target, task_id)["dispatch_mode"], "hitl")
-
-    def test_cca_checklist_profile_flag_is_carried(self) -> None:
-        target = _make_target()
-        goal_id = _goal(target)
-        task_id = _register_via_cli(target, goal_id, cca_checklist_profile=["ISS-05", "ISS-11"])
-        self.assertEqual(load_task(target, task_id)["cca_checklist_profile"], ["ISS-05", "ISS-11"])
-
-    def test_profile_defaults_to_empty(self) -> None:
-        target = _make_target()
-        goal_id = _goal(target)
-        task_id = _register_via_cli(target, goal_id)
-        self.assertEqual(load_task(target, task_id)["cca_checklist_profile"], [])
-
 
 class RegisteredRecordsStayValid(unittest.TestCase):
     """The new fields must not break the schema or the validator.

@@ -360,13 +360,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="AFK/HITL classification (checklist ISS-05). Defaults to hitl for --runtime human, afk otherwise (SADR-0008); pass hitl explicitly when an automated runtime still needs a human decision.",
     )
     issue_plan.add_argument("--required-skill", action="append", default=[])
-    issue_plan.add_argument(
-        "--cca-checklist-profile",
-        action="append",
-        default=[],
-        metavar="ID",
-        help="CCA checklist id the PR's verdict must judge to a terminal status (checklist ISS-11); repeatable. Use full ids such as ISS-05 or CCA-01, never a bare family name — a family name matches no verdict item id and enforces nothing.",
-    )
+    issue_plan.add_argument("--cca-checklist-profile", action="append", default=[], help="CCA checklist id the PR's structured verdict must resolve to a terminal status; repeatable")
     issue_plan.add_argument("--acceptance-check", action="append", required=True)
     issue_plan.add_argument("--expected-branch")
     issue_plan.add_argument("--expected-pr", type=int)

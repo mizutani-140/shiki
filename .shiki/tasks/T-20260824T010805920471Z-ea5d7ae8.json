@@ -6,7 +6,7 @@
     "docs/agents/checklists.md ISS-05 names dispatch_mode and states the assigned_runtime fallback, so the row is satisfiable for a record with no dispatch_mode field; ISS-11 remains satisfiable via the now-carried cca_checklist_profile.",
     "tests/test_paired_invariants.py Pair16 asserts set-equality between the blocking ISS-NN ids in docs/agents/checklists.md and an explicit ISS-to-task-schema-property mapping, that each mapped property exists in task.schema.json properties, and that each is emitted by both registration payloads; its divergence test proves the binder fails when a blocking ISS row has no backing field.",
     "python3 -m unittest discover -s tests passes, and python3 scripts/validate_shiki.py --target . passes.",
-    "CONTEXT.md defines the AFK/HITL classification term with an _Avoid_ line, in the existing Language section style."
+    "register_task_from_plan and cmd_issue_plan emit identical task-record key sets that both include dispatch_mode; the cca_checklist_profile carry landed separately on main as PR #352 and is asserted here only structurally, by Pair 16."
   ],
   "assigned_runtime": "claude-code",
   "cca_checklist_profile": [
@@ -46,7 +46,6 @@
     "path:scripts/shiki_cli.py",
     "path:scripts/validate_shiki.py",
     "path:docs/agents/checklists.md",
-    "path:CONTEXT.md",
     "path:tests/test_paired_invariants.py",
     "path:tests/test_task_registration_fields.py"
   ],
@@ -56,7 +55,9 @@
     "Adding cca_checklist_profile to mergegate_check._FROZEN_TASK_MATCH_FIELDS (it blocks goal G-20260822T100310254979Z-b0f195ee until a mirror backfill lands)",
     "Scoping the ISS family to Issue-backed tasks, or making ISS-05 advisory",
     "Adding a SADR or touching docs/adr and tests/test_adr_references.py",
-    "Changing which checklist families the CCA judge decides are applicable"
+    "Changing which checklist families the CCA judge decides are applicable",
+    "Defining the AFK/HITL classification as a CONTEXT.md glossary term: path:CONTEXT.md is held by T-20260822T102714799429Z-c43ccdcf, whose lock its merged PR #347 has not yet released. Deferred to a follow-up; docs/agents/checklists.md carries the operative ISS-05 rule.",
+    "Re-implementing the cca_checklist_profile carry: PR #352 landed it on main during this task, so this PR takes main's implementation and keeps only the dispatch_mode addition."
   ],
   "required_skills": [
     "tdd",

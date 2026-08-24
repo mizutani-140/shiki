@@ -364,13 +364,16 @@ def register_task_from_plan(
         "dispatch_mode": task_plan.get("dispatch_mode")
         or dispatch_mode_for_runtime(task_plan.get("runtime", "claude-code")),
         "required_skills": task_plan.get("required_skills") or ["tdd", "code-review"],
-        # ISS-11's surface, and the ids MergeGate forces the CCA verdict to judge
-        # to a terminal status (checklist_profile_coverage_failures). Dropping the
-        # plan's declaration here made that gate a no-op, because absent and `[]`
-        # are treated identically. Default `[]`, never a bare family name: a
-        # family name matches no verdict item id and so enforces nothing.
-        "cca_checklist_profile": task_plan.get("cca_checklist_profile") or [],
         "acceptance_checks": task_plan["acceptance_checks"],
+        # The CCA checklist profile is load-bearing governance, so it must survive
+        # registration. mergegate_check.checklist_profile_coverage_failures blocks
+        # a verdict that omits or leaves unresolved ANY id declared here; dropping
+        # the field on the way in silently discards that requirement, because the
+        # gate treats an absent profile and an empty one identically (no error
+        # marks the loss). Default to [] and NEVER to a family name: a bare family
+        # such as "CCA" is not a verdict item id, can never match a checklist item,
+        # and would therefore block every PR for the task.
+        "cca_checklist_profile": task_plan.get("cca_checklist_profile") or [],
         # The loop-observed TDD gate (SADR-0011) exec's THIS structured command in
         # the worktree before opening the PR. acceptance_checks is free-form
         # prose+commands and is never exec'd; test_command is the safe, explicit
@@ -984,13 +987,18 @@ def cmd_issue_plan(args: argparse.Namespace) -> int:
         "locks": args.lock or [],
         "assigned_runtime": args.runtime,
         "risk_level": args.risk_level,
-        # Same two ISS-backing fields as the plan path; the two registration paths
-        # must emit identical task-record shapes or a field is enforced only for
-        # tasks registered one way (tests/test_paired_invariants Pair 16).
+        # ISS-05's explicit AFK/HITL surface, derived from the runtime unless the
+        # CLI states it. Both registration paths must emit identical task-record
+        # shapes (tests/test_paired_invariants Pair 16).
         "dispatch_mode": getattr(args, "dispatch_mode", None) or dispatch_mode_for_runtime(args.runtime),
         "required_skills": args.required_skill or [],
-        "cca_checklist_profile": getattr(args, "cca_checklist_profile", None) or [],
         "acceptance_checks": args.acceptance_check,
+        # Carry the CLI-declared CCA checklist profile so MergeGate's coverage gate
+        # can enforce the declared ids (see the register_task_from_plan site for why
+        # the field is load-bearing and why the default is [] rather than a family
+        # name). This keeps the two registration paths' task-record keys identical
+        # (bound by tests/test_plan_task_carry.RegistrationBinderTests).
+        "cca_checklist_profile": getattr(args, "cca_checklist_profile", None) or [],
         # Structured loop-observed TDD command (SADR-0011); falls back to the safe
         # unittest-discover default when the CLI did not supply one.
         "test_command": getattr(args, "test_command", None) or DEFAULT_TEST_COMMAND,
