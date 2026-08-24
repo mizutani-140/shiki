@@ -14,6 +14,7 @@ from pathlib import Path
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
 import shiki_config
+import shiki_doctor
 import mergegate_check
 
 
@@ -89,6 +90,69 @@ class ConfigLoadingTests(unittest.TestCase):
         self.assertFalse(shiki_config.configured_required_review(target))
         self.assertEqual(shiki_config.branch_protection_review_count(target), 0)
         self.assertFalse(mergegate_check.configured_required_review(target))
+
+    def test_code_owner_review_defaults_false(self) -> None:
+        """Absent key means GitHub-level code-owner enforcement is OFF.
+
+        The default is false because the CCA Review Bridge is the intended
+        approver (SADR-0013) and a bot can never be a CODEOWNER, so enforcing
+        it makes every CODEOWNERS-touching PR unmergeable in a repository whose
+        only code owner is the PR author (SADR-0021).
+        """
+        target = Path(tempfile.mkdtemp())
+        self.assertFalse(shiki_config.configured_required_code_owner_review(target))
+        target = self._write_config("defaults:\n  required_review: true\n")
+        self.assertFalse(shiki_config.configured_required_code_owner_review(target))
+
+    def test_code_owner_review_honors_true(self) -> None:
+        target = self._write_config(
+            "defaults:\n  required_review: true\n  required_code_owner_review: true\n"
+        )
+        self.assertTrue(shiki_config.configured_required_code_owner_review(target))
+
+    def test_code_owner_review_honors_explicit_false(self) -> None:
+        target = self._write_config(
+            "defaults:\n  required_review: true\n  required_code_owner_review: false\n"
+        )
+        self.assertFalse(shiki_config.configured_required_code_owner_review(target))
+
+    def test_code_owner_review_requires_review_to_be_required(self) -> None:
+        """required_review: false wins: GitHub still demands code-owner approval
+        at required_approving_review_count 0, which would be a deadlock with no
+        approving-review requirement to justify it."""
+        target = self._write_config(
+            "defaults:\n  required_review: false\n  required_code_owner_review: true\n"
+        )
+        self.assertFalse(shiki_config.configured_required_code_owner_review(target))
+
+    def test_doctor_agrees_with_shiki_config_on_code_owner_review(self) -> None:
+        """Bind doctor's restatement of the rule to shiki_config's.
+
+        They are two implementations of one precedence rule over two different
+        parsers: shiki_config reads the subset YAML from a target path, doctor
+        reads its own load_yaml_model. Nothing else forces them to agree, and a
+        drift is silent and wrong in both directions -- bootstrap would write one
+        protection payload while doctor judged it against the other.
+
+        Every case states required_review EXPLICITLY, because the two disagree
+        on its DEFAULT and always have: shiki_config.configured_required_review
+        treats an absent key as true, doctor._required_review treats it as false.
+        That pre-existing divergence is out of this task's scope; pinning the
+        cases keeps this test honest about what it does and does not bind.
+        """
+        for body in (
+            "defaults:\n  required_review: true\n",
+            "defaults:\n  required_review: true\n  required_code_owner_review: true\n",
+            "defaults:\n  required_review: true\n  required_code_owner_review: false\n",
+            "defaults:\n  required_review: false\n  required_code_owner_review: true\n",
+            "version: 1\n",
+        ):
+            with self.subTest(body=body):
+                target = self._write_config(body)
+                self.assertEqual(
+                    shiki_doctor._required_code_owner_review(shiki_doctor._config_model(target)),
+                    shiki_config.configured_required_code_owner_review(target),
+                )
 
     def test_mergegate_required_checks_fall_back_to_defaults(self) -> None:
         target = self._write_config("platform: shiki\n")

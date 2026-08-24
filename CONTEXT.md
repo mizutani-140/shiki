@@ -76,6 +76,10 @@ _Avoid_: simple CI status, human-only merge habit
 The GitHub-side Completion Check Agent. CCA judges whether a PR actually satisfies its task contract by evaluating acceptance criteria, diff scope, TDD evidence, checks, review state, risk, locks, and ledger evidence. CCA returns `complete`, `repair_required`, `blocked`, `needs_guardian`, or `insufficient_evidence`.
 _Avoid_: implementer, casual reviewer, green-check proxy
 
+**CCA Review Bridge**:
+The mechanism that turns a `complete` CCA verdict into the approving GitHub review branch protection requires (SADR-0013). It approves under the Actions identity, only after `complete`, and never when that identity is the PR author. Because it is a bot, it can satisfy an approving-review count but can never be a CODEOWNER — so GitHub-level code-owner enforcement is not a gate the Bridge can pass.
+_Avoid_: treating it as a code owner, treating a bot approval as Guardian approval, approving before CCA returns `complete`
+
 **Ledger**:
 The durable evidence record for Goals, PRDs, plans, task state, locks, branch and PR links, check results, reviews, CCA verdicts, repair packets, and merge decisions.
 _Avoid_: chat memory, transient agent state

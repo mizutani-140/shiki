@@ -1,0 +1,17 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "python3 -m unittest discover -s tests -> Ran 1192 tests in 135.059s, OK",
+    "python3 scripts/validate_shiki.py -> Shiki validation passed",
+    "bash scripts/test_shiki_doctor.sh -> EXIT=0",
+    "bash scripts/test_shiki_control_plane.sh -> EXIT=0",
+    "bash scripts/test_shiki_init.sh -> EXIT=0"
+  ],
+  "goal_id": "G-20260822T102714798265Z-66a9cfa2",
+  "id": "L-20260824T012559051799Z-da802229",
+  "links": [],
+  "summary": "Skill tdd: red-green loop for SADR-0021. Wrote failing tests first \u2014 4 cases for configured_required_code_owner_review in tests/test_config_loading.py and 6 for the decoupled payload in tests/test_branch_protection_payload.py \u2014 confirmed RED (4 errors then 6 errors), then implemented shiki_config/shiki_github to green (19 tests OK). Full suite after the change: python3 -m unittest discover -s tests -> Ran 1192 tests, OK (SUITE_EXIT=0).",
+  "task_id": "T-20260822T102714799429Z-c43ccdcf",
+  "timestamp": "2026-08-24T01:25:59+00:00",
+  "type": "check"
+}

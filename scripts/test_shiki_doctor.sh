@@ -187,7 +187,7 @@ case "$*" in
   },
   "required_pull_request_reviews": {
     "required_approving_review_count": 1,
-    "require_code_owner_reviews": true
+    "require_code_owner_reviews": false
   }
 }
 JSON
@@ -413,4 +413,136 @@ python3 scripts/shiki.py doctor --json --target "$STAMP_ABSENT" >/tmp/shiki-doct
 test "$(finding_status /tmp/shiki-doctor-stamp-absent.json doctor.install_stamp.present)" = "warn"
 expect_fail python3 scripts/shiki.py doctor --json --strict --target "$STAMP_ABSENT"
 
+
+# SADR-0021 code-owner matrix. Doctor compares the CONFIGURED value against
+# live protection in BOTH directions, and the two directions are not
+# symmetric.
+#
+# Over-enforcement (GitHub requires code-owner review, config does not) only
+# WARNS: doctor cannot tell a deadlocked solo repository from a healthy
+# multi-maintainer one, because that turns on whether a code owner other than
+# the PR author exists, which the protection payload does not say.
+cat >"$FAKE_BIN/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$*" in
+  "--version")
+    echo "gh version 2.74.0"
+    ;;
+  "auth status")
+    echo "github.com" >&2
+    ;;
+  "repo view example/shiki-doctor --json name,defaultBranchRef")
+    echo '{"name":"shiki-doctor","defaultBranchRef":{"name":"main"}}'
+    ;;
+  "secret list --repo example/shiki-doctor")
+    echo "CLAUDE_CODE_OAUTH_TOKEN 2026-06-04T00:00:00Z"
+    ;;
+  "api repos/example/shiki-doctor/branches/main/protection")
+    cat <<'JSON'
+{
+  "required_status_checks": {
+    "contexts": [
+      "Validate Shiki mirror",
+      "CCA verdict",
+      "MergeGate metadata check",
+      "MergeGate policy check"
+    ]
+  },
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 1,
+    "require_code_owner_reviews": true
+  }
+}
+JSON
+    ;;
+  "api repos/example/shiki-doctor/actions/permissions/workflow")
+    echo '{"default_workflow_permissions":"read","can_approve_pull_request_reviews":true}'
+    ;;
+  "api repos/example/shiki-doctor/issues/comments?per_page=1")
+    echo '[]'
+    ;;
+  "api repos/example/shiki-doctor/issues/events?per_page=1")
+    echo '[]'
+    ;;
+  *)
+    echo "fake gh unsupported: $*" >&2
+    exit 1
+    ;;
+esac
+SH
+chmod +x "$FAKE_BIN/gh"
+PATH="$FAKE_BIN:$PATH" python3 scripts/shiki.py doctor --json --online --target "$VALID" \
+  >/tmp/shiki-doctor-online-codeowner-extra.json || true
+test "$(finding_status /tmp/shiki-doctor-online-codeowner-extra.json doctor.github.branch_protection)" = "warn"
+grep "unmergeable" /tmp/shiki-doctor-online-codeowner-extra.json >/dev/null
+
+# Under-enforcement (config asks for code-owner review, GitHub does not apply
+# it) is a hard FAIL: the operator asked for path-owner governance and is not
+# getting it.
+python3 - "$VALID/.shiki/config.yaml" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+assert "required_code_owner_review: false" in text
+path.write_text(text.replace("required_code_owner_review: false", "required_code_owner_review: true"), encoding="utf-8")
+PY
+cat >"$FAKE_BIN/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$*" in
+  "--version")
+    echo "gh version 2.74.0"
+    ;;
+  "auth status")
+    echo "github.com" >&2
+    ;;
+  "repo view example/shiki-doctor --json name,defaultBranchRef")
+    echo '{"name":"shiki-doctor","defaultBranchRef":{"name":"main"}}'
+    ;;
+  "secret list --repo example/shiki-doctor")
+    echo "CLAUDE_CODE_OAUTH_TOKEN 2026-06-04T00:00:00Z"
+    ;;
+  "api repos/example/shiki-doctor/branches/main/protection")
+    cat <<'JSON'
+{
+  "required_status_checks": {
+    "contexts": [
+      "Validate Shiki mirror",
+      "CCA verdict",
+      "MergeGate metadata check",
+      "MergeGate policy check"
+    ]
+  },
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 1,
+    "require_code_owner_reviews": false
+  }
+}
+JSON
+    ;;
+  "api repos/example/shiki-doctor/actions/permissions/workflow")
+    echo '{"default_workflow_permissions":"read","can_approve_pull_request_reviews":true}'
+    ;;
+  "api repos/example/shiki-doctor/issues/comments?per_page=1")
+    echo '[]'
+    ;;
+  "api repos/example/shiki-doctor/issues/events?per_page=1")
+    echo '[]'
+    ;;
+  *)
+    echo "fake gh unsupported: $*" >&2
+    exit 1
+    ;;
+esac
+SH
+chmod +x "$FAKE_BIN/gh"
+if PATH="$FAKE_BIN:$PATH" python3 scripts/shiki.py doctor --json --online --target "$VALID" \
+  >/tmp/shiki-doctor-online-codeowner-missing.json; then
+  echo "expected doctor to fail when configured code-owner review is not enforced" >&2
+  exit 1
+fi
+test "$(finding_status /tmp/shiki-doctor-online-codeowner-missing.json doctor.github.branch_protection)" = "fail"
 echo "shiki doctor tests passed"
