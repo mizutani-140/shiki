@@ -1,0 +1,50 @@
+{
+  "acceptance_checks": [
+    "A refused carry is present in mergegate-result.json blocking_reasons naming the failing proof step, so the loop can carry it into a repair packet.",
+    "A proven carry on a PR blocked for a missing guardian:approved label is disclosed without any claim that approval was carried.",
+    "The gate and guardian_approval_signal.py name the same carry refusal reason over the same repository state.",
+    "With --base-sync-carry omitted the gate emits no carry-shaped output.",
+    "python3 -m unittest discover -s tests passes."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260824t011706104923z-2beb4bd7-closeout",
+  "expected_pr": 349,
+  "github_issue": null,
+  "goal_id": "G-20260824T011654000514Z-d57197b5",
+  "id": "T-20260824T011706104923Z-2beb4bd7",
+  "ledger_evidence": [
+    "L-20260824T011654001307Z-4197f99a",
+    "L-20260824T011706105103Z-0df4076f",
+    "L-20260824T011808276421Z-5dad5054",
+    "L-20260824T011808276738Z-7300600f",
+    "L-20260824T011808276860Z-73a97091",
+    "L-20260824T011918569509Z-4ddf5215",
+    "L-20260824T012947036436Z-ef2185df",
+    "L-20260824T012951930693Z-867d48bd",
+    "L-20260824T014048954178Z-eb172f05",
+    "L-20260824T014053525000Z-81f41d01",
+    "L-20260824T014059873236Z-d3c530a0",
+    "L-20260824T015319209335Z-2b0fa482"
+  ],
+  "locks": [
+    "path:scripts/mergegate_check.py",
+    "path:tests/test_guardian_carry_parity.py",
+    "path:docs/agents/guardian-policy.md"
+  ],
+  "non_goals": [
+    "Re-anchoring step 9 to the merged base (amends SADR-0018)",
+    "Changes to shiki_sync_proof.py, shiki_guardian.py, workflow YAML, or mergegate_check.py argv",
+    "Disclosure in shiki_guardian_status.py"
+  ],
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "low",
+  "scope": "In scripts/mergegate_check.py enforce_guardian_policy, read the GuardianApprovalResult carry fields the gate previously dropped: disclose a proven carry as a warning naming the head it was carried from, and route a refused carry's evaluator reason to blocking_reasons when the gate blocks (warnings when another source approved), skipping reasons already raised as blockers. Pin gate-vs-signal carry parity, including the base-drift shape measured on PR #338, in tests/test_guardian_carry_parity.py, and record the live-tip anchor and its decay in docs/agents/guardian-policy.md.",
+  "status": "done",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Disclose the base-sync carry outcome in the MergeGate policy check"
+}

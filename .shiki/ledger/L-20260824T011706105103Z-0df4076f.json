@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260824T011706104923Z-2beb4bd7.json"
+  ],
+  "goal_id": "G-20260824T011654000514Z-d57197b5",
+  "id": "L-20260824T011706105103Z-0df4076f",
+  "links": [],
+  "summary": "Task registered: Disclose the base-sync carry outcome in the MergeGate policy check",
+  "task_id": "T-20260824T011706104923Z-2beb4bd7",
+  "timestamp": "2026-08-24T01:17:06+00:00",
+  "type": "task-registered"
+}
