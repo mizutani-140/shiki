@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260822T103718385731Z-f0b5eff6.json",
+    ".shiki/plans/P-20260822T103714137950Z-8e9d776f.json"
+  ],
+  "goal_id": "G-20260822T103718385731Z-f0b5eff6",
+  "id": "L-20260822T103718386637Z-4147e7d2",
+  "links": [],
+  "summary": "Goal registered from plan: Record that the SADR-0015 Scope Envelope size ceiling was descoped",
+  "task_id": null,
+  "timestamp": "2026-08-22T10:37:18+00:00",
+  "type": "goal-created"
+}

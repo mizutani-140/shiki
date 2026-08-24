@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260822T103718387283Z-2f3b0b54.json"
+  ],
+  "goal_id": "G-20260822T103718385731Z-f0b5eff6",
+  "id": "L-20260822T103718387344Z-e72ae460",
+  "links": [],
+  "summary": "Task registered from plan: Amend SADR-0015 and CONTEXT.md to record the descoped Scope Envelope size ceiling",
+  "task_id": "T-20260822T103718387283Z-2f3b0b54",
+  "timestamp": "2026-08-22T10:37:18+00:00",
+  "type": "task-registered"
+}
