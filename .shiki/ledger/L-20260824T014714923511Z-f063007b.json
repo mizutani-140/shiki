@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260824T014714922828Z-e6396694.json",
+    ".shiki/plans/P-20260824T014710966541Z-5daa0a1d.json"
+  ],
+  "goal_id": "G-20260824T014714922828Z-e6396694",
+  "id": "L-20260824T014714923511Z-f063007b",
+  "links": [],
+  "summary": "Goal registered from plan: Enforce the SADR-0015 pre-dispatch gate on both dispatch surfaces",
+  "task_id": null,
+  "timestamp": "2026-08-24T01:47:14+00:00",
+  "type": "goal-created"
+}

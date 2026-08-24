@@ -1,0 +1,60 @@
+{
+  "acceptance_checks": [
+    "scripts/shiki_tasks.py defines a single predicate returning (satisfied, reason) that decides the SADR-0015 pre-dispatch gate, and it is the only place that decision is made.",
+    "That predicate obtains the compared field list from mergegate_check._NORMAL_PATH_GOVERNANCE_FIELDS; scripts/shiki_tasks.py declares no second copy of the seven field names, and a test binds the compared set to that imported constant so a future edit to either cannot silently diverge.",
+    "A high/critical task whose contract exists on the remote default branch and is equal on all seven governance fields is SATISFIED by the predicate.",
+    "A high/critical task whose contract is absent from the remote default branch is REFUSED, with a reason naming the task and the ref consulted.",
+    "For each of the seven governance fields individually, a high/critical task diverging on that field alone is REFUSED, with a reason naming that field.",
+    "A high/critical task whose registered contract differs ONLY on status, expected_pr or ledger_evidence is SATISFIED, proving the comparison is governance-fields-only and not whole-file.",
+    "A task whose risk_level is low or medium is SATISFIED without consulting the remote default branch.",
+    "The predicate fails closed: when the default branch cannot be resolved, when the git read fails, or when the registered contract is unparseable, it returns NOT satisfied with a named reason. No input returns satisfied by default.",
+    "cmd_dispatch_check consults the predicate, and the string \"guardian approval required for high/critical risk\" is no longer emitted as an unconditional blocker. Measured before the change: `shiki dispatch check T-20260822T103718387283Z-2f3b0b54` returns it even though that task's contract is present at origin/main.",
+    "shiki dispatch check on a high/critical task whose contract is registered and unchanged returns that task's contract-gate field as satisfied and does not list the gate among blocking_reasons.",
+    "dispatchable_task_ids consults the SAME predicate and omits a high/critical task the predicate refuses.",
+    "A binder test in tests/test_dispatch_contract_registration.py proves the two surfaces agree on ONE task in BOTH directions: registered and unchanged means dispatch check reports dispatchable and the id appears in dispatchable_task_ids; absent or diverged means dispatch check reports not dispatchable and the id does not appear. The test fails if either surface is changed without the other.",
+    "docs/agents/decision-control.md's Dispatch Guard JSON example matches the fields cmd_dispatch_check emits after this change, and its surrounding prose no longer implies that guardian_approval_required: true alone forbids dispatch.",
+    "docs/agents/decision-control.md line 61 (\"risk level does not require unresolved Guardian approval\") is unchanged.",
+    "python3 -m unittest discover -s tests passes.",
+    "python3 scripts/validate_shiki.py --target . passes.",
+    "scripts/test_shiki_module_boundaries.sh, test_shiki_control_plane.sh, test_shiki_run_orchestrator.sh, test_shiki_daemon_runner.sh, test_shiki_loop_lock_guard.sh, test_shiki_goal_loop.sh and test_shiki_runner_claude.sh all pass.",
+    "git diff --name-only against the merge base lists only files inside the declared locks.",
+    "scripts/shiki_guardian.py and scripts/shiki_contract_approval.py are byte-identical to their base versions."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "shiki/t-20260824t014714924122z-ee327574-enforce-the-sadr-0015-pre-dispatch-gate-on-both-",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260824T014714922828Z-e6396694",
+  "id": "T-20260824T014714924122Z-ee327574",
+  "ledger_evidence": [
+    "L-20260824T014714924185Z-70ded74f"
+  ],
+  "locks": [
+    "path:scripts/shiki_tasks.py",
+    "path:scripts/shiki_runtime.py",
+    "path:tests/test_dispatch_contract_registration.py",
+    "path:docs/agents/decision-control.md"
+  ],
+  "non_goals": [
+    "Modifying scripts/shiki_guardian.py, evaluate_guardian_approval, or any of the four existing approval sources. The pre-dispatch gate is a dispatch precondition, not an approval source.",
+    "Modifying scripts/shiki_contract_approval.py or either consumer of the merge-time Contract Approval carry.",
+    "Editing docs/adr/SADR-0015-contract-approval-before-dispatch.md. The record correction is the second task of this Goal and holds that lock.",
+    "Editing CONTEXT.md, which is held by the in-flight descope task T-20260822T103718387283Z-2f3b0b54.",
+    "Changing docs/agents/decision-control.md line 61; it already states the requirement this task makes true.",
+    "Changing how risk_level is resolved anywhere, or lowering any task's risk.",
+    "Declaring a second copy of the seven governance field names. The list is imported from mergegate_check or the task is not done.",
+    "Adding a new module, and therefore adding any scripts/shiki_installer.py manifest entry or tests/test_install_completeness.py change. The predicate belongs beside evaluate_lock_grant in scripts/shiki_tasks.py.",
+    "Registering, backfilling, re-registering or otherwise mutating any contract under .shiki/tasks. Measured: no backfill is required.",
+    "Authoring a spec_freeze block, Guardian approval evidence, a CCA verdict, or any other approval record. An acceptance criterion that cannot be satisfied with the artifacts present in the worktree must be reported as a stop, never closed by manufacturing the missing artifact."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Add ONE shared predicate to scripts/shiki_tasks.py, beside evaluate_lock_grant and in the same shape \u2014 `evaluate_contract_registration(target: Path, task_id: str) -> tuple[bool, str | None]`, returning (satisfied, reason). Semantics, stated explicitly in the docstring:\n  - a task whose risk_level is NOT high or critical is SATISFIED vacuously and the remote is never consulted (SADR-0015: \"Low and medium risk keep dispatching from local state as today\");\n  - a high/critical task is satisfied only when its contract file exists at `<remote default branch ref>:.shiki/tasks/<task_id>.json` AND every field in mergegate_check._NORMAL_PATH_GOVERNANCE_FIELDS is equal between that registered contract and local state;\n  - the comparison is over those seven fields ONLY, never the whole file. try_acquire_locks flips status to \"ready\" and appends a lock ledger id before dispatch while the registered contract is still \"planned\", so a whole-file comparison would leave the gate permanently closed;\n  - the field list is IMPORTED from mergegate_check, never redeclared, so the fields a PR may not change are exactly the fields the gate compares;\n  - the predicate FAILS CLOSED. Contract absent, default branch unresolvable, git failure, or an unparseable registered contract all return NOT satisfied with a reason naming the task and, where known, the ref and the diverging field(s). No path returns satisfied by default.\n\nResolve the remote default branch with the existing shiki_runtime.resolve_default_branch_ref, which already prefers origin/<name> over the local branch and refreshes it best-effort. shiki_runtime imports shiki_tasks, so import it lazily inside the predicate to avoid the cycle, in the documented style mergegate_check uses for shiki_contract_approval.\n\nWire BOTH surfaces to that one predicate:\n  - scripts/shiki_tasks.py cmd_dispatch_check (:1189,:1198): replace the unconditional \"guardian approval required for high/critical risk\" blocker \u2014 which today has no satisfaction path \u2014 with the predicate's reason. Report the gate in the emitted JSON so the guard's output states the decision.\n  - scripts/shiki_runtime.py dispatchable_task_ids (:236): add the same predicate as a filter beside the existing evaluate_lock_grant filter, extending that function's stated invariant (\"a task the dispatcher would refuse must not be advertised as dispatchable\") to the contract gate.\n\nAdd tests/test_dispatch_contract_registration.py covering the predicate's semantics AND the binder: for one task, both surfaces must agree in the admit case and in the refuse case, so neither can be changed without the other.\n\nUpdate docs/agents/decision-control.md's Dispatch Guard example to the shape the guard actually emits, and stop implying that guardian_approval_required: true alone forbids dispatch. Leave :61 unchanged \u2014 it already states the requirement this task makes true.\n\nNo change to approval sources, to the merge-time carry, to risk resolution, or to any file outside the declared locks.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target . && bash scripts/test_shiki_module_boundaries.sh && bash scripts/test_shiki_control_plane.sh && bash scripts/test_shiki_run_orchestrator.sh && bash scripts/test_shiki_daemon_runner.sh && bash scripts/test_shiki_loop_lock_guard.sh && bash scripts/test_shiki_goal_loop.sh && bash scripts/test_shiki_runner_claude.sh",
+  "title": "Enforce the SADR-0015 pre-dispatch gate on both dispatch surfaces"
+}
