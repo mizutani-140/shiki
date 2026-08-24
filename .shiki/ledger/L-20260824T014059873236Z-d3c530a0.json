@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260824T014059847364Z-dfe41848.json"
+  ],
+  "goal_id": "G-20260824T011654000514Z-d57197b5",
+  "id": "L-20260824T014059873236Z-d3c530a0",
+  "links": [],
+  "summary": "MergeGate discloses the base-sync carry outcome. A proven carry names the head it came from; a refused carry's evaluator reason goes to blocking_reasons when the gate blocks, so shiki_loop._resolve_blocking_reasons carries it into the repair packet. Implemented in PR #345 (merge commit 5188ef5), CCA verdict complete with all five acceptance criteria passing.",
+  "task_id": null,
+  "timestamp": "2026-08-24T01:40:59+00:00",
+  "type": "completion"
+}

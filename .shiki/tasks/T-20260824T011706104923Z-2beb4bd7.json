@@ -8,8 +8,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "claude/practical-raman-fce799",
-  "expected_pr": 345,
+  "expected_branch": "shiki/t-20260824t011706104923z-2beb4bd7-closeout",
+  "expected_pr": 349,
   "github_issue": null,
   "goal_id": "G-20260824T011654000514Z-d57197b5",
   "id": "T-20260824T011706104923Z-2beb4bd7",
@@ -21,7 +21,11 @@
     "L-20260824T011808276860Z-73a97091",
     "L-20260824T011918569509Z-4ddf5215",
     "L-20260824T012947036436Z-ef2185df",
-    "L-20260824T012951930693Z-867d48bd"
+    "L-20260824T012951930693Z-867d48bd",
+    "L-20260824T014048954178Z-eb172f05",
+    "L-20260824T014053525000Z-81f41d01",
+    "L-20260824T014059873236Z-d3c530a0",
+    "L-20260824T015319209335Z-2b0fa482"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
@@ -40,7 +44,7 @@
   ],
   "risk_level": "low",
   "scope": "In scripts/mergegate_check.py enforce_guardian_policy, read the GuardianApprovalResult carry fields the gate previously dropped: disclose a proven carry as a warning naming the head it was carried from, and route a refused carry's evaluator reason to blocking_reasons when the gate blocks (warnings when another source approved), skipping reasons already raised as blockers. Pin gate-vs-signal carry parity, including the base-drift shape measured on PR #338, in tests/test_guardian_carry_parity.py, and record the live-tip anchor and its decay in docs/agents/guardian-policy.md.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Disclose the base-sync carry outcome in the MergeGate policy check"
 }

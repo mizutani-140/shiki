@@ -1,0 +1,16 @@
+{
+  "id": "L-20260824T015319209335Z-2b0fa482",
+  "timestamp": "2026-08-24T01:53:19+00:00",
+  "goal_id": "G-20260824T011654000514Z-d57197b5",
+  "task_id": "T-20260824T011706104923Z-2beb4bd7",
+  "type": "lock",
+  "actor": "claude-code",
+  "summary": "Closeout PR #349 (/pull/349): task done + lock released + goal complete (scorecard), pushed to main. Implementation merged as 5188ef5 via PR #345.",
+  "evidence": [
+    ".shiki/tasks/T-20260824T011706104923Z-2beb4bd7.json",
+    ".shiki/locks/T-20260824T011706104923Z-2beb4bd7.json"
+  ],
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/349"
+  ]
+}
