@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260824T033043243224Z-7bbcdbce.json"
+  ],
+  "goal_id": "G-20260824T033043243224Z-7bbcdbce",
+  "id": "L-20260824T033043243824Z-d1cdb0ba",
+  "links": [],
+  "summary": "Goal registered: Make shiki doctor's online checks reachable on the Shiki platform repository",
+  "task_id": null,
+  "timestamp": "2026-08-24T03:30:43+00:00",
+  "type": "goal-created"
+}
