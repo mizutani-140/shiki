@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/plans/P-20260824T014710966541Z-5daa0a1d.json",
+    ".shiki/goals/G-20260824T014714922828Z-e6396694.json",
+    ".shiki/tasks/T-20260824T014714924122Z-ee327574.json"
+  ],
+  "goal_id": "G-20260824T014714922828Z-e6396694",
+  "id": "L-20260824T025442626231Z-db7f271b",
+  "links": [],
+  "summary": "Context & Impact produced by a Workflow parallel exploration sweep (CI-08): 8 exploration agents plus synthesis, run wf_8c96304b-90e. Verdict NOT SOUND AS CONTRACTED; operator approved the resulting Spec Amendment, applied to the plan and task 1 before the Contract PR merged.",
+  "task_id": "T-20260824T014714924122Z-ee327574",
+  "timestamp": "2026-08-24T02:54:42+00:00",
+  "type": "context-impact"
+}

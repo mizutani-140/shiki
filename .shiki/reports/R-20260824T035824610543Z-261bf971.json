@@ -1,0 +1,51 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-08-24T03:58:24+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260824T033055633960Z-c332534d.json"
+  ],
+  "goal_id": "G-20260824T033043243224Z-7bbcdbce",
+  "id": "R-20260824T035824610543Z-261bf971",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "low"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 1643000,
+    "generated_at": "2026-08-24T03:58:24+00:00",
+    "goal_id": "G-20260824T033043243224Z-7bbcdbce",
+    "lock_amendments": {
+      "total": 2
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 0
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard"
+    ],
+    "window": {
+      "from": "2026-08-24T03:30:43+00:00",
+      "to": "2026-08-24T03:58:06+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "Both completion conditions verified on merged main (PR #354, merge commit dd97387): doctor.provider.repo_json reports pass, and doctor.github.branch_protection is evaluated rather than skipped behind doctor.github.online. The branch-protection finding is fail, which is the intended outcome: it surfaces the pre-existing mismatch between .shiki/config.yaml and live protection (missing required check 'MergeGate metadata check'; required review count 0 < 1). Reconciling that mismatch was an explicit non-goal."
+}

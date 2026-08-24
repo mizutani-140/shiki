@@ -1,0 +1,47 @@
+{
+  "acceptance_checks": [
+    "The \"What shipped, and when.\" paragraph in docs/adr/SADR-0015-contract-approval-before-dispatch.md no longer lists the pre-dispatch gate among what shipped 2026-07-27 through 2026-07-29.",
+    "That paragraph names T-20260727T005125902419Z-6c2db440 and reproduces its non_goal wording (\"The pre-dispatch gate or the envelope ceiling\") as the reason the gate did not ship in that window.",
+    "That paragraph records that no descope record was ever made for the gate, distinguishing it from the Scope Envelope size ceiling, which G-20260801T040836630398Z-f28167e5 descoped on the record.",
+    "That paragraph records where the gate shipped, naming this Goal and this task's PR.",
+    "The Context section's bullet beginning \"The documented pre-dispatch gate is not enforced\" is byte-unchanged, preserved as the record of the problem at decision time.",
+    "The Status section still reads \"Accepted\".",
+    "grep -n 'the pre-dispatch gate, the Contract PR' docs/adr/SADR-0015-contract-approval-before-dispatch.md returns no match.",
+    "git diff --name-only against the merge base lists exactly one file: docs/adr/SADR-0015-contract-approval-before-dispatch.md.",
+    "CONTEXT.md is byte-identical to its base version.",
+    "python3 -m unittest discover -s tests passes, including tests/test_adr_references.py.",
+    "python3 scripts/validate_shiki.py --target . passes."
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [
+    "T-20260824T014714924122Z-ee327574"
+  ],
+  "expected_branch": "shiki/t-20260824t014714924958z-a1ec87e2-correct-sadr-0015-s-shipped-record-for-the-pre-d",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260824T014714922828Z-e6396694",
+  "id": "T-20260824T014714924958Z-a1ec87e2",
+  "ledger_evidence": [
+    "L-20260824T014714924990Z-db6fa700",
+    "L-20260824T034509415246Z-8f6e031e"
+  ],
+  "locks": [
+    "path:docs/adr/SADR-0015-contract-approval-before-dispatch.md"
+  ],
+  "non_goals": [
+    "Rewriting SADR-0015's Context section. Its bullet describing the unenforced gate records the problem as it stood at decision time and stays byte-unchanged as history.",
+    "Changing SADR-0015's Status section, which stays \"Accepted\".",
+    "Rewriting the \"**Scope Envelope.**\" or ceiling-related prose in SADR-0015. That belongs to G-20260822T103718385731Z-f0b5eff6.",
+    "Editing CONTEXT.md, which is held by T-20260822T103718387283Z-2f3b0b54.",
+    "Any code, test, schema, workflow or policy change. This task changes exactly one documentation file.",
+    "Authoring a spec_freeze block, Guardian approval evidence, a CCA verdict, or any other approval record. An acceptance criterion that cannot be satisfied with the artifacts present in the worktree must be reported as a stop, never closed by manufacturing the missing artifact."
+  ],
+  "required_skills": [
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "One prose correction in docs/adr/SADR-0015-contract-approval-before-dispatch.md, in the \"What shipped, and when.\" paragraph of the Consequences narrative (currently lines 162-178).\n\nThat paragraph credits the 2026-07-27..29 registration half with \"contract mode, the pre-dispatch gate, the Contract PR, and the metadata-job Guardian flags\". The pre-dispatch gate is not in that list's truth: T-20260727T005125902419Z-6c2db440, the task that delivered that half, carries \"The pre-dispatch gate or the envelope ceiling\" as an explicit non_goal, and no later Goal picked it up until this one.\n\nThe correction must: (i) remove the pre-dispatch gate from what shipped in that window, leaving contract mode, the Contract PR and the metadata-job Guardian flags as the accurate registration half; (ii) record that the gate was deferred there, naming T-20260727T005125902419Z-6c2db440 and its non_goal wording; (iii) record that, unlike the Scope Envelope size ceiling, no descope record was ever made for the gate, so the claim was an error rather than a decision; and (iv) record where the gate actually shipped, naming this Goal and this task's PR.\n\nDo NOT rewrite the Context section. Its bullet describing the unenforced gate records the problem as it stood when the decision was made and stays as history \u2014 the same treatment the Scope Envelope descope gives the originally-decided ceiling prose. Do not change the Status section, which stays \"Accepted\". Do not touch CONTEXT.md: its Scope Envelope entry belongs to T-20260822T103718387283Z-2f3b0b54.",
+  "status": "planned",
+  "test_command": "python3 -m unittest discover -s tests && python3 scripts/validate_shiki.py --target .",
+  "title": "Correct SADR-0015's shipped-record for the pre-dispatch gate"
+}

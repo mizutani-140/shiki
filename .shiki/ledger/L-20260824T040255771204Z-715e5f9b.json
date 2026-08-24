@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/355"
+  ],
+  "goal_id": "G-20260824T033043243224Z-7bbcdbce",
+  "id": "L-20260824T040255771204Z-715e5f9b",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/355"
+  ],
+  "summary": "Closeout PR delivered: https://github.com/mizutani-140/shiki/pull/355 carries the task review->done transition, the path:.shiki/repo.json lock release and the goal completion report for G-20260824T033043243224Z-7bbcdbce. No code changes.",
+  "task_id": "T-20260824T033055633960Z-c332534d",
+  "timestamp": "2026-08-24T04:02:55.771204+00:00",
+  "type": "check"
+}
