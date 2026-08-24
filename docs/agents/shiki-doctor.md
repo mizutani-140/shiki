@@ -52,7 +52,10 @@ Online checks use `gh` and the configured provider host from
 - required secret existence without reading secret values.
 - branch protection required checks.
 - approving review count when `required_review: true`.
-- code-owner review requirement when review enforcement is active.
+- code-owner review: the configured `defaults.required_code_owner_review` compared against live protection
+  in both directions — a fail when config requires it and GitHub does not enforce it, and a warn when
+  GitHub enforces it and config does not (doctor cannot tell a deadlocked solo repository from a healthy
+  multi-maintainer one, so it names the risk rather than asserting a verdict).
 - repository workflow permission defaults and pull request review approval
   permission for the CCA Review Bridge.
 

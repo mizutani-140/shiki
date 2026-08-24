@@ -1,0 +1,25 @@
+{
+  "created_at": "2026-08-24T00:30:04+00:00",
+  "goal_id": "G-20260822T102714798265Z-66a9cfa2",
+  "locks": [
+    "path:scripts/shiki_config.py",
+    "path:scripts/shiki_github.py",
+    "path:scripts/shiki_bootstrap.py",
+    "path:scripts/shiki_doctor.py",
+    "path:scripts/shiki_installer.py",
+    "path:.shiki/config.yaml",
+    "path:scripts/test_shiki_init.sh",
+    "path:scripts/test_shiki_control_plane.sh",
+    "path:scripts/test_shiki_doctor.sh",
+    "path:tests/test_branch_protection_payload.py",
+    "path:tests/test_config_loading.py",
+    "path:docs/agents/decision-control.md",
+    "path:docs/agents/bootstrap-command.md",
+    "path:docs/agents/shiki-doctor.md",
+    "path:docs/adr/SADR-0021-code-owner-review-enforcement-is-opt-in.md",
+    "path:CONTEXT.md"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260822T102714799429Z-c43ccdcf"
+}

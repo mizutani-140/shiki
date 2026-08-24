@@ -1226,6 +1226,57 @@ expect_fail python3 "$TARGET/scripts/mergegate_check.py" \
   --result-file "$TARGET/.shiki/gha/mergegate-result.json"
 grep "Required review is missing" /tmp/shiki-expected-fail.out >/dev/null
 
+# SADR-0021: the CCA Review Bridge approves as github-actions[bot] — never as
+# a CODEOWNER, and never as the PR author. MergeGate's review gate must accept
+# that approval on its own, because that is precisely what makes GitHub-level
+# code-owner enforcement safe to turn off without losing the review requirement.
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+path = target / ".shiki" / "gha" / "pr.json"
+pr = json.loads(path.read_text())
+(target / ".shiki" / "gha" / "author-backup.json").write_text(
+    json.dumps(pr.get("author")) + "\n"
+)
+pr["reviewDecision"] = ""
+pr["reviews"] = [{"state": "APPROVED", "author": {"login": "github-actions[bot]"}}]
+# The PR author is the sole CODEOWNER, so no human approval is reachable.
+pr["author"] = {"login": "mizutani-140"}
+pr["labels"] = []
+path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
+PY
+python3 "$TARGET/scripts/mergegate_check.py" \
+  --target "$TARGET" \
+  --pr-json "$TARGET/.shiki/gha/pr.json" \
+  --changed-files "$TARGET/.shiki/gha/changed-files.txt" \
+  --cca-verdict "$TARGET/.shiki/gha/cca-verdict.json" \
+  --result-file "$TARGET/.shiki/gha/mergegate-result.json" \
+  >/tmp/shiki-bot-approval.out 2>&1 || true
+if grep -q "Required review is missing" /tmp/shiki-bot-approval.out; then
+  echo "a CCA Review Bridge approval must satisfy the MergeGate review gate" >&2
+  exit 1
+fi
+python3 - "$TARGET" <<'PY'
+import json
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+path = target / ".shiki" / "gha" / "pr.json"
+backup = target / ".shiki" / "gha" / "author-backup.json"
+pr = json.loads(path.read_text())
+restored = json.loads(backup.read_text())
+if restored is None:
+    pr.pop("author", None)
+else:
+    pr["author"] = restored
+backup.unlink()
+path.write_text(json.dumps(pr, indent=2, sort_keys=True) + "\n")
+PY
+
 python3 - "$TARGET" <<'PY'
 import json
 import pathlib
