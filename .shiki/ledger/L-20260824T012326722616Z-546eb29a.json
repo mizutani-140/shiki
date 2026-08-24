@@ -1,0 +1,14 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260824T012326721896Z-035ac95a.json",
+    ".shiki/plans/P-20260824T005550818020Z-02f9e475.json"
+  ],
+  "goal_id": "G-20260824T012326721896Z-035ac95a",
+  "id": "L-20260824T012326722616Z-546eb29a",
+  "links": [],
+  "summary": "Goal registered from plan: Carry a plan's declared runtime into the registered task, or stop loudly",
+  "task_id": null,
+  "timestamp": "2026-08-24T01:23:26+00:00",
+  "type": "goal-created"
+}
