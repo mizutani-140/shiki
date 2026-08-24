@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "skills/engineering/code-review/SKILL.md:54-58 (Exceptions)",
+    "PR #350 changed files: 9, all under .shiki/",
+    ".shiki/tasks/T-20260824T014714924122Z-ee327574.json"
+  ],
+  "goal_id": "G-20260824T014714922828Z-e6396694",
+  "id": "L-20260824T034509414116Z-130cbe51",
+  "links": [],
+  "summary": "Pre-PR code-review gate SKIPPED under the documented exception in skills/engineering/code-review/SKILL.md ('pure .shiki state reconciliation'). Contract PR #350 registers Goal, task contracts and DAG only: nine .shiki files, zero implementation files, no scripts/, tests/ or docs/ change. There is no code under review, so the gate has no subject. The gate applies in full to this task's future implementation PR, where required_skills declares code-review.",
+  "task_id": "T-20260824T014714924122Z-ee327574",
+  "timestamp": "2026-08-24T03:45:09+00:00",
+  "type": "review"
+}

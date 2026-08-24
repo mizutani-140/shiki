@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260824T014714924958Z-a1ec87e2.json"
+  ],
+  "goal_id": "G-20260824T014714922828Z-e6396694",
+  "id": "L-20260824T014714924990Z-db6fa700",
+  "links": [],
+  "summary": "Task registered from plan: Correct SADR-0015's shipped-record for the pre-dispatch gate",
+  "task_id": "T-20260824T014714924958Z-a1ec87e2",
+  "timestamp": "2026-08-24T01:47:14+00:00",
+  "type": "task-registered"
+}
