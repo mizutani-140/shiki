@@ -22,7 +22,8 @@
   "goal_id": "G-20260824T014714922828Z-e6396694",
   "id": "T-20260824T014714924958Z-a1ec87e2",
   "ledger_evidence": [
-    "L-20260824T014714924990Z-db6fa700"
+    "L-20260824T014714924990Z-db6fa700",
+    "L-20260824T034509415246Z-8f6e031e"
   ],
   "locks": [
     "path:docs/adr/SADR-0015-contract-approval-before-dispatch.md"
