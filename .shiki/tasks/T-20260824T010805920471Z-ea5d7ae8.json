@@ -27,7 +27,7 @@
   ],
   "dependencies": [],
   "expected_branch": "claude/charming-chatterjee-d19a15",
-  "expected_pr": null,
+  "expected_pr": 351,
   "github_issue": null,
   "goal_id": "G-20260824T010736685173Z-c1131b6d",
   "id": "T-20260824T010805920471Z-ea5d7ae8",
@@ -37,7 +37,8 @@
     "L-20260824T015628961531Z-0dbf727e",
     "L-20260824T015628962386Z-6c039274",
     "L-20260824T015704300320Z-cab00863",
-    "L-20260824T015727406121Z-c9c01654"
+    "L-20260824T015727406121Z-c9c01654",
+    "L-20260824T021628139634Z-e000de18"
   ],
   "locks": [
     "path:.shiki/schemas/task.schema.json",
