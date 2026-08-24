@@ -1,0 +1,58 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "A plan task entry declaring a runtime under either key registers a task carrying that value; the claude-code default applies only when neither key is present.",
+    "A plan task entry declaring a runtime that is not task-capable, or declaring both keys with different values, is refused by name at ingest and at registration - before any mirror write.",
+    "mergegate_check._frozen_task_match_errors reports a runtime mismatch regardless of which key the frozen plan used, and never raises out of the gate.",
+    ".shiki/schemas/plan.schema.json and cmd_plan_guide each name the key, and set-equality binders pin the plan-schema enum to the task-schema enum and the two registration paths' record key sets to each other.",
+    "The existing mirror is unchanged and still valid: no plan file is edited, validate_shiki --target . passes, and the mirror schema-conformance loop reports no new failure."
+  ],
+  "created_at": "2026-08-24T01:23:26+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "THE DEFECT, MEASURED. register_task_from_plan (scripts/shiki_tasks.py:340) reads `task_plan.get(\"runtime\", \"claude-code\")`. Reproduced 2026-08-24 against the real modules: a plan task entry declaring `assigned_runtime: \"codex\"` registers a task with `assigned_runtime: \"claude-code\"`, and that task then PASSES shiki_runtime.validate_task_runtime_for_execution - so a plan meaning codex dispatches to Claude Code with no error anywhere. The same entry declaring `runtime: \"codex\"` registers `codex` correctly.",
+      "THE SECOND FACE: THE GATE IS BLIND TOO. mergegate_check._frozen_task_match_errors compares runtime only when `frozen.get(\"runtime\")` is truthy. Measured against the same task: frozen `{\"assigned_runtime\": \"codex\"}` vs a `claude-code` task yields 0 errors; frozen `{\"runtime\": \"codex\"}` vs the same task yields 1. So an alias-declared runtime bypasses the frozen-plan binding entirely, and plan.schema.json accepts the alias silently (additionalProperties: true).",
+      "CORPUS, AUDITED. 79 plan task entries across 33 mirror plans: 73 declare `runtime` (60 claude-code, 13 codex), 5 declare neither, and exactly ONE declares `assigned_runtime` (P-20260822T100256491531Z-04bae792, value \"claude\"). So `runtime` is unambiguously the canonical plan-side key - the wrong key is a one-off authoring slip, not a systemic pattern. It is also what the handoff surface emits (shiki_tasks.py:590, :1210, :1235; shiki_runtime.py:395), which is why the plan-side and record-side names differ in the first place; the comment at mergegate_check.py:394 documents the mismatch as intentional.",
+      "DECISION - ALIAS, PREFERRING `runtime` (operator, 2026-08-24). Carry `runtime`; fall back to `assigned_runtime`; hard error when both are present and disagree. ONE shared resolver, used by registration AND the frozen-plan gate, so the alias binds in a single place. Rejected: strict `runtime`-only with a loud ingest error (collapses to one name and lets the schema enumerate freely, but refuses rather than honours a pure naming slip and cannot help a plan already frozen); and renaming the plan-side key to `assigned_runtime` (ends the representation mismatch but contradicts 73 of 79 entries and the handoff surface).",
+      "DECISION - REJECT AN UNKNOWN VALUE AT REGISTRATION AND AT INGEST (operator, 2026-08-24). Today an invalid runtime flows through registration and only surfaces at validate_shiki or at dispatch. It becomes a named error at require_grilled_plan (ingest) and at register_task_from_plan, against the runtime registry's task-capable names. Because register_task_from_plan appends its ledger entry BEFORE writing the task file, the refusal must raise before the ledger append or a refused registration leaves an orphan ledger entry.",
+      "THE RETROACTIVITY TRAP, MEASURED - AND WHY validate_plan IS ASYMMETRIC. P-20260822T100256491531Z-04bae792 is spec-frozen, its goal G-20260822T100310254979Z-b0f195ee is complete, and it declares `assigned_runtime: \"claude\"` - a value that is not in the runtime registry at all. It can never be edited. Measured across all 33 mirror plans: a `runtime`-value check breaks 0; a both-keys-present-and-different check breaks 0 (no plan declares both); an `assigned_runtime`-VALUE check breaks exactly that one. Likewise for the schema: declaring `runtime` with an enum breaks 0 plans, declaring `assigned_runtime` as {\"type\":\"string\"} breaks 0, and enumerating `assigned_runtime` fails that plan immediately. So validate_plan and plan.schema.json validate the canonical key's value and the key conflict, but NOT the alias's value - deliberately, with the reason recorded at the check. The strict both-key check lives at require_grilled_plan instead, which only ever sees plans being ingested. This is the same trap the sibling cca_checklist_profile slice hit.",
+      "DECISION - SCHEMA AND GUIDE BOTH NAME THE KEY (operator, 2026-08-24). plan.schema.json declares `runtime` with an enum set-equal to task.schema.json's `assigned_runtime` enum, and declares `assigned_runtime` as a described string alias. cmd_plan_guide (scripts/shiki_tasks.py:817) gains an `optional_task_fields` block naming every field registration actually carries - its silence, documenting only title/scope/acceptance_checks, is the documented reason the wrong key was written. cca_checklist_profile is deliberately NOT named: registration still drops it, so naming it would be a lie (that is the sibling slice, kept out of this one by the operator's 2026-08-22 decision).",
+      "DECISION - _FROZEN_TASK_MATCH_FIELDS IS NOT RESTRUCTURED. Its loop compares task[field] to frozen[field] under identical names; the runtime check below it is bespoke precisely because the names differ, and the constant's own comment says so. Routing that bespoke check through the shared resolver is the whole fix. Turning the constant into a name mapping would be churn on a governance-critical surface for no added coverage.",
+      "DECISION - SCOPE EDGE (operator, 2026-08-24). IN: the two-path key-set binder in tests/test_paired_invariants.py, because register_task_from_plan and cmd_issue_plan emit byte-identical key sets today and nothing asserts it - set-equality is the check that catches the next one-path-only field. OUT, as explicit non-goals: scripts/shiki_cli.py:355's hardcoded --runtime choices (missing `codex-front`, which 9 live tasks use) and the `github-actions` entry in task.schema.json's assigned_runtime enum that no registry role permits on a task. Three runtime vocabularies disagree today (registry task-capable = 6 names, task schema enum = 7, CLI choices = 6-but-different); reconciling them is a separate goal with its own risk assessment.",
+      "DECISION - NO SADR (operator, 2026-08-24). The alias is a naming decision, not an architecture one, and the resolver docstring, the schema description and the plan guide record it on the three surfaces a planner actually reads. Adding a SADR would bump the exact-set range(1,N) pin in tests/test_adr_references.py and pull docs/adr/README.md into the locks for no durable gain.",
+      "RISK - HIGH (operator, 2026-08-24). Measured precedent: every registered task whose locks include scripts/mergegate_check.py or scripts/shiki_contracts.py and that changes what MergeGate blocks is classified high or critical; none are low or medium. The change here strictly WIDENS what the gate catches and weakens no existing block, but it is still a gate binding plus the shared-contracts module, so it takes the Guardian gate.",
+      "LOCKS AND CONFLICTS, MEASURED. .shiki/locks holds 0 records in state `active`, and shiki_locks.active_lock_conflicts returns NONE for the full candidate set (shiki_contracts.py, shiki_tasks.py, validate_shiki.py, mergegate_check.py, plan.schema.json, tests/test_plan_runtime_key.py, tests/test_paired_invariants.py). scripts/test_shiki_module_boundaries.sh imposes no import-direction rule, only importability, and shiki_contracts is a leaf (json, pathlib, shiki_runtime_registry) already imported by both mergegate_check and validate_shiki - so it is the correct home for a resolver all three call sites share.",
+      "CONTEXT & IMPACT EVIDENCE - CI-08 DEVIATION, RECORDED. AGENTS.md CI-08 asks that Context & Impact for a non-trivial Goal be produced by a Workflow parallel exploration sweep. The operator explicitly accepted an inline sweep instead on 2026-08-24: the findings above were produced by direct measurement against the real scripts/ modules (a scratchpad harness importing shiki_tasks, mergegate_check, shiki_runtime, shiki_schema and shiki_locks) rather than by a multi-agent fan-out. Every claim in this plan is a measured result, not an assertion."
+    ],
+    "source": "Claude Code planning session, 2026-08-24. Operator-reported defect, re-measured in-worktree against the real scripts/ modules; six design decisions settled by the operator through two grill rounds (key policy, value-check placement, plan-schema shape, plan-guide scope, scope edge, risk, decision record). Context & Impact produced inline by direct measurement with the operator's explicit acceptance of that deviation from AGENTS.md CI-08.",
+    "status": "complete"
+  },
+  "id": "G-20260824T012326721896Z-035ac95a",
+  "ledger_evidence": [
+    "L-20260824T012326722616Z-546eb29a"
+  ],
+  "non_goals": [
+    "Do not change scripts/shiki_cli.py's hardcoded --runtime choices (line 355), even though they are missing `codex-front`, which 9 live tasks use.",
+    "Do not remove `github-actions` from .shiki/schemas/task.schema.json's assigned_runtime enum, even though no runtime-registry role permits it on a task.",
+    "Do not make register_task_from_plan or cmd_issue_plan carry cca_checklist_profile; that is the sibling slice, kept out of this one by the operator's 2026-08-22 decision.",
+    "Do not edit, correct or reserialize any plan under .shiki/plans/, and in particular not the spec-frozen P-20260822T100256491531Z-04bae792.json.",
+    "Do not restructure _FROZEN_TASK_MATCH_FIELDS into a field-name mapping.",
+    "Do not promote any task field to required in task.schema.json or validate_shiki.TASK_REQUIRED.",
+    "Do not add a SADR, a target ADR, or a CONTEXT.md entry.",
+    "Do not change shiki_locks matching semantics, the runtime registry's descriptors, or any adapter."
+  ],
+  "outcome": "A plan task entry's declared runtime reaches the registered task's assigned_runtime through one shared resolver that accepts `runtime` (canonical) and `assigned_runtime` (alias); a runtime that is not task-capable is a named refusal at plan ingest and at registration instead of a silent default; plan.schema.json and `shiki plan guide` both name the key and its accepted values; and the frozen-plan gate binds through the same resolver, so an alias-declared runtime can no longer bypass the binding.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "source_plan": "P-20260824T005550818020Z-02f9e475",
+  "status": "planned",
+  "title": "Carry a plan's declared runtime into the registered task, or stop loudly"
+}
