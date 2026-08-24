@@ -19,7 +19,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "shiki/t-20260824t012337183814z-ee4c7a97-carry-the-declared-cca-checklist-profile-through",
+  "expected_branch": "shiki/t-20260824t012337183814z-ee4c7a97-closeout",
   "expected_pr": 352,
   "github_issue": null,
   "goal_id": "G-20260824T012337181991Z-de7409ed",
@@ -32,7 +32,8 @@
     "L-20260824T025229115898Z-1b754f53",
     "L-20260824T025636684437Z-91182790",
     "L-20260824T025847029916Z-1e3cf331",
-    "L-20260824T025851088167Z-7b88cc19"
+    "L-20260824T025851088167Z-7b88cc19",
+    "L-20260824T030830345414Z-1b417206"
   ],
   "locks": [
     "path:scripts/shiki_tasks.py",
@@ -57,7 +58,7 @@
   ],
   "risk_level": "low",
   "scope": "In scripts/shiki_tasks.py, carry the CCA checklist profile in BOTH task-registration payloads. In register_task_from_plan, take it from the plan's task entry; in cmd_issue_plan, take it from the CLI. Both default to [] when nothing is declared. Carry a comment at the register_task_from_plan site stating why the field is load-bearing (mergegate_check.checklist_profile_coverage_failures blocks a verdict that omits or leaves unresolved any id declared here, so dropping it silently discards a governance requirement) and why the default is [] rather than a family name (a bare family such as 'CCA' is not a verdict item id, can never match, and would block every PR).\n\nIn scripts/shiki_cli.py, add --cca-checklist-profile to the `issue plan` subparser as a repeatable action=\"append\" option defaulting to [], placed with the other repeatable task-contract options.\n\nIn a new tests/test_plan_task_carry.py, pin the behaviour and bind the pair. Cover: a declared profile is carried verbatim by each path; an omitted profile becomes a PRESENT, empty list on each path; a declared [] stays []; and the carry actually arms MergeGate, by registering from a plan declaring [\"CCA-01\"] and asserting checklist_profile_coverage_failures against a verdict judging only CCA-02 is non-empty and names CCA-01. Then add the binder: register one task through each path into the same target and assert SET-EQUALITY of their task-record key sets, with a failure message naming both call sites in scripts/shiki_tasks.py and the fix. Pair the enforcement and binder assertions with divergence tests that strip the field from one side and prove the assertion fails, so the suite is shown to discriminate rather than merely to pass on today's tree.\n\nKeep the tests target-valid: build temp-directory targets, import only modules shipped by shiki_installer.TEMPLATE_PATHS, and assert nothing about the platform's own .shiki corpus, so the file needs no TARGET_INSTALL_EXCLUDES entry and passes from a freshly installed target.\n\nChange nothing in scripts/validate_shiki.py, scripts/mergegate_check.py, .shiki/schemas/task.schema.json or .shiki/schemas/plan.schema.json. Making the field required, binding it in frozen-plan matching, and backfilling the mirror are stated non-goals with measured reasons.\n\nREPRODUCIBILITY - what this task removes, and what to change to get the same result.\n  Symptom: a plan declares a CCA checklist profile on a task entry and the registered .shiki/tasks/<id>.json has no cca_checklist_profile key at all, so MergeGate's coverage gate never enforces the declared ids. Observed on .shiki/tasks/T-20260822T100310256523Z-ca34e786.json, registered by merged Contract PR #337.\n  Root cause: neither registration payload in scripts/shiki_tasks.py mentions the field, and no CLI flag exists to supply it.\n  Why it was silent: the field's only consumer treats absent and empty identically, so the drop produces no error; _FROZEN_TASK_MATCH_FIELDS omits the field, so contract-mode frozen matching does not catch it either; and nothing bound the two registration paths, so neither could reveal the other's omission.\n  Reproducible when: the carry is removed from either payload, which must fail the new tests - the per-path tests on that path, and the set-equality binder as soon as only one path carries it.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Carry the declared CCA checklist profile through both task-registration paths"
 }

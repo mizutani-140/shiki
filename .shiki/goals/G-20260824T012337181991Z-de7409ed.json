@@ -35,7 +35,8 @@
   },
   "id": "G-20260824T012337181991Z-de7409ed",
   "ledger_evidence": [
-    "L-20260824T012337182947Z-c970a8e6"
+    "L-20260824T012337182947Z-c970a8e6",
+    "L-20260824T030830345414Z-1b417206"
   ],
   "non_goals": [
     "Promoting cca_checklist_profile to a required field in scripts/validate_shiki.py TASK_REQUIRED or .shiki/schemas/task.schema.json `required`. Measured: 136 of 145 task files lack it, both surfaces carry comments saying promotion must be joint and needs a corpus backfill, and .shiki/tasks/** is outside this task's locks.",
@@ -53,6 +54,6 @@
   ],
   "risk_level": "low",
   "source_plan": "P-20260824T012332779582Z-13835efc",
-  "status": "planned",
+  "status": "complete",
   "title": "Carry the declared CCA checklist profile into every registered task"
 }
