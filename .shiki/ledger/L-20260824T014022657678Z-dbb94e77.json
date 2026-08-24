@@ -1,0 +1,17 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/347",
+    "python3 -m unittest discover -s tests -> Ran 1192 tests, OK",
+    "python3 scripts/validate_shiki.py -> Shiki validation passed"
+  ],
+  "goal_id": "G-20260822T102714798265Z-66a9cfa2",
+  "id": "L-20260824T014022657678Z-dbb94e77",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/347"
+  ],
+  "summary": "Implementation delivered on PR #347 for T-20260822T102714799429Z-c43ccdcf. Verification on the PR head: unittest discover -s tests Ran 1192 tests OK, validate_shiki passed, and the doctor, control-plane and init shell suites each exited 0. Guardian authorization carries from the Contract Approval merged in PR #340; no head-bound Guardian approval was required.",
+  "task_id": "T-20260822T102714799429Z-c43ccdcf",
+  "timestamp": "2026-08-24T01:40:22+00:00",
+  "type": "check"
+}

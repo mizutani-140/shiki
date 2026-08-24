@@ -183,10 +183,15 @@ class RealRepoAdrReferences(unittest.TestCase):
     def test_platform_tree_has_all_sadrs_and_no_legacy_platform_paths(self) -> None:
         adr_dir = REPO_ROOT / "docs" / "adr"
         sadrs = sorted(adr_dir.glob("SADR-[0-9][0-9][0-9][0-9]-*.md"))
-        self.assertEqual(
-            {path.name.split("-", 2)[1] for path in sadrs},
-            {f"{number:04d}" for number in range(1, 20)},
-        )
+        # SADR numbers start at 0001 and are never reused. They are NOT asserted
+        # contiguous: a number is reserved by an approved contract before its
+        # file lands, so a transient gap is legitimate (SADR-0020 was reserved by
+        # goal G-20260822T095306174540Z-473e0c11 while SADR-0021 was written).
+        # This replaced a hardcoded `range(1, 20)`, which pinned the count and so
+        # had to be edited for — and silently forbade — every new SADR.
+        numbers = sorted(int(path.name.split("-", 2)[1]) for path in sadrs)
+        self.assertEqual(len(numbers), len(set(numbers)), "SADR numbers must be unique")
+        self.assertEqual(numbers[0], 1)
         legacy_platform_paths = [
             adr_dir / path.name.removeprefix("SADR-")
             for path in sadrs

@@ -312,9 +312,13 @@ When `.shiki/config.yaml` sets `defaults.required_review: true`, Shiki branch pr
 
 ### CODEOWNERS Governance
 
-Critical Shiki governance paths are covered by `.github/CODEOWNERS` and owned by the configured Guardian owner. Branch protection must require code owner reviews so changes to workflows, MergeGate, CCA, bootstrap, core contracts, and root agent instructions receive machine-checkable owner review.
+Critical Shiki governance paths are covered by `.github/CODEOWNERS` and owned by the configured Guardian owner. `validate_shiki` enforces that coverage: the file must exist and must name the configured owner on every critical path.
 
-CODEOWNERS review is separate from advisory Claude review, Guardian approval evidence, and the CCA Review Bridge. The bridge may create the required GitHub review after CCA completes, but it does not replace path-owner governance for critical files.
+GitHub-level enforcement of that ownership — branch protection's `require_code_owner_reviews` — is a separate, opt-in setting: `defaults.required_code_owner_review` in `.shiki/config.yaml`, defaulting to `false` (SADR-0021). It is not derived from the approving-review count. The CCA Review Bridge is the intended approver in the default solo posture (SADR-0013) and approves under the GitHub Actions identity; a bot can never be listed as a CODEOWNER, so requiring code-owner approval makes every PR touching a governed path unmergeable in a repository whose only code owner is also the PR author.
+
+Multi-maintainer adopters who want GitHub to enforce path ownership set `defaults.required_code_owner_review: true`, and `shiki doctor` reports a disagreement between that value and live protection in both directions.
+
+Code-owner review is not a Shiki Authority: no ledger entry records it, and MergeGate cannot observe it. For the paths that matter it duplicates Contract Approval (SADR-0015), which gates the same locked paths earlier and is visible to the control plane.
 
 ### CD Gate
 
