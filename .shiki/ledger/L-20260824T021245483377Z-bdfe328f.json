@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260824T012326723248Z-b03c3416.json",
+    "skills/engineering/code-review/SKILL.md",
+    "PR #348 body section '## Pre-PR code review'"
+  ],
+  "goal_id": "G-20260824T012326721896Z-035ac95a",
+  "id": "L-20260824T021245483377Z-bdfe328f",
+  "links": [],
+  "summary": "code-review pre-PR gate SKIPPED under the documented exception in skills/engineering/code-review/SKILL.md (Exceptions): this Contract PR is pure .shiki state reconciliation \u2014 it registers the goal, task, DAG and ledger evidence from spec-frozen plan P-20260824T005550818020Z-02f9e475 and changes no source file. Findings: 0 (no code was reviewed because no code changed). Applied fixes: 0. Rejected findings: 0. The gate is NOT waived for the implementation PR under this contract: task T-20260824T012326723248Z-b03c3416 declares required_skills ['tdd','code-review'], and that PR must carry its own code-review ledger entry and ## Pre-PR code review section.",
+  "task_id": "T-20260824T012326723248Z-b03c3416",
+  "timestamp": "2026-08-24T02:12:45+00:00",
+  "type": "review"
+}
