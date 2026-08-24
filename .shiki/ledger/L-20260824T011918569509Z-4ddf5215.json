@@ -1,0 +1,18 @@
+{
+  "id": "L-20260824T011918569509Z-4ddf5215",
+  "timestamp": "2026-08-24T01:19:18+00:00",
+  "goal_id": "G-20260824T011654000514Z-d57197b5",
+  "task_id": "T-20260824T011706104923Z-2beb4bd7",
+  "type": "check",
+  "actor": "claude-code",
+  "summary": "Verification for PR #345 (/pull/345), captured on the implementation branch. `python3 -m unittest discover -s tests` -> \"Ran 1183 tests in 138.011s\" then \"OK\" (exit 0). `bash scripts/test_shiki_guardian_policy.sh` -> \"shiki guardian policy tests passed\" (exit 0). `python3 scripts/validate_shiki.py` -> \"Shiki validation passed\" (exit 0). Local runs are diagnostic; the GitHub Actions checks on the PR are the durable evidence.",
+  "evidence": [
+    ".shiki/tasks/T-20260824T011706104923Z-2beb4bd7.json",
+    "scripts/mergegate_check.py",
+    "tests/test_guardian_carry_parity.py",
+    "docs/agents/guardian-policy.md"
+  ],
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/345"
+  ]
+}

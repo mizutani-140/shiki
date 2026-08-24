@@ -1,0 +1,29 @@
+{
+  "acceptance_evidence": [
+    "python3 -m unittest discover -s tests",
+    "GitHub Actions checks on the implementation PR"
+  ],
+  "completion_conditions": [
+    "A refused carry appears in mergegate-result.json blocking_reasons with the evaluator's reason, so shiki_loop._resolve_blocking_reasons carries it into the repair packet and handoff.",
+    "A proven carry is disclosed as a fact about the carry and never as an approval claim, so a PR blocked for a missing label is not told its approval was carried.",
+    "The gate and the CCA signal name the same carry refusal over the same repository state, pinned by a regression test.",
+    "With --base-sync-carry absent the gate output is byte-identical to the pre-carry gate."
+  ],
+  "created_at": "2026-08-24T01:16:54+00:00",
+  "github_issue": null,
+  "id": "G-20260824T011654000514Z-d57197b5",
+  "non_goals": [
+    "Re-anchoring the step-9 tree reproduction to the merged base instead of the live origin/<default_branch> tip; that amends SADR-0018 and inverts test_superseded_stale_base_passes_arity_refused_by_step9.",
+    "Any change to shiki_sync_proof.py, shiki_guardian.py, the workflow YAML, or mergegate_check.py argv.",
+    "Disclosure in shiki_guardian_status.py, a separate operator-facing surface with its own tests."
+  ],
+  "outcome": "The MergeGate policy check states whether a base-sync carry was proven or refused, and when refused states the evaluator's reason, so an approved CCA Guardian signal against a blocked authoritative gate is diagnosable from durable gate evidence rather than by hand-reading job logs.",
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "low",
+  "status": "planned",
+  "title": "MergeGate discloses the SADR-0018 base-sync carry outcome"
+}
