@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260824T011654000514Z-d57197b5.json"
+  ],
+  "goal_id": "G-20260824T011654000514Z-d57197b5",
+  "id": "L-20260824T011654001307Z-4197f99a",
+  "links": [],
+  "summary": "Goal registered: MergeGate discloses the SADR-0018 base-sync carry outcome",
+  "task_id": null,
+  "timestamp": "2026-08-24T01:16:54+00:00",
+  "type": "goal-created"
+}
