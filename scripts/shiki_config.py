@@ -66,6 +66,28 @@ def branch_protection_review_count(target: Path) -> int:
     return 1 if configured_required_review(target) else 0
 
 
+def configured_required_code_owner_review(target: Path) -> bool:
+    """Whether branch protection should additionally require a CODEOWNER approval.
+
+    Deliberately NOT derived from the approving-review count (SADR-0021). The
+    CCA Review Bridge satisfies that count under the GitHub Actions identity,
+    but a bot can never be listed as a CODEOWNER, so deriving the two from one
+    value made every PR touching a CODEOWNERS path permanently unmergeable in a
+    repository whose only code owner is also the PR author.
+
+    Defaults to false. It stays false whenever review is not required at all:
+    GitHub still demands code-owner approval at
+    ``required_approving_review_count: 0``, which is a deadlock with no
+    approving-review requirement behind it to justify the cost.
+    """
+    if not configured_required_review(target):
+        return False
+    value = load_shiki_config(target).get("defaults", {}).get("required_code_owner_review")
+    if isinstance(value, bool):
+        return value
+    return False
+
+
 def configured_required_checks(target: Path, default: "list[str] | tuple[str, ...]") -> list[str]:
     """Required status-check contexts derived from .shiki/config.yaml.
 

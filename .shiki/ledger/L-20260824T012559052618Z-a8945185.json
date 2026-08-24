@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "git diff origin/main...HEAD reviewed hunk by hunk",
+    "grep -rn 'protect_branch(' scripts tests .github -> both production callers updated",
+    "governance_differing_keys(src, pre-SADR-0021 target) -> reports defaults.required_code_owner_review",
+    "tests/test_config_loading.py::test_doctor_agrees_with_shiki_config_on_code_owner_review"
+  ],
+  "goal_id": "G-20260822T102714798265Z-66a9cfa2",
+  "id": "L-20260824T012559052618Z-a8945185",
+  "links": [],
+  "summary": "Skill code-review: pre-PR gate over git diff origin/main...HEAD. Reported 3 findings, all addressed. Two comments named a non-existent function _governance_diff (real name governance_differing_keys) in scripts/shiki_installer.py and SADR-0021 \u2014 corrected. Third: the precedence rule is restated in shiki_doctor._required_code_owner_review with nothing binding it to shiki_config \u2014 added a parity test, which then surfaced a PRE-EXISTING divergence on the required_review default (shiki_config treats an absent key as true, doctor as false); pinned the test to explicit values, documented it, and raised it as separate work. Also verified every protect_branch caller passes the new keyword, so the False default changes no production path.",
+  "task_id": "T-20260822T102714799429Z-c43ccdcf",
+  "timestamp": "2026-08-24T01:25:59+00:00",
+  "type": "review"
+}

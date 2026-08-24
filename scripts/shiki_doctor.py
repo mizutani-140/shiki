@@ -100,6 +100,19 @@ def _required_review(config: dict[str, Any]) -> bool:
     return bool(isinstance(defaults, dict) and defaults.get("required_review") is True)
 
 
+def _required_code_owner_review(config: dict[str, Any]) -> bool:
+    """Mirror of ``shiki_config.configured_required_code_owner_review``.
+
+    Doctor parses config into a dict rather than reading from a target path, so
+    the precedence rule (code-owner review is inert unless review is required)
+    is restated here. Keep the two in step.
+    """
+    if not _required_review(config):
+        return False
+    defaults = config.get("defaults")
+    return bool(isinstance(defaults, dict) and defaults.get("required_code_owner_review") is True)
+
+
 def _repo_config(target: Path) -> tuple[ProviderConfig | None, DoctorFinding | None]:
     path = target / ".shiki" / "repo.json"
     if not path.exists():
@@ -897,6 +910,7 @@ def _online_findings(config: ProviderConfig | None, local_config: dict[str, Any]
     protection = _gh(["api", f"repos/{config.repo}/branches/{default_branch}/protection"], config)
     required_checks = _required_checks(local_config)
     required_review = _required_review(local_config)
+    required_code_owner = _required_code_owner_review(local_config)
     if protection.returncode != 0:
         findings.append(_branch_protection_read_failure(protection))
     else:
@@ -916,16 +930,52 @@ def _online_findings(config: ProviderConfig | None, local_config: dict[str, Any]
             failures.append("required review count is unavailable")
         elif required_review and review_count < 1:
             failures.append("required review count is less than 1")
-        if required_review and review_count and code_owner is not True:
-            failures.append("code-owner review is not required")
+        # Code-owner review is a THREE-way comparison, not a one-way requirement
+        # (SADR-0021). Under-enforcement fails: the operator asked for path-owner
+        # governance and GitHub is not applying it. Over-enforcement only WARNS:
+        # doctor cannot tell a deadlocked solo repository from a healthy
+        # multi-maintainer one, because that turns on whether a code owner other
+        # than the PR author exists — which is not in the protection payload.
+        code_owner_warnings: list[str] = []
+        if required_code_owner and code_owner is not True:
+            failures.append("code-owner review is required by config but not enforced")
+        elif not required_code_owner and code_owner is True:
+            code_owner_warnings.append(
+                "GitHub requires code-owner review but .shiki/config.yaml does not; "
+                "if the only code owner is the PR author, every PR touching a CODEOWNERS "
+                "path is unmergeable"
+            )
+        if failures:
+            status = "fail"
+        elif code_owner_warnings:
+            status = "warn"
+        else:
+            status = "pass"
+        if failures:
+            remediation = "Rerun Shiki branch protection setup or repair repository rules."
+        elif code_owner_warnings:
+            remediation = (
+                "Set defaults.required_code_owner_review: true to keep it, or rerun "
+                "`shiki init --protect` to reconcile GitHub with the configured value."
+            )
+        else:
+            remediation = ""
         findings.append(
             _finding(
                 "doctor.github.branch_protection",
-                "pass" if not failures else "fail",
+                status,
                 "Branch protection",
-                "Branch protection matches Shiki required checks/review policy." if not failures else "Branch protection does not match Shiki policy.",
-                "Rerun Shiki branch protection setup or repair repository rules." if failures else "",
-                {"required_checks": required_checks, "contexts": contexts, "review_count": review_count, "require_code_owner_reviews": code_owner, "failures": failures},
+                "Branch protection matches Shiki required checks/review policy." if status == "pass" else "Branch protection does not match Shiki policy.",
+                remediation,
+                {
+                    "required_checks": required_checks,
+                    "contexts": contexts,
+                    "review_count": review_count,
+                    "require_code_owner_reviews": code_owner,
+                    "required_code_owner_review": required_code_owner,
+                    "failures": failures,
+                    "warnings": code_owner_warnings,
+                },
             )
         )
     permissions = _gh(["api", f"repos/{config.repo}/actions/permissions/workflow"], config)

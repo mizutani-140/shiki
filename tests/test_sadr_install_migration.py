@@ -35,11 +35,30 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _platform_sadr_numbers() -> set[str]:
+    """The SADR numbers the platform actually ships.
+
+    A fresh install must reproduce this set exactly. Deriving it keeps the
+    assertion true for every future SADR instead of pinning a count.
+    """
+    return {
+        path.name.split("-", 2)[1]
+        for path in (shiki_installer.ROOT / "docs" / "adr").glob("SADR-[0-9][0-9][0-9][0-9]-*.md")
+    }
+
+
 def _legacy_sadr_paths() -> tuple[str, ...]:
+    """Former numeric paths, bounded the way the installer bounds them.
+
+    Only SADR-0001..LEGACY_SHIKI_SADR_MAX ever shipped under numeric legacy
+    names. This used to exclude SADR-0019 by filename, which silently
+    included every SADR after it and made the fixture disagree with
+    ``shiki_installer.legacy_shiki_adr_paths()`` as soon as one was added.
+    """
     return tuple(
         f"docs/adr/{path.name.removeprefix('SADR-')}"
-        for path in sorted((shiki_installer.ROOT / "docs" / "adr").glob("SADR-*.md"))
-        if path.name != "SADR-0019-separate-platform-sadr-and-target-adr-namespaces.md"
+        for path in sorted((shiki_installer.ROOT / "docs" / "adr").glob("SADR-[0-9][0-9][0-9][0-9]-*.md"))
+        if int(path.name.split("-", 2)[1]) <= shiki_installer.LEGACY_SHIKI_SADR_MAX
     )
 
 
@@ -117,7 +136,7 @@ class FreshSadrInstallTests(unittest.TestCase):
             path.name.split("-", 2)[1]
             for path in self.adr_dir.glob("SADR-[0-9][0-9][0-9][0-9]-*.md")
         }
-        self.assertEqual(sadr_numbers, {f"{number:04d}" for number in range(1, 20)})
+        self.assertEqual(sadr_numbers, _platform_sadr_numbers())
 
         numeric_records = {
             path.name
@@ -184,7 +203,7 @@ class FreshSadrInstallTests(unittest.TestCase):
                 path.name.split("-", 2)[1]
                 for path in self.adr_dir.glob("SADR-[0-9][0-9][0-9][0-9]-*.md")
             },
-            {f"{number:04d}" for number in range(1, 20)},
+            _platform_sadr_numbers(),
         )
 
 
@@ -207,7 +226,9 @@ class LegacySadrUpgradeTests(unittest.TestCase):
             self.assertEqual((self.adr_dir / name).read_bytes(), expected)
 
         sadrs = list(self.adr_dir.glob("SADR-[0-9][0-9][0-9][0-9]-*.md"))
-        self.assertEqual(len(sadrs), 19)
+        # Count the SADRs the platform actually ships rather than pinning a
+        # literal, which had to be edited for every new SADR.
+        self.assertEqual(len(sadrs), len(_platform_sadr_numbers()))
         refreshed = json.loads(
             (self.target / shiki_installer.INSTALL_STAMP_PATH).read_text(encoding="utf-8")
         )
