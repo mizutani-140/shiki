@@ -2548,6 +2548,29 @@ def enforce_guardian_policy(
         resolved_risk=carry_resolved_risk,
     )
     warnings.extend(result.warnings)
+    # Disclose the SADR-0018 base-sync carry OUTCOME, not just its success. The
+    # evaluator records the head a carry came from and one distinct reason per
+    # refused carry attempt, but the gate previously read neither, so a refused
+    # carry left no trace in mergegate-result.json or the job log. Measured on
+    # PR #338 (run 32676750010): the CCA job's signal carried the approval at
+    # 00:27:52Z, origin/main advanced at 00:28:46Z, and the MergeGate job at
+    # 00:37:03Z refused the same carry at the step-9 tree reproduction — and
+    # reported only the generic stale-comment blockers, so the split-brain
+    # between the two legs was undiagnosable from the gate's own output. The
+    # carry fields are empty whenever --base-sync-carry is off, so a carry-off
+    # invocation stays byte-identical to the pre-carry gate. Reasons already
+    # raised as blockers (a Guardian negation is a hard blocker) are not
+    # repeated here.
+    if result.carried_from_head:
+        warnings.append(
+            f"Guardian approval carried from head {result.carried_from_head} "
+            "across a proven pure base sync (guardian_comment_carried)"
+        )
+    warnings.extend(
+        f"Guardian approval {reason}"
+        for reason in result.carry_refused_reasons
+        if reason not in result.blockers
+    )
     if not result.approved:
         blocking.extend(result.blockers or ("Guardian approval is required but policy-backed evidence is missing",))
     else:

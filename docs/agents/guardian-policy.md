@@ -102,6 +102,39 @@ a recorded authority in the deterministic signal and does not re-derive it. See
 SADR-0018 for the full decision, the rejected diff/patch-equality and path-disjointness
 alternatives, and the accepted residual.
 
+### The proof is anchored to the live base tip, so it decays as the base moves
+
+Tree reproduction proves the current head against `origin/<default_branch>` **as
+resolved at call time**, not against the base commit the head actually merged. A
+head that synced base `B1` therefore stops proving the moment an unrelated PR
+advances the default branch to `B2`: the arity and ancestry pre-rejects still pass
+(`B1` remains an ancestor of `B2`), and only the step-9 tree reproduction fails.
+That is the designed behaviour — it is pinned by
+`test_superseded_stale_base_passes_arity_refused_by_step9` — and it is normally
+harmless, because a PR whose base moved must sync again anyway under strict
+protection, and the carry re-proves at the new head.
+
+It stops being harmless when the base moves **between the two legs that judge the
+same run**. The CCA job computes the deterministic signal early; the MergeGate
+policy job runs minutes later, after the CCA job waits for required checks to
+settle. Measured on PR #338 (run 32676750010, head `e7b2a5b9` =
+`merge(583055aa, dd8d5c9)`): the signal carried the approval at 00:27:52Z, `main`
+advanced to `e886c61` at 00:28:46Z, and the MergeGate job refused the same carry at
+00:37:03Z. Both legs ran the same evaluator over the same PR, comments, labels and
+flags; the only input that differed was the moving ref. The result is a split-brain
+— an `approved: true` CCA signal against a blocked authoritative gate — that costs
+a sync-and-rerun cycle, though not a fresh Guardian comment (the approval SHA stays
+on the head's first-parent history, so the carry re-proves on the next run).
+
+MergeGate therefore **discloses the carry outcome**, not only its success: a
+successful carry records the head it carried from, and a refused carry records the
+evaluator's reason (`carry refused: step 9: …`) in the gate's warnings and in
+`mergegate-result.json`. Without it a refused carry left no trace at all and the
+divergence could not be diagnosed from the gate's own output. Disclosure is inert
+when the carry is off, so carry-off remains byte-identical to the pre-carry gate.
+`tests/test_guardian_carry_parity.py` pins both legs to the same carry verdict and
+the same refusal reason over the same repository state.
+
 ## External AI Guardian Review (SADR-0010)
 
 `external_ai_guardian_review` is a first-class approval source for high/critical
