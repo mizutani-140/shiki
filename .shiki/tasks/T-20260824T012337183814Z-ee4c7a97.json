@@ -20,7 +20,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "shiki/t-20260824t012337183814z-ee4c7a97-closeout",
-  "expected_pr": 352,
+  "expected_pr": 353,
   "github_issue": null,
   "goal_id": "G-20260824T012337181991Z-de7409ed",
   "id": "T-20260824T012337183814Z-ee4c7a97",
@@ -33,7 +33,8 @@
     "L-20260824T025636684437Z-91182790",
     "L-20260824T025847029916Z-1e3cf331",
     "L-20260824T025851088167Z-7b88cc19",
-    "L-20260824T030830345414Z-1b417206"
+    "L-20260824T030830345414Z-1b417206",
+    "L-20260824T030834351686Z-02defd61"
   ],
   "locks": [
     "path:scripts/shiki_tasks.py",
