@@ -7,6 +7,8 @@
     "path:docs/agents/shiki-doctor.md"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "released_at": "2026-08-24T10:22:16+00:00",
+  "released_by": "shiki-cli",
+  "state": "released",
   "task_id": "T-20260824T041220229381Z-9292b383"
 }

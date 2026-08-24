@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/358"
+  ],
+  "goal_id": "G-20260824T041205982618Z-380ed036",
+  "id": "L-20260824T102603118755Z-d010c556",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/358"
+  ],
+  "summary": "Closeout PR delivered: https://github.com/mizutani-140/shiki/pull/358 moves T-20260824T041220229381Z-9292b383 to done, releases its three locks and completes goal G-20260824T041205982618Z-380ed036 after PR #357 merged as 80e0121. No code changes.",
+  "task_id": "T-20260824T041220229381Z-9292b383",
+  "timestamp": "2026-08-24T10:26:03.118755+00:00",
+  "type": "check"
+}
