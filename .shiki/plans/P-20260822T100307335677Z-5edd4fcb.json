@@ -1,0 +1,169 @@
+{
+  "completion_conditions": [
+    "protect_branch derives require_code_owner_reviews from defaults.required_code_owner_review, never from review_count.",
+    "The shipped .shiki/config.yaml carries defaults.required_code_owner_review: false, and the installer names that key as governance-critical so an existing target's missing key is reported rather than silently downgraded.",
+    "shiki doctor fails when configured code-owner governance is missing from live protection, and warns (naming the deadlock) when live protection is stricter than config.",
+    "SADR-0021 records the decision, and docs/agents/decision-control.md no longer asserts that branch protection must require code owner reviews.",
+    "A live solo-maintainer target proves the deadlock is broken: mizutani-140/shiki-atlas PR #2 merges after re-install and re-protection."
+  ],
+  "grill_with_docs": {
+    "decisions": [
+      "FRAMING. GitHub code-owner review is an UNMODELED gate, not a Shiki Authority. grep for code_owner/CODEOWNER across scripts/mergegate_check.py, scripts/shiki_guardian.py, scripts/enforce_cca_verdict.py and .shiki/guardian-policy.json returns zero hits; validate_shiki.validate_codeowners_governance only checks that the CODEOWNERS FILE covers critical paths with the required owner, never that an owner approved anything. So it is the only merge-blocking condition in Shiki with no ledger entry, no MergeGate visibility, and no recorded identity, which CONTEXT.md's Authority term requires.",
+      "SYMPTOM, MEASURED. A code-owner-blocked PR reports mergeStateStatus BLOCKED, which shiki_loop.py:47 documents as passing straight through to the merge effector. The loop therefore calls gh pr merge, fails, and emits stop_blocked with 'resolve manually (branch protection, conflicts, or auth)' (shiki_loop.py:2515) - three candidate causes, none of them the real one.",
+      "A CONFIG KEY IS REQUIRED, not out-of-band setup. protect_branch PUTs the full protection object and GitHub's PUT REPLACES protection wholesale, so an adopter who sets code-owner review by hand has it stomped on the next shiki init --protect. SADR-0013's 'configure it out of band' guidance cannot survive re-init here.",
+      "KEY SHAPE. defaults.required_code_owner_review, boolean, default false, read by configured_required_code_owner_review() beside configured_required_review() in shiki_config.py. Effective only when required_review is true, which resolves the near-incoherent combination (GitHub still demands code-owner approval at required_approving_review_count: 0) by precedence rather than by raising. Rejected widening required_review into an enum: it would change the type of a key consumed by mergegate_check.enforce_review_policy, a CODEOWNERS-critical file, and conflate a MergeGate concern with a protection-only one.",
+      "DOWNGRADE SAFETY. .shiki/config.yaml is a GOVERNANCE_CONTRACT_FILES entry (shiki_installer.py:142): re-install never overwrites it, writes <file>.new alongside, and names differing governance-critical keys in the summary so 'a stale contract is visible rather than inferred'. Add defaults.required_code_owner_review to GOVERNANCE_CRITICAL_KEYS. DERIVED REQUIREMENT: _governance_diff compares template leaves against target leaves, so the SHIPPED config must carry the key explicitly or an existing target lacking it produces no diff and is never named.",
+      "DOCTOR. Split fail/warn. Configured true + live false is a fail. Configured false + live true is a warn whose remediation names the deadlock explicitly, because doctor cannot tell a deadlocked solo repo from a healthy multi-maintainer one - that depends on whether a code owner other than the PR author exists, which is not in the protection payload. Symmetric fail was rejected as a false positive on legitimately stricter repos; doctor --strict (shiki_doctor.py:1227) keeps the warn actionable in CI.",
+      "TEST CONTRACT, HONESTLY BOUNDED. Payload shape, config-helper behavior, the bot-approval-satisfies-review case, and the doctor matrix are locally assertable and land in the suites that already own those surfaces. That GitHub actually merges the PR is NOT locally assertable, so it is closed by a recorded manual verification on a live target rather than implied by a payload test.",
+      "RECORD. SADR-0021, narrow scope: this gate only. Rejected the broader 'no unobservable merge gates' invariant because required_conversation_resolution and enforce_admins in the same payload violate it immediately, so the SADR would be born inconsistent or drag a full protection audit into this goal. The invisibility observation goes in Consequences without binding.",
+      "GLOSSARY. CONTEXT.md gains CCA Review Bridge, the Shiki-invented term SADR-0021's core argument depends on ('the Bridge can never be a CODEOWNER') and which the glossary was missing. Code-owner review itself gets no entry: it is a GitHub platform concept, and AGENTS.md reserves CONTEXT.md for domain terms. WRITTEN ALREADY - this documents existing reality regardless of the goal's fate.",
+      "DAG. Two tasks. The manual proof cannot be produced from the platform worktree because the target must re-install AFTER the platform PR merges, and handing an implementer a structurally unsatisfiable acceptance criterion is the failure mode CLAUDE.md warns about. T1 carries fully automated acceptance; T2 carries the verification and depends on T1.",
+      "PREFLIGHT, MEASURED CLEAR. The fix PR touches exactly one CODEOWNERS-governed path (.shiki/config.yaml), so it would be caught by the bug it fixes if this repo enforced code-owner review. gh api repos/mizutani-140/shiki/branches/main/protection returns require_code_owner_reviews: false, required_approving_review_count: 0 - drifted as P-20260726T053204320783Z-2265e5c3 recorded, so no inverted sequencing is needed. That same drift means running shiki init --protect on this repo TODAY would set code-owner true and deadlock the platform repo itself; the fix removes that latent trap."
+    ],
+    "source": "Claude Code session 2026-08-21/22, worktree claude/modest-bohr-63d941",
+    "status": "complete"
+  },
+  "id": "P-20260822T100307335677Z-5edd4fcb",
+  "non_goals": [
+    "Do not change required_approving_review_count or any CCA Review Bridge behavior.",
+    "Do not teach MergeGate to read code-owner approval state; the gate stays unmodeled and is instead made optional.",
+    "Do not turn protect_branch into a reconciler; no GET-before-PUT of live protection.",
+    "Do not audit the other protection settings MergeGate cannot observe (required_conversation_resolution, enforce_admins).",
+    "Do not remove or weaken validate_shiki's CODEOWNERS coverage check; the file and its ownership stay validated.",
+    "Do not add a scripts/shiki.py re-export, which would pull a CODEOWNERS-governed path into the diff for no benefit.",
+    "Do not change defaults.required_review or the MergeGate review gate that consumes it."
+  ],
+  "outcome": "A Shiki repository whose only CODEOWNER is the PR author can merge pull requests that touch CODEOWNERS-governed paths, because GitHub-level code-owner enforcement becomes an explicit opt-in setting rather than a value derived from the approving-review count.",
+  "prd": {
+    "further_notes": [
+      "The report that opened this goal suggested documenting that a solo-maintainer target needs the setting. Under a false default that inverts: solo targets need nothing, and it is multi-maintainer adopters who must opt in. The bootstrap doc note should say so.",
+      "T-0031 and T-0032 (both risk critical, both done) deliberately introduced this coupling, and docs/agents/decision-control.md:315 records it as intent. This goal reverses a recorded decision, which is why it carries an SADR and critical risk rather than being treated as a bug fix.",
+      "This repository's own live protection is drifted from its config in two ways, so shiki doctor would already report doctor.github.branch_protection as fail here today, independent of this goal."
+    ],
+    "implementation_decisions": [
+      "New helper configured_required_code_owner_review(target) in scripts/shiki_config.py, returning False when the key is absent, and False whenever configured_required_review is False.",
+      "protect_branch takes the value as an explicit keyword argument rather than reading config, keeping it a pure payload builder with no target-path dependency.",
+      "scripts/shiki_bootstrap.py passes the value at both call sites (lines 175 and 251), beside the existing branch_protection_review_count call.",
+      "defaults.required_code_owner_review: false is written into the shipped .shiki/config.yaml - required for the installer's governance diff to detect its absence in an existing target.",
+      "GOVERNANCE_CRITICAL_KEYS['.shiki/config.yaml'] gains the key alongside mergegate.required_checks.",
+      "doctor compares live require_code_owner_reviews against the configured value: fail when configured and not live, warn when live and not configured, pass when they agree.",
+      "No scripts/shiki.py re-export: tests import shiki_config directly, keeping the CODEOWNERS-governed shim out of the diff."
+    ],
+    "links": [
+      "CONTEXT.md: Authority, Guardian, CCA, CCA Review Bridge, Contract Approval",
+      "docs/adr/SADR-0013-bootstrap-grants-actions-approve-pull-requests.md - the Bridge as intended approver, and the solo/self-running posture this goal restores",
+      "docs/adr/SADR-0015-contract-approval-before-dispatch.md - the pre-implementation Guardian gate that already covers these paths",
+      "docs/agents/decision-control.md:313-317 - the CODEOWNERS Governance section this goal corrects",
+      "scripts/shiki_github.py:566, scripts/shiki_doctor.py:915, scripts/shiki_installer.py:142-155, scripts/shiki_loop.py:47 and :2515"
+    ],
+    "out_of_scope": [
+      "Teaching MergeGate or the Goal Loop to observe code-owner approval state.",
+      "Improving the loop's stop_blocked message to name code-owner review as a cause - a worthwhile follow-up that would widen locks to scripts/shiki_loop.py.",
+      "Auditing required_conversation_resolution and enforce_admins, which are equally invisible to MergeGate.",
+      "Reconciling this repository's already-drifted live protection (require_code_owner_reviews false, required_approving_review_count 0 against a config asking for review)."
+    ],
+    "problem_statement": "scripts/shiki_github.py:566 sets require_code_owner_reviews to review_count > 0, so requiring one approving review also requires that an approval come from a CODEOWNER. Shiki's design is that the CCA Review Bridge supplies the approving review under the GitHub Actions identity (SADR-0013), and mergegate_check.review_approved accepts any APPROVED review regardless of author - but a bot can never be listed as a CODEOWNER. In a repository whose CODEOWNERS entries all name the operator, that operator is also the PR author for every Goal Loop PR, and GitHub forbids self-approval. Every PR touching a CODEOWNERS path is therefore permanently unmergeable. Observed live on mizutani-140/shiki-atlas PR #2, whose only governed file was a newly added .github/workflows/pages.yml - an ordinary first slice. The obvious workaround fails: setting defaults.required_review: false turns the required 'Validate Shiki mirror' check red, because scripts/test_shiki_control_plane.sh asserts MergeGate blocks an unapproved PR.",
+    "solution": "Separate the two constraints. required_approving_review_count keeps deriving from defaults.required_review and the CCA Review Bridge keeps satisfying it. require_code_owner_reviews becomes its own opt-in setting, defaults.required_code_owner_review, defaulting to false and effective only when review is required. The installer names the new key as governance-critical so existing targets see it rather than being silently downgraded, and doctor grows a fail/warn matrix that finally makes this deadlock diagnosable.",
+    "testing_decisions": [
+      "tests/test_branch_protection_payload.py: test_review_count_drives_review_block currently asserts require_code_owner_reviews is true at review_count=1 and MUST change. It runs under CI's unittest discover, which validate_shiki does not cover, so it is a hard gate and is in T1's locks.",
+      "tests/test_config_loading.py: new cases for the helper mirroring the existing configured_required_review cases, including absent-key default and the required_review: false precedence rule.",
+      "scripts/test_shiki_init.sh: the payload matrix, replacing the current unconditional require_code_owner_reviews is True assertion at line 295.",
+      "scripts/test_shiki_control_plane.sh: a PR snapshot whose sole APPROVED review is the Actions bot and whose author is the repo owner passes enforce_review_policy. The existing 'Required review is missing' case at line 1227 must keep passing untouched.",
+      "scripts/test_shiki_doctor.sh: the three-way doctor matrix, extending the fixture at lines 189-190.",
+      "The GitHub half is not locally assertable and is closed by T2's recorded manual verification, not by a payload test standing in for it."
+    ],
+    "user_stories": [
+      "As a solo-maintainer adopter, I run shiki init on a fresh target and my first vertical slice merges, instead of deadlocking on a CODEOWNERS path with no diagnosable reason.",
+      "As a multi-maintainer adopter, I set defaults.required_code_owner_review: true and keep GitHub-enforced path-owner review, and that setting survives every subsequent re-init.",
+      "As an operator debugging a stalled Goal Loop, shiki doctor tells me GitHub requires code-owner review that my config does not, and names the PR-author deadlock, instead of leaving me with 'resolve manually (branch protection, conflicts, or auth)'.",
+      "As a future reader finding a validated CODEOWNERS file that GitHub does not enforce, SADR-0021 tells me why that is deliberate rather than a bug."
+    ]
+  },
+  "required_skills": [
+    "grill-with-docs",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "critical",
+  "spec_freeze": {
+    "amendments": [],
+    "approved_by": "mizutani-140",
+    "prd": ".shiki/plans/P-20260822T100307335677Z-5edd4fcb.json#prd",
+    "source": "Operator approval (\"\u627f\u8a8d\") given 2026-08-22 in the Claude Code planning session, worktree claude/modest-bohr-63d941, on the PRD embedded in this plan's prd field. This is the SECOND freeze of this plan: the first was withdrawn when PR #336's already-registered contract was found to claim SADR-0020, so the record was renumbered to SADR-0021 and re-approved. Scope, locks and acceptance are otherwise unchanged from the first approval. Recorded by the planner at the operator's instruction; the operator is the approving authority.",
+    "status": "frozen"
+  },
+  "status": "frozen",
+  "tasks": [
+    {
+      "acceptance_checks": [
+        "protect_branch emits require_code_owner_reviews: false when the target config omits defaults.required_code_owner_review.",
+        "protect_branch emits require_code_owner_reviews: true only when defaults.required_review and defaults.required_code_owner_review are both true.",
+        "protect_branch emits require_code_owner_reviews: false when defaults.required_review is false, even if defaults.required_code_owner_review is true.",
+        "required_approving_review_count is unchanged in every case: 1 when required_review is true, 0 when it is false.",
+        "configured_required_code_owner_review returns False for an absent key, honors an explicit true, and returns False whenever configured_required_review is False (tests/test_config_loading.py).",
+        "tests/test_branch_protection_payload.py no longer asserts require_code_owner_reviews is true at review_count=1, and its cases pass the code-owner value explicitly.",
+        "The shipped .shiki/config.yaml contains required_code_owner_review: false under defaults.",
+        "GOVERNANCE_CRITICAL_KEYS['.shiki/config.yaml'] contains 'defaults.required_code_owner_review'.",
+        "doctor.github.branch_protection is fail when config requires code-owner review and live protection lacks it.",
+        "doctor.github.branch_protection is warn when live protection requires code-owner review and config does not, and its remediation text names the PR-author deadlock.",
+        "doctor.github.branch_protection is pass when the configured and live values agree in either direction.",
+        "A MergeGate PR snapshot whose sole APPROVED review is the GitHub Actions bot, authored by the repo owner, passes enforce_review_policy; the existing 'Required review is missing' case in scripts/test_shiki_control_plane.sh still fails as before.",
+        "docs/agents/decision-control.md no longer asserts that branch protection must require code owner reviews, and states that multi-maintainer adopters opt in.",
+        "docs/agents/bootstrap-command.md and docs/agents/shiki-doctor.md describe the opt-in setting rather than unconditional enforcement.",
+        "docs/adr/SADR-0021-code-owner-review-enforcement-is-opt-in.md exists and records the decision, the SADR-0013 tension, and the multi-maintainer trade-off.",
+        "python3 scripts/validate_shiki.py passes; python3 -m unittest discover tests passes; scripts/test_shiki_init.sh, scripts/test_shiki_control_plane.sh and scripts/test_shiki_doctor.sh pass."
+      ],
+      "assigned_runtime": "claude-code",
+      "cca_checklist_profile": [],
+      "dependencies": [],
+      "locks": [
+        "path:scripts/shiki_config.py",
+        "path:scripts/shiki_github.py",
+        "path:scripts/shiki_bootstrap.py",
+        "path:scripts/shiki_doctor.py",
+        "path:scripts/shiki_installer.py",
+        "path:.shiki/config.yaml",
+        "path:scripts/test_shiki_init.sh",
+        "path:scripts/test_shiki_control_plane.sh",
+        "path:scripts/test_shiki_doctor.sh",
+        "path:tests/test_branch_protection_payload.py",
+        "path:tests/test_config_loading.py",
+        "path:docs/agents/decision-control.md",
+        "path:docs/agents/bootstrap-command.md",
+        "path:docs/agents/shiki-doctor.md",
+        "path:docs/adr/SADR-0021-code-owner-review-enforcement-is-opt-in.md",
+        "path:CONTEXT.md"
+      ],
+      "required_skills": [
+        "tdd",
+        "code-review"
+      ],
+      "risk_level": "critical",
+      "scope": "Add defaults.required_code_owner_review to Shiki config and drive protect_branch's require_code_owner_reviews from it instead of from review_count; name the key as governance-critical in the installer; teach doctor the fail/warn matrix; and record the decision in SADR-0021 with the governance docs corrected.",
+      "title": "Make GitHub code-owner review enforcement opt-in"
+    },
+    {
+      "acceptance_checks": [
+        "mizutani-140/shiki-atlas carries defaults.required_code_owner_review after re-install, or the install summary names it as a differing governance-critical key.",
+        "gh api repos/mizutani-140/shiki-atlas/branches/main/protection --jq '.required_pull_request_reviews.require_code_owner_reviews' returns false after re-protection.",
+        "PR #2 on mizutani-140/shiki-atlas reports a mergeable state and merges, with its CCA-supplied approval as the only approving review.",
+        "A ledger entry records the captured command output as manual verification evidence for this goal."
+      ],
+      "assigned_runtime": "claude-code",
+      "cca_checklist_profile": [],
+      "dependencies": [
+        "Make GitHub code-owner review enforcement opt-in"
+      ],
+      "locks": [
+        "path:.shiki/ledger/**"
+      ],
+      "required_skills": [
+        "evidence-only"
+      ],
+      "risk_level": "low",
+      "scope": "After the platform change merges, re-install Shiki into mizutani-140/shiki-atlas, re-apply branch protection, and confirm the previously unmergeable PR #2 reaches a mergeable state and merges. Record the command output as durable manual verification evidence. No platform source changes.",
+      "title": "Prove the code-owner deadlock is broken on a live solo-maintainer target"
+    }
+  ],
+  "title": "Make GitHub code-owner review enforcement independently configurable"
+}
