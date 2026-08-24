@@ -9,7 +9,7 @@
   "cca_checklist_profile": [],
   "dependencies": [],
   "expected_branch": "shiki/t-20260824t041220229381z-9292b383-closeout",
-  "expected_pr": 357,
+  "expected_pr": 358,
   "github_issue": null,
   "goal_id": "G-20260824T041205982618Z-380ed036",
   "id": "T-20260824T041220229381Z-9292b383",
@@ -22,7 +22,8 @@
     "L-20260824T050819662104Z-4535916e",
     "L-20260824T102216075432Z-4235710d",
     "L-20260824T102216151393Z-1f118469",
-    "L-20260824T102216258649Z-5dd6fa33"
+    "L-20260824T102216258649Z-5dd6fa33",
+    "L-20260824T102603118755Z-d010c556"
   ],
   "locks": [
     "path:scripts/shiki_doctor.py",
