@@ -1,0 +1,13 @@
+{
+  "api_base_url": "https://api.github.com",
+  "canonical_remote_url": "https://github.com/mizutani-140/shiki.git",
+  "default_branch": "main",
+  "host": "github.com",
+  "mirror": ".shiki",
+  "provider": "github",
+  "remote_protocol": "https",
+  "repo": "mizutani-140/shiki",
+  "source_of_truth": "github",
+  "ssh_host": "github.com",
+  "web_base_url": "https://github.com"
+}

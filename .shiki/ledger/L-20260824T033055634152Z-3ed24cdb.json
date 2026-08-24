@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260824T033055633960Z-c332534d.json"
+  ],
+  "goal_id": "G-20260824T033043243224Z-7bbcdbce",
+  "id": "L-20260824T033055634152Z-3ed24cdb",
+  "links": [],
+  "summary": "Task registered: Record platform provider metadata in .shiki/repo.json so doctor's online checks run",
+  "task_id": "T-20260824T033055633960Z-c332534d",
+  "timestamp": "2026-08-24T03:30:55+00:00",
+  "type": "task-registered"
+}

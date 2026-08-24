@@ -1,0 +1,14 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/repo.json",
+    ".shiki/tasks/T-20260824T033055633960Z-c332534d.json"
+  ],
+  "goal_id": "G-20260824T033043243224Z-7bbcdbce",
+  "id": "L-20260824T033620118432Z-c375c512",
+  "links": [],
+  "summary": "Pre-PR code-review skill gate run at low effort over the staged diff (6 added .shiki records, 102 insertions, no executable code): 0 findings. Reviewed that .shiki/repo.json matches shiki_bootstrap.write_target_repo_config output for the live origin remote and default branch, and that every changed path falls inside the task's declared lock unioned with its derived mirror locks.",
+  "task_id": "T-20260824T033055633960Z-c332534d",
+  "timestamp": "2026-08-24T03:36:20.118432+00:00",
+  "type": "review"
+}
