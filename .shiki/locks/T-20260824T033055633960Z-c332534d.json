@@ -5,6 +5,8 @@
     "path:.shiki/repo.json"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "released_at": "2026-08-24T03:58:06+00:00",
+  "released_by": "shiki-cli",
+  "state": "released",
   "task_id": "T-20260824T033055633960Z-c332534d"
 }

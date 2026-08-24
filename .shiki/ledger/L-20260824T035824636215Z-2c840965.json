@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260824T035824610543Z-261bf971.json"
+  ],
+  "goal_id": "G-20260824T033043243224Z-7bbcdbce",
+  "id": "L-20260824T035824636215Z-2c840965",
+  "links": [],
+  "summary": "Both completion conditions verified on merged main (PR #354, merge commit dd97387): doctor.provider.repo_json reports pass, and doctor.github.branch_protection is evaluated rather than skipped behind doctor.github.online. The branch-protection finding is fail, which is the intended outcome: it surfaces the pre-existing mismatch between .shiki/config.yaml and live protection (missing required check 'MergeGate metadata check'; required review count 0 < 1). Reconciling that mismatch was an explicit non-goal.",
+  "task_id": null,
+  "timestamp": "2026-08-24T03:58:24+00:00",
+  "type": "completion"
+}
