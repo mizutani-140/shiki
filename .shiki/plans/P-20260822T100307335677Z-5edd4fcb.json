@@ -86,7 +86,9 @@
   ],
   "risk_level": "critical",
   "spec_freeze": {
-    "amendments": [],
+    "amendments": [
+      "2026-08-24: widen the locks of task T-20260822T102714799429Z-c43ccdcf to include tests/test_adr_references.py and tests/test_sadr_install_migration.py. Implementation proved the approved contract too narrow. The task's frozen acceptance requires creating docs/adr/SADR-0021-code-owner-review-enforcement-is-opt-in.md, and two out-of-lock test files hardcode the SADR set's upper bound: tests/test_adr_references.py:188 asserts the SADR numbers equal {0001..0019} via range(1, 20), and tests/test_sadr_install_migration.py excludes SADR-0019 by filename instead of bounding by shiki_installer.LEGACY_SHIKI_SADR_MAX (18), which the installer itself uses. Measured on the implementation branch: the installer derives 18 legacy ADR paths and the test derives 19, and all 10 unittest failures come from exactly these two modules. Any new SADR trips both, so this is pre-existing brittleness rather than a defect of this task; SADR-0020, already contracted on goal G-20260822T095306174540Z-473e0c11, would hit it identically. No lock-internal fix exists because creating the SADR is itself a frozen acceptance check. Scope, risk level, and every acceptance check are unchanged."
+    ],
     "approved_by": "mizutani-140",
     "prd": ".shiki/plans/P-20260822T100307335677Z-5edd4fcb.json#prd",
     "source": "Operator approval (\"\u627f\u8a8d\") given 2026-08-22 in the Claude Code planning session, worktree claude/modest-bohr-63d941, on the PRD embedded in this plan's prd field. This is the SECOND freeze of this plan: the first was withdrawn when PR #336's already-registered contract was found to claim SADR-0020, so the record was renumbered to SADR-0021 and re-approved. Scope, locks and acceptance are otherwise unchanged from the first approval. Recorded by the planner at the operator's instruction; the operator is the approving authority.",
@@ -132,7 +134,9 @@
         "path:docs/agents/bootstrap-command.md",
         "path:docs/agents/shiki-doctor.md",
         "path:docs/adr/SADR-0021-code-owner-review-enforcement-is-opt-in.md",
-        "path:CONTEXT.md"
+        "path:CONTEXT.md",
+        "path:tests/test_adr_references.py",
+        "path:tests/test_sadr_install_migration.py"
       ],
       "required_skills": [
         "tdd",

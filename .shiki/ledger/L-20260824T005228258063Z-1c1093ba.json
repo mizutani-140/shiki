@@ -1,0 +1,14 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/plans/P-20260822T100307335677Z-5edd4fcb.json",
+    ".shiki/tasks/T-20260822T102714799429Z-c43ccdcf.json"
+  ],
+  "goal_id": "G-20260822T102714798265Z-66a9cfa2",
+  "id": "L-20260824T005228258063Z-1c1093ba",
+  "links": [],
+  "summary": "Contract amended: widened task T-20260822T102714799429Z-c43ccdcf locks to cover tests/test_adr_references.py and tests/test_sadr_install_migration.py, whose hardcoded SADR upper bounds block the frozen acceptance check that creates SADR-0021.",
+  "task_id": "T-20260822T102714799429Z-c43ccdcf",
+  "timestamp": "2026-08-24T00:52:28+00:00",
+  "type": "contract-amended"
+}

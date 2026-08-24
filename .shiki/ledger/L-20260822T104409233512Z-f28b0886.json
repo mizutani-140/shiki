@@ -1,0 +1,18 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/338",
+    "EXEC python3 -m unittest discover -s tests -> Ran 1178 tests ... OK",
+    "EXEC for s in scripts/test_shiki_*.sh -> 34/34 PASS",
+    "EXEC python3 scripts/validate_shiki.py -> Shiki validation passed"
+  ],
+  "goal_id": "G-20260822T100353919056Z-551ef453",
+  "id": "L-20260822T104409233512Z-f28b0886",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/338"
+  ],
+  "summary": "MergeGate evidence: task delivered on PR #338 (https://github.com/mizutani-140/shiki/pull/338). Implementer-run verification on this branch: python3 -m unittest discover -s tests -> Ran 1178 tests OK; all 34 scripts/test_shiki_*.sh contract suites PASS; python3 scripts/validate_shiki.py -> Shiki validation passed; python3 -m py_compile scripts/*.py -> OK. This entry exists solely to satisfy the MergeGate requirement that task ledger evidence reference its PR (mergegate_check.py:3560-3565). It records implementer-run verification only, and asserts no judgment reserved to another authority.",
+  "task_id": "T-20260822T100424402655Z-f2564d9e",
+  "timestamp": "2026-08-22T10:44:09+00:00",
+  "type": "mergegate"
+}

@@ -1,0 +1,30 @@
+{
+  "acceptance_evidence": [
+    "python3 -m unittest discover -s tests (full suite) green",
+    "New regression tests proven red against the pre-fix module and green after",
+    "python3 scripts/validate_shiki.py and every scripts/test_shiki_*.sh green"
+  ],
+  "completion_conditions": [
+    "The verbatim current-CLI 401 payload classifies as PROBE_AUTH_REJECTED, so the negative control proves token-exclusivity again.",
+    "Rejection is proven from the structured api_error_status where the CLI reports one, not from matching CLI prose.",
+    "The fail-closed posture is unchanged: network, CLI, rate-limit and server failures still classify as PROBE_INDETERMINATE and still refuse to set the secret.",
+    "A regression test pins the exact current payload, so a future CLI wording change is caught by CI rather than by an operator who cannot set a secret."
+  ],
+  "created_at": "2026-08-22T10:03:53+00:00",
+  "github_issue": null,
+  "id": "G-20260822T100353919056Z-551ef453",
+  "non_goals": [
+    "Widening what counts as an authentication rejection beyond 401/403 and genuine rejection predicates.",
+    "Changing the negative-control design, the isolation layers, or the managed-settings refusal.",
+    "Any change to how CI consumes CLAUDE_CODE_OAUTH_TOKEN."
+  ],
+  "outcome": "`shiki secret set-claude` can again verify and set CLAUDE_CODE_OAUTH_TOKEN on hosts running the current Claude CLI. Measured 2026-08-20 on this host: for an invalid OAuth token the CLI returns `Failed to authenticate. API Error: 401 OAuth access token is invalid.`, while _AUTH_REJECTION_MARKERS was seeded from the older `401 Invalid bearer token` and carries \"invalid token\" \u2014 the same words in the opposite order, so no marker matched. _classify_probe_result therefore returned PROBE_INDETERMINATE for the negative control, verify_claude_oauth_token could never reach its PROBE_AUTH_REJECTED precondition, and the command refused EVERY token, valid or not, with 'could not prove token-exclusive verification'. Operators were pushed to the plain `gh secret set` bypass, which skips the probe that exists to catch a corrupt or expired token before it becomes a silent CCA 401 in CI.",
+  "required_skills": [
+    "diagnose",
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "high",
+  "status": "planned",
+  "title": "Restore shiki secret set-claude verification against the current Claude CLI"
+}
