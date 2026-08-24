@@ -7,6 +7,6 @@
     "path:tests/test_plan_task_carry.py"
   ],
   "owner": "shiki-run",
-  "state": "active",
+  "state": "released",
   "task_id": "T-20260824T012337183814Z-ee4c7a97"
 }
