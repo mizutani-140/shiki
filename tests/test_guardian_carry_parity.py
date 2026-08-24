@@ -235,6 +235,20 @@ class CarryParityTests(unittest.TestCase):
     def _mg_carried(mg: dict) -> bool:
         return any("guardian_comment_carried" in w for w in mg.get("warnings") or [])
 
+    @staticmethod
+    def _mg_carry_refusals(mg: dict) -> list[str]:
+        """The carry refusals the gate disclosed, stripped of their prefix.
+
+        A refusal is a reason the Guardian requirement is unmet, so the gate
+        routes it to ``blocking_reasons`` when it blocks and to ``warnings`` when
+        some other source approved. Read both so a caller never has to know which.
+        """
+        return [
+            entry.removeprefix("Guardian approval ")
+            for entry in [*(mg.get("blocking_reasons") or []), *(mg.get("warnings") or [])]
+            if "carry refused" in entry
+        ]
+
     def _assert_parity(self, mg: dict, sg: dict) -> None:
         """MergeGate and the signal agree, and the signal is never more permissive.
 
@@ -403,7 +417,7 @@ class CarryParityTests(unittest.TestCase):
         self._assert_parity(mg, sg)
         self.assertEqual(sg["carried_from_head"], self.a_sha)
         self.assertTrue(
-            any(f"carried from head {self.a_sha}" in w for w in mg.get("warnings") or []),
+            any(f"carry proven from head {self.a_sha}" in w for w in mg.get("warnings") or []),
             f"the gate must name the head it carried from: {mg}",
         )
 
@@ -431,14 +445,20 @@ class CarryParityTests(unittest.TestCase):
         mg = self._run_mergegate(carry=True)
         self.assertTrue(self._mg_guardian_blocked(mg), mg)
         self.assertFalse(self._mg_carried(mg), mg)
-        refusals = [w for w in mg.get("warnings") or [] if "carry refused" in w]
+        refusals = self._mg_carry_refusals(mg)
         self.assertTrue(refusals, f"the gate must disclose why the carry was refused: {mg}")
         self.assertTrue(
             any("step 9" in reason for reason in refusals),
             f"the refusal must name the failing proof step: {refusals}",
         )
+        # It must land in blocking_reasons, the only field shiki_loop reads back
+        # into the repair packet; a reason parked in warnings never reaches it.
+        self.assertTrue(
+            any("carry refused" in reason for reason in mg.get("blocking_reasons") or []),
+            f"a refused carry on a blocked gate must be a blocking reason: {mg}",
+        )
 
-    def test_base_drift_is_the_only_divergence_axis(self) -> None:
+    def test_gate_and_signal_name_the_same_refusal_on_the_advanced_base(self) -> None:
         """Re-run the signal against the ADVANCED base and the two legs agree.
 
         This is what proves the divergence is the moving ref and not a second
@@ -456,15 +476,67 @@ class CarryParityTests(unittest.TestCase):
         self.assertNotIn("guardian_comment_carried", sg["sources"])
         signal_reasons = sg["carry_refused_reasons"]
         self.assertTrue(any("step 9" in r for r in signal_reasons), sg)
-        gate_reasons = [
-            w.removeprefix("Guardian approval ")
-            for w in mg.get("warnings") or []
-            if "carry refused" in w
-        ]
+        gate_reasons = self._mg_carry_refusals(mg)
         self.assertEqual(
             sorted(gate_reasons), sorted(signal_reasons),
             f"gate and signal must name the same carry refusal: {gate_reasons} vs {signal_reasons}",
         )
+
+    def test_a_proven_carry_on_a_blocked_pr_never_claims_approval(self) -> None:
+        """The carry is only the human-secondary leg, so it can be proven on a PR
+        the gate correctly blocks.
+
+        With the label removed the proof still succeeds and the evaluator still
+        reports ``carried_from_head``. The gate must disclose that as a fact about
+        the CARRY and never as "Guardian approval carried" — blocking a PR for a
+        missing label while announcing its approval was carried is a governance
+        artifact contradicting itself.
+        """
+        self._build(labels=[], comments=[self._comment(self.a_sha)])
+        mg = self._run_mergegate(carry=True)
+        sg = self._run_signal(carry=True)
+        self._assert_parity(mg, sg)
+        self.assertFalse(sg["approved"], sg)
+        self.assertEqual(sg["carried_from_head"], self.a_sha, sg)
+        self.assertIn(
+            "Guardian label 'guardian:approved' is missing", mg.get("blocking_reasons") or [], mg
+        )
+        disclosed = [w for w in mg.get("warnings") or [] if "carry proven" in w]
+        self.assertTrue(disclosed, f"the proven carry must still be disclosed: {mg}")
+        self.assertFalse(
+            [w for w in mg.get("warnings") or [] if "approval carried" in w],
+            f"a blocked PR must never be told its approval was carried: {mg}",
+        )
+        # ...and the "satisfied by" claim, the only warning that may assert
+        # approval, must be absent entirely.
+        self.assertFalse(
+            [w for w in mg.get("warnings") or [] if "Guardian approval satisfied by" in w], mg
+        )
+
+    def test_a_guardian_negation_is_not_disclosed_twice(self) -> None:
+        """A revocation hard-blocks AND is recorded as the carry refusal reason.
+
+        ``_resolve_carry`` appends the same string to both channels, so the gate
+        filters reasons already raised as blockers. Without that filter the
+        operator sees the identical sentence as a blocking reason and again as a
+        carry disclosure.
+        """
+        negation = {
+            "user": {"login": GUARDIAN},
+            "body": "I revoke my Guardian approval for this PR.",
+            "created_at": T_LATER,
+        }
+        self._build(labels=[LABEL], comments=[self._comment(self.a_sha), negation])
+        mg = self._run_mergegate(carry=True)
+        sg = self._run_signal(carry=True)
+        self._assert_parity(mg, sg)
+        self.assertFalse(sg["approved"], sg)
+        entries = [
+            entry
+            for entry in [*(mg.get("blocking_reasons") or []), *(mg.get("warnings") or [])]
+            if "negation or" in entry
+        ]
+        self.assertEqual(len(entries), 1, f"the revocation must be stated once, not twice: {mg}")
 
     def test_carry_off_discloses_nothing_about_the_carry(self) -> None:
         """SADR-0018's carry-off invariance covers the disclosure too.
@@ -475,11 +547,11 @@ class CarryParityTests(unittest.TestCase):
         self._build(labels=[LABEL], comments=[self._comment(self.a_sha)])
         self._advance_origin_main()
         mg = self._run_mergegate(carry=False)
-        leaked = [
-            w for w in mg.get("warnings") or []
-            if "carry refused" in w or "carried from head" in w
-        ]
-        self.assertEqual(leaked, [], f"carry-off must disclose nothing: {mg}")
+        self.assertEqual(self._mg_carry_refusals(mg), [], f"carry-off must disclose nothing: {mg}")
+        self.assertEqual(
+            [w for w in mg.get("warnings") or [] if "carry proven" in w], [],
+            f"carry-off must disclose nothing: {mg}",
+        )
 
 
 if __name__ == "__main__":

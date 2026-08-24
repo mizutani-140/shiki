@@ -2558,22 +2558,34 @@ def enforce_guardian_policy(
     # reported only the generic stale-comment blockers, so the split-brain
     # between the two legs was undiagnosable from the gate's own output. The
     # carry fields are empty whenever --base-sync-carry is off, so a carry-off
-    # invocation stays byte-identical to the pre-carry gate. Reasons already
-    # raised as blockers (a Guardian negation is a hard blocker) are not
-    # repeated here.
+    # invocation stays byte-identical to the pre-carry gate.
+    #
+    # A proven carry is stated as a fact about the CARRY, never as "approval
+    # carried": the carry is only the human-secondary leg, so a PR whose label
+    # leg failed can hold a proven carry and still be correctly blocked. Only the
+    # "satisfied by" warning below may claim approval.
     if result.carried_from_head:
         warnings.append(
-            f"Guardian approval carried from head {result.carried_from_head} "
-            "across a proven pure base sync (guardian_comment_carried)"
+            f"Guardian approval comment carry proven from head {result.carried_from_head} "
+            "across a pure base sync"
         )
-    warnings.extend(
+    # Reasons already raised as blockers (a Guardian negation hard-blocks) are not
+    # repeated. A refused carry is a REASON the Guardian requirement is unmet, so
+    # when the gate blocks it belongs in blocking_reasons — that array is the only
+    # part of mergegate-result.json shiki_loop._resolve_blocking_reasons reads back
+    # into the repair packet and handoff, and a reason parked in warnings would
+    # leave the loop reporting a bare "required checks failed" exactly as before.
+    # When some other source approved, the refusal is informational only.
+    carry_refusals = [
         f"Guardian approval {reason}"
         for reason in result.carry_refused_reasons
         if reason not in result.blockers
-    )
+    ]
     if not result.approved:
         blocking.extend(result.blockers or ("Guardian approval is required but policy-backed evidence is missing",))
+        blocking.extend(carry_refusals)
     else:
+        warnings.extend(carry_refusals)
         approver_desc = ", ".join(result.approvers) if result.approvers else ""
         if result.ai_reviewers:
             # External AI guardian review: record the AI reviewer identity
