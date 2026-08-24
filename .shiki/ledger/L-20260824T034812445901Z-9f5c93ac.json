@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/354"
+  ],
+  "goal_id": "G-20260824T033043243224Z-7bbcdbce",
+  "id": "L-20260824T034812445901Z-9f5c93ac",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/354"
+  ],
+  "summary": "PR delivered: https://github.com/mizutani-140/shiki/pull/354 carries .shiki/repo.json plus this task's registration records on branch claude/compassionate-lalande-acfec7. Pre-PR code-review gate passed with 0 findings; validate_shiki, unittest discover -s tests, test_shiki_doctor.sh and offline doctor all green.",
+  "task_id": "T-20260824T033055633960Z-c332534d",
+  "timestamp": "2026-08-24T03:48:12.445901+00:00",
+  "type": "check"
+}
