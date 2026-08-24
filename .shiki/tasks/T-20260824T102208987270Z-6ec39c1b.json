@@ -1,0 +1,45 @@
+{
+  "acceptance_checks": [
+    "A scalar mergegate.required_checks yields list(DEFAULT_REQUIRED_CHECKS) from shiki_config.configured_required_checks and from mergegate_check.configured_required_checks",
+    "The new regression fails on the pre-change scripts and passes after; red/green captured in the ledger",
+    "validate_shiki.config_required_checks() still raises ValidationError on the scalar shape; captured in the ledger",
+    "python3 -m unittest discover -s tests passes",
+    "tests/test_workflow_invocation.py is unchanged and green"
+  ],
+  "assigned_runtime": "claude-code",
+  "dependencies": [],
+  "expected_branch": "claude/required-checks-scalar-guard",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260824T102156523258Z-99beb382",
+  "id": "T-20260824T102208987270Z-6ec39c1b",
+  "ledger_evidence": [
+    "L-20260824T102208987429Z-38e71397",
+    "L-20260824T102231709933Z-b5fbfbca",
+    "L-20260824T103441683978Z-5057a7d2",
+    "L-20260824T103441683979Z-0b098022",
+    "L-20260824T103455770311Z-ab07ed22",
+    "L-20260824T103455852316Z-2aac2ffb"
+  ],
+  "locks": [
+    "path:scripts/shiki_config.py",
+    "path:scripts/mergegate_check.py",
+    "path:tests/test_required_checks_derivation.py"
+  ],
+  "non_goals": [
+    "Do not change .shiki/config.yaml or any workflow file.",
+    "Do not change any argv or CLI surface; tests/test_workflow_invocation.py stays untouched and green.",
+    "Do not change scripts/validate_shiki.py; it already rejects the shape loudly.",
+    "Do not touch tests/test_config_loading.py; PR #357 holds an active lock on it.",
+    "Do not change the load_shiki_config parser itself."
+  ],
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "scope": "In both copies of configured_required_checks (scripts/shiki_config.py and scripts/mergegate_check.py ~line 1785), treat a non-list raw mergegate.required_checks as absent and fall back to the documented default instead of iterating it. Add a regression to tests/test_required_checks_derivation.py pinning the scalar shape for both copies and binding the two copies to each other across the list/absent/empty/scalar shapes.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Guard configured_required_checks against a scalar mergegate.required_checks"
+}

@@ -93,9 +93,18 @@ def configured_required_checks(target: Path, default: "list[str] | tuple[str, ..
 
     Canonical, config-first source for branch-protection setup. ``default`` is the
     documented fallback (DEFAULT_REQUIRED_CHECKS), used only when the target has no
-    ``mergegate.required_checks`` entries (e.g. before config is installed).
+    usable ``mergegate.required_checks`` entries (e.g. before config is installed).
+
+    A non-list value counts as absent. Written as an inline scalar
+    (``required_checks: CCA verdict``) the subset parser yields the bare string,
+    and iterating it produced one "check" per character -- names bootstrap then
+    wrote into branch protection and MergeGate then demanded of every PR. A bare
+    ``true`` was worse still: not iterable at all. ``validate_shiki`` is where the
+    invalid shape is rejected loudly; every consumer here falls back instead.
     """
     mergegate = load_shiki_config(target).get("mergegate", {})
     raw = mergegate.get("required_checks") if isinstance(mergegate, dict) else None
-    checks = [str(check) for check in raw or [] if str(check).strip()]
+    if not isinstance(raw, list):
+        raw = []
+    checks = [str(check) for check in raw if str(check).strip()]
     return checks or list(default)
