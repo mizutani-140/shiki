@@ -19,7 +19,9 @@
     "L-20260824T011808276421Z-5dad5054",
     "L-20260824T011808276738Z-7300600f",
     "L-20260824T011808276860Z-73a97091",
-    "L-20260824T011918569509Z-4ddf5215"
+    "L-20260824T011918569509Z-4ddf5215",
+    "L-20260824T012947036436Z-ef2185df",
+    "L-20260824T012951930693Z-867d48bd"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
@@ -38,7 +40,7 @@
   ],
   "risk_level": "low",
   "scope": "In scripts/mergegate_check.py enforce_guardian_policy, read the GuardianApprovalResult carry fields the gate previously dropped: disclose a proven carry as a warning naming the head it was carried from, and route a refused carry's evaluator reason to blocking_reasons when the gate blocks (warnings when another source approved), skipping reasons already raised as blockers. Pin gate-vs-signal carry parity, including the base-drift shape measured on PR #338, in tests/test_guardian_carry_parity.py, and record the live-tip anchor and its decay in docs/agents/guardian-policy.md.",
-  "status": "planned",
+  "status": "review",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Disclose the base-sync carry outcome in the MergeGate policy check"
 }
