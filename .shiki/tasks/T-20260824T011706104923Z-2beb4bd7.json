@@ -8,8 +8,8 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "claude/practical-raman-fce799",
-  "expected_pr": 345,
+  "expected_branch": "shiki/t-20260824t011706104923z-2beb4bd7-closeout",
+  "expected_pr": 349,
   "github_issue": null,
   "goal_id": "G-20260824T011654000514Z-d57197b5",
   "id": "T-20260824T011706104923Z-2beb4bd7",
@@ -23,7 +23,9 @@
     "L-20260824T012947036436Z-ef2185df",
     "L-20260824T012951930693Z-867d48bd",
     "L-20260824T014048954178Z-eb172f05",
-    "L-20260824T014053525000Z-81f41d01"
+    "L-20260824T014053525000Z-81f41d01",
+    "L-20260824T014059873236Z-d3c530a0",
+    "L-20260824T015319209335Z-2b0fa482"
   ],
   "locks": [
     "path:scripts/mergegate_check.py",
