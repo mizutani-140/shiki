@@ -26,7 +26,9 @@
   "id": "T-20260822T102714799429Z-c43ccdcf",
   "ledger_evidence": [
     "L-20260822T102714799494Z-aa09d6f7",
-    "L-20260824T003004794932Z-ee1c29b9"
+    "L-20260824T003004794932Z-ee1c29b9",
+    "L-20260824T012559051799Z-da802229",
+    "L-20260824T012559052618Z-a8945185"
   ],
   "locks": [
     "path:scripts/shiki_config.py",
@@ -49,6 +51,11 @@
     "path:tests/test_sadr_install_migration.py"
   ],
   "non_goals": [],
+  "pre_pr_code_review": {
+    "findings": 3,
+    "resolved": 3,
+    "status": "complete"
+  },
   "required_skills": [
     "tdd",
     "code-review"

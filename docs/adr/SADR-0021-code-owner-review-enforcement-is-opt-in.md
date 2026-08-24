@@ -84,7 +84,7 @@ value derived from the review count.
    at both call sites.
 5. `defaults.required_code_owner_review` joins `GOVERNANCE_CRITICAL_KEYS` for
    `.shiki/config.yaml`, and the key ships explicitly in the template. Both are
-   required: `_governance_diff` compares template leaves against target leaves,
+   required: `governance_differing_keys` compares template leaves against target leaves,
    so a key absent from the template produces no diff in a target that lacks it,
    and the installer summary would never name it — a silent governance downgrade
    at the next `--protect`.

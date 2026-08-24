@@ -150,7 +150,7 @@ GOVERNANCE_CRITICAL_KEYS: dict[str, tuple[str, ...]] = {
     ".shiki/config.yaml": (
         "mergegate.required_checks",
         # An existing target predating SADR-0021 has no code-owner key at all.
-        # _governance_diff compares template leaves against target leaves, so the
+        # governance_differing_keys compares template leaves against target ones, so
         # key must ship in the template or its ABSENCE in a target produces no
         # diff and the summary never names it — a silent governance downgrade at
         # the next `--protect`, which is exactly what this entry prevents.
