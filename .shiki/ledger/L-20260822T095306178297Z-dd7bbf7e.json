@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260822T095306178275Z-0dc8a0b4.json"
+  ],
+  "goal_id": "G-20260822T095306174540Z-473e0c11",
+  "id": "L-20260822T095306178297Z-dd7bbf7e",
+  "links": [],
+  "summary": "Task registered from plan: Report goal acceptance_evidence coverage in the completion report",
+  "task_id": "T-20260822T095306178275Z-0dc8a0b4",
+  "timestamp": "2026-08-22T09:53:06+00:00",
+  "type": "task-registered"
+}

@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260822T095306175916Z-69dbeabb.json"
+  ],
+  "goal_id": "G-20260822T095306174540Z-473e0c11",
+  "id": "L-20260822T095306175992Z-31948c4c",
+  "links": [],
+  "summary": "Task registered from plan: Record the goal-level completion judgment decision as SADR-0020 and align doctrine",
+  "task_id": "T-20260822T095306175916Z-69dbeabb",
+  "timestamp": "2026-08-22T09:53:06+00:00",
+  "type": "task-registered"
+}

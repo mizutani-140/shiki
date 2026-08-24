@@ -1,0 +1,48 @@
+{
+  "acceptance_evidence": [
+    "GitHub Issue records the goal.",
+    "Task DAG is registered in .shiki/dag.",
+    "CCA verdict and MergeGate evidence are recorded before completion."
+  ],
+  "completion_conditions": [
+    "The bootstrapped first-task lock default covers repository-root files as well as nested files.",
+    "The everything-lock conflicts with a root-file lock such as path:package.json, closing the serialization gap the same pattern caused.",
+    "A regression test binds the real bootstrap default (not a copy of the literal) and fails when the default is reverted.",
+    "shiki_locks matching semantics are byte-unchanged."
+  ],
+  "created_at": "2026-08-22T10:03:10+00:00",
+  "github_issue": null,
+  "grill_with_docs": {
+    "decisions": [
+      "THE DEFECT, MEASURED. `path:**/*` requires a literal \"/\" under fnmatch. In-worktree 2026-08-22: files_outside_locks(['package.json','tsconfig.json','.gitignore','src/env.d.ts'], ['path:**/*']) -> ['package.json','tsconfig.json','.gitignore']; the same call with ['path:**'] -> []. Against the exact six paths from shiki-atlas PR #2 plus one nested file, the shipped default blocks all six root files and the fix blocks none.",
+      "THE SECOND FACE, NOT IN THE REPORT. The same gap breaks conflict detection, not just coverage. Measured: locks_overlap('path:**/*','path:package.json') is False, while locks_overlap('path:**','path:package.json') is True. A bootstrap task holding the everything-lock therefore did NOT conflict with a second task declaring path:package.json, so both could claim the file concurrently and active_lock_conflicts stayed silent. Against directory locks the two forms behave identically (both overlap path:tests/**, path:scripts/mergegate_check.py and shiki:governance), so this defect was invisible except at repository root. One character fixes both faces.",
+      "SCOPE, AUDITED. grep for the lock idiom across scripts/, docs/, templates, .github/ and .shiki/ returns exactly two occurrences, both in scripts/shiki_bootstrap.py: the interactive fallback at line 320 and the non-interactive fallback at line 325. The `--lock` argparse entries (shiki_cli.py:162, :354) carry no help text naming a default, no document states one, and no test pins the literal - scripts/test_shiki_start.sh:125 passes \"path:src/start/*\" explicitly and so never exercises the default. The fix surface is therefore those two lines plus a regression test, with no doc or template alignment needed.",
+      "BINDING THE PAIR. The default is promoted to a module-level DEFAULT_FIRST_TASK_LOCKS in shiki_bootstrap.py and both call sites resolve through it, so tests/test_lock_matching.py can import the real default instead of restating the literal. This follows the binder convention stated in tests/test_paired_invariants.py: where nothing binds two artifacts that must agree, a break is silent. Each coverage assertion is paired with a divergence test that feeds the old pattern to the same helper, proving the suite detects the regression rather than merely passing on today's tree.",
+      "RISK IS LOW AND THE ARCHITECTURE GATE IS NOT TRIGGERED. Two default-value lines, one constant with its rationale comment, and one test class: no schema, workflow, public API, auth, migration or infrastructure surface; under 100 net new lines in a core module; no new files; two files touched. Low and medium both take the autonomous SADR-0008/SADR-0009 merge path, so this classification does not change the loop route.",
+      "MEASURED GREEN BEFORE FREEZE. The candidate change was applied in the planning worktree purely to measure lock sufficiency, then reverted so this contract registers no implementation. Results: `python3 -m unittest discover -s tests` -> Ran 1176 tests, OK; `python3 scripts/validate_shiki.py --target .` -> Shiki validation passed; scripts/test_shiki_start.sh, test_shiki_init.sh and test_shiki_control_plane.sh all PASS. Red proof: reverting DEFAULT_FIRST_TASK_LOCKS to ['path:**/*'] fails exactly 3 tests in the new class, and the failure message names scripts/shiki_bootstrap.py DEFAULT_FIRST_TASK_LOCKS as the fix.",
+      "LOCK SUFFICIENCY. MUST-CHANGE is scripts/shiki_bootstrap.py and tests/test_lock_matching.py, and the measured green run changed nothing else. MUST-NOT-BREAK is the full Python suite, validate_shiki and every scripts/test_shiki_*.sh, all of which are verification commands rather than lock entries. The two locks are therefore sufficient and no lock-widening amendment should be needed."
+    ],
+    "source": "Claude Code planning session 2026-08-22 in worktree sleepy-chatelet-e30d87, from an operator bug report with a reproduction; every claim below re-measured independently in that worktree rather than taken from the report.",
+    "status": "complete"
+  },
+  "id": "G-20260822T100310254979Z-b0f195ee",
+  "ledger_evidence": [
+    "L-20260822T100310255866Z-1f86a5f2",
+    "L-20260822T105326105281Z-a6e426f5"
+  ],
+  "non_goals": [
+    "Loosening files_outside_locks, path_matches_lock, path_lock_patterns or any other matching semantics. The glob behavior is correct; only the default pattern was wrong. Measured: path_lock_patterns already expands a trailing \"/*\" to \"/**\", but that expansion cannot rescue \"**/*\" because the resulting \"**/**\" still requires a separator.",
+    "Adding a warning when a path:**/* lock is declared by hand elsewhere. Raised in the report as a \"consider\"; it would touch lock acquisition and validation surfaces outside this slice. Deferred as a follow-up, not decided here.",
+    "Backfilling existing .shiki/tasks records. Audited 2026-08-22: no tracked mirror record declares the pattern, and mirror rewrites are a migration-mode concern (see the byte-boundary constraint in SADR-0016's mirror-identity rules).",
+    "Revisiting SADR-0016's lock-granularity planning rule that a lock must not be a directory glob over a shared namespace when files are nameable at plan time. A bootstrapped first task has no plan-time file list, which is why it has a fallback at all."
+  ],
+  "outcome": "A repository bootstrapped by `shiki start` gets a first-task lock that actually means \"everything\". Measured 2026-08-22: with the shipped default `path:**/*`, files_outside_locks(['package.json','tsconfig.json','.gitignore','src/env.d.ts']) returns the three repository-root files, because fnmatch requires a literal \"/\" to satisfy `**/*`; with `path:**` it returns []. Live consequence on mizutani-140/shiki-atlas PR #2: MergeGate emitted six \"Changed file X is outside declared task locks\" reasons for .gitignore, astro.config.mjs, package-lock.json, package.json, tsconfig.json and vitest.config.ts, every one of them a root-level file a normal first slice legitimately creates, forcing the operator to hand-edit task.locks and re-run `shiki lock acquire` on the very first task of a new project.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "low",
+  "source_plan": "P-20260822T100256491531Z-04bae792",
+  "status": "complete",
+  "title": "Default the bootstrapped first task lock to path:** so it covers repository-root files"
+}
