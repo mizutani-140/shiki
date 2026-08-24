@@ -147,7 +147,15 @@ GOVERNANCE_CONTRACT_FILES = (
 # Governance keys named explicitly in the end-of-run summary when they differ,
 # because they are the ones that change what protection requires / what approves.
 GOVERNANCE_CRITICAL_KEYS: dict[str, tuple[str, ...]] = {
-    ".shiki/config.yaml": ("mergegate.required_checks",),
+    ".shiki/config.yaml": (
+        "mergegate.required_checks",
+        # An existing target predating SADR-0021 has no code-owner key at all.
+        # _governance_diff compares template leaves against target leaves, so the
+        # key must ship in the template or its ABSENCE in a target produces no
+        # diff and the summary never names it — a silent governance downgrade at
+        # the next `--protect`, which is exactly what this entry prevents.
+        "defaults.required_code_owner_review",
+    ),
     ".shiki/guardian-policy.json": ("approval_sources",),
 }
 

@@ -9,7 +9,11 @@ from pathlib import Path
 import sys
 from typing import Any
 
-from shiki_config import branch_protection_review_count, configured_required_checks
+from shiki_config import (
+    branch_protection_review_count,
+    configured_required_checks,
+    configured_required_code_owner_review,
+)
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
 from shiki_git import check_remote_adoption, checkout_branch, commit_manifest, ensure_git_repo, ensure_remote, github_origin, is_git_repo, push_branch
 from shiki_github import claude_secret_remediation, configure_claude_code_secret, configure_workflow_permissions, create_github_issue_for_task, ensure_github_repo, github_secret_status, protect_branch, require_github_repo_slug, set_default_branch
@@ -180,7 +184,14 @@ def cmd_bootstrap_github(args: argparse.Namespace) -> int:
 
     if args.protect:
         required_checks = args.required_check or configured_required_checks(ROOT, DEFAULT_REQUIRED_CHECKS)
-        protect_branch(repo, branch, required_checks, review_count=branch_protection_review_count(ROOT), provider_config=provider_config)
+        protect_branch(
+            repo,
+            branch,
+            required_checks,
+            review_count=branch_protection_review_count(ROOT),
+            require_code_owner_review=configured_required_code_owner_review(ROOT),
+            provider_config=provider_config,
+        )
         configure_workflow_permissions(repo, provider_config=provider_config)
 
     save_default_config(repo, branch)
@@ -256,7 +267,14 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     if args.protect:
         required_checks = args.required_check or configured_required_checks(target, DEFAULT_REQUIRED_CHECKS)
-        protect_branch(repo, branch, required_checks, review_count=branch_protection_review_count(target), provider_config=provider_config)
+        protect_branch(
+            repo,
+            branch,
+            required_checks,
+            review_count=branch_protection_review_count(target),
+            require_code_owner_review=configured_required_code_owner_review(target),
+            provider_config=provider_config,
+        )
         configure_workflow_permissions(repo, provider_config=provider_config)
 
     info("GitHub-first init complete")

@@ -552,6 +552,7 @@ def protect_branch(
     required_checks: list[str],
     *,
     review_count: int,
+    require_code_owner_review: bool = False,
     provider_config: ProviderConfig | None = None,
 ) -> None:
     config = provider_config or default_provider_config(repo)
@@ -563,7 +564,10 @@ def protect_branch(
         "enforce_admins": True,
         "required_pull_request_reviews": {
             "dismiss_stale_reviews": True,
-            "require_code_owner_reviews": review_count > 0,
+            # NOT `review_count > 0` (SADR-0021): the Review Bridge approves as a
+            # bot, and a bot can never be a CODEOWNER, so coupling these two made a
+            # solo-maintainer repository unable to merge any CODEOWNERS-touching PR.
+            "require_code_owner_reviews": require_code_owner_review,
             "required_approving_review_count": review_count,
         },
         "restrictions": None,

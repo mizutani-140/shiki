@@ -25,7 +25,8 @@
   "goal_id": "G-20260822T102714798265Z-66a9cfa2",
   "id": "T-20260822T102714799429Z-c43ccdcf",
   "ledger_evidence": [
-    "L-20260822T102714799494Z-aa09d6f7"
+    "L-20260822T102714799494Z-aa09d6f7",
+    "L-20260824T003004794932Z-ee1c29b9"
   ],
   "locks": [
     "path:scripts/shiki_config.py",
@@ -52,7 +53,7 @@
   ],
   "risk_level": "critical",
   "scope": "Add defaults.required_code_owner_review to Shiki config and drive protect_branch's require_code_owner_reviews from it instead of from review_count; name the key as governance-critical in the installer; teach doctor the fail/warn matrix; and record the decision in SADR-0021 with the governance docs corrected.",
-  "status": "planned",
+  "status": "ready",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Make GitHub code-owner review enforcement opt-in"
 }

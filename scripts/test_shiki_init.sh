@@ -292,8 +292,11 @@ import json
 import sys
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-if payload["required_pull_request_reviews"]["require_code_owner_reviews"] is not True:
-    raise SystemExit("expected require_code_owner_reviews to be true")
+# SADR-0021: a default install requires an approving review (the CCA Review
+# Bridge supplies it) but must NOT require a CODEOWNER approval, or a repo
+# whose only code owner is the PR author can never merge a governed path.
+if payload["required_pull_request_reviews"]["require_code_owner_reviews"] is not False:
+    raise SystemExit("expected require_code_owner_reviews to default to false")
 count = payload["required_pull_request_reviews"]["required_approving_review_count"]
 if count < 1:
     raise SystemExit(f"expected required_approving_review_count >= 1, got {count}")
@@ -327,6 +330,35 @@ if reviews["require_code_owner_reviews"] is not False:
     raise SystemExit("expected require_code_owner_reviews to be false when review_count is 0")
 if reviews["required_approving_review_count"] != 0:
     raise SystemExit("expected required_approving_review_count to remain 0")
+PY
+
+# SADR-0021 opt-in direction: a target that explicitly asks for code-owner
+# review gets it, and the setting stays independent of the review count.
+export SHIKI_FAKE_GH_PAYLOAD="$TMP_ROOT/protect-payload-code-owner-on.json"
+python3 - <<'PY'
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path.cwd() / "scripts"))
+import shiki
+
+shiki.protect_branch(
+    "example/shiki-init-protect-code-owner-on",
+    "main",
+    ["Validate Shiki mirror"],
+    review_count=1,
+    require_code_owner_review=True,
+)
+PY
+python3 - "$SHIKI_FAKE_GH_PAYLOAD" <<'PY'
+import json
+import sys
+
+reviews = json.load(open(sys.argv[1], encoding="utf-8"))["required_pull_request_reviews"]
+if reviews["require_code_owner_reviews"] is not True:
+    raise SystemExit("expected require_code_owner_reviews to be true when opted in")
+if reviews["required_approving_review_count"] != 1:
+    raise SystemExit("expected required_approving_review_count to stay 1")
 PY
 
 # --- Install-and-verify: a freshly installed target must pass its OWN required

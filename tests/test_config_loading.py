@@ -90,6 +90,40 @@ class ConfigLoadingTests(unittest.TestCase):
         self.assertEqual(shiki_config.branch_protection_review_count(target), 0)
         self.assertFalse(mergegate_check.configured_required_review(target))
 
+    def test_code_owner_review_defaults_false(self) -> None:
+        """Absent key means GitHub-level code-owner enforcement is OFF.
+
+        The default is false because the CCA Review Bridge is the intended
+        approver (SADR-0013) and a bot can never be a CODEOWNER, so enforcing
+        it makes every CODEOWNERS-touching PR unmergeable in a repository whose
+        only code owner is the PR author (SADR-0021).
+        """
+        target = Path(tempfile.mkdtemp())
+        self.assertFalse(shiki_config.configured_required_code_owner_review(target))
+        target = self._write_config("defaults:\n  required_review: true\n")
+        self.assertFalse(shiki_config.configured_required_code_owner_review(target))
+
+    def test_code_owner_review_honors_true(self) -> None:
+        target = self._write_config(
+            "defaults:\n  required_review: true\n  required_code_owner_review: true\n"
+        )
+        self.assertTrue(shiki_config.configured_required_code_owner_review(target))
+
+    def test_code_owner_review_honors_explicit_false(self) -> None:
+        target = self._write_config(
+            "defaults:\n  required_review: true\n  required_code_owner_review: false\n"
+        )
+        self.assertFalse(shiki_config.configured_required_code_owner_review(target))
+
+    def test_code_owner_review_requires_review_to_be_required(self) -> None:
+        """required_review: false wins: GitHub still demands code-owner approval
+        at required_approving_review_count 0, which would be a deadlock with no
+        approving-review requirement to justify it."""
+        target = self._write_config(
+            "defaults:\n  required_review: false\n  required_code_owner_review: true\n"
+        )
+        self.assertFalse(shiki_config.configured_required_code_owner_review(target))
+
     def test_mergegate_required_checks_fall_back_to_defaults(self) -> None:
         target = self._write_config("platform: shiki\n")
         checks = mergegate_check.configured_required_checks(target)
