@@ -50,8 +50,11 @@ Online checks use `gh` and the configured provider host from
 - `gh auth status` for the configured host.
 - repository existence and default branch.
 - required secret existence without reading secret values.
-- branch protection required checks.
-- approving review count when `required_review: true`.
+- branch protection required checks, taken from `mergegate.required_checks` and
+  falling back to the documented `DEFAULT_REQUIRED_CHECKS` when that section is
+  absent or empty.
+- approving review count when review is required — which is the default: an
+  absent `defaults.required_review` means true.
 - code-owner review: the configured `defaults.required_code_owner_review` compared against live protection
   in both directions — a fail when config requires it and GitHub does not enforce it, and a warn when
   GitHub enforces it and config does not (doctor cannot tell a deadlocked solo repository from a healthy
@@ -61,6 +64,16 @@ Online checks use `gh` and the configured provider host from
 
 If GitHub permissions are insufficient for an online check, doctor reports a
 warning or failure with remediation instead of crashing.
+
+Doctor reads all three policy values through `shiki_config` (`configured_required_checks`,
+`configured_required_review`, `configured_required_code_owner_review`) rather than
+re-deriving them. That is deliberate: those helpers are what actually configure
+protection (via `branch_protection_review_count` -> `protect_branch`) and gate the
+merge (`mergegate_check`). Doctor previously kept private copies of the rules over a
+different parser, and every divergence failed open — a target relying on the
+documented defaults had its protection compared against an empty required-check list
+and a false `required_review`, so an unprotected branch was reported as matching
+policy. Do not reintroduce a doctor-local restatement of a config rule.
 
 ## JSON Contract
 

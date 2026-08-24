@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260824T041220229381Z-9292b383.json"
+  ],
+  "goal_id": "G-20260824T041205982618Z-380ed036",
+  "id": "L-20260824T041220229562Z-fb1ad6c0",
+  "links": [],
+  "summary": "Task registered: Single-source doctor's branch-protection policy reads through shiki_config",
+  "task_id": "T-20260824T041220229381Z-9292b383",
+  "timestamp": "2026-08-24T04:12:20+00:00",
+  "type": "task-registered"
+}

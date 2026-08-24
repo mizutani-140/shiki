@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260824T041205982618Z-380ed036.json"
+  ],
+  "goal_id": "G-20260824T041205982618Z-380ed036",
+  "id": "L-20260824T041205983476Z-b24144ed",
+  "links": [],
+  "summary": "Goal registered: Make shiki doctor read branch-protection policy through shiki_config instead of restating it",
+  "task_id": null,
+  "timestamp": "2026-08-24T04:12:05+00:00",
+  "type": "goal-created"
+}
