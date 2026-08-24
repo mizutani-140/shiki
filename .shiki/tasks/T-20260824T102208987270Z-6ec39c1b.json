@@ -9,7 +9,7 @@
   "assigned_runtime": "claude-code",
   "dependencies": [],
   "expected_branch": "claude/required-checks-scalar-guard",
-  "expected_pr": null,
+  "expected_pr": 359,
   "github_issue": null,
   "goal_id": "G-20260824T102156523258Z-99beb382",
   "id": "T-20260824T102208987270Z-6ec39c1b",
@@ -19,7 +19,8 @@
     "L-20260824T103441683978Z-5057a7d2",
     "L-20260824T103441683979Z-0b098022",
     "L-20260824T103455770311Z-ab07ed22",
-    "L-20260824T103455852316Z-2aac2ffb"
+    "L-20260824T103455852316Z-2aac2ffb",
+    "L-20260824T103639240217Z-97f435ae"
   ],
   "locks": [
     "path:scripts/shiki_config.py",
