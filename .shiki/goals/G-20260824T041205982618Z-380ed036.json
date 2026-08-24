@@ -10,6 +10,9 @@
   "created_at": "2026-08-24T04:12:05+00:00",
   "github_issue": null,
   "id": "G-20260824T041205982618Z-380ed036",
+  "ledger_evidence": [
+    "L-20260824T102216258649Z-5dd6fa33"
+  ],
   "non_goals": [
     "Do not change shiki_config or mergegate_check defaults; the operative readers are correct and changing them would weaken the merge gate.",
     "Do not change GitHub branch protection or reconcile the mismatch doctor reports."
@@ -20,6 +23,6 @@
     "code-review"
   ],
   "risk_level": "medium",
-  "status": "planned",
+  "status": "complete",
   "title": "Make shiki doctor read branch-protection policy through shiki_config instead of restating it"
 }
