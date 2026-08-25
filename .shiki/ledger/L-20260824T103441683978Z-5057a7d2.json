@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/shiki_config.py",
+    "scripts/mergegate_check.py",
+    "tests/test_required_checks_derivation.py"
+  ],
+  "goal_id": "G-20260824T102156523258Z-99beb382",
+  "id": "L-20260824T103441683978Z-5057a7d2",
+  "links": [],
+  "summary": "TDD red/green for the scalar guard. RED on the pre-change scripts: tests/test_required_checks_derivation.py -> Ran 12, FAILED (failures=3, errors=3), two distinct failure modes -- an inline scalar 'CCA verdict' yielded ['C','C','A','v','e','r','d','i','c','t'] from BOTH copies, and a bare 'true' raised TypeError: 'bool' object is not iterable. GREEN after the guard: Ran 12, OK. Full suite `python3 -m unittest discover -s tests` -> Ran 1215 tests, OK. `python3 scripts/validate_shiki.py` -> exit 0, 'Shiki validation passed'. validate_shiki.config_required_checks() still raises loudly on the scalar shape: \"ValidationError: .shiki/config.yaml: mergegate.required_checks must be a non-empty list of strings\" -- so the fallback in the consumers does not swallow an unreported misconfiguration. tests/test_workflow_invocation.py is unchanged and green (no argv surface was touched).",
+  "task_id": "T-20260824T102208987270Z-6ec39c1b",
+  "timestamp": "2026-08-24T10:34:41.683978+00:00",
+  "type": "check"
+}

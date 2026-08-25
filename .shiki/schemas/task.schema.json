@@ -39,6 +39,10 @@
       "enum": ["codex", "codex-front", "claude-code", "github-actions", "hermes-runner", "human", "other"]
     },
     "risk_level": { "enum": ["low", "medium", "high", "critical"] },
+    "dispatch_mode": {
+      "description": "AFK/HITL classification: whether this task can be dispatched and driven to completion without a human in the loop (`afk`), or a human decision is load-bearing during execution (`hitl`). This is the field checklist item ISS-05 (docs/agents/checklists.md) is judged from. It is distinct from the runtime registry's `execution_mode` (scripts/shiki_runtime_registry.py), which names HOW a runtime executes (local_cli/github_action/...), not whether a human gates it. Optional (absent from `required`) on purpose: every task file registered before this field existed lacks it, and promoting it would invalidate all of them at once — schema `required` and scripts/validate_shiki.TASK_REQUIRED must be promoted together (tests/test_cca_verdict_consistency.TaskSchemaRequiredConsistency). Because it is optional, ISS-05 also carries a total fallback: a record without this field is classified from `assigned_runtime` (`human` => hitl, any other runtime => afk) per SADR-0008, which is `shiki_tasks.dispatch_mode_for_runtime`. Registration writes that derived value; declare the field explicitly to override it — an automated runtime may still be `hitl` when a human decision gates the slice.",
+      "enum": ["afk", "hitl"]
+    },
     "required_skills": {
       "type": "array",
       "items": { "type": "string" }

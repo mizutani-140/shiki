@@ -3,6 +3,13 @@
 Both modules ship an independent dependency-free parser for the small
 ``.shiki/config.yaml`` subset. These tests assert that both parsers agree on
 real config content and handle the documented edge cases.
+
+The *helper-level* required-checks fallback rule is not asserted here; both copies
+of `configured_required_checks` are covered directly in
+tests/test_required_checks_derivation.py. What this file still covers is doctor's
+*consumption* of those values (`DoctorReadsPolicyThroughConfigTests`), which
+exercises the same fallback end-to-end through the branch-protection finding --
+so a change to the fallback rule must be re-run against this file too.
 """
 
 from __future__ import annotations
@@ -127,11 +134,6 @@ class ConfigLoadingTests(unittest.TestCase):
             "defaults:\n  required_review: false\n  required_code_owner_review: true\n"
         )
         self.assertFalse(shiki_config.configured_required_code_owner_review(target))
-
-    def test_mergegate_required_checks_fall_back_to_defaults(self) -> None:
-        target = self._write_config("platform: shiki\n")
-        checks = mergegate_check.configured_required_checks(target)
-        self.assertEqual(list(checks), list(mergegate_check.DEFAULT_REQUIRED_CHECKS))
 
 
 class DoctorReadsPolicyThroughConfigTests(unittest.TestCase):

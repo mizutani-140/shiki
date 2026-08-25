@@ -1,0 +1,16 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "scripts/shiki_config.py",
+    "scripts/mergegate_check.py",
+    "tests/test_required_checks_derivation.py",
+    ".shiki/ledger/L-20260824T050241337708Z-8eecf875.json"
+  ],
+  "goal_id": "G-20260824T102156523258Z-99beb382",
+  "id": "L-20260824T103441683979Z-0b098022",
+  "links": [],
+  "summary": "Pre-PR code-review skill gate run at medium effort over the diff: 0 findings. Verified rather than assumed: (1) mergegate_check.configured_required_checks now returns list(DEFAULT_REQUIRED_CHECKS) instead of the shared tuple -- both call sites (enforce_required_check_definitions, enforce_required_checks) only iterate it and no code compares against DEFAULT_REQUIRED_CHECKS by == or is, so the annotation becomes honest with no caller impact. (2) The fix does not weaken MergeGate: on a scalar config the old code blocked with ten nonsense demands, the new code demands the four documented defaults, and 'Validate Shiki mirror' is not in SELF_CHECKS, so MergeGate enforces it and it fails on exactly that config -- such a repo still cannot merge, now for the correct reason. (3) No third copy of the parsing exists: shiki_bootstrap and shiki_loop import from shiki_config, and shiki_doctor's own guarded _required_checks is deleted by PR #357 in favour of the canonical helper, so that PR inherits this fix. This task is the follow-up recorded by PR #357's own review gate in ledger L-20260824T050241337708Z-8eecf875, which found this defect and deliberately deferred it because the root cause sat outside its locks and mergegate_check is CODEOWNERS-critical.",
+  "task_id": "T-20260824T102208987270Z-6ec39c1b",
+  "timestamp": "2026-08-24T10:34:41.683979+00:00",
+  "type": "review"
+}

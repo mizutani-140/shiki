@@ -76,19 +76,26 @@ Blocking values:
 
 ## ISS — Issue / Task Checklist
 
+This family is judged from the executable task record (`.shiki/tasks/<task id>.json`),
+which is where a Shiki task's readiness actually lives. A GitHub Issue is one way to
+carry that state, not a precondition for the family: a task registered directly as a
+`.shiki` record — the SADR-0015 Contract PR path — is in scope and its rows are judged
+from its fields, not marked `not_applicable` for want of an Issue. Every row below
+names the field that answers it.
+
 | ID | Item | Blocking |
 | --- | --- | --- |
-| ISS-01 | Issue links to parent Goal or PRD. | blocking |
-| ISS-02 | Issue is a vertical slice, not a horizontal layer task. | blocking |
-| ISS-03 | Acceptance criteria are concrete and checkable. | blocking |
-| ISS-04 | Blocked-by state is explicit. | blocking |
-| ISS-05 | AFK/HITL classification is explicit. | blocking |
-| ISS-06 | Runtime assignment is explicit. | blocking |
-| ISS-07 | Required skills are explicit. | blocking |
-| ISS-08 | Risk label is present. | blocking |
-| ISS-09 | Candidate locks are listed. | blocking |
-| ISS-10 | Verification commands or required checks are listed. | blocking |
-| ISS-11 | CCA checklist profile is listed. | blocking |
+| ISS-01 | Issue links to parent Goal or PRD: the task record's `goal_id`. | blocking |
+| ISS-02 | Issue is a vertical slice, not a horizontal layer task: the task record's `scope` describes one end-to-end behaviour, not a layer. | blocking |
+| ISS-03 | Acceptance criteria are concrete and checkable: the task record's `acceptance_checks`. | blocking |
+| ISS-04 | Blocked-by state is explicit: the task record's `dependencies`. An empty list is explicit — it declares no blockers. | blocking |
+| ISS-05 | AFK/HITL classification is explicit: the task record's `dispatch_mode`, either `afk` or `hitl`. The field is optional, so this row has a total fallback — a record that omits it (every task registered before the field existed) is classified from `assigned_runtime`: `human` is `hitl`, any other runtime is `afk` (SADR-0008). Judge the row from that resolved value. An absent `dispatch_mode` is never on its own grounds for `insufficient_evidence`. | blocking |
+| ISS-06 | Runtime assignment is explicit: the task record's `assigned_runtime`. | blocking |
+| ISS-07 | Required skills are explicit: the task record's `required_skills`. | blocking |
+| ISS-08 | Risk label is present: the task record's `risk_level`. | blocking |
+| ISS-09 | Candidate locks are listed: the task record's `locks`. | blocking |
+| ISS-10 | Verification commands or required checks are listed: the task record's `test_command`, the structured command the loop-observed TDD gate exec's (SADR-0011). | blocking |
+| ISS-11 | CCA checklist profile is listed: the task record's `cca_checklist_profile`. An explicitly empty list is a listed profile — it declares that the task requires no specific ids. Entries must be full checklist ids such as `CCA-01` or `ISS-05`; a bare family name matches no verdict item id and so enforces nothing. | blocking |
 
 ## H — Implementer Handoff Checklist (Claude Code or Codex)
 

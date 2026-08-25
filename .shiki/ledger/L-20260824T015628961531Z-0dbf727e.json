@@ -1,0 +1,16 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "tests/test_task_registration_fields.py",
+    "tests/test_paired_invariants.py",
+    "scripts/shiki_tasks.py",
+    ".shiki/schemas/task.schema.json"
+  ],
+  "goal_id": "G-20260824T010736685173Z-c1131b6d",
+  "id": "L-20260824T015628961531Z-0dbf727e",
+  "links": [],
+  "summary": "skill tdd: red-green loop for dispatch_mode and the cca_checklist_profile carry. RED first: tests/test_task_registration_fields.py failed to import (cannot import name dispatch_mode_for_runtime), and test_paired_invariants Pair16 failed on two containments - dispatch_mode absent from task.schema.json properties, and cca_checklist_profile + dispatch_mode absent from the keys shiki_tasks.register_task_from_plan writes. GREEN after implementation: python3 -m unittest discover -s tests ran 1207 tests, OK, in 133.200s (baseline before the change: 1185 tests, OK). python3 scripts/validate_shiki.py --target . passed. Shell suites run green: test_shiki_init.sh (install-and-verify passed: fresh target passes its own required checks), test_shiki_control_plane.sh, test_shiki_validator_hardening.sh, test_shiki_module_boundaries.sh, test_shiki_governance_evidence.sh, test_shiki_state_classes.sh, test_shiki_evidence_integrity.sh.",
+  "task_id": "T-20260824T010805920471Z-ea5d7ae8",
+  "timestamp": "2026-08-24T01:56:28+00:00",
+  "type": "check"
+}

@@ -1,0 +1,51 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-08-25T00:37:09+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260824T102208987270Z-6ec39c1b.json"
+  ],
+  "goal_id": "G-20260824T102156523258Z-99beb382",
+  "id": "R-20260825T003709474249Z-0f933dfd",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "medium"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 51307000,
+    "generated_at": "2026-08-25T00:37:09+00:00",
+    "goal_id": "G-20260824T102156523258Z-99beb382",
+    "lock_amendments": {
+      "total": 2
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 0
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard"
+    ],
+    "window": {
+      "from": "2026-08-24T10:21:56+00:00",
+      "to": "2026-08-25T00:37:03+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "Both copies of configured_required_checks now treat a non-list mergegate.required_checks as absent and fall back to DEFAULT_REQUIRED_CHECKS instead of iterating a scalar character by character; validate_shiki remains the loud rejector of the invalid shape and was left unchanged. Delivered by PR #359 (merged 3697faf) with CCA verdict complete."
+}

@@ -6,6 +6,12 @@ by bootstrap/init to configure GitHub branch protection. These tests prove:
 - the hard-coded DEFAULT_REQUIRED_CHECKS is used ONLY as a documented fallback when
   the target has no `mergegate.required_checks` (missing or empty);
 - the `shiki init`/`bootstrap-platform` CLI no longer hard-codes the defaults.
+
+This file owns the DIRECT fallback coverage of both `configured_required_checks`
+copies -- `shiki_config`'s and `mergegate_check`'s. tests/test_config_loading.py owns
+the config parser and the review-policy rules, and its
+`DoctorReadsPolicyThroughConfigTests` exercises the same fallback indirectly through
+doctor's branch-protection finding; change the rule and both files must be re-run.
 """
 
 from __future__ import annotations
@@ -17,6 +23,7 @@ from types import SimpleNamespace
 
 import shiki_test_support  # noqa: F401  (path bootstrap)
 
+import mergegate_check
 import shiki_config
 import shiki_github
 from shiki_contracts import DEFAULT_REQUIRED_CHECKS
@@ -42,6 +49,29 @@ mergegate:
   required_checks:
 """
 
+# `required_checks` written as an inline scalar instead of a block list. The
+# subset parser yields the bare string/bool, not a list.
+SCALAR_CHECKS_CONFIG = """version: 1
+mergegate:
+  required_checks: CCA verdict
+"""
+
+BOOL_CHECKS_CONFIG = """version: 1
+mergegate:
+  required_checks: true
+"""
+
+# One rule, two independent copies. Each row pins the VALUE both must return --
+# parity alone would not have caught the scalar defect, because both copies
+# were wrong in exactly the same way.
+REQUIRED_CHECKS_SHAPES = (
+    ("block list", CUSTOM_CONFIG, ["Validate Shiki mirror", "Custom Project Check", "CCA verdict"]),
+    ("no mergegate section", "version: 1\n", list(DEFAULT_REQUIRED_CHECKS)),
+    ("empty required_checks", EMPTY_CHECKS_CONFIG, list(DEFAULT_REQUIRED_CHECKS)),
+    ("inline scalar", SCALAR_CHECKS_CONFIG, list(DEFAULT_REQUIRED_CHECKS)),
+    ("bare bool", BOOL_CHECKS_CONFIG, list(DEFAULT_REQUIRED_CHECKS)),
+)
+
 
 class ConfiguredRequiredChecksTests(unittest.TestCase):
     def test_config_overrides_hard_coded_default(self) -> None:
@@ -62,12 +92,70 @@ class ConfiguredRequiredChecksTests(unittest.TestCase):
         result = shiki_config.configured_required_checks(target, DEFAULT_REQUIRED_CHECKS)
         self.assertEqual(result, list(DEFAULT_REQUIRED_CHECKS))
 
+    def test_scalar_required_checks_uses_documented_fallback(self) -> None:
+        """A non-list `required_checks` is absent, not a sequence of characters.
+
+        `load_shiki_config` parses `required_checks: CCA verdict` as the string
+        'CCA verdict'. Iterating it produced ten single-character check names,
+        which bootstrap then wrote into branch protection and MergeGate then
+        demanded of the PR. `validate_shiki` rejects the shape loudly; the
+        consumers fall back to the documented default.
+        """
+        target = _write_config(SCALAR_CHECKS_CONFIG)
+        result = shiki_config.configured_required_checks(target, DEFAULT_REQUIRED_CHECKS)
+        self.assertEqual(result, list(DEFAULT_REQUIRED_CHECKS))
+        self.assertNotIn("C", result)
+
     def test_returns_new_list_not_default_alias(self) -> None:
         target = Path(tempfile.mkdtemp())
         result = shiki_config.configured_required_checks(target, DEFAULT_REQUIRED_CHECKS)
         result.append("mutation")
         # Mutating the result must not corrupt the shared default tuple/list.
         self.assertNotIn("mutation", DEFAULT_REQUIRED_CHECKS)
+
+
+class RequiredChecksCopiesAgreeTests(unittest.TestCase):
+    """`shiki_config` and `mergegate_check` each ship a copy of one rule.
+
+    They are read by different consumers -- bootstrap writes branch protection
+    from the first, MergeGate blocks the merge on the second, and doctor reports
+    on it -- so a divergence is silent and wrong in both directions. Every row
+    asserts the expected VALUE, not just that the two agree.
+    """
+
+    def test_shiki_config_copy_matches_expected_value(self) -> None:
+        for label, body, expected in REQUIRED_CHECKS_SHAPES:
+            with self.subTest(shape=label):
+                target = _write_config(body)
+                self.assertEqual(
+                    shiki_config.configured_required_checks(target, DEFAULT_REQUIRED_CHECKS),
+                    expected,
+                )
+
+    def test_mergegate_default_is_the_shared_contract_constant(self) -> None:
+        """`mergegate_check` must fall back to the SAME default, not a private one.
+
+        The rows below compare against `shiki_contracts.DEFAULT_REQUIRED_CHECKS`;
+        this pins that `mergegate_check` has not grown a copy of its own, which is
+        what the old `test_mergegate_required_checks_fall_back_to_defaults` in
+        tests/test_config_loading.py bound before that coverage moved here.
+        """
+        self.assertIs(mergegate_check.DEFAULT_REQUIRED_CHECKS, DEFAULT_REQUIRED_CHECKS)
+
+    def test_mergegate_copy_matches_expected_value(self) -> None:
+        for label, body, expected in REQUIRED_CHECKS_SHAPES:
+            with self.subTest(shape=label):
+                target = _write_config(body)
+                self.assertEqual(list(mergegate_check.configured_required_checks(target)), expected)
+
+    def test_both_copies_agree(self) -> None:
+        for label, body, _expected in REQUIRED_CHECKS_SHAPES:
+            with self.subTest(shape=label):
+                target = _write_config(body)
+                self.assertEqual(
+                    shiki_config.configured_required_checks(target, DEFAULT_REQUIRED_CHECKS),
+                    list(mergegate_check.configured_required_checks(target)),
+                )
 
 
 class _RunRecorder:

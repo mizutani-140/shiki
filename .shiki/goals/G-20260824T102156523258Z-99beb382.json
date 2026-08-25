@@ -1,0 +1,32 @@
+{
+  "acceptance_evidence": [
+    "Red/green test output captured in the ledger"
+  ],
+  "completion_conditions": [
+    "Both copies return list(DEFAULT_REQUIRED_CHECKS) when mergegate.required_checks is an inline scalar.",
+    "A regression test pins the scalar shape for both copies and fails before the change.",
+    "validate_shiki.config_required_checks() still raises ValidationError on the scalar shape, evidenced in the ledger.",
+    "python3 -m unittest discover -s tests passes."
+  ],
+  "created_at": "2026-08-24T10:21:56+00:00",
+  "github_issue": null,
+  "id": "G-20260824T102156523258Z-99beb382",
+  "ledger_evidence": [
+    "L-20260825T003709500350Z-84c5f46c"
+  ],
+  "non_goals": [
+    "Do not change .shiki/config.yaml or any workflow file.",
+    "Do not change any argv or CLI surface; tests/test_workflow_invocation.py stays untouched and green.",
+    "Do not change scripts/validate_shiki.py; it already rejects the shape loudly.",
+    "Do not touch tests/test_config_loading.py; PR #357 holds an active lock on it.",
+    "Do not change the load_shiki_config parser itself."
+  ],
+  "outcome": "configured_required_checks in scripts/shiki_config.py and scripts/mergegate_check.py treat a non-list mergegate.required_checks as absent and fall back to DEFAULT_REQUIRED_CHECKS, instead of walking the string character by character; validate_shiki.py remains the loud rejector of the invalid shape.",
+  "required_skills": [
+    "tdd",
+    "code-review"
+  ],
+  "risk_level": "medium",
+  "status": "complete",
+  "title": "Required-checks derivation must never iterate a scalar config value"
+}

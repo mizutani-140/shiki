@@ -1,0 +1,14 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "tests/test_config_loading.py",
+    "tests/test_required_checks_derivation.py"
+  ],
+  "goal_id": "G-20260825T004905362633Z-f38a32b6",
+  "id": "L-20260825T005350887580Z-c51af2f8",
+  "links": [],
+  "summary": "Pre-PR code-review skill gate run at medium effort over the diff: 1 finding, found in my own change and fixed in this branch before pushing. tests/test_config_loading.py docstring: the note I added claimed required-checks fallback behaviour was 'NOT tested here -- all of it' lives in the derivation file, and the derivation file claimed to own 'ALL' of it. Both were false: DoctorReadsPolicyThroughConfigTests in test_config_loading.py still asserts the four defaults for absent and for empty required_checks, via doctor's branch_protection finding. Left uncorrected, a maintainer changing the fallback rule would have re-run only the derivation file on the docstring's word and been broken in CI by two tests the note told them to ignore. FIXED: both docstrings now state the real boundary -- direct helper coverage in the derivation file, doctor's end-to-end consumption in test_config_loading.py, and that a change to the rule must be re-run against both. Those doctor tests were deliberately NOT moved: they test doctor's reading of the values, not the helper in isolation, so test_config_loading.py is their correct home.",
+  "task_id": "T-20260825T004915561311Z-c16b7f48",
+  "timestamp": "2026-08-25T00:53:50.887580+00:00",
+  "type": "review"
+}

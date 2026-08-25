@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260825T004915561311Z-c16b7f48.json"
+  ],
+  "goal_id": "G-20260825T004905362633Z-f38a32b6",
+  "id": "L-20260825T005350968652Z-efd5ad26",
+  "links": [],
+  "summary": "Task T-20260825T004915561311Z-c16b7f48 status changed to running",
+  "task_id": "T-20260825T004915561311Z-c16b7f48",
+  "timestamp": "2026-08-25T00:53:50+00:00",
+  "type": "check"
+}
