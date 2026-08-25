@@ -1,0 +1,14 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "tests/test_config_loading.py",
+    "tests/test_required_checks_derivation.py"
+  ],
+  "goal_id": "G-20260825T004905362633Z-f38a32b6",
+  "id": "L-20260825T005350887579Z-06431a08",
+  "links": [],
+  "summary": "Test counts measured before and after the move, proving it is a pure relocation with no coverage lost. BEFORE (origin/main d04f843): tests/test_config_loading.py Ran 17, tests/test_required_checks_derivation.py Ran 12 (29 total). AFTER: 16 and 13 (29 total). Full suite `python3 -m unittest discover -s tests` -> Ran 1236 tests, OK -- unchanged from before the move, as a pure relocation requires. `python3 scripts/validate_shiki.py` -> exit 0. The removed test's config body was 'platform: shiki' and the covering table row uses 'version: 1'; both parse to an empty config under load_shiki_config (indent-0 line not ending in ':' leaves section None), so the cases are equivalent.",
+  "task_id": "T-20260825T004915561311Z-c16b7f48",
+  "timestamp": "2026-08-25T00:53:50.887579+00:00",
+  "type": "check"
+}

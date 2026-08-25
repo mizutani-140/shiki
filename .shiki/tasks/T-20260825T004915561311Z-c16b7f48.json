@@ -1,0 +1,44 @@
+{
+  "acceptance_checks": [
+    "test_mergegate_required_checks_fall_back_to_defaults is absent from tests/test_config_loading.py",
+    "An explicit assertion binds mergegate_check.DEFAULT_REQUIRED_CHECKS to the shiki_contracts constant, so nothing the removed test asserted becomes unasserted",
+    "tests/test_config_loading.py still imports and uses mergegate_check for the parity and review-policy tests",
+    "python3 -m unittest discover -s tests passes"
+  ],
+  "assigned_runtime": "claude-code",
+  "cca_checklist_profile": [],
+  "dependencies": [],
+  "dispatch_mode": "afk",
+  "expected_branch": "claude/consolidate-required-checks-tests",
+  "expected_pr": 361,
+  "github_issue": null,
+  "goal_id": "G-20260825T004905362633Z-f38a32b6",
+  "id": "T-20260825T004915561311Z-c16b7f48",
+  "ledger_evidence": [
+    "L-20260825T004905363982Z-385ca0db",
+    "L-20260825T004915561510Z-79ea4d99",
+    "L-20260825T004920020242Z-5942cee8",
+    "L-20260825T005350887579Z-06431a08",
+    "L-20260825T005350887580Z-c51af2f8",
+    "L-20260825T005350968652Z-efd5ad26",
+    "L-20260825T005351055738Z-36243f32",
+    "L-20260825T005442676132Z-0d41bd45"
+  ],
+  "locks": [
+    "path:tests/test_config_loading.py",
+    "path:tests/test_required_checks_derivation.py"
+  ],
+  "non_goals": [
+    "No source change under scripts/; this is test-only.",
+    "Do not move the load_shiki_config parity or configured_required_review tests out of test_config_loading.py.",
+    "Do not remove the mergegate_check import from test_config_loading.py; lines 83 and 95 still use it."
+  ],
+  "required_skills": [
+    "code-review"
+  ],
+  "risk_level": "low",
+  "scope": "Delete test_mergegate_required_checks_fall_back_to_defaults from tests/test_config_loading.py, whose no-mergegate-section case is already covered by the REQUIRED_CHECKS_SHAPES table in tests/test_required_checks_derivation.py. Preserve the one thing only the removed test bound -- that mergegate_check's own DEFAULT_REQUIRED_CHECKS is the shared shiki_contracts constant -- with an explicit assertion in the derivation file. Note the split in both docstrings so the boundary is discoverable.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Move the mergegate required-checks fallback test into the derivation file"
+}

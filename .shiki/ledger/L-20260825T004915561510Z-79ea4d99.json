@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/tasks/T-20260825T004915561311Z-c16b7f48.json"
+  ],
+  "goal_id": "G-20260825T004905362633Z-f38a32b6",
+  "id": "L-20260825T004915561510Z-79ea4d99",
+  "links": [],
+  "summary": "Task registered: Move the mergegate required-checks fallback test into the derivation file",
+  "task_id": "T-20260825T004915561311Z-c16b7f48",
+  "timestamp": "2026-08-25T00:49:15+00:00",
+  "type": "task-registered"
+}

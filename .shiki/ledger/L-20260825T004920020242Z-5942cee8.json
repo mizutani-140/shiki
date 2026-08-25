@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/locks/T-20260825T004915561311Z-c16b7f48.json"
+  ],
+  "goal_id": "G-20260825T004905362633Z-f38a32b6",
+  "id": "L-20260825T004920020242Z-5942cee8",
+  "links": [],
+  "summary": "Locks acquired for T-20260825T004915561311Z-c16b7f48",
+  "task_id": "T-20260825T004915561311Z-c16b7f48",
+  "timestamp": "2026-08-25T00:49:20+00:00",
+  "type": "lock"
+}
