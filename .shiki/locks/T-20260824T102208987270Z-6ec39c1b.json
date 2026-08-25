@@ -7,6 +7,8 @@
     "path:tests/test_required_checks_derivation.py"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "released_at": "2026-08-25T00:37:03+00:00",
+  "released_by": "shiki-cli",
+  "state": "released",
   "task_id": "T-20260824T102208987270Z-6ec39c1b"
 }
