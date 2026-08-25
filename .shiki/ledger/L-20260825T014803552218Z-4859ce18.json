@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/364"
+  ],
+  "goal_id": "G-20260825T004104451522Z-beeff2a0",
+  "id": "L-20260825T014803552218Z-4859ce18",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/364"
+  ],
+  "summary": "Closeout PR delivered: https://github.com/mizutani-140/shiki/pull/364 moves T-20260825T004126853067Z-46c20058 to done, releases its lock and completes goal G-20260825T004104451522Z-beeff2a0 after PR #362 merged as 3bb7c2f. No code changes.",
+  "task_id": "T-20260825T004126853067Z-46c20058",
+  "timestamp": "2026-08-25T01:48:03.552218+00:00",
+  "type": "check"
+}

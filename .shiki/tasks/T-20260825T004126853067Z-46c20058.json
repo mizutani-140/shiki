@@ -8,7 +8,7 @@
   "cca_checklist_profile": [],
   "dependencies": [],
   "expected_branch": "shiki/t-20260825t004126853067z-46c20058-closeout",
-  "expected_pr": 362,
+  "expected_pr": 364,
   "github_issue": null,
   "goal_id": "G-20260825T004104451522Z-beeff2a0",
   "id": "T-20260825T004126853067Z-46c20058",
@@ -22,7 +22,8 @@
     "L-20260825T010655903112Z-9177687c",
     "L-20260825T014444812172Z-bb9be759",
     "L-20260825T014444883871Z-0d303036",
-    "L-20260825T014445084986Z-431150c8"
+    "L-20260825T014445084986Z-431150c8",
+    "L-20260825T014803552218Z-4859ce18"
   ],
   "locks": [
     "path:.shiki/ledger/**"
