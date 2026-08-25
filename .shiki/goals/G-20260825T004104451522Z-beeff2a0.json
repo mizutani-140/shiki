@@ -10,6 +10,9 @@
   "created_at": "2026-08-25T00:41:04+00:00",
   "github_issue": null,
   "id": "G-20260825T004104451522Z-beeff2a0",
+  "ledger_evidence": [
+    "L-20260825T014445084986Z-431150c8"
+  ],
   "non_goals": [
     "Do not enable require_code_owner_reviews; SADR-0021 makes it opt-in and .shiki/config.yaml sets required_code_owner_review: false.",
     "Do not change any other protection field; every other field already matches the payload."
@@ -19,6 +22,6 @@
     "code-review"
   ],
   "risk_level": "high",
-  "status": "planned",
+  "status": "complete",
   "title": "Reconcile main's branch protection with .shiki/config.yaml"
 }

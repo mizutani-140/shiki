@@ -5,6 +5,8 @@
     "path:.shiki/ledger/**"
   ],
   "owner": "shiki-cli",
-  "state": "active",
+  "released_at": "2026-08-25T01:44:44+00:00",
+  "released_by": "shiki-cli",
+  "state": "released",
   "task_id": "T-20260825T004126853067Z-46c20058"
 }
