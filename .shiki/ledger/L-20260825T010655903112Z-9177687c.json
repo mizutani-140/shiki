@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/362"
+  ],
+  "goal_id": "G-20260825T004104451522Z-beeff2a0",
+  "id": "L-20260825T010655903112Z-9177687c",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/362"
+  ],
+  "summary": "PR delivered: https://github.com/mizutani-140/shiki/pull/362 records the branch-protection reconcile on main (contexts 3->4, required_approving_review_count 0->1) with before/after gh api output and a doctor --online pass. High risk: requires Guardian approval before merge. This PR is also the first to run under the new gate.",
+  "task_id": "T-20260825T004126853067Z-46c20058",
+  "timestamp": "2026-08-25T01:06:55.903112+00:00",
+  "type": "check"
+}

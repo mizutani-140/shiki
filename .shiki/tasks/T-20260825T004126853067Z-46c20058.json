@@ -8,7 +8,7 @@
   "cca_checklist_profile": [],
   "dependencies": [],
   "expected_branch": "shiki/partb-protection-reconcile",
-  "expected_pr": null,
+  "expected_pr": 362,
   "github_issue": null,
   "goal_id": "G-20260825T004104451522Z-beeff2a0",
   "id": "T-20260825T004126853067Z-46c20058",
@@ -18,7 +18,8 @@
     "L-20260825T004140684752Z-8f5b66c8",
     "L-20260825T005812447301Z-bddb40ff",
     "L-20260825T010140209855Z-0861cd92",
-    "L-20260825T005356929953Z-d4cacab1"
+    "L-20260825T005356929953Z-d4cacab1",
+    "L-20260825T010655903112Z-9177687c"
   ],
   "locks": [
     "path:.shiki/ledger/**"
