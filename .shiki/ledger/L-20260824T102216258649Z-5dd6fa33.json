@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260824T102216232354Z-edd0c8a3.json"
+  ],
+  "goal_id": "G-20260824T041205982618Z-380ed036",
+  "id": "L-20260824T102216258649Z-5dd6fa33",
+  "links": [],
+  "summary": "All three completion conditions verified on merged main (PR #357, merge commit 80e0121): scripts/shiki_doctor.py defines none of _required_review, _required_checks or _required_code_owner_review; five behavioural regression tests cover the absent-required_review, absent/empty-required_checks and code-owner-inheritance cases and were captured failing before the change (4 errors + 1 failure) and passing after (17/17); and the explicit-required_review pin was removed by deleting test_doctor_agrees_with_shiki_config_on_code_owner_review, whose premise (two implementations of one rule) no longer exists. One review finding ships unfixed by operator decision: doctor inherits shiki_config/mergegate_check's missing isinstance guard for a scalar mergegate.required_checks; recorded in ledger L-20260824T050241337708Z-8eecf875 and raised as separate work.",
+  "task_id": null,
+  "timestamp": "2026-08-24T10:22:16+00:00",
+  "type": "completion"
+}
