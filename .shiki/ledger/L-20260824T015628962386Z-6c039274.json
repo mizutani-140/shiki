@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "tests/test_paired_invariants.py",
+    "scripts/validate_shiki.py",
+    "docs/agents/checklists.md"
+  ],
+  "goal_id": "G-20260824T010736685173Z-c1131b6d",
+  "id": "L-20260824T015628962386Z-6c039274",
+  "links": [],
+  "summary": "skill code-review at effort high over the full working-tree diff, before PR creation. One finding was in scope and is FIXED: validate_shiki.DISPATCH_MODES carried a \"must stay set-equal to the schema enum\" comment with nothing enforcing it - a new unbound pair introduced by a change whose purpose is removing unbound pairs. Fix: Pair16.test_holds_dispatch_mode_vocabulary_agrees_across_its_three_sites binds the schema enum, validate_shiki.DISPATCH_MODES and the shiki_cli --dispatch-mode choices by set-equality. Proven non-vacuous by mutation: adding \"semi\" to the schema enum and narrowing the CLI choices to [\"afk\"] each made it fail; the tree was restored and the suite re-run green. Three findings were recorded as out of scope for this task and changed nothing: cca_checklist_profile is judged from the HEAD task record but frozen by neither mergegate_check._NORMAL_PATH_GOVERNANCE_FIELDS nor _FROZEN_TASK_MATCH_FIELDS, so a PR could empty its own declared profile and drop enforcement; dispatch_mode is likewise unfrozen despite backing a blocking checklist row; and ISS-07 stays silent on whether an empty required_skills list is explicit. The first two need scripts/mergegate_check.py, which this task does not lock.",
+  "task_id": "T-20260824T010805920471Z-ea5d7ae8",
+  "timestamp": "2026-08-24T01:56:28+00:00",
+  "type": "review"
+}

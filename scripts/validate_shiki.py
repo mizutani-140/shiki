@@ -187,6 +187,9 @@ RUNTIMES = set(runtime_names())
 RISK_LEVELS = {"low", "medium", "high", "critical"}
 GOAL_STATUSES = {"planned", "ready", "blocked", "complete", "archived", "historical"}
 TASK_STATUSES = {"planned", "ready", "running", "blocked", "review", "repair-needed", "done"}
+# AFK/HITL classification (checklist ISS-05). Must stay set-equal to the
+# `dispatch_mode` enum in .shiki/schemas/task.schema.json.
+DISPATCH_MODES = {"afk", "hitl"}
 # A DAG node is "terminal" when its work is finished. A goal whose every DAG node
 # is terminal must be marked complete; while any node is non-terminal
 # (planned/in-progress/blocked or not yet registered) the goal is active. Only
@@ -1242,6 +1245,16 @@ def validate_task(path: Path, data: dict[str, Any]) -> tuple[str, list[str]]:
     status = data.get("status")
     if status is not None and status not in TASK_STATUSES:
         raise ValidationError(f"{path}: status must be one of {sorted(TASK_STATUSES)}")
+
+    # dispatch_mode is the explicit AFK/HITL classification checklist item ISS-05
+    # is judged from. Validated when present so a stored value is well-formed; not
+    # in TASK_REQUIRED because every task file registered before the field existed
+    # lacks it, and schema `required` and TASK_REQUIRED must be promoted together
+    # (tests/test_cca_verdict_consistency.TaskSchemaRequiredConsistency). A record
+    # without it is classified from assigned_runtime per ISS-05's fallback.
+    dispatch_mode = data.get("dispatch_mode")
+    if dispatch_mode is not None and dispatch_mode not in DISPATCH_MODES:
+        raise ValidationError(f"{path}: dispatch_mode must be one of {sorted(DISPATCH_MODES)}")
 
     for dependency in dependencies:
         if not isinstance(dependency, str) or not TASK_ID.match(dependency):
