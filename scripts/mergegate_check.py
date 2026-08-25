@@ -1785,9 +1785,19 @@ def validate_cca_evidence_contract(
 
 
 def configured_required_checks(target: Path) -> list[str]:
+    """Mirror of ``shiki_config.configured_required_checks``; keep the two in step.
+
+    A non-list ``required_checks`` counts as absent. An inline scalar
+    (``required_checks: CCA verdict``) parses to a bare string, and iterating it
+    made this gate demand one check per character; a bare ``true`` was not
+    iterable at all. ``validate_shiki`` rejects the shape loudly.
+    """
     mergegate = load_shiki_config(target).get("mergegate", {})
-    checks = [str(check) for check in mergegate.get("required_checks") or [] if str(check).strip()]
-    return checks or DEFAULT_REQUIRED_CHECKS
+    raw = mergegate.get("required_checks") if isinstance(mergegate, dict) else None
+    if not isinstance(raw, list):
+        raw = []
+    checks = [str(check) for check in raw if str(check).strip()]
+    return checks or list(DEFAULT_REQUIRED_CHECKS)
 
 
 def configured_required_review(target: Path) -> bool:

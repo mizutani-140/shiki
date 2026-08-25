@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/359"
+  ],
+  "goal_id": "G-20260824T102156523258Z-99beb382",
+  "id": "L-20260824T103639240217Z-97f435ae",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/359"
+  ],
+  "summary": "PR delivered: https://github.com/mizutani-140/shiki/pull/359 guards both copies of configured_required_checks (scripts/shiki_config.py and scripts/mergegate_check.py) against a non-list mergegate.required_checks, falling back to DEFAULT_REQUIRED_CHECKS instead of iterating a scalar character by character. validate_shiki remains the loud rejector of the shape and is unchanged. TDD red captured (Ran 12, FAILED failures=3 errors=3) then green (Ran 12, OK); full suite Ran 1215 tests OK; validate_shiki exit 0.",
+  "task_id": "T-20260824T102208987270Z-6ec39c1b",
+  "timestamp": "2026-08-24T10:36:39.240217+00:00",
+  "type": "check"
+}

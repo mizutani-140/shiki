@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260824T102156523258Z-99beb382.json"
+  ],
+  "goal_id": "G-20260824T102156523258Z-99beb382",
+  "id": "L-20260824T102156524199Z-b8194271",
+  "links": [],
+  "summary": "Goal registered: Required-checks derivation must never iterate a scalar config value",
+  "task_id": null,
+  "timestamp": "2026-08-24T10:21:56+00:00",
+  "type": "goal-created"
+}
