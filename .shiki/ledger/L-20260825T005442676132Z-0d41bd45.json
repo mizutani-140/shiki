@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/361"
+  ],
+  "goal_id": "G-20260825T004905362633Z-f38a32b6",
+  "id": "L-20260825T005442676132Z-0d41bd45",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/361"
+  ],
+  "summary": "PR delivered: https://github.com/mizutani-140/shiki/pull/361 moves test_mergegate_required_checks_fall_back_to_defaults out of tests/test_config_loading.py into tests/test_required_checks_derivation.py, preserving its binding on mergegate_check's own DEFAULT_REQUIRED_CHECKS with an explicit assertIs. Pure relocation: 17+12 tests before, 16+13 after; full suite Ran 1236 tests OK on both sides; validate_shiki exit 0.",
+  "task_id": "T-20260825T004915561311Z-c16b7f48",
+  "timestamp": "2026-08-25T00:54:42.676132+00:00",
+  "type": "check"
+}

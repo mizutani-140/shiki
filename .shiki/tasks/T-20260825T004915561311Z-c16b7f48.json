@@ -10,7 +10,7 @@
   "dependencies": [],
   "dispatch_mode": "afk",
   "expected_branch": "claude/consolidate-required-checks-tests",
-  "expected_pr": null,
+  "expected_pr": 361,
   "github_issue": null,
   "goal_id": "G-20260825T004905362633Z-f38a32b6",
   "id": "T-20260825T004915561311Z-c16b7f48",
@@ -21,7 +21,8 @@
     "L-20260825T005350887579Z-06431a08",
     "L-20260825T005350887580Z-c51af2f8",
     "L-20260825T005350968652Z-efd5ad26",
-    "L-20260825T005351055738Z-36243f32"
+    "L-20260825T005351055738Z-36243f32",
+    "L-20260825T005442676132Z-0d41bd45"
   ],
   "locks": [
     "path:tests/test_config_loading.py",
