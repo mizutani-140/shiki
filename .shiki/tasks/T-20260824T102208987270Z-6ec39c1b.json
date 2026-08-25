@@ -8,7 +8,7 @@
   ],
   "assigned_runtime": "claude-code",
   "dependencies": [],
-  "expected_branch": "claude/required-checks-scalar-guard",
+  "expected_branch": "shiki/t-6ec39c1b-closeout",
   "expected_pr": 359,
   "github_issue": null,
   "goal_id": "G-20260824T102156523258Z-99beb382",
@@ -21,7 +21,10 @@
     "L-20260824T103441683979Z-0b098022",
     "L-20260824T103455770311Z-ab07ed22",
     "L-20260824T103455852316Z-2aac2ffb",
-    "L-20260824T103639240217Z-97f435ae"
+    "L-20260824T103639240217Z-97f435ae",
+    "L-20260825T003703483218Z-ea0c3bb4",
+    "L-20260825T003703567613Z-e0c2f3fe",
+    "L-20260825T003709500350Z-84c5f46c"
   ],
   "locks": [
     "path:scripts/shiki_config.py",
@@ -41,7 +44,7 @@
   ],
   "risk_level": "medium",
   "scope": "In both copies of configured_required_checks (scripts/shiki_config.py and scripts/mergegate_check.py ~line 1785), treat a non-list raw mergegate.required_checks as absent and fall back to the documented default instead of iterating it. Add a regression to tests/test_required_checks_derivation.py pinning the scalar shape for both copies and binding the two copies to each other across the list/absent/empty/scalar shapes.",
-  "status": "review",
+  "status": "done",
   "test_command": "python3 -m unittest discover -s tests",
   "title": "Guard configured_required_checks against a scalar mergegate.required_checks"
 }

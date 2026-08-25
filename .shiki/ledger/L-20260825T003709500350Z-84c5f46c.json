@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260825T003709474249Z-0f933dfd.json"
+  ],
+  "goal_id": "G-20260824T102156523258Z-99beb382",
+  "id": "L-20260825T003709500350Z-84c5f46c",
+  "links": [],
+  "summary": "Both copies of configured_required_checks now treat a non-list mergegate.required_checks as absent and fall back to DEFAULT_REQUIRED_CHECKS instead of iterating a scalar character by character; validate_shiki remains the loud rejector of the invalid shape and was left unchanged. Delivered by PR #359 (merged 3697faf) with CCA verdict complete.",
+  "task_id": null,
+  "timestamp": "2026-08-25T00:37:09+00:00",
+  "type": "completion"
+}
