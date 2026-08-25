@@ -1,0 +1,15 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "gh api repos/mizutani-140/shiki/branches/main/protection (before): contexts=['Validate Shiki mirror','MergeGate policy check','CCA verdict'], required_approving_review_count=0, require_code_owner_reviews=false",
+    "gh api repos/mizutani-140/shiki/branches/main/protection (after): contexts=['Validate Shiki mirror','MergeGate policy check','CCA verdict','MergeGate metadata check'], required_approving_review_count=1, require_code_owner_reviews=false",
+    "shiki doctor --json --online --target . : doctor.github.branch_protection=pass (failures: []), doctor.checks.required_checks=pass (missing: [])"
+  ],
+  "goal_id": "G-20260825T004104451522Z-beeff2a0",
+  "id": "L-20260825T005812447301Z-bddb40ff",
+  "links": [],
+  "summary": "Branch protection on main reconciled with .shiki/config.yaml. Exactly two fields changed: required contexts 3 -> 4 (added 'MergeGate metadata check') and required_approving_review_count 0 -> 1. Every other field in the protect_branch payload already matched live and was re-asserted unchanged (strict, enforce_admins, dismiss_stale_reviews, require_code_owner_reviews=false per SADR-0021, restrictions=null, required_conversation_resolution, required_linear_history, allow_force_pushes, allow_deletions). Applied by the operator from the payload derived by shiki_config.configured_required_checks / branch_protection_review_count / configured_required_code_owner_review, because the agent's permission classifier denied the live protection write. Safe to require a review: the CCA Review Bridge approved 5 of 5 recent PRs, and PR #354 demonstrated the mandatory-review cycle (review DISMISSED on push, re-APPROVED after the fresh CCA run). Residual risk recorded: enforce_admins is true, so a Review Bridge failure now blocks merges for admins too; rollback is the same payload with required_approving_review_count 0.",
+  "task_id": "T-20260825T004126853067Z-46c20058",
+  "timestamp": "2026-08-25T00:58:12.447301+00:00",
+  "type": "mergegate"
+}

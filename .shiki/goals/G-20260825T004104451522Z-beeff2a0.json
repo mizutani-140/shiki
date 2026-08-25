@@ -1,0 +1,24 @@
+{
+  "acceptance_evidence": [
+    "before/after gh api protection output and a doctor --online run showing doctor.github.branch_protection pass"
+  ],
+  "completion_conditions": [
+    "repos/mizutani-140/shiki/branches/main/protection lists all four required contexts including MergeGate metadata check.",
+    "required_approving_review_count is 1.",
+    "shiki doctor --json --online reports doctor.github.branch_protection as pass."
+  ],
+  "created_at": "2026-08-25T00:41:04+00:00",
+  "github_issue": null,
+  "id": "G-20260825T004104451522Z-beeff2a0",
+  "non_goals": [
+    "Do not enable require_code_owner_reviews; SADR-0021 makes it opt-in and .shiki/config.yaml sets required_code_owner_review: false.",
+    "Do not change any other protection field; every other field already matches the payload."
+  ],
+  "outcome": "GitHub branch protection on main enforces exactly what .shiki/config.yaml declares: the four mergegate.required_checks contexts and one approving review, so the merge gate GitHub applies matches the one Shiki's own readers apply.",
+  "required_skills": [
+    "code-review"
+  ],
+  "risk_level": "high",
+  "status": "planned",
+  "title": "Reconcile main's branch protection with .shiki/config.yaml"
+}
