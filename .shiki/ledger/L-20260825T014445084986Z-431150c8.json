@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260825T014444969904Z-e5bb04f9.json"
+  ],
+  "goal_id": "G-20260825T004104451522Z-beeff2a0",
+  "id": "L-20260825T014445084986Z-431150c8",
+  "links": [],
+  "summary": "All three completion conditions verified against live GitHub state after PR #362 merged as 3bb7c2f: main's protection lists all four configured contexts including 'MergeGate metadata check'; required_approving_review_count is 1 with require_code_owner_reviews false per SADR-0021; and shiki doctor --json --online reports doctor.github.branch_protection pass with empty failures. Guardian approval for this high-risk change was granted by mizutani-140 at head 850288a7 (label plus head-bound comment), CCA-08 passed and the CCA verdict was complete. PR #362 was also the first PR to run under the new gate and the CCA Review Bridge satisfied the newly-mandatory approving review end to end.",
+  "task_id": null,
+  "timestamp": "2026-08-25T01:44:45+00:00",
+  "type": "completion"
+}

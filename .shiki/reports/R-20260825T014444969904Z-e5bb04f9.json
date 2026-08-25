@@ -1,0 +1,51 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-08-25T01:44:44+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260825T004126853067Z-46c20058.json"
+  ],
+  "goal_id": "G-20260825T004104451522Z-beeff2a0",
+  "id": "R-20260825T014444969904Z-e5bb04f9",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "high"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 3820000,
+    "generated_at": "2026-08-25T01:44:45+00:00",
+    "goal_id": "G-20260825T004104451522Z-beeff2a0",
+    "lock_amendments": {
+      "total": 2
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 0
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard"
+    ],
+    "window": {
+      "from": "2026-08-25T00:41:04+00:00",
+      "to": "2026-08-25T01:44:44+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "All three completion conditions verified against live GitHub state after PR #362 merged as 3bb7c2f: main's protection lists all four configured contexts including 'MergeGate metadata check'; required_approving_review_count is 1 with require_code_owner_reviews false per SADR-0021; and shiki doctor --json --online reports doctor.github.branch_protection pass with empty failures. Guardian approval for this high-risk change was granted by mizutani-140 at head 850288a7 (label plus head-bound comment), CCA-08 passed and the CCA verdict was complete. PR #362 was also the first PR to run under the new gate and the CCA Review Bridge satisfied the newly-mandatory approving review end to end."
+}
