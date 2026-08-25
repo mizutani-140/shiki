@@ -1,0 +1,15 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/351"
+  ],
+  "goal_id": "G-20260824T010736685173Z-c1131b6d",
+  "id": "L-20260824T021628139634Z-e000de18",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/351"
+  ],
+  "summary": "Implementation PR #351 opened by the implementer for T-20260824T010805920471Z-ea5d7ae8: https://github.com/mizutani-140/shiki/pull/351. Branch claude/charming-chatterjee-d19a15 carries the task registration and the implementation on one commit. Opened by hand, not by the goal loop.",
+  "task_id": "T-20260824T010805920471Z-ea5d7ae8",
+  "timestamp": "2026-08-24T02:16:28+00:00",
+  "type": "handoff"
+}

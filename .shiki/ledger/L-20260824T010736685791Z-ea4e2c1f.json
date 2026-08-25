@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260824T010736685173Z-c1131b6d.json"
+  ],
+  "goal_id": "G-20260824T010736685173Z-c1131b6d",
+  "id": "L-20260824T010736685791Z-ea4e2c1f",
+  "links": [],
+  "summary": "Goal registered: Bind every blocking ISS checklist item to a field the task schema defines",
+  "task_id": null,
+  "timestamp": "2026-08-24T01:07:36+00:00",
+  "type": "goal-created"
+}

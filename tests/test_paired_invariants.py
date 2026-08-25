@@ -886,5 +886,236 @@ class Pair15ForkAndMergeBaseWorkflowEvidence(PairInvariant):
             self.assertIn("mergeBaseOid", text, workflow.name)
 
 
+# ---------------------------------------------------------------------------
+# Pair 16 — every blocking ISS row is judgeable from a field the task schema
+# defines AND both registration paths actually write.
+# ---------------------------------------------------------------------------
+class Pair16IssRowsAreBackedByTaskFields(PairInvariant):
+    """The ISS family judges the ``.shiki`` task record; its rows need real fields.
+
+    ``docs/agents/checklists.md`` titles this family "Issue / **Task** Checklist"
+    and marks every row blocking, and the CCA scores those rows against the task
+    record. So each row needs a field the record can actually carry -- otherwise
+    the row is unsatisfiable by construction and the CCA's only honest score is
+    ``insufficient_evidence``, which ``enforce_cca_verdict`` then turns into a
+    refused ``complete`` verdict.
+
+    Nothing bound the two sides, and two rows had drifted apart:
+
+      * **ISS-05** ("AFK/HITL classification is explicit") had no backing property
+        at all. Measured 2026-08-24 on Contract PR #341 (run 32677302308): the CCA
+        scored it ``insufficient_evidence`` and the enforcer refused the verdict
+        with "complete verdict contains blocking failed checklist items: ISS-05".
+        The gate was intermittent, not permanently red -- on the preceding run at
+        a different head SHA the same PR passed, because that judge scored only
+        CCA-01..CCA-12 and never reached ISS-*. That is the shape this binder
+        removes: a defect that only surfaces when a judge happens to look.
+      * **ISS-11** ("CCA checklist profile is listed") had a property the schema
+        defined but that NEITHER registration path wrote, which is why this pair
+        checks the emitted payloads and not merely the schema. A field that exists
+        only in the schema is as unsatisfiable as one that does not exist.
+
+    The relation for the id sets is SET-EQUALITY: containment alone would let a
+    new blocking ISS row be added with no backing field (the ISS-05 case), which
+    is exactly the failure this binds against.
+
+    TARGET VALIDITY: reads only shipped artifacts (``docs/agents/checklists.md``,
+    ``.shiki/schemas/task.schema.json``, ``scripts/shiki_tasks.py``), never the
+    per-record mirror.
+    """
+
+    CHECKLISTS = DOCS_AGENTS / "checklists.md"
+    TASK_SCHEMA = SCHEMAS_DIR / "task.schema.json"
+    TASKS_SOURCE = SCRIPTS_DIR / "shiki_tasks.py"
+
+    # The claim under test, stated explicitly so adding an ISS row without
+    # deciding which task field answers it is a test failure, not a silent gap.
+    ISS_TASK_FIELD = {
+        "ISS-01": "goal_id",  # links to the parent Goal
+        "ISS-02": "scope",  # the vertical slice this task cuts
+        "ISS-03": "acceptance_checks",  # concrete, checkable criteria
+        "ISS-04": "dependencies",  # blocked-by state
+        "ISS-05": "dispatch_mode",  # AFK/HITL classification
+        "ISS-06": "assigned_runtime",  # runtime assignment
+        "ISS-07": "required_skills",  # Skill Gate selections
+        "ISS-08": "risk_level",  # risk label
+        "ISS-09": "locks",  # candidate locks
+        "ISS-10": "test_command",  # verification command
+        "ISS-11": "cca_checklist_profile",  # CCA checklist profile
+    }
+
+    def blocking_iss_ids(self) -> set[str]:
+        """ISS ids whose ``Blocking`` cell is exactly ``blocking``.
+
+        Rows qualified as "blocking when applicable" are deliberately excluded:
+        the CCA may score those ``not_applicable`` on their own terms, so an
+        unbacked one cannot wedge a verdict the way an unconditional row does.
+        """
+        ids: set[str] = set()
+        for line in read_text(self.CHECKLISTS).splitlines():
+            match = re.match(r"^\|\s*(ISS-[0-9]{2})\s*\|.*\|\s*blocking\s*\|\s*$", line)
+            if match:
+                ids.add(match.group(1))
+        return ids
+
+    def schema_properties(self) -> set[str]:
+        return set(load_json(self.TASK_SCHEMA)["properties"])
+
+    def registration_payload_keys(self) -> "dict[str, set[str]]":
+        """The task-record keys each registration path writes.
+
+        Parsed from the two ``payload = {...}`` literals rather than executed, so
+        this stays a pure artifact comparison with no target-repo state.
+        ``scripts/shiki_tasks.py`` ships, so a target repo can run it.
+        """
+        source = read_text(self.TASKS_SOURCE)
+        keys: dict[str, set[str]] = {}
+        for function in ("def register_task_from_plan", "def cmd_issue_plan"):
+            self.assertIn(function, source, f"{self.TASKS_SOURCE.name}: {function} not found")
+            body = source.split(function, 1)[1]
+            self.assertIn("payload = {", body, f"{function}: no payload literal found")
+            literal = body.split("payload = {", 1)[1].split("\n    }", 1)[0]
+            keys[function.removeprefix("def ")] = set(re.findall(r'^\s+"([a-z_]+)":', literal, re.M))
+        return keys
+
+    def test_holds_blocking_rows_and_mapping_agree(self):
+        self.assert_all_equal(
+            {
+                "blocking ISS ids in docs/agents/checklists.md": self.blocking_iss_ids(),
+                "Pair16.ISS_TASK_FIELD mapping": set(self.ISS_TASK_FIELD),
+            },
+            relation=(
+                "set-equality: every unconditionally blocking ISS row must name the task "
+                "field that answers it, and the mapping must not claim rows the checklist "
+                "does not define"
+            ),
+            fix=(
+                "add the new ISS row to Pair16.ISS_TASK_FIELD together with the task field "
+                "that satisfies it (adding a field to .shiki/schemas/task.schema.json if "
+                "none fits), or drop the stale mapping entry — a blocking row with no "
+                "backing field can only ever be scored insufficient_evidence, which makes "
+                "a `complete` verdict impossible"
+            ),
+        )
+
+    def test_holds_every_mapped_field_is_defined_by_the_task_schema(self):
+        self.assert_subset(
+            set(self.ISS_TASK_FIELD.values()),
+            self.schema_properties(),
+            subset_name="task fields Pair16 maps ISS rows onto",
+            superset_name="task.schema.json properties",
+            relation=(
+                "containment: a blocking ISS row may only be answered by a property the "
+                "task schema actually defines"
+            ),
+            fix=(
+                "define the property in .shiki/schemas/task.schema.json (leave it out of "
+                "`required` unless every existing task file carries it — schema `required` "
+                "and validate_shiki.TASK_REQUIRED must be promoted together)"
+            ),
+        )
+
+    def test_holds_every_mapped_field_is_written_by_both_registration_paths(self):
+        # The ISS-11 case: cca_checklist_profile was defined by the schema and
+        # written by neither path, so a planner's declared profile reached no task
+        # file and the row was unsatisfiable despite the schema looking correct.
+        mapped = set(self.ISS_TASK_FIELD.values())
+        for function, keys in self.registration_payload_keys().items():
+            self.assert_subset(
+                mapped,
+                keys,
+                subset_name="task fields Pair16 maps ISS rows onto",
+                superset_name=f"keys shiki_tasks.{function} writes",
+                relation=(
+                    "containment: a registration path must emit every field a blocking ISS "
+                    "row is judged from, or the row is unsatisfiable on records that path "
+                    "creates"
+                ),
+                fix=(
+                    f"add the field to the payload literal in shiki_tasks.{function} "
+                    "(both registration paths must agree; they emit identical key sets)"
+                ),
+            )
+
+    def test_holds_both_registration_paths_emit_identical_key_sets(self):
+        self.assert_all_equal(
+            self.registration_payload_keys(),
+            relation=(
+                "set-equality: the two task-registration paths must write the same task "
+                "record shape, or a field is enforced only for tasks registered one way"
+            ),
+            fix="add the missing key to whichever payload literal in scripts/shiki_tasks.py lacks it",
+        )
+
+    def test_holds_dispatch_mode_vocabulary_agrees_across_its_three_sites(self):
+        """The ``afk``/``hitl`` vocabulary, wherever it is spelled out.
+
+        Same shape as Pair 6 for risk: the schema enum, the validator constant that
+        rejects an out-of-enum stored value, and the CLI choices that decide what a
+        planner may type. A site that gains a value the others lack either accepts a
+        record the schema forbids or refuses one it allows.
+        """
+        cli = read_text(SCRIPTS_DIR / "shiki_cli.py")
+        match = re.search(r'"--dispatch-mode",\s*\n\s*choices=\[([^\]]*)\]', cli)
+        self.assertIsNotNone(match, "shiki_cli.py: --dispatch-mode choices not found")
+        self.assert_all_equal(
+            {
+                "task.schema.json dispatch_mode enum": set(
+                    load_json(self.TASK_SCHEMA)["properties"]["dispatch_mode"]["enum"]
+                ),
+                "validate_shiki.DISPATCH_MODES": set(validate_shiki.DISPATCH_MODES),
+                "shiki_cli --dispatch-mode choices": set(re.findall(r'"([a-z]+)"', match.group(1))),
+            },
+            relation=(
+                "set-equality: the AFK/HITL vocabulary must be identical in task.schema.json, "
+                "validate_shiki.DISPATCH_MODES, and the shiki_cli --dispatch-mode choices"
+            ),
+            fix="add or remove the value at every site — a value accepted by one and rejected by another is unusable",
+        )
+
+    def test_divergence_is_detected(self):
+        # An unbacked blocking row — the ISS-05 defect — must fail the mapping pair.
+        with self.assertRaises(AssertionError):
+            self.assert_all_equal(
+                {
+                    "blocking ISS ids": self.blocking_iss_ids() | {"ISS-12"},
+                    "mapping": set(self.ISS_TASK_FIELD),
+                },
+                relation="set-equality",
+                fix="n/a",
+            )
+        # A mapped field the schema does not define must fail the schema pair.
+        with self.assertRaises(AssertionError):
+            self.assert_subset(
+                set(self.ISS_TASK_FIELD.values()) | {MUTANT},
+                self.schema_properties(),
+                subset_name="mapped fields",
+                superset_name="schema properties",
+                relation="containment",
+                fix="n/a",
+            )
+        # A mapped field a registration path drops — the ISS-11 defect — must
+        # fail the emission pair even while the schema still defines it.
+        with self.assertRaises(AssertionError):
+            self.assert_subset(
+                set(self.ISS_TASK_FIELD.values()),
+                self.registration_payload_keys()["register_task_from_plan"] - {"locks"},
+                subset_name="mapped fields",
+                superset_name="written keys",
+                relation="containment",
+                fix="n/a",
+            )
+        # A vocabulary site that drifts must fail the dispatch_mode pair.
+        with self.assertRaises(AssertionError):
+            self.assert_all_equal(
+                {
+                    "schema enum": set(load_json(self.TASK_SCHEMA)["properties"]["dispatch_mode"]["enum"]),
+                    "validator": set(validate_shiki.DISPATCH_MODES) | {MUTANT},
+                },
+                relation="set-equality",
+                fix="n/a",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
