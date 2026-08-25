@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-08-25T00:41:40+00:00",
+  "goal_id": "G-20260825T004104451522Z-beeff2a0",
+  "locks": [
+    "path:.shiki/ledger/**"
+  ],
+  "owner": "shiki-cli",
+  "state": "active",
+  "task_id": "T-20260825T004126853067Z-46c20058"
+}

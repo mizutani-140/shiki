@@ -1,0 +1,13 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    ".shiki/ledger/L-20260825T005812447301Z-bddb40ff.json"
+  ],
+  "goal_id": "G-20260825T004104451522Z-beeff2a0",
+  "id": "L-20260825T010140209855Z-0861cd92",
+  "links": [],
+  "summary": "Pre-PR code-review skill gate run at low effort over the diff: 0 findings. The diff is 8 added .shiki records and no executable code, so there is no runtime-correctness surface. Reviewed that the recorded before/after protection state matches the two gh api reads captured either side of the change, and that the doctor --online result quoted in the evidence ledger is the one this task actually produced.",
+  "task_id": "T-20260825T004126853067Z-46c20058",
+  "timestamp": "2026-08-25T01:01:40.209855+00:00",
+  "type": "review"
+}

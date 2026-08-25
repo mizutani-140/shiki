@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260825T004104451522Z-beeff2a0.json"
+  ],
+  "goal_id": "G-20260825T004104451522Z-beeff2a0",
+  "id": "L-20260825T004104452130Z-8e4b1794",
+  "links": [],
+  "summary": "Goal registered: Reconcile main's branch protection with .shiki/config.yaml",
+  "task_id": null,
+  "timestamp": "2026-08-25T00:41:04+00:00",
+  "type": "goal-created"
+}

@@ -1,0 +1,38 @@
+{
+  "acceptance_checks": [
+    "gh api repos/mizutani-140/shiki/branches/main/protection lists all four configured contexts",
+    "required_approving_review_count is 1 and require_code_owner_reviews is false",
+    "shiki doctor --json --online reports doctor.github.branch_protection pass"
+  ],
+  "assigned_runtime": "claude-code",
+  "cca_checklist_profile": [],
+  "dependencies": [],
+  "expected_branch": "shiki/partb-protection-reconcile",
+  "expected_pr": null,
+  "github_issue": null,
+  "goal_id": "G-20260825T004104451522Z-beeff2a0",
+  "id": "T-20260825T004126853067Z-46c20058",
+  "ledger_evidence": [
+    "L-20260825T004104452130Z-8e4b1794",
+    "L-20260825T004126853248Z-dba87a86",
+    "L-20260825T004140684752Z-8f5b66c8",
+    "L-20260825T005812447301Z-bddb40ff",
+    "L-20260825T010140209855Z-0861cd92",
+    "L-20260825T005356929953Z-d4cacab1"
+  ],
+  "locks": [
+    "path:.shiki/ledger/**"
+  ],
+  "non_goals": [
+    "Do not enable require_code_owner_reviews.",
+    "Do not change scripts, tests, workflows or .shiki/config.yaml."
+  ],
+  "required_skills": [
+    "code-review"
+  ],
+  "risk_level": "high",
+  "scope": "Call shiki_github.protect_branch for mizutani-140/shiki main with configured_required_checks and branch_protection_review_count derived from .shiki/config.yaml, so the live gate matches the declared one. Changes exactly two fields: required contexts 3 -> 4 (adds MergeGate metadata check) and required_approving_review_count 0 -> 1. Records before/after protection state and a doctor --online verification as ledger evidence.",
+  "status": "review",
+  "test_command": "python3 -m unittest discover -s tests",
+  "title": "Apply the configured branch-protection payload to main"
+}
