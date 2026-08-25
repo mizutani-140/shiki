@@ -1,0 +1,25 @@
+{
+  "acceptance_evidence": [
+    "Test counts before and after, captured in the ledger"
+  ],
+  "completion_conditions": [
+    "test_mergegate_required_checks_fall_back_to_defaults no longer exists in tests/test_config_loading.py.",
+    "Its binding on mergegate_check's own DEFAULT_REQUIRED_CHECKS is preserved by an explicit assertion in the derivation file.",
+    "python3 -m unittest discover -s tests passes with a net test count consistent with the move."
+  ],
+  "created_at": "2026-08-25T00:49:05+00:00",
+  "github_issue": null,
+  "id": "G-20260825T004905362633Z-f38a32b6",
+  "non_goals": [
+    "No source change under scripts/; this is test-only.",
+    "Do not move the load_shiki_config parity or configured_required_review tests; those are config-loading concerns, not required-checks derivation.",
+    "Do not weaken coverage: nothing the removed test asserted may become unasserted."
+  ],
+  "outcome": "All coverage of configured_required_checks' fallback behaviour lives in tests/test_required_checks_derivation.py, the file whose docstring already names it the canonical home; tests/test_config_loading.py keeps only config-parsing and review-policy coverage, with no loss of what its removed test bound.",
+  "required_skills": [
+    "code-review"
+  ],
+  "risk_level": "low",
+  "status": "planned",
+  "title": "Consolidate required-checks fallback coverage into one test file"
+}

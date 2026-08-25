@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/goals/G-20260825T004905362633Z-f38a32b6.json"
+  ],
+  "goal_id": "G-20260825T004905362633Z-f38a32b6",
+  "id": "L-20260825T004905363982Z-385ca0db",
+  "links": [],
+  "summary": "Goal registered: Consolidate required-checks fallback coverage into one test file",
+  "task_id": null,
+  "timestamp": "2026-08-25T00:49:05+00:00",
+  "type": "goal-created"
+}

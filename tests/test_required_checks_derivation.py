@@ -6,6 +6,12 @@ by bootstrap/init to configure GitHub branch protection. These tests prove:
 - the hard-coded DEFAULT_REQUIRED_CHECKS is used ONLY as a documented fallback when
   the target has no `mergegate.required_checks` (missing or empty);
 - the `shiki init`/`bootstrap-platform` CLI no longer hard-codes the defaults.
+
+This file owns the DIRECT fallback coverage of both `configured_required_checks`
+copies -- `shiki_config`'s and `mergegate_check`'s. tests/test_config_loading.py owns
+the config parser and the review-policy rules, and its
+`DoctorReadsPolicyThroughConfigTests` exercises the same fallback indirectly through
+doctor's branch-protection finding; change the rule and both files must be re-run.
 """
 
 from __future__ import annotations
@@ -125,6 +131,16 @@ class RequiredChecksCopiesAgreeTests(unittest.TestCase):
                     shiki_config.configured_required_checks(target, DEFAULT_REQUIRED_CHECKS),
                     expected,
                 )
+
+    def test_mergegate_default_is_the_shared_contract_constant(self) -> None:
+        """`mergegate_check` must fall back to the SAME default, not a private one.
+
+        The rows below compare against `shiki_contracts.DEFAULT_REQUIRED_CHECKS`;
+        this pins that `mergegate_check` has not grown a copy of its own, which is
+        what the old `test_mergegate_required_checks_fall_back_to_defaults` in
+        tests/test_config_loading.py bound before that coverage moved here.
+        """
+        self.assertIs(mergegate_check.DEFAULT_REQUIRED_CHECKS, DEFAULT_REQUIRED_CHECKS)
 
     def test_mergegate_copy_matches_expected_value(self) -> None:
         for label, body, expected in REQUIRED_CHECKS_SHAPES:
