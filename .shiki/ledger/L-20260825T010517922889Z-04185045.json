@@ -1,0 +1,16 @@
+{
+  "actor": "claude-code",
+  "evidence": [
+    "https://github.com/mizutani-140/shiki/pull/363",
+    ".shiki/tasks/T-20260825T004915561311Z-c16b7f48.json"
+  ],
+  "goal_id": "G-20260825T004905362633Z-f38a32b6",
+  "id": "L-20260825T010517922889Z-04185045",
+  "links": [
+    "https://github.com/mizutani-140/shiki/pull/363"
+  ],
+  "summary": "Closeout PR opened: https://github.com/mizutani-140/shiki/pull/363 carries the bookkeeping for T-20260825T004915561311Z-c16b7f48 -- task status done, declared locks released, goal scorecard written. expected_pr repointed to 363 and expected_branch to shiki/t-c16b7f48-closeout. The PR contains no source change: `git diff origin/main...HEAD -- scripts/ tests/` is empty. `python3 scripts/validate_shiki.py` exits 0.",
+  "task_id": "T-20260825T004915561311Z-c16b7f48",
+  "timestamp": "2026-08-25T01:05:17.922889+00:00",
+  "type": "lock"
+}

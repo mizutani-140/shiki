@@ -10,7 +10,7 @@
   "dependencies": [],
   "dispatch_mode": "afk",
   "expected_branch": "shiki/t-c16b7f48-closeout",
-  "expected_pr": 361,
+  "expected_pr": 363,
   "github_issue": null,
   "goal_id": "G-20260825T004905362633Z-f38a32b6",
   "id": "T-20260825T004915561311Z-c16b7f48",
@@ -25,7 +25,8 @@
     "L-20260825T005442676132Z-0d41bd45",
     "L-20260825T010438184040Z-60285219",
     "L-20260825T010438269022Z-1565570d",
-    "L-20260825T010438384305Z-dc0440f0"
+    "L-20260825T010438384305Z-dc0440f0",
+    "L-20260825T010517922889Z-04185045"
   ],
   "locks": [
     "path:tests/test_config_loading.py",
