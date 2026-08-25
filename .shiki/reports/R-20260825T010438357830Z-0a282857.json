@@ -1,0 +1,51 @@
+{
+  "blocking_reasons": [],
+  "created_at": "2026-08-25T01:04:38+00:00",
+  "evidence": [
+    ".shiki/tasks/T-20260825T004915561311Z-c16b7f48.json"
+  ],
+  "goal_id": "G-20260825T004905362633Z-f38a32b6",
+  "id": "R-20260825T010438357830Z-0a282857",
+  "mergegate": {
+    "checks": "pass",
+    "dependencies": "pass",
+    "ledger": "pass",
+    "locks": "pass",
+    "review": "recorded",
+    "risk": "low"
+  },
+  "scorecard": {
+    "cca_reruns": {
+      "total": 0
+    },
+    "duration_ms": 933000,
+    "generated_at": "2026-08-25T01:04:38+00:00",
+    "goal_id": "G-20260825T004905362633Z-f38a32b6",
+    "lock_amendments": {
+      "total": 2
+    },
+    "loop_stops": {
+      "by_reason": {},
+      "total": 0
+    },
+    "repairs": {
+      "by_area": {},
+      "total": 0
+    },
+    "suggestions": [],
+    "tasks": {
+      "completed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "warnings": [
+      "loop_stops are captured as raw memories and are not counted by the ledger-only scorecard"
+    ],
+    "window": {
+      "from": "2026-08-25T00:49:05+00:00",
+      "to": "2026-08-25T01:04:38+00:00"
+    }
+  },
+  "status": "complete",
+  "summary": "All direct coverage of configured_required_checks' fallback now lives in tests/test_required_checks_derivation.py; test_config_loading.py retains the config parser, review-policy rules and doctor's end-to-end consumption, with both docstrings stating the boundary. Delivered by PR #361 (merged 024dc47) as a pure relocation: 29 tests before and after, full suite 1236 OK on both sides."
+}

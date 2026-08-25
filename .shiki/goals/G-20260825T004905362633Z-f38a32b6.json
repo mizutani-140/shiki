@@ -10,6 +10,9 @@
   "created_at": "2026-08-25T00:49:05+00:00",
   "github_issue": null,
   "id": "G-20260825T004905362633Z-f38a32b6",
+  "ledger_evidence": [
+    "L-20260825T010438384305Z-dc0440f0"
+  ],
   "non_goals": [
     "No source change under scripts/; this is test-only.",
     "Do not move the load_shiki_config parity or configured_required_review tests; those are config-loading concerns, not required-checks derivation.",
@@ -20,6 +23,6 @@
     "code-review"
   ],
   "risk_level": "low",
-  "status": "planned",
+  "status": "complete",
   "title": "Consolidate required-checks fallback coverage into one test file"
 }

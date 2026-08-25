@@ -1,0 +1,13 @@
+{
+  "actor": "shiki-cli",
+  "evidence": [
+    ".shiki/reports/R-20260825T010438357830Z-0a282857.json"
+  ],
+  "goal_id": "G-20260825T004905362633Z-f38a32b6",
+  "id": "L-20260825T010438384305Z-dc0440f0",
+  "links": [],
+  "summary": "All direct coverage of configured_required_checks' fallback now lives in tests/test_required_checks_derivation.py; test_config_loading.py retains the config parser, review-policy rules and doctor's end-to-end consumption, with both docstrings stating the boundary. Delivered by PR #361 (merged 024dc47) as a pure relocation: 29 tests before and after, full suite 1236 OK on both sides.",
+  "task_id": null,
+  "timestamp": "2026-08-25T01:04:38+00:00",
+  "type": "completion"
+}
